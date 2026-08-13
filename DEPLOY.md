@@ -94,6 +94,27 @@ Code same — only `.env` alag.
 
 ---
 
+## 5) Troubleshooting live
+
+### CSS missing / plain HTML / links go to `/armor_new_hrms/...`
+**Cause:** Live `.env` ma local values copy thai gaya.
+
+Server `.env` aa rite hova joiye:
+```
+APP_ENV=production
+APP_URL=https://armor-hrms.oceanhub.co.in
+APP_BASE_PATH=
+```
+
+- Open **https://armor-hrms.oceanhub.co.in/** (NOT `/armor_new_hrms/`)
+- `.env` save pachi browser hard refresh: `Ctrl+F5`
+- Latest code: `git pull origin main` (production subdomain auto-fix included)
+
+### 404 on `/armor_new_hrms/`
+Live par aa folder nathi — subdomain root j use karo.
+
+---
+
 ## 4) Safe update habit
 1. Local test
 2. `git push origin main`

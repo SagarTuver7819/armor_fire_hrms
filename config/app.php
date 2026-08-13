@@ -28,13 +28,14 @@ if (!defined('APP_URL')) {
  *  2) Auto-detect from SCRIPT_NAME
  */
 if (!defined('APP_BASE')) {
+    $base = '';
+
     // If .env defines APP_BASE_PATH (even empty), prefer it
     if (array_key_exists('APP_BASE_PATH', $_ENV) || getenv('APP_BASE_PATH') !== false) {
         $base = rtrim(str_replace('\\', '/', (string) env('APP_BASE_PATH', '')), '/');
         if ($base === '/' || $base === '\\' || $base === '.') {
             $base = '';
         }
-        define('APP_BASE', $base);
     } else {
         $scriptName = str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'] ?? ''));
 
@@ -52,9 +53,21 @@ if (!defined('APP_BASE')) {
         if ($base === '' || $base === '\\' || $base === '.') {
             $base = '';
         }
-
-        define('APP_BASE', $base);
     }
+
+    /**
+     * Live subdomain safety:
+     * If APP_URL is domain root (no /path), force empty base.
+     * Prevents broken CSS/links when local APP_BASE_PATH=/armor_new_hrms is copied to live.
+     */
+    if (isProduction() && defined('APP_URL') && APP_URL !== '') {
+        $urlPath = parse_url(APP_URL, PHP_URL_PATH);
+        if ($urlPath === null || $urlPath === '' || $urlPath === '/') {
+            $base = '';
+        }
+    }
+
+    define('APP_BASE', $base);
 }
 
 /**
