@@ -1,98 +1,110 @@
-# Armor Fire HRMS — Git + Live (Subdomain) Setup
+# Armor Fire HRMS — Git + Live Deploy
 
-## 1) Pehla repository ma add karo (local)
+**Live subdomain:** https://armor-hrms.oceanhub.co.in/  
+**GitHub:** https://github.com/SagarTuver7819/armor_fire_hrms
+
+---
+
+## 1) Local → GitHub push
 
 ```bash
 cd c:\xampp\htdocs\armor_new_hrms
-
-# Agar pehli var git nathi
-git init
 git add .
 git status
-git commit -m "Initial Armor Fire HRMS - Core PHP manufacturing HRMS"
-
-# GitHub / GitLab pe empty repo banavi ne:
-git remote add origin https://github.com/YOUR_ORG/armor_new_hrms.git
-git branch -M main
-git push -u origin main
+git commit -m "Your message"
+git push origin main
 ```
 
 Important:
-- `.env` git ma **nai** jase (`.gitignore` ma che)
-- Repo ma `.env.example` jase — team/live e copy kari ne values bhare
-
-Local `.env` already example jevu:
-```
-APP_ENV=local
-APP_URL=http://localhost/armor_new_hrms
-APP_BASE_PATH=/armor_new_hrms
-DB_HOST=localhost
-DB_NAME=armor_hrms
-DB_USER=root
-DB_PASS=
-```
+- `.env` git ma **nai** jase
+- Live pe alag `.env` banavo
 
 ---
 
-## 2) Live subdomain (example: hrms.armorfire.com)
+## 2) Live deploy — armor-hrms.oceanhub.co.in
 
-### A. Hosting / cPanel
-1. Subdomain banavo: `hrms.yourdomain.com`
-2. Document root = project folder (jya `index.php` che)
-3. PHP 8.0+ enable karo
-4. MySQL database + user create karo
-5. `sql/hrms_database.sql` + `sql/employees.sql` + `sql/masters.sql` import karo  
-   (athva phpMyAdmin ma run)  
-6. Seed optional: browser/CLI thi `sql/seed_masters.php` (test data)
+### A. cPanel / Hosting
+1. Subdomain confirm: `armor-hrms.oceanhub.co.in`
+2. Document root = project folder (jya `index.php` che) — subdomain **root**, subfolder nahi
+3. PHP **8.0+** enable
+4. MySQL database + user create (note: DB name, user, password)
+5. phpMyAdmin ma import:
+   - `sql/hrms_database.sql`
+   - `sql/employees.sql`
+   - `sql/masters.sql`
+6. Optional seed (test data): browser thi `sql/seed_masters.php` / `sql/seed_employees.php` (pachi delete kari do)
 
-### B. Code upload
-- Git pull on server **or** ZIP upload
-- Folder structure same rakho
+### B. Code upload (ek method choose karo)
 
-### C. Live `.env` (server pe)
+**Option 1 — Git (best)**
+```bash
+cd /home/USER/armor-hrms.oceanhub.co.in   # your document root
+git clone https://github.com/SagarTuver7819/armor_fire_hrms.git .
+# next updates:
+git pull origin main
+```
+
+**Option 2 — ZIP**
+- GitHub → Code → Download ZIP
+- cPanel File Manager → extract in subdomain document root
+
+### C. Live `.env` (server pe create karo)
+
 ```
 APP_ENV=production
-APP_URL=https://hrms.yourdomain.com
+APP_URL=https://armor-hrms.oceanhub.co.in
 APP_BASE_PATH=
 DB_HOST=localhost
 DB_PORT=3306
-DB_NAME=your_live_db
-DB_USER=your_live_user
-DB_PASS=your_strong_password
+DB_NAME=your_live_db_name
+DB_USER=your_live_db_user
+DB_PASS=your_live_db_password
 APP_TIMEZONE=Asia/Kolkata
 ```
 
-`APP_BASE_PATH=` empty = subdomain root (recommended).
+`APP_BASE_PATH=` **empty** rakho (subdomain root mate).
 
 ### D. Permissions
 ```
-assets/uploads/logo/   → writable (755 or 775)
+assets/uploads/
+assets/uploads/logo/
 ```
+→ writable (`755` or `775`)
 
-### E. Check
-- Open `https://hrms.yourdomain.com`
-- Login admin
-- Dashboard boxes → department → employee list
-- Masters CRUD open thay
+### E. Login check
+- Open: https://armor-hrms.oceanhub.co.in/
+- Admin: `admin` / `password123`
+- HR: `hr` / `password123`
+- Dashboard → Department → Employees / Masters
+
+**Live pe password turat change kari lo.**
 
 ---
 
-## 3) Local vs Live same code
+## 3) Local vs Live
 
 | Item | Local | Live |
 |------|-------|------|
-| Code | same git repo | same git repo |
-| Config | `.env` | alag `.env` |
-| URL base | `/armor_new_hrms` | empty (subdomain) |
-| DB | XAMPP root | hosting DB user |
+| URL | http://localhost/armor_new_hrms | https://armor-hrms.oceanhub.co.in |
+| APP_BASE_PATH | `/armor_new_hrms` | *(empty)* |
+| DB | XAMPP `armor_hrms` | hosting DB |
+| Config | local `.env` | live `.env` |
 
-Code change nathi — only `.env` change.
+Code same — only `.env` alag.
 
 ---
 
-## 4) Safe deploy habit
+## 4) Safe update habit
 1. Local test
-2. `git add` / `commit` / `push`
-3. Server pe `git pull`
-4. `.env` touch nathi (server ni file as-is)
-5. Agar SQL change hoy to migration/sql manually run
+2. `git push origin main`
+3. Server: `git pull origin main`
+4. Live `.env` touch nathi
+5. SQL change hoy to phpMyAdmin ma manually run
+6. Agar `hr` role missing hoy:
+
+```sql
+ALTER TABLE users MODIFY role ENUM('admin','hr','employee') NOT NULL DEFAULT 'hr';
+INSERT INTO users (username, password, full_name, role, department_id, status)
+VALUES ('hr', 'password123', 'HR Manager', 'hr', 2, 1)
+ON DUPLICATE KEY UPDATE role='hr', password='password123';
+```

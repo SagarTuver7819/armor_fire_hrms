@@ -1,5 +1,5 @@
 /**
- * Professional Login Interactions
+ * Admin / HR Login — interactions
  */
 (function () {
     var form = document.getElementById('loginForm');
@@ -8,7 +8,6 @@
     var password = document.getElementById('password');
     var username = document.getElementById('username');
 
-    // Show / hide password
     if (toggle && password) {
         toggle.addEventListener('click', function () {
             var show = password.type === 'password';
@@ -20,19 +19,17 @@
         });
     }
 
-    // Loading state on submit
     if (form && btn) {
         form.addEventListener('submit', function () {
             btn.classList.add('is-loading');
-            var text = btn.querySelector('.lp-submit-text');
-            var load = btn.querySelector('.lp-submit-load');
+            var text = btn.querySelector('.login-btn-text');
+            var load = btn.querySelector('.login-btn-load');
             if (text) text.hidden = true;
             if (load) load.hidden = false;
         });
     }
 
-    // One-click demo credentials
-    document.querySelectorAll('.lp-demo-btn').forEach(function (el) {
+    document.querySelectorAll('.login-demo-chip').forEach(function (el) {
         el.addEventListener('click', function () {
             var user = el.getAttribute('data-user');
             var pass = el.getAttribute('data-pass');
@@ -49,34 +46,12 @@
             var radio = document.querySelector('input[name="login_as"][value="' + role + '"]');
             if (radio) radio.checked = true;
 
-            el.style.transform = 'scale(0.97)';
-            setTimeout(function () { el.style.transform = ''; }, 150);
+            el.style.transform = 'scale(0.95)';
+            setTimeout(function () { el.style.transform = ''; }, 180);
         });
     });
 
-    // Count-up for departments
-    var counter = document.querySelector('[data-count]');
-    if (counter) {
-        var target = parseInt(counter.getAttribute('data-count'), 10) || 0;
-        var current = 0;
-        var step = Math.max(1, Math.ceil(target / 28));
-        var timer = setInterval(function () {
-            current += step;
-            if (current >= target) {
-                current = target;
-                clearInterval(timer);
-            }
-            counter.textContent = String(current);
-        }, 40);
+    if (username && !username.value) {
+        setTimeout(function () { username.focus(); }, 500);
     }
-
-    // Soft focus class
-    document.querySelectorAll('.lp-input input').forEach(function (input) {
-        input.addEventListener('focus', function () {
-            input.parentElement.classList.add('is-focused');
-        });
-        input.addEventListener('blur', function () {
-            input.parentElement.classList.remove('is-focused');
-        });
-    });
 })();

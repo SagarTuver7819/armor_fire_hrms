@@ -20,14 +20,14 @@ CREATE TABLE IF NOT EXISTS departments (
 ) ENGINE=InnoDB;
 
 -- -----------------------------------------------------
--- Table: users (Admin / Employee login)
+-- Table: users (Admin / HR login portals)
 -- -----------------------------------------------------
 CREATE TABLE IF NOT EXISTS users (
     id INT AUTO_INCREMENT PRIMARY KEY,
     username VARCHAR(50) NOT NULL UNIQUE,
     password VARCHAR(255) NOT NULL,
     full_name VARCHAR(100) NOT NULL,
-    role ENUM('admin', 'employee') NOT NULL DEFAULT 'employee',
+    role ENUM('admin', 'hr', 'employee') NOT NULL DEFAULT 'hr',
     department_id INT NULL,
     status TINYINT(1) NOT NULL DEFAULT 1 COMMENT '1=Active, 0=Inactive',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -96,6 +96,4 @@ ON DUPLICATE KEY UPDATE id = id;
 -- -----------------------------------------------------
 INSERT INTO users (username, password, full_name, role, department_id, status) VALUES
 ('admin', 'password123', 'System Admin', 'admin', 1, 1),
-('hr.admin', 'password123', 'HR Administrator', 'admin', 2, 1),
-('emp001', 'password123', 'Rahul Sharma', 'employee', 2, 1),
-('emp002', 'password123', 'Priya Patel', 'employee', 12, 1);
+('hr', 'password123', 'HR Manager', 'hr', 2, 1);
