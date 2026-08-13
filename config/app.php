@@ -56,14 +56,29 @@ if (!defined('APP_BASE')) {
     }
 
     /**
-     * Live subdomain safety:
-     * If APP_URL is domain root (no /path), force empty base.
-     * Prevents broken CSS/links when local APP_BASE_PATH=/armor_new_hrms is copied to live.
+     * Live host safety (even if .env still has local values):
+     * Drop XAMPP folder prefix when NOT running on localhost.
      */
-    if (isProduction() && defined('APP_URL') && APP_URL !== '') {
-        $urlPath = parse_url(APP_URL, PHP_URL_PATH);
-        if ($urlPath === null || $urlPath === '' || $urlPath === '/') {
+    $httpHost = strtolower((string) ($_SERVER['HTTP_HOST'] ?? ''));
+    $hostName = preg_replace('/:\d+$/', '', $httpHost);
+    $isLocalHost = (
+        $hostName === 'localhost'
+        || $hostName === '127.0.0.1'
+        || strpos($httpHost, 'localhost:') === 0
+        || strpos($httpHost, '127.0.0.1:') === 0
+    );
+
+    if (!$isLocalHost) {
+        if ($base === '/armor_new_hrms') {
             $base = '';
+        }
+        if (defined('APP_URL') && APP_URL !== '') {
+            $urlHost = parse_url(APP_URL, PHP_URL_HOST);
+            $urlPath = parse_url(APP_URL, PHP_URL_PATH);
+            if ($urlHost && strcasecmp($urlHost, $hostName) === 0
+                && ($urlPath === null || $urlPath === '' || $urlPath === '/')) {
+                $base = '';
+            }
         }
     }
 
