@@ -1,0 +1,153 @@
+/* Employee Information Form - Print / PDF Styles */
+
+* { box-sizing: border-box; }
+
+.pdf-body {
+    margin: 0;
+    background: #e5e7eb;
+    font-family: "Roboto", "Noto Sans Devanagari", Arial, sans-serif;
+    color: #111;
+}
+
+.lang-hi .pdf-sheet,
+.lang-hi .pdf-toolbar {
+    font-family: "Noto Sans Devanagari", "Roboto", Arial, sans-serif;
+}
+
+.pdf-toolbar {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 18px;
+    background: #111;
+    color: #fff;
+}
+
+.tb-right { display: flex; gap: 8px; flex-wrap: wrap; }
+
+.tb-btn {
+    display: inline-flex;
+    align-items: center;
+    padding: 8px 14px;
+    border-radius: 8px;
+    background: #333;
+    color: #fff;
+    text-decoration: none;
+    border: 0;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.tb-btn.active { background: #F58220; }
+.tb-btn.primary { background: #F58220; }
+
+.pdf-sheet {
+    width: 210mm;
+    min-height: 297mm;
+    margin: 18px auto;
+    background: #fff;
+    padding: 16mm 14mm;
+    box-shadow: 0 8px 30px rgba(0,0,0,0.12);
+}
+
+.pdf-head {
+    text-align: center;
+    margin-bottom: 14px;
+    position: relative;
+}
+
+.pdf-company {
+    font-size: 18px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+}
+
+.pdf-title {
+    margin-top: 4px;
+    font-size: 15px;
+    font-weight: 700;
+    text-decoration: underline;
+}
+
+.pdf-form {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12.5px;
+}
+
+.pdf-form td {
+    border: 1px solid #222;
+    padding: 7px 8px;
+    vertical-align: top;
+}
+
+.pdf-form .no {
+    width: 36px;
+    text-align: center;
+    font-weight: 700;
+}
+
+.pdf-form .label {
+    width: 38%;
+    font-weight: 600;
+}
+
+.pdf-form .val {
+    min-height: 28px;
+}
+
+.pdf-form .code-row td {
+    background: #fff8f0;
+}
+
+.pdf-form .code-row .val {
+    font-size: 13px;
+}
+
+.uline {
+    display: inline-block;
+    min-width: 140px;
+    border-bottom: 1px solid #333;
+    padding: 0 4px;
+}
+
+.pdf-declare {
+    margin-top: 16px;
+    font-size: 12px;
+    line-height: 1.55;
+    text-align: justify;
+}
+
+.pdf-signs {
+    margin-top: 40px;
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 20px;
+    text-align: center;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.sig-line {
+    border-top: 1px solid #111;
+    margin: 0 10px 8px;
+    height: 36px;
+}
+
+@media print {
+    .no-print { display: none !important; }
+    .pdf-body { background: #fff; }
+    .pdf-sheet {
+        margin: 0;
+        box-shadow: none;
+        width: auto;
+        min-height: auto;
+        padding: 8mm;
+    }
+}

@@ -1,0 +1,57 @@
+# =====================================================
+# Armor Fire HRMS - Git Ignore
+# Keep secrets & local junk out of repository
+# =====================================================
+
+# Environment / secrets (NEVER commit real passwords)
+.env
+.env.local
+.env.production
+.env.*.local
+
+# OS / editor
+.DS_Store
+Thumbs.db
+Desktop.ini
+*.swp
+*.swo
+.idea/
+.vscode/
+*.code-workspace
+
+# Logs & temp
+*.log
+logs/
+tmp/
+temp/
+cache/
+
+# Uploaded user files (keep folder, ignore contents)
+assets/uploads/logo/*
+!assets/uploads/logo/.gitkeep
+assets/uploads/*
+!assets/uploads/.gitkeep
+!assets/uploads/logo/
+!assets/uploads/logo/.gitkeep
+
+# Composer / vendor (if added later)
+/vendor/
+composer.lock
+
+# Node (if added later)
+/node_modules/
+npm-debug.log*
+
+# Local dumps / backups
+*.sql.gz
+*.zip
+/backups/
+/sql/*_backup*.sql
+
+# PHPUnit / coverage
+/coverage/
+.phpunit.result.cache
+
+# Cursor / agent local
+.cursor/
+agent-transcripts/
