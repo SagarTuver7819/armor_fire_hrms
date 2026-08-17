@@ -36,10 +36,19 @@ require_once __DIR__ . '/../config/app.php';
     <?php if (!empty($useSidebar)): ?>
         <script src="<?php echo app_url('assets/js/sidebar.js'); ?>"></script>
     <?php endif; ?>
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/js/select2.min.js"></script>
     <?php if (!empty($extraJs) && is_array($extraJs)): ?>
         <?php foreach ($extraJs as $js): ?>
+            <?php
+            // jQuery already loaded globally above — skip duplicates
+            if (strpos($js, 'jquery') !== false && strpos($js, 'dataTables') === false) {
+                continue;
+            }
+            ?>
             <script src="<?php echo htmlspecialchars((strpos($js, 'http') === 0) ? $js : app_url($js)); ?>"></script>
         <?php endforeach; ?>
     <?php endif; ?>
+    <script src="<?php echo app_url('assets/js/select2_init.js'); ?>"></script>
 </body>
 </html>

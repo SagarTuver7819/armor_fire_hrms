@@ -70,6 +70,9 @@ $addUrl = app_url('employees/edit.php' . ($deptId > 0 ? ('?department_id=' . $de
                     <i class="fa-solid fa-users"></i> All Employees
                 </a>
             <?php endif; ?>
+            <a href="<?php echo htmlspecialchars(app_url('employees/export_excel.php') . ($deptId > 0 ? ('?department_id=' . $deptId) : '')); ?>" class="btn-secondary">
+                <i class="fa-solid fa-file-excel"></i> Excel
+            </a>
             <?php if ($deptId > 0): ?>
                 <a href="<?php echo htmlspecialchars($addUrl); ?>" class="btn-primary">
                     <i class="fa-solid fa-plus"></i> Add Employee
@@ -102,6 +105,7 @@ $addUrl = app_url('employees/edit.php' . ($deptId > 0 ? ('?department_id=' . $de
                         <?php if ($isAllReport): ?>
                             <th>Department</th>
                         <?php endif; ?>
+                        <th>Type</th>
                         <th>Designation</th>
                         <th>Mobile</th>
                         <th>Joining Date</th>

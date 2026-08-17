@@ -6,6 +6,7 @@
 
 require_once __DIR__ . '/config/app.php';
 require_once __DIR__ . '/config/database.php';
+require_once __DIR__ . '/includes/masters_config.php';
 
 $pageTitle = 'Dashboard';
 require_once __DIR__ . '/includes/header.php';
@@ -49,7 +50,7 @@ $conn->close();
                     <i class="fa-solid fa-cubes"></i>
                 </div>
                 <div class="module-label">All Masters</div>
-                <div class="module-meta">10 Masters · CRUD</div>
+                <div class="module-meta"><?php echo count(getMastersConfig()); ?> Masters · CRUD</div>
             </a>
         </div>
     </section>

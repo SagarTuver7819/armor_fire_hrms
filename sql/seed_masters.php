@@ -68,6 +68,14 @@ INSERT INTO holidays (title, holiday_type, holiday_date, week_day, remarks, stat
 ('Weekly Off Saturday', 'Week-Off', NULL, 'Saturday', 'Alternate week off', 1);
 ", 'Holidays');
 
+seedIfEmpty($conn, 'salary_slabs', "
+INSERT INTO salary_slabs (code, slab_name, min_amount, max_amount, monthly_salary, remarks, status) VALUES
+('JW1', 'Jobwork Slab A', 0, 5000, 4500, 'Low output', 1),
+('JW2', 'Jobwork Slab B', 5000.01, 10000, 8500, 'Medium output', 1),
+('JW3', 'Jobwork Slab C', 10000.01, 20000, 16000, 'High output', 1),
+('JW4', 'Jobwork Slab D', 20000.01, 999999, 24000, 'Very high output', 1);
+", 'Salary Slabs');
+
 seedIfEmpty($conn, 'salary_components', "
 INSERT INTO salary_components (code, component_name, component_type, calculation, default_value, status) VALUES
 ('BASIC', 'Basic Salary', 'Earning', 'Fixed', 10000, 1),

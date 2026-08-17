@@ -164,10 +164,21 @@ $openMasters = ($sidebarMode === 'masters' || $sidebarActive === 'hub' || isset(
                         <i class="fa-solid fa-user-plus"></i>
                         <span>Join Employee</span>
                     </a>
-                    <span class="sidebar-link disabled" title="Coming soon">
+                    <a href="<?php echo app_url('payroll/diary.php?department_id=' . $sidebarDeptId); ?>"
+                       class="sidebar-link <?php echo $sidebarActive === 'diary' ? 'active' : ''; ?>">
                         <i class="fa-solid fa-calendar-check"></i>
-                        <span>Attendance</span>
-                    </span>
+                        <span>Salary Diary</span>
+                    </a>
+                    <a href="<?php echo app_url('payroll/jobwork.php?department_id=' . $sidebarDeptId); ?>"
+                       class="sidebar-link <?php echo $sidebarActive === 'jobwork' ? 'active' : ''; ?>">
+                        <i class="fa-solid fa-gears"></i>
+                        <span>Jobwork Entry</span>
+                    </a>
+                    <a href="<?php echo app_url('payroll/generate.php?department_id=' . $sidebarDeptId); ?>"
+                       class="sidebar-link <?php echo $sidebarActive === 'generate' ? 'active' : ''; ?>">
+                        <i class="fa-solid fa-indian-rupee-sign"></i>
+                        <span>Generate Salary</span>
+                    </a>
                     <span class="sidebar-link disabled" title="Coming soon">
                         <i class="fa-solid fa-file-invoice"></i>
                         <span>Leave Request</span>

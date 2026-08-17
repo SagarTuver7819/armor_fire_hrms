@@ -29,10 +29,14 @@ cache/
 # Uploaded user files (keep folder, ignore contents)
 assets/uploads/logo/*
 !assets/uploads/logo/.gitkeep
+assets/uploads/docs/*
+!assets/uploads/docs/.gitkeep
 assets/uploads/*
 !assets/uploads/.gitkeep
 !assets/uploads/logo/
 !assets/uploads/logo/.gitkeep
+!assets/uploads/docs/
+!assets/uploads/docs/.gitkeep
 
 # Composer / vendor (if added later)
 /vendor/

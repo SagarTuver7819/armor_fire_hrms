@@ -35,20 +35,22 @@ if ($isAll) {
         1 => 'e.employee_code',
         2 => 'e.employee_name',
         3 => 'd.department_name',
-        4 => 'e.designation',
-        5 => 'e.mobile_number',
-        6 => 'e.date_of_joining',
-        7 => 'e.shift_type',
+        4 => 'e.pay_type',
+        5 => 'e.designation',
+        6 => 'e.mobile_number',
+        7 => 'e.date_of_joining',
+        8 => 'e.shift_type',
     ];
 } else {
     $columns = [
         0 => 'e.id',
         1 => 'e.employee_code',
         2 => 'e.employee_name',
-        3 => 'e.designation',
-        4 => 'e.mobile_number',
-        5 => 'e.date_of_joining',
-        6 => 'e.shift_type',
+        3 => 'e.pay_type',
+        4 => 'e.designation',
+        5 => 'e.mobile_number',
+        6 => 'e.date_of_joining',
+        7 => 'e.shift_type',
     ];
 }
 $orderBy = $columns[$orderCol] ?? 'e.id';
@@ -103,7 +105,7 @@ $stmtC->close();
 
 // Data page
 $dataSql = "SELECT e.id, e.employee_code, e.employee_name, e.designation, e.mobile_number,
-                   e.date_of_joining, e.shift_type, e.department_id, d.department_name
+                   e.date_of_joining, e.shift_type, e.department_id, e.pay_type, d.department_name
             FROM employees e
             LEFT JOIN departments d ON d.id = e.department_id
             WHERE $where
@@ -129,6 +131,9 @@ while ($row = $result->fetch_assoc()) {
     $delUrl  = app_url('employees/delete.php?id=' . $id . '&department_id=' . (int) $row['department_id'] . ($isAll ? '&all=1' : ''));
     $pdfEn   = app_url('employees/pdf.php?id=' . $id . '&lang=en');
     $pdfHi   = app_url('employees/pdf.php?id=' . $id . '&lang=hi');
+    $salaryUrl = app_url('employees/salary.php?id=' . $id);
+    $payType = (($row['pay_type'] ?? 'Salary') === 'Jobwork') ? 'Jobwork' : 'Salary';
+    $payClass = $payType === 'Jobwork' ? 'is-jobwork' : 'is-salary';
 
     $item = [
         $sr++,
@@ -140,6 +145,7 @@ while ($row = $result->fetch_assoc()) {
         $item[] = htmlspecialchars($row['department_name'] ?? '-');
     }
 
+    $item[] = '<span class="pay-pill ' . $payClass . '">' . htmlspecialchars($payType) . '</span>';
     $item[] = htmlspecialchars($row['designation'] ?? '-');
     $item[] = htmlspecialchars($row['mobile_number'] ?? '-');
     $item[] = htmlspecialchars(formatDateDisplay($row['date_of_joining']));
@@ -151,6 +157,7 @@ while ($row = $result->fetch_assoc()) {
     $item[] = '<div class="action-links" onclick="event.stopPropagation();">'
             . '<a href="' . htmlspecialchars($viewUrl) . '" class="action-btn view" title="View"><i class="fa-solid fa-eye"></i></a>'
             . '<a href="' . htmlspecialchars($editUrl) . '" class="action-btn edit" title="Edit"><i class="fa-solid fa-pen"></i></a>'
+            . '<a href="' . htmlspecialchars($salaryUrl) . '" class="action-btn view" title="Salary Details"><i class="fa-solid fa-indian-rupee-sign"></i></a>'
             . '<a href="' . htmlspecialchars($delUrl) . '" class="action-btn delete btn-delete" data-name="' . htmlspecialchars($row['employee_name']) . '" title="Delete"><i class="fa-solid fa-trash"></i></a>'
             . '</div>';
 

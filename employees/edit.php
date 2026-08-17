@@ -7,6 +7,7 @@
 require_once __DIR__ . '/../config/app.php';
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/employee_helper.php';
+require_once __DIR__ . '/../includes/master_helper.php';
 
 $deptId = isset($_GET['department_id']) ? (int) $_GET['department_id'] : 0;
 $empId  = isset($_GET['id']) ? (int) $_GET['id'] : 0;
@@ -31,8 +32,34 @@ $useSidebar = true;
 $sidebarMode = 'department';
 $sidebarDeptId = $deptId;
 $sidebarActive = 'join_employee';
+$extraJs = ['assets/js/employee_form.js'];
 
 require_once __DIR__ . '/../includes/header.php';
+
+$departments  = getActiveMasterRows('departments', 'sort_order ASC, department_name ASC');
+$designations = getActiveMasterRows('designations', 'sort_order ASC, name ASC');
+$shifts       = getActiveMasterRows('shifts', 'name ASC');
+$holidays     = getActiveMasterRows('holidays', 'title ASC');
+$weekOffDays  = getWeekOffDaysFromMaster($holidays);
+$reporters    = getReportingEmployees($empId);
+
+$currentDesignation = empField($employee, 'designation');
+$currentPayType     = empField($employee, 'pay_type', 'Salary');
+if ($currentPayType !== 'Jobwork') {
+    $currentPayType = 'Salary';
+}
+$currentEmpCode     = empField($employee, 'employee_code');
+if ($currentEmpCode === '') {
+    $codeConn = getDBConnection();
+    ensureEmployeesTable($codeConn);
+    $currentEmpCode = generateEmployeeCode($codeConn, $currentPayType);
+    $codeConn->close();
+}
+$currentShiftType   = empField($employee, 'shift_type', 'Day');
+$currentShiftTime   = empField($employee, 'shift_time');
+$selectedShiftId    = findMatchingShiftId($shifts, $currentShiftType, $currentShiftTime);
+$selectedReporterId = findReportingEmployeeId($reporters, empField($employee, 'reporting_head'));
+$selectedWeekOff    = empField($employee, 'week_off_day');
 
 // Helper to get old value from employee row
 function empField($employee, $key, $default = '')
@@ -60,16 +87,12 @@ function empField($employee, $key, $default = '')
                 <h1><?php echo $employee ? 'Edit Employee' : 'Add Employee'; ?></h1>
                 <p>
                     Department: <strong><?php echo htmlspecialchars($department['department_name']); ?></strong>
-                    <?php if ($employee): ?>
-                        · Code: <strong><?php echo htmlspecialchars($employee['employee_code']); ?></strong>
-                    <?php endif; ?>
                 </p>
             </div>
         </div>
 
-        <form method="POST" action="<?php echo app_url('employees/save.php'); ?>" class="employee-form" autocomplete="off">
+        <form method="POST" action="<?php echo app_url('employees/save.php'); ?>" class="employee-form" autocomplete="off" enctype="multipart/form-data">
             <input type="hidden" name="id" value="<?php echo (int) $empId; ?>">
-            <input type="hidden" name="department_id" value="<?php echo (int) $deptId; ?>">
 
             <!-- Section 1 -->
             <div class="form-section">
@@ -108,15 +131,37 @@ function empField($employee, $key, $default = '')
                         <input type="text" name="emergency_mobile" class="form-control" maxlength="15"
                                value="<?php echo htmlspecialchars(empField($employee, 'emergency_mobile')); ?>">
                     </div>
+                    <?php
+                    $aadharFileUrl = employeeDocumentPublicUrl(empField($employee, 'aadhar_file'));
+                    $panFileUrl    = employeeDocumentPublicUrl(empField($employee, 'pan_file'));
+                    ?>
                     <div class="form-group">
                         <label>7. Aadhar Card Number</label>
                         <input type="text" name="aadhar_number" class="form-control" maxlength="20"
                                value="<?php echo htmlspecialchars(empField($employee, 'aadhar_number')); ?>">
+                        <div class="doc-attach-row">
+                            <span class="doc-attach-caption">Attachment</span>
+                            <input type="file" name="aadhar_file" class="doc-file-input" accept=".jpg,.jpeg,.png,.pdf,.webp">
+                            <?php if ($aadharFileUrl !== ''): ?>
+                                <a href="<?php echo htmlspecialchars($aadharFileUrl); ?>" class="doc-view-link" target="_blank" rel="noopener">
+                                    <i class="fa-solid fa-eye"></i> View
+                                </a>
+                            <?php endif; ?>
+                        </div>
                     </div>
                     <div class="form-group">
                         <label>8. PAN Card Number</label>
                         <input type="text" name="pan_number" class="form-control" maxlength="20"
                                value="<?php echo htmlspecialchars(empField($employee, 'pan_number')); ?>">
+                        <div class="doc-attach-row">
+                            <span class="doc-attach-caption">Attachment</span>
+                            <input type="file" name="pan_file" class="doc-file-input" accept=".jpg,.jpeg,.png,.pdf,.webp">
+                            <?php if ($panFileUrl !== ''): ?>
+                                <a href="<?php echo htmlspecialchars($panFileUrl); ?>" class="doc-view-link" target="_blank" rel="noopener">
+                                    <i class="fa-solid fa-eye"></i> View
+                                </a>
+                            <?php endif; ?>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -126,14 +171,54 @@ function empField($employee, $key, $default = '')
                 <h3><i class="fa-solid fa-briefcase"></i> Job Information</h3>
                 <div class="form-grid form-grid-3">
                     <div class="form-group">
-                        <label>10. Department</label>
-                        <input type="text" class="form-control" readonly
-                               value="<?php echo htmlspecialchars($department['department_name']); ?>">
+                        <label>Pay Type <small>(Salary / Jobwork)</small></label>
+                        <select name="pay_type" id="payType" class="form-control" required>
+                            <option value="Salary" <?php echo $currentPayType === 'Salary' ? 'selected' : ''; ?>>Salary</option>
+                            <option value="Jobwork" <?php echo $currentPayType === 'Jobwork' ? 'selected' : ''; ?>>Jobwork</option>
+                        </select>
                     </div>
                     <div class="form-group">
-                        <label>11. Designation</label>
-                        <input type="text" name="designation" class="form-control"
-                               value="<?php echo htmlspecialchars(empField($employee, 'designation')); ?>">
+                        <label>Employee Code <small>(editable · auto by pay type)</small></label>
+                        <div class="code-input-row">
+                            <input type="text" name="employee_code" id="employeeCode" class="form-control" required
+                                   maxlength="30" value="<?php echo htmlspecialchars($currentEmpCode); ?>">
+                            <button type="button" class="btn-secondary" id="btnGenCode" title="Generate code">
+                                <i class="fa-solid fa-rotate"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>10. Department <small>(Department Master)</small></label>
+                        <select name="department_id" class="form-control" required>
+                            <?php foreach ($departments as $dept): ?>
+                                <option value="<?php echo (int) $dept['id']; ?>" <?php echo ((int) $dept['id'] === $deptId) ? 'selected' : ''; ?>>
+                                    <?php echo htmlspecialchars($dept['department_name']); ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>11. Designation <small>(Designation Master)</small></label>
+                        <select name="designation" class="form-control">
+                            <option value="">-- Select designation --</option>
+                            <?php foreach ($designations as $des): ?>
+                                <?php $desName = (string) ($des['name'] ?? ''); ?>
+                                <option value="<?php echo htmlspecialchars($desName); ?>" <?php echo ($currentDesignation === $desName) ? 'selected' : ''; ?>>
+                                    <?php
+                                    $desCode = trim((string) ($des['code'] ?? ''));
+                                    echo htmlspecialchars($desCode !== '' ? ($desCode . ' — ' . $desName) : $desName);
+                                    ?>
+                                </option>
+                            <?php endforeach; ?>
+                            <?php if ($currentDesignation !== '' && !in_array($currentDesignation, array_column($designations, 'name'), true)): ?>
+                                <option value="<?php echo htmlspecialchars($currentDesignation); ?>" selected>
+                                    <?php echo htmlspecialchars($currentDesignation); ?> (current)
+                                </option>
+                            <?php endif; ?>
+                        </select>
+                        <?php if (!$designations): ?>
+                            <small class="form-hint">No designations found. Add them in Masters.</small>
+                        <?php endif; ?>
                     </div>
                     <div class="form-group">
                         <label>12. Date of Joining</label>
@@ -141,17 +226,38 @@ function empField($employee, $key, $default = '')
                                value="<?php echo htmlspecialchars(empField($employee, 'date_of_joining')); ?>">
                     </div>
                     <div class="form-group">
+                        <label>13. Shift <small>(Shift Master)</small></label>
+                        <select name="shift_id" id="shiftSelect" class="form-control">
+                            <option value="">-- Select shift --</option>
+                            <?php foreach ($shifts as $shift): ?>
+                                <?php
+                                $sid = (int) $shift['id'];
+                                $range = formatShiftTimeRange($shift);
+                                $stype = (string) ($shift['shift_type'] ?? 'Day');
+                                ?>
+                                <option value="<?php echo $sid; ?>"
+                                        data-type="<?php echo htmlspecialchars($stype); ?>"
+                                        data-time="<?php echo htmlspecialchars($range); ?>"
+                                    <?php echo ($selectedShiftId === $sid) ? 'selected' : ''; ?>>
+                                    <?php echo htmlspecialchars(formatShiftOptionLabel($shift)); ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                        <?php if (!$shifts): ?>
+                            <small class="form-hint">No shifts found. Add them in Masters.</small>
+                        <?php endif; ?>
+                    </div>
+                    <div class="form-group">
                         <label>13. Shift Type</label>
-                        <div class="radio-row">
-                            <?php $shift = empField($employee, 'shift_type', 'Day'); ?>
-                            <label><input type="radio" name="shift_type" value="Day" <?php echo $shift === 'Day' ? 'checked' : ''; ?>> Day</label>
-                            <label><input type="radio" name="shift_type" value="Night" <?php echo $shift === 'Night' ? 'checked' : ''; ?>> Night</label>
-                        </div>
+                        <input type="text" id="shiftTypeDisplay" class="form-control" readonly
+                               value="<?php echo htmlspecialchars($currentShiftType); ?>">
+                        <input type="hidden" name="shift_type" id="shiftType" value="<?php echo htmlspecialchars($currentShiftType); ?>">
                     </div>
                     <div class="form-group">
                         <label>13. Shift Time</label>
-                        <input type="text" name="shift_time" class="form-control" placeholder="e.g. 09:00 AM - 06:00 PM"
-                               value="<?php echo htmlspecialchars(empField($employee, 'shift_time')); ?>">
+                        <input type="text" name="shift_time" id="shiftTime" class="form-control" readonly
+                               placeholder="Select shift to auto-fill"
+                               value="<?php echo htmlspecialchars($currentShiftTime); ?>">
                     </div>
                     <div class="form-group">
                         <label>14. PF Deduction</label>
@@ -172,9 +278,19 @@ function empField($employee, $key, $default = '')
                                value="<?php echo htmlspecialchars(empField($employee, 'decided_salary')); ?>">
                     </div>
                     <div class="form-group">
-                        <label>Reporting Head</label>
-                        <input type="text" name="reporting_head" class="form-control"
-                               value="<?php echo htmlspecialchars(empField($employee, 'reporting_head')); ?>">
+                        <label>Reporting Person <small>(from Employees · with employee code)</small></label>
+                        <select name="reporting_employee_id" class="form-control">
+                            <option value="">-- Select reporting person --</option>
+                            <?php foreach ($reporters as $rep): ?>
+                                <?php $rid = (int) $rep['id']; ?>
+                                <option value="<?php echo $rid; ?>" <?php echo ($selectedReporterId === $rid) ? 'selected' : ''; ?>>
+                                    <?php echo htmlspecialchars(reportingPersonLabel($rep)); ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                        <?php if (!$reporters): ?>
+                            <small class="form-hint">Add employees first — reporting person loads from existing staff.</small>
+                        <?php endif; ?>
                     </div>
                 </div>
             </div>
@@ -210,17 +326,19 @@ function empField($employee, $key, $default = '')
                 <h3><i class="fa-solid fa-clipboard-list"></i> Other Details</h3>
                 <div class="form-grid form-grid-3">
                     <div class="form-group">
-                        <label>22. Week-off Day</label>
+                        <label>22. Week-off Day <small>(Holiday / Week-Off Master)</small></label>
                         <select name="week_off_day" class="form-control">
-                            <?php
-                            $days = ['', 'Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-                            $wod = empField($employee, 'week_off_day');
-                            foreach ($days as $day) {
-                                $sel = ($wod === $day) ? 'selected' : '';
-                                $label = $day === '' ? '-- Select --' : $day;
-                                echo '<option value="' . htmlspecialchars($day) . '" ' . $sel . '>' . htmlspecialchars($label) . '</option>';
-                            }
-                            ?>
+                            <option value="">-- Select --</option>
+                            <?php foreach ($weekOffDays as $day): ?>
+                                <option value="<?php echo htmlspecialchars($day); ?>" <?php echo ($selectedWeekOff === $day) ? 'selected' : ''; ?>>
+                                    <?php echo htmlspecialchars($day); ?>
+                                </option>
+                            <?php endforeach; ?>
+                            <?php if ($selectedWeekOff !== '' && !in_array($selectedWeekOff, $weekOffDays, true)): ?>
+                                <option value="<?php echo htmlspecialchars($selectedWeekOff); ?>" selected>
+                                    <?php echo htmlspecialchars($selectedWeekOff); ?> (current)
+                                </option>
+                            <?php endif; ?>
                         </select>
                     </div>
                     <div class="form-group">
@@ -264,4 +382,8 @@ function empField($employee, $key, $default = '')
     </div>
 </main>
 
+        <script>
+            window.EMP_NEXT_CODE_URL = <?php echo json_encode(app_url('employees/next_code.php')); ?>;
+            window.EMP_IS_NEW = <?php echo $empId > 0 ? 'false' : 'true'; ?>;
+        </script>
 <?php require_once __DIR__ . '/../includes/footer.php'; ?>

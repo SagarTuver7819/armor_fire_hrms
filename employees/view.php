@@ -94,6 +94,10 @@ if (isset($_GET['from']) && $_GET['from'] === 'all') {
                         <span><i class="fa-solid fa-briefcase"></i> <?php echo showVal($emp['designation']); ?></span>
                         <span class="sep">|</span>
                         <span><i class="fa-solid fa-building"></i> <?php echo showVal($emp['department_name']); ?></span>
+                        <span class="sep">|</span>
+                        <span class="pay-pill <?php echo (($emp['pay_type'] ?? '') === 'Jobwork') ? 'is-jobwork' : 'is-salary'; ?>">
+                            <?php echo htmlspecialchars(($emp['pay_type'] ?? 'Salary') === 'Jobwork' ? 'Jobwork' : 'Salary'); ?>
+                        </span>
                     </p>
                 </div>
             </div>
@@ -103,6 +107,9 @@ if (isset($_GET['from']) && $_GET['from'] === 'all') {
                 </a>
                 <a href="<?php echo app_url('employees/pdf.php?id=' . (int) $emp['id'] . '&lang=hi'); ?>" target="_blank" class="btn-ghost">
                     <i class="fa-solid fa-file-pdf"></i> PDF HI
+                </a>
+                <a href="<?php echo app_url('employees/salary.php?id=' . (int) $emp['id']); ?>" class="btn-ghost">
+                    <i class="fa-solid fa-indian-rupee-sign"></i> Salary Details
                 </a>
                 <a href="<?php echo app_url('employees/edit.php?id=' . (int) $emp['id'] . '&department_id=' . $deptId); ?>" class="btn-primary">
                     <i class="fa-solid fa-pen"></i> Edit Employee
@@ -156,8 +163,20 @@ if (isset($_GET['from']) && $_GET['from'] === 'all') {
                 <div class="info-row"><dt>Date of Birth</dt><dd><?php echo showVal(formatDateDisplay($emp['date_of_birth'])); ?></dd></div>
                 <div class="info-row"><dt>Mobile Number</dt><dd><?php echo showVal($emp['mobile_number']); ?></dd></div>
                 <div class="info-row"><dt>Emergency Mobile</dt><dd><?php echo showVal($emp['emergency_mobile']); ?></dd></div>
-                <div class="info-row"><dt>Aadhar Number</dt><dd><?php echo showVal($emp['aadhar_number']); ?></dd></div>
-                <div class="info-row"><dt>PAN Number</dt><dd><?php echo showVal($emp['pan_number']); ?></dd></div>
+                <div class="info-row">
+                    <dt>Aadhar Number</dt>
+                    <dd>
+                        <?php echo showVal($emp['aadhar_number']); ?>
+                        <?php echo employeeDocumentViewHtml($emp['aadhar_file'] ?? ''); ?>
+                    </dd>
+                </div>
+                <div class="info-row">
+                    <dt>PAN Number</dt>
+                    <dd>
+                        <?php echo showVal($emp['pan_number']); ?>
+                        <?php echo employeeDocumentViewHtml($emp['pan_file'] ?? ''); ?>
+                    </dd>
+                </div>
                 <div class="info-row"><dt>Permanent Address</dt><dd><?php echo nl2br(showVal($emp['permanent_address'])); ?></dd></div>
                 <div class="info-row"><dt>Present Address</dt><dd><?php echo nl2br(showVal($emp['present_address'])); ?></dd></div>
             </dl>
@@ -173,6 +192,7 @@ if (isset($_GET['from']) && $_GET['from'] === 'all') {
             </div>
             <dl class="info-list">
                 <div class="info-row"><dt>Department</dt><dd><?php echo showVal($emp['department_name']); ?></dd></div>
+                <div class="info-row"><dt>Pay Type</dt><dd><?php echo showVal($emp['pay_type'] ?? 'Salary'); ?></dd></div>
                 <div class="info-row"><dt>Designation</dt><dd><?php echo showVal($emp['designation']); ?></dd></div>
                 <div class="info-row"><dt>Date of Joining</dt><dd><?php echo showVal(formatDateDisplay($emp['date_of_joining'])); ?></dd></div>
                 <div class="info-row"><dt>Shift Type</dt><dd><span class="shift-pill <?php echo $shiftClass; ?>"><?php echo showVal($emp['shift_type']); ?></span></dd></div>

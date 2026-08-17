@@ -55,8 +55,24 @@ function ensureEmployeesTable($conn = null)
         INDEX idx_employees_name (employee_name)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
 
+    ensureEmployeeColumn($conn, 'pay_type', "pay_type ENUM('Salary','Jobwork') NOT NULL DEFAULT 'Salary' AFTER designation");
+    ensureEmployeeColumn($conn, 'aadhar_file', "aadhar_file VARCHAR(255) DEFAULT NULL AFTER aadhar_number");
+    ensureEmployeeColumn($conn, 'pan_file', "pan_file VARCHAR(255) DEFAULT NULL AFTER pan_number");
+
     if ($closeAfter) {
         $conn->close();
+    }
+}
+
+function ensureEmployeeColumn($conn, $column, $definition)
+{
+    $column = preg_replace('/[^a-z0-9_]/', '', $column);
+    if ($column === '' || $definition === '') {
+        return;
+    }
+    $res = $conn->query("SHOW COLUMNS FROM employees LIKE '" . $conn->real_escape_string($column) . "'");
+    if ($res && $res->num_rows === 0) {
+        $conn->query("ALTER TABLE employees ADD COLUMN " . $definition);
     }
 }
 
@@ -81,19 +97,34 @@ function getDepartmentById($departmentId)
 }
 
 /**
- * Generate next employee code: EMP0001, EMP0002...
+ * Generate next employee code: SAL0001 / JW0001
  */
-function generateEmployeeCode($conn)
+function generateEmployeeCode($conn, $payType = 'Salary')
 {
-    $result = $conn->query("SELECT employee_code FROM employees ORDER BY id DESC LIMIT 1");
-    $last = $result ? $result->fetch_assoc() : null;
-
-    $nextNum = 1;
-    if ($last && preg_match('/(\d+)/', $last['employee_code'], $m)) {
-        $nextNum = ((int) $m[1]) + 1;
+    $prefix = (strcasecmp((string) $payType, 'Jobwork') === 0) ? 'JW' : 'SAL';
+    $max = 0;
+    $like = $conn->real_escape_string($prefix) . '%';
+    $result = $conn->query("SELECT employee_code FROM employees WHERE employee_code LIKE '{$like}'");
+    if ($result) {
+        while ($row = $result->fetch_assoc()) {
+            if (preg_match('/(\d+)/', (string) $row['employee_code'], $m)) {
+                $max = max($max, (int) $m[1]);
+            }
+        }
     }
+    return $prefix . str_pad((string) ($max + 1), 4, '0', STR_PAD_LEFT);
+}
 
-    return 'EMP' . str_pad((string) $nextNum, 4, '0', STR_PAD_LEFT);
+function isEmployeeCodeUnique($conn, $code, $excludeId = 0)
+{
+    $code = trim((string) $code);
+    $excludeId = (int) $excludeId;
+    $stmt = $conn->prepare("SELECT id FROM employees WHERE employee_code = ? AND id <> ? LIMIT 1");
+    $stmt->bind_param('si', $code, $excludeId);
+    $stmt->execute();
+    $row = $stmt->get_result()->fetch_assoc();
+    $stmt->close();
+    return empty($row);
 }
 
 /**
@@ -148,4 +179,216 @@ function formatDateDisplay($date)
         return '';
     }
     return date('d-m-Y', strtotime($date));
+}
+
+function formatMasterTime($time)
+{
+    if (empty($time) || $time === '00:00:00') {
+        return '';
+    }
+    return date('h:i A', strtotime($time));
+}
+
+function formatShiftTimeRange(array $shift)
+{
+    $start = formatMasterTime($shift['start_time'] ?? '');
+    $end = formatMasterTime($shift['end_time'] ?? '');
+    if ($start !== '' && $end !== '') {
+        return $start . ' - ' . $end;
+    }
+    return $start !== '' ? $start : $end;
+}
+
+function formatShiftOptionLabel(array $shift)
+{
+    $name = trim((string) ($shift['name'] ?? ''));
+    $type = trim((string) ($shift['shift_type'] ?? ''));
+    $range = formatShiftTimeRange($shift);
+    $label = $name;
+    if ($range !== '') {
+        $label .= ' (' . $range . ')';
+    }
+    if ($type !== '') {
+        $label .= ' · ' . $type;
+    }
+    return $label;
+}
+
+/**
+ * Employees for Reporting Person dropdown (code + name)
+ */
+function getReportingEmployees($excludeId = 0)
+{
+    $conn = getDBConnection();
+    ensureEmployeesTable($conn);
+    $excludeId = (int) $excludeId;
+
+    $sql = "SELECT e.id, e.employee_code, e.employee_name, d.department_name
+            FROM employees e
+            LEFT JOIN departments d ON d.id = e.department_id
+            WHERE e.status = 1";
+    if ($excludeId > 0) {
+        $sql .= " AND e.id <> " . $excludeId;
+    }
+    $sql .= " ORDER BY e.employee_code ASC, e.employee_name ASC";
+
+    $rows = [];
+    $res = $conn->query($sql);
+    if ($res) {
+        while ($row = $res->fetch_assoc()) {
+            $rows[] = $row;
+        }
+    }
+    $conn->close();
+    return $rows;
+}
+
+function reportingPersonLabel(array $emp)
+{
+    $code = trim((string) ($emp['employee_code'] ?? ''));
+    $name = trim((string) ($emp['employee_name'] ?? ''));
+    $dept = trim((string) ($emp['department_name'] ?? ''));
+    $label = trim($code . ' — ' . $name, " —");
+    if ($dept !== '') {
+        $label .= ' (' . $dept . ')';
+    }
+    return $label;
+}
+
+function findMatchingShiftId($shifts, $shiftType, $shiftTime)
+{
+    $shiftType = trim((string) $shiftType);
+    $shiftTime = trim((string) $shiftTime);
+    foreach ($shifts as $shift) {
+        $range = formatShiftTimeRange($shift);
+        if ($shiftTime !== '' && ($shiftTime === $range || $shiftTime === ($shift['name'] ?? ''))) {
+            return (int) $shift['id'];
+        }
+    }
+    if ($shiftType !== '') {
+        foreach ($shifts as $shift) {
+            if (($shift['shift_type'] ?? '') === $shiftType) {
+                return (int) $shift['id'];
+            }
+        }
+    }
+    return 0;
+}
+
+function findReportingEmployeeId($employees, $reportingHead)
+{
+    $reportingHead = trim((string) $reportingHead);
+    if ($reportingHead === '') {
+        return 0;
+    }
+    foreach ($employees as $emp) {
+        $label = reportingPersonLabel($emp);
+        $codeName = trim(($emp['employee_code'] ?? '') . ' — ' . ($emp['employee_name'] ?? ''));
+        if ($reportingHead === $label || $reportingHead === $codeName || $reportingHead === ($emp['employee_name'] ?? '')) {
+            return (int) $emp['id'];
+        }
+        if ($emp['employee_code'] !== '' && strpos($reportingHead, $emp['employee_code']) === 0) {
+            return (int) $emp['id'];
+        }
+    }
+    return 0;
+}
+
+function getWeekOffDaysFromMaster($holidays)
+{
+    $days = [];
+    foreach ($holidays as $row) {
+        if (($row['holiday_type'] ?? '') !== 'Week-Off') {
+            continue;
+        }
+        $day = trim((string) ($row['week_day'] ?? ''));
+        if ($day !== '' && !in_array($day, $days, true)) {
+            $days[] = $day;
+        }
+    }
+    if (!$days) {
+        $days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    }
+    return $days;
+}
+
+function employeeDocumentPublicUrl($relativePath)
+{
+    $relativePath = str_replace('\\', '/', trim((string) $relativePath));
+    if ($relativePath === '' || strpos($relativePath, '..') !== false) {
+        return '';
+    }
+    if (strpos($relativePath, 'assets/uploads/docs/') !== 0) {
+        return '';
+    }
+    return function_exists('app_url') ? app_url($relativePath) : ('/' . ltrim($relativePath, '/'));
+}
+
+function employeeDocumentViewHtml($relativePath, $label = 'View')
+{
+    $url = employeeDocumentPublicUrl($relativePath);
+    if ($url === '') {
+        return '';
+    }
+    return '<a class="doc-view-link" href="' . htmlspecialchars($url) . '" target="_blank" rel="noopener">'
+        . '<i class="fa-solid fa-eye"></i> ' . htmlspecialchars($label)
+        . '</a>';
+}
+
+function deleteEmployeeDocument($relativePath)
+{
+    $relativePath = str_replace('\\', '/', trim((string) $relativePath));
+    if ($relativePath === '' || strpos($relativePath, 'assets/uploads/docs/') !== 0 || strpos($relativePath, '..') !== false) {
+        return;
+    }
+    $full = dirname(__DIR__) . '/' . $relativePath;
+    if (is_file($full)) {
+        @unlink($full);
+    }
+}
+
+function saveEmployeeDocument(array $file, $employeeId, $kind)
+{
+    $error = (int) ($file['error'] ?? UPLOAD_ERR_NO_FILE);
+    if ($error === UPLOAD_ERR_NO_FILE || empty($file['tmp_name'])) {
+        return '';
+    }
+    if ($error !== UPLOAD_ERR_OK) {
+        throw new RuntimeException('Aadhar/PAN attachment could not be uploaded. Please try again.');
+    }
+    $ext = strtolower(pathinfo((string) ($file['name'] ?? ''), PATHINFO_EXTENSION));
+    $allowed = ['jpg', 'jpeg', 'png', 'pdf', 'webp'];
+    if (!in_array($ext, $allowed, true)) {
+        throw new RuntimeException('Aadhar/PAN file must be JPG, PNG, PDF, or WEBP.');
+    }
+    if (($file['size'] ?? 0) > 5 * 1024 * 1024) {
+        throw new RuntimeException('Aadhar/PAN file must be 5MB or smaller.');
+    }
+    $dir = dirname(__DIR__) . '/assets/uploads/docs';
+    if (!is_dir($dir) && !mkdir($dir, 0755, true) && !is_dir($dir)) {
+        throw new RuntimeException('Could not create document upload folder.');
+    }
+    $kind = preg_replace('/[^a-z]/', '', strtolower((string) $kind));
+    $name = 'emp_' . (int) $employeeId . '_' . ($kind !== '' ? $kind : 'doc') . '_' . time() . '.' . $ext;
+    $dest = $dir . '/' . $name;
+    if (!move_uploaded_file($file['tmp_name'], $dest)) {
+        throw new RuntimeException('Could not save Aadhar/PAN attachment.');
+    }
+    return 'assets/uploads/docs/' . $name;
+}
+
+function applyEmployeeDocumentUpload($fileKey, $employeeId, $kind, $currentPath)
+{
+    $currentPath = (string) $currentPath;
+    if (!isset($_FILES[$fileKey])) {
+        return $currentPath;
+    }
+    $newPath = saveEmployeeDocument($_FILES[$fileKey], $employeeId, $kind);
+    if ($newPath === '') {
+        return $currentPath;
+    }
+    if ($currentPath !== '' && $currentPath !== $newPath) {
+        deleteEmployeeDocument($currentPath);
+    }
+    return $newPath;
 }

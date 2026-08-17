@@ -92,6 +92,29 @@ function ensureMasterTables($conn = null)
         INDEX idx_salary_components_status (status)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
 
+    $conn->query("CREATE TABLE IF NOT EXISTS salary_slabs (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        code VARCHAR(40) DEFAULT NULL,
+        slab_name VARCHAR(150) NOT NULL,
+        min_amount DECIMAL(12,2) NOT NULL DEFAULT 0,
+        max_amount DECIMAL(12,2) NOT NULL DEFAULT 0,
+        monthly_salary DECIMAL(12,2) NOT NULL DEFAULT 0,
+        remarks TEXT,
+        status TINYINT(1) NOT NULL DEFAULT 1,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        INDEX idx_salary_slabs_status (status)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+
+    $slabCount = $conn->query("SELECT COUNT(*) AS c FROM salary_slabs");
+    if ($slabCount && (int) $slabCount->fetch_assoc()['c'] === 0) {
+        $conn->query("INSERT INTO salary_slabs (code, slab_name, min_amount, max_amount, monthly_salary, remarks, status) VALUES
+            ('JW1', 'Jobwork Slab A', 0, 5000, 4500, 'Low output', 1),
+            ('JW2', 'Jobwork Slab B', 5000.01, 10000, 8500, 'Medium output', 1),
+            ('JW3', 'Jobwork Slab C', 10000.01, 20000, 16000, 'High output', 1),
+            ('JW4', 'Jobwork Slab D', 20000.01, 999999, 24000, 'Very high output', 1)");
+    }
+
     $conn->query("CREATE TABLE IF NOT EXISTS document_types (
         id INT AUTO_INCREMENT PRIMARY KEY,
         code VARCHAR(40) DEFAULT NULL,
@@ -179,6 +202,29 @@ function getMasterRow($table, $id)
     $stmt->close();
     $conn->close();
     return $row;
+}
+
+/**
+ * Active master rows for dropdowns
+ */
+function getActiveMasterRows($table, $orderBy = 'id ASC')
+{
+    $conn = getDBConnection();
+    ensureMasterTables($conn);
+    $table = preg_replace('/[^a-z0-9_]/', '', $table);
+    $orderBy = preg_replace('/[^a-z0-9_, ]/', '', $orderBy);
+    if ($orderBy === '') {
+        $orderBy = 'id ASC';
+    }
+    $rows = [];
+    $res = $conn->query("SELECT * FROM `{$table}` WHERE status = 1 ORDER BY {$orderBy}");
+    if ($res) {
+        while ($row = $res->fetch_assoc()) {
+            $rows[] = $row;
+        }
+    }
+    $conn->close();
+    return $rows;
 }
 
 /**
@@ -367,7 +413,7 @@ function formatMasterCell($key, $value)
     if (($key === 'start_time' || $key === 'end_time') && $value) {
         return date('h:i A', strtotime($value));
     }
-    if ($key === 'default_value') {
+    if ($key === 'default_value' || $key === 'min_amount' || $key === 'max_amount' || $key === 'monthly_salary') {
         return number_format((float) $value, 2);
     }
     return htmlspecialchars((string) $value);

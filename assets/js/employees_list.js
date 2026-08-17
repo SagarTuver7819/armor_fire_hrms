@@ -20,7 +20,7 @@
 
     var isAll = !!window.EMP_IS_ALL;
     // Column indexes for non-orderable PDF/Action
-    var actionCols = isAll ? [8, 9] : [7, 8];
+    var actionCols = isAll ? [9, 10] : [8, 9];
 
     var table = jQuery('#employeesTable').DataTable({
         processing: true,

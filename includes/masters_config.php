@@ -160,6 +160,32 @@ function getMastersConfig()
             ],
         ],
 
+        'slabs' => [
+            'key'         => 'slabs',
+            'title'       => 'Salary Slab Master',
+            'singular'    => 'Salary Slab',
+            'table'       => 'salary_slabs',
+            'folder'      => 'slabs',
+            'icon'        => 'fa-layer-group',
+            'color'       => '#0F766E',
+            'name_field'  => 'slab_name',
+            'list_columns'=> [
+                ['key' => 'code', 'label' => 'Code'],
+                ['key' => 'slab_name', 'label' => 'Slab'],
+                ['key' => 'min_amount', 'label' => 'Min Jobwork'],
+                ['key' => 'max_amount', 'label' => 'Max Jobwork'],
+                ['key' => 'monthly_salary', 'label' => 'Mapped Salary'],
+            ],
+            'fields' => [
+                ['name' => 'code', 'label' => 'Code', 'type' => 'text', 'required' => false, 'span' => 1],
+                ['name' => 'slab_name', 'label' => 'Slab Name', 'type' => 'text', 'required' => true, 'span' => 2],
+                ['name' => 'min_amount', 'label' => 'Min Jobwork Amount', 'type' => 'number', 'required' => true, 'span' => 1, 'default' => 0, 'step' => '0.01'],
+                ['name' => 'max_amount', 'label' => 'Max Jobwork Amount', 'type' => 'number', 'required' => true, 'span' => 1, 'default' => 0, 'step' => '0.01'],
+                ['name' => 'monthly_salary', 'label' => 'Mapped Monthly Salary', 'type' => 'number', 'required' => true, 'span' => 1, 'default' => 0, 'step' => '0.01'],
+                ['name' => 'remarks', 'label' => 'Remarks', 'type' => 'textarea', 'required' => false, 'span' => 3],
+            ],
+        ],
+
         'documents' => [
             'key'         => 'documents',
             'title'       => 'Document Master',
