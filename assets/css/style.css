@@ -2547,5 +2547,288 @@ body.confirm-modal-open {
     height: 34px !important;
 }
 
+.ops-page-card {
+    max-width: none;
+    padding: 16px 16px 10px;
+}
+
+.ops-page-card .form-page-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.ops-hint {
+    margin: 0 0 10px;
+    padding: 10px 12px;
+    background: #fff7ed;
+    border: 1px solid #fed7aa;
+    border-radius: 10px;
+    color: #9a3412;
+    font-size: 13px;
+    line-height: 1.45;
+}
+
+.ops-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin: 4px 0 10px;
+}
+
+.ops-live-summary {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.ops-chip {
+    background: #fff7ed;
+    border: 1px solid #fed7aa;
+    color: #9a3412;
+    border-radius: 999px;
+    padding: 6px 12px;
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.ops-chip b {
+    font-size: 15px;
+    margin-left: 4px;
+}
+
+.ops-chip.amt {
+    background: #F58220;
+    border-color: #F58220;
+    color: #fff;
+}
+
+.ops-grid-wrap {
+    overflow: auto;
+    max-height: calc(100vh - 290px);
+    margin: 0 0 12px;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    background: #fff;
+}
+
+.ops-grid {
+    border-collapse: separate;
+    border-spacing: 0;
+    min-width: 1680px;
+    width: max-content;
+}
+
+.ops-grid th,
+.ops-grid td {
+    border-right: 1px solid #e2e8f0;
+    border-bottom: 1px solid #e2e8f0;
+    padding: 5px;
+    font-size: 12px;
+    white-space: nowrap;
+    vertical-align: middle;
+    background: #fff;
+}
+
+.ops-grid thead th {
+    position: sticky;
+    top: 0;
+    z-index: 4;
+    background: #fff7ed;
+    color: #9a3412;
+    font-weight: 800;
+    text-align: center;
+    box-shadow: 0 1px 0 #fed7aa;
+}
+
+.ops-grid thead th.sticky-col {
+    z-index: 6;
+}
+
+.ops-grid .sticky-col {
+    position: sticky;
+    z-index: 5;
+    background: #fff;
+    box-shadow: 2px 0 6px rgba(15, 23, 42, 0.06);
+}
+
+.ops-grid .sticky-action {
+    left: 0;
+    width: 46px;
+    min-width: 46px;
+}
+
+.ops-grid .sticky-sr {
+    left: 46px;
+    width: 40px;
+    min-width: 40px;
+    text-align: center;
+    font-weight: 700;
+}
+
+.ops-grid .sticky-name {
+    left: 86px;
+    min-width: 210px;
+    width: 210px;
+}
+
+.ops-grid .sticky-grade {
+    left: 296px;
+    min-width: 128px;
+    width: 128px;
+}
+
+.ops-grid.hide-grade .sticky-grade,
+.ops-grid.hide-grade #col_header_grade {
+    display: none;
+}
+
+.ops-grid .product-select,
+.ops-grid .grade-select {
+    min-width: 190px;
+    height: 36px;
+    font-size: 13px;
+}
+
+.ops-grid .grade-select {
+    min-width: 112px;
+}
+
+.ops-filter-bar {
+    margin-bottom: 14px;
+    align-items: end;
+}
+
+.ops-filter-actions .btn-primary {
+    width: 100%;
+}
+
+.day-head {
+    min-width: 72px;
+}
+
+.day-no {
+    display: block;
+    font-size: 13px;
+    line-height: 1.1;
+}
+
+.day-wd {
+    display: block;
+    font-size: 10px;
+    font-weight: 700;
+    color: #c2410c;
+    letter-spacing: 0.02em;
+}
+
+.ops-subhead {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+    font-size: 10px;
+    color: #94a3b8;
+    font-weight: 700;
+    margin-top: 2px;
+}
+
+.ops-day-triple {
+    display: flex;
+    gap: 3px;
+    justify-content: center;
+}
+
+.ops-grid .grid-input {
+    width: 62px;
+    height: 34px;
+    padding: 4px 6px;
+    border-radius: 8px;
+    font-size: 13px;
+    text-align: center;
+    border: 1px solid #dbe3ee;
+}
+
+.ops-grid .day-qty:focus,
+.ops-grid .day-qty-r:focus,
+.ops-grid .day-qty-ot:focus {
+    outline: 2px solid #F58220;
+    border-color: #F58220;
+}
+
+.ops-grid .total-qty,
+.ops-grid .total-amount,
+.ops-grid .rate,
+.ops-grid .row-ot-rate,
+.ops-grid .row-rejection-rate,
+.ops-grid .total-r {
+    background: #f8fafc;
+    font-weight: 700;
+}
+
+.ops-grid .total-amount {
+    color: #c2410c;
+    min-width: 80px;
+}
+
+.ops-grid .r-field,
+.ops-grid .ot-field,
+.ops-grid .r-lab,
+.ops-grid .ot-lab {
+    display: none;
+}
+
+.ops-grid.show-r .r-field,
+.ops-grid.show-r .r-lab {
+    display: inline-block;
+}
+
+.ops-grid.show-ot .ot-field,
+.ops-grid.show-ot .ot-lab {
+    display: inline-block;
+}
+
+.ops-grid.show-r .day-head,
+.ops-grid.show-ot .day-head {
+    min-width: 120px;
+}
+
+.ops-grid .is-off {
+    background: #f1f5f9;
+    opacity: 0.38;
+    pointer-events: none;
+}
+
+.ops-grid tfoot td {
+    position: sticky;
+    bottom: 0;
+    z-index: 3;
+    font-weight: 800;
+    background: #fff7ed;
+    text-align: center;
+}
+
+.ops-grid tfoot .sticky-col {
+    z-index: 6;
+}
+
+#tf_grand_total_label {
+    left: 0;
+    min-width: 424px;
+    text-align: left;
+    padding-left: 12px;
+}
+
+.ops-grid.hide-grade #tf_grand_total_label {
+    min-width: 296px;
+}
+
+.sidebar-sublink .fa-circle {
+    font-size: 7px;
+    opacity: 0.55;
+}
+
 
 

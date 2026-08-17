@@ -1,0 +1,2462 @@
+[
+    {
+        "name": "STAND POST SINGLE OUTLET",
+        "operation": "COATING",
+        "process": "",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "50.00",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "GM DOUBLE BODY",
+        "operation": "ASS-2",
+        "process": "",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "40.00",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "PATTI",
+        "operation": "BUFF",
+        "process": "",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "0.00",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "HEAVY FEMALE 60MM",
+        "operation": "CNC",
+        "process": "",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "6.00",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "HEAVY MALE 60MM",
+        "operation": "CNC",
+        "process": "",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "10.00",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "IC FEMALE",
+        "operation": "CNC",
+        "process": "",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "3.00",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "IC MALE",
+        "operation": "CNC",
+        "process": "",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "5.00",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "38 MM HEAVY MALE",
+        "operation": "GRINDING",
+        "process": "",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "2.25",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "ADAPTOR",
+        "operation": "ARGON WELDING",
+        "process": "",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "20.00",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "BODY PLAIN",
+        "operation": "COATING",
+        "process": "",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "5.00",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "REWORK\/REPAIR LEAKAGE BODY",
+        "operation": "COATING",
+        "process": "",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "3.00",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "STAND POST THREAD HYDRANT VALVE",
+        "operation": "ASS-1",
+        "process": "",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "0.00",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "ORIFIC PLATE",
+        "operation": "ASS-1",
+        "process": "",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "5.00",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "HEAVY MALE ( IC )",
+        "operation": "BUFF",
+        "process": "HEAVY MALE ( IC )",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "2.25",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "HEAVY FEMALE ( IC )",
+        "operation": "BUFF",
+        "process": "HEAVY FEMALE ( IC )",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "2.25",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "ARGON",
+        "operation": "BUFF",
+        "process": "ARGON",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "1.00",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "LOGO DEFECT REPLACE",
+        "operation": "ARGON WELDING",
+        "process": "LOGO DEFECT REPLACE",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "5.00",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "ALU. FEMALE",
+        "operation": "ARGON WELDING",
+        "process": "ALU. FEMALE",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "10.00",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "DRAW OF CONNECTION",
+        "operation": "ARGON WELDING",
+        "process": "DRAW OF CONNECTION",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "10.00",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "WATER MONITER NOZZLE",
+        "operation": "ARGON WELDING",
+        "process": "WATER MONITER NOZZLE",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "9.00",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "COUPLING LUG BUSH",
+        "operation": "ASS-1",
+        "process": "COUPLING LUG BUSH",
+        "unit": "KG",
+        "ot_text": "",
+        "rate": "1.50",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "HEAVY MALE",
+        "operation": "ARGON WELDING",
+        "process": "HEAVY MALE",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "7.00",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "LURNING BUSH",
+        "operation": "ARGON WELDING",
+        "process": "LURNING BUSH",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "1.50",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "LITE MALE",
+        "operation": "ARGON WELDING",
+        "process": "LITE MALE",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "7.00",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "LITE FEMALE",
+        "operation": "ARGON WELDING",
+        "process": "LITE FEMALE",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "25.00",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "HEAVY NOZZLE",
+        "operation": "ARGON WELDING",
+        "process": "HEAVY NOZZLE",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "15.00",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "HEAVY BRANCH",
+        "operation": "ARGON WELDING",
+        "process": "HEAVY BRANCH",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "9.00",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "NOZZLE GUNMETAL",
+        "operation": "ARGON WELDING",
+        "process": "NOZZLE GUNMETAL",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "15.00",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "HEAVY FEMALE",
+        "operation": "ARGON WELDING",
+        "process": "HEAVY FEMALE",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "25.00",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "WATER MONITOR NOZZLE",
+        "operation": "ARGON WELDING",
+        "process": "WATER MONITOR NOZZLE",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "15.00",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "HEAVY COUPLING REPEAT",
+        "operation": "ASS-1",
+        "process": "HEAVY COUPLING REPEAT",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "6.00",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "63 MM NOZZLE",
+        "operation": "GRINDING",
+        "process": "63 MM NOZZLE",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "2.25",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "75 MM RING",
+        "operation": "GRINDING",
+        "process": "75 MM RING",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "2.25",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "63 MM RING",
+        "operation": "GRINDING",
+        "process": "63 MM RING",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "2.25",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "OT",
+        "operation": "ASS-1",
+        "process": "",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "45.00",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "FIRE BUCKET",
+        "operation": "ASS-1",
+        "process": "",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "20.00",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "6 MM NOZZLE",
+        "operation": "GRINDING",
+        "process": "6 MM NOZZLE",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "2.25",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "8 MM NOZZLE",
+        "operation": "GRINDING",
+        "process": "8 MM NOZZLE",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "2.25",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "25 MM NOZZLE",
+        "operation": "GRINDING",
+        "process": "25 MM NOZZLE",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "2.25",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "30 MM NOZZLE FACE",
+        "operation": "Lathe Employee wise",
+        "process": "30 MM NOZZLE FACE",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "1.50",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "25 MM NOZZLE FACE",
+        "operation": "Lathe Employee wise",
+        "process": "25 MM NOZZLE FACE",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "1.50",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "8 MM NOZZLE FACE",
+        "operation": "Lathe Employee wise",
+        "process": "8 MM NOZZLE FACE",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "1.50",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "6 MM NOZZLE FACE",
+        "operation": "Lathe Employee wise",
+        "process": "6 MM NOZZLE FACE",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "1.50",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "25 MM NOZZLE BORING",
+        "operation": "Lathe Employee wise",
+        "process": "25 MM NOZZLE BORING",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "2.25",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "70 MM HEAVY FEMALE LAG",
+        "operation": "Lathe Employee wise",
+        "process": "70 MM HEAVY FEMALE LAG",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "3.00",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "OTHER PARTS",
+        "operation": "ARGON WELDING",
+        "process": "OTHER PARTS",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "3.00",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "BODY",
+        "operation": "ARGON WELDING",
+        "process": "BODY",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "5.00",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "70 MM HEAVY FEMALE DIGRI",
+        "operation": "Lathe Employee wise",
+        "process": "70 MM HEAVY FEMALE DIGRI",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "3.00",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "70 MM HEAVY FEMALE KAN",
+        "operation": "Lathe Employee wise",
+        "process": "70 MM HEAVY FEMALE KAN",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "3.00",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "NRV FACE OD",
+        "operation": "Lathe Employee wise",
+        "process": "NRV FACE OD",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "2.00",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "70 MM FEMALE BORING",
+        "operation": "Lathe Employee wise",
+        "process": "70 MM FEMALE BORING",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "2.80",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "70 MM MALE BORING",
+        "operation": "Lathe Employee wise",
+        "process": "70 MM MALE BORING",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "2.80",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "70 MM FEMALE GRU",
+        "operation": "Lathe Employee wise",
+        "process": "70 MM FEMALE GRU",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "2.25",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "SUCTION FEMALE",
+        "operation": "CNC",
+        "process": "",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "6.00",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "SUCTION MAIL",
+        "operation": "CNC",
+        "process": "",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "10.00",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "75 MM NOZZLE",
+        "operation": "GRINDING",
+        "process": "",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "2.25",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "100 MM NOZZLE",
+        "operation": "GRINDING",
+        "process": "",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "2.25",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "KATEX",
+        "operation": "CNC",
+        "process": "",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "10.00",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "Varada Casting",
+        "operation": "FOUNDRY",
+        "process": "",
+        "unit": "KG",
+        "ot_text": "",
+        "rate": "13.00",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "Mahadev Casting",
+        "operation": "FOUNDRY",
+        "process": "",
+        "unit": "KG",
+        "ot_text": "",
+        "rate": "11.00",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "1800 MM Flexible",
+        "operation": "FLEXIBLE",
+        "process": "",
+        "unit": "PCS",
+        "ot_text": "45",
+        "rate": "18.00",
+        "rejection_rate": "7.50",
+        "active": true
+    },
+    {
+        "name": "1500 MM Flexible",
+        "operation": "FLEXIBLE",
+        "process": "",
+        "unit": "PCS",
+        "ot_text": "45",
+        "rate": "18.00",
+        "rejection_rate": "9.00",
+        "active": true
+    },
+    {
+        "name": "1200 MM Flexible",
+        "operation": "FLEXIBLE",
+        "process": "",
+        "unit": "PCS",
+        "ot_text": "45",
+        "rate": "18.00",
+        "rejection_rate": "9.00",
+        "active": true
+    },
+    {
+        "name": "1000 MM Flexible",
+        "operation": "FLEXIBLE",
+        "process": "",
+        "unit": "PCS",
+        "ot_text": "45",
+        "rate": "18.00",
+        "rejection_rate": "9.00",
+        "active": true
+    },
+    {
+        "name": "700 MM Flexible",
+        "operation": "FLEXIBLE",
+        "process": "",
+        "unit": "PCS",
+        "ot_text": "45",
+        "rate": "18.00",
+        "rejection_rate": "9.00",
+        "active": true
+    },
+    {
+        "name": "Batla Extinguisher",
+        "operation": "RRL",
+        "process": "",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "9.00",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "Drum",
+        "operation": "RRL",
+        "process": "",
+        "unit": "PCS",
+        "ot_text": "45",
+        "rate": "21.00",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "RRL Line",
+        "operation": "RRL",
+        "process": "",
+        "unit": "PCS",
+        "ot_text": "45",
+        "rate": "32.00",
+        "rejection_rate": "15.00",
+        "active": true
+    },
+    {
+        "name": "25 VADI LINE",
+        "operation": "RRL",
+        "process": "",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "25.00",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "WATER MONITOR",
+        "operation": "COATING",
+        "process": "",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "45.00",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "FLANGE",
+        "operation": "COATING",
+        "process": "",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "15.00",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "NOZZLE",
+        "operation": "COATING",
+        "process": "",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "7.00",
+        "rejection_rate": "7.00",
+        "active": true
+    },
+    {
+        "name": "MINI HYDRANT",
+        "operation": "COATING",
+        "process": "",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "2.00",
+        "rejection_rate": "2.00",
+        "active": true
+    },
+    {
+        "name": "VALVE DISH",
+        "operation": "COATING",
+        "process": "",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "15.00",
+        "rejection_rate": "15.00",
+        "active": true
+    },
+    {
+        "name": "BIG VALVE",
+        "operation": "COATING",
+        "process": "",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "30.00",
+        "rejection_rate": "30.00",
+        "active": true
+    },
+    {
+        "name": "GM body",
+        "operation": "COATING",
+        "process": "",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "7.00",
+        "rejection_rate": "7.00",
+        "active": true
+    },
+    {
+        "name": "4 WAY",
+        "operation": "COATING",
+        "process": "",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "15.00",
+        "rejection_rate": "15.00",
+        "active": true
+    },
+    {
+        "name": "3 WAY",
+        "operation": "COATING",
+        "process": "",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "15.00",
+        "rejection_rate": "15.00",
+        "active": true
+    },
+    {
+        "name": "2 WAY",
+        "operation": "COATING",
+        "process": "",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "15.00",
+        "rejection_rate": "15.00",
+        "active": true
+    },
+    {
+        "name": "WHEEL",
+        "operation": "COATING",
+        "process": "",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "4.00",
+        "rejection_rate": "3.00",
+        "active": true
+    },
+    {
+        "name": "CI BODY TYPE B",
+        "operation": "COATING",
+        "process": "",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "15.00",
+        "rejection_rate": "15.00",
+        "active": true
+    },
+    {
+        "name": "SS BODY TYPE B",
+        "operation": "COATING",
+        "process": "",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "15.00",
+        "rejection_rate": "15.00",
+        "active": true
+    },
+    {
+        "name": "CI BODY TYPE A",
+        "operation": "COATING",
+        "process": "",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "7.00",
+        "rejection_rate": "7.00",
+        "active": true
+    },
+    {
+        "name": "SS BODY TYPE A",
+        "operation": "COATING",
+        "process": "",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "7.00",
+        "rejection_rate": "7.00",
+        "active": true
+    },
+    {
+        "name": "ADAPTOR 304",
+        "operation": "ASS-2",
+        "process": "",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "2.50",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "NRV 304",
+        "operation": "ASS-2",
+        "process": "",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "2.50",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "DOUBLE \/ REPEAT",
+        "operation": "ASS-2",
+        "process": "",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "20.00",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "SINGLE \/ REPEAT",
+        "operation": "ASS-2",
+        "process": "",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "14.00",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "GM BODY",
+        "operation": "ASS-2",
+        "process": "",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "28.00",
+        "rejection_rate": "14.00",
+        "active": true
+    },
+    {
+        "name": "4 WAY",
+        "operation": "ASS-2",
+        "process": "",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "40.00",
+        "rejection_rate": "20.00",
+        "active": true
+    },
+    {
+        "name": "3 WAY",
+        "operation": "ASS-2",
+        "process": "",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "40.00",
+        "rejection_rate": "20.00",
+        "active": true
+    },
+    {
+        "name": "2 WAY",
+        "operation": "ASS-2",
+        "process": "",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "28.00",
+        "rejection_rate": "14.00",
+        "active": true
+    },
+    {
+        "name": "CI DOUBLE HYDRANT",
+        "operation": "ASS-2",
+        "process": "",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "40.00",
+        "rejection_rate": "20.00",
+        "active": true
+    },
+    {
+        "name": "SS DOUBLE HYDRANT",
+        "operation": "ASS-2",
+        "process": "",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "40.00",
+        "rejection_rate": "20.00",
+        "active": true
+    },
+    {
+        "name": "CI SINGLE HYDRANT",
+        "operation": "ASS-2",
+        "process": "",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "28.00",
+        "rejection_rate": "14.00",
+        "active": true
+    },
+    {
+        "name": "SS SINGLE HYDRANT",
+        "operation": "ASS-2",
+        "process": "",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "28.00",
+        "rejection_rate": "14.00",
+        "active": true
+    },
+    {
+        "name": "fire bucket stand",
+        "operation": "ASS-1",
+        "process": "",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "30.00",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "Draw out of connection",
+        "operation": "ASS-1",
+        "process": "",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "20.00",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "Child part",
+        "operation": "ASS-1",
+        "process": "",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "1.50",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "T Nozzle",
+        "operation": "ASS-1",
+        "process": "",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "15.00",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "Gift hydrant",
+        "operation": "ASS-1",
+        "process": "",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "2.00",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "hose box",
+        "operation": "ASS-1",
+        "process": "",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "20.00",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "ball valve ,air release valve ,velocity nozzel, Curtain nozzel,",
+        "operation": "ASS-1",
+        "process": "",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "2.00",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "Collecting Breeching, Y Stainer, Gate valve ,",
+        "operation": "ASS-1",
+        "process": "",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "20.00",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "spinkler",
+        "operation": "ASS-1",
+        "process": "",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "2.00",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "LITE COUPLING REPEAT",
+        "operation": "ASS-1",
+        "process": "",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "6.00",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "HEAVY FEMALE",
+        "operation": "ASS-1",
+        "process": "",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "6.00",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "HEAVY BRANCH REPEAT",
+        "operation": "ASS-1",
+        "process": "",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "4.00",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "LUG BUSH",
+        "operation": "ASS-1",
+        "process": "",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "10.00",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "RUNNING ADAPTOR",
+        "operation": "ASS-1",
+        "process": "",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "10.00",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "HEAVY ADAPTOR",
+        "operation": "ASS-1",
+        "process": "",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "10.00",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "HEAVY BRANCH",
+        "operation": "ASS-1",
+        "process": "",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "8.00",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "LITE BRANCH",
+        "operation": "ASS-1",
+        "process": "",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "8.00",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "RUNNING COUPLING",
+        "operation": "ASS-1",
+        "process": "",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "12.00",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "LITE COUPLING",
+        "operation": "ASS-1",
+        "process": "",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "12.00",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "NRV FACE &amp; BORING",
+        "operation": "Lathe Employee wise",
+        "process": "NRV FACE &amp; BORING",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "2.00",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "DOUBLE KAN ADAPTOR",
+        "operation": "BUFF",
+        "process": "",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "20.00",
+        "rejection_rate": "10.00",
+        "active": true
+    },
+    {
+        "name": "SS PIN",
+        "operation": "BUFF",
+        "process": "",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "1.00",
+        "rejection_rate": "0.50",
+        "active": true
+    },
+    {
+        "name": "HEAVY FEMALE 70 MM",
+        "operation": "BUFF",
+        "process": "",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "25.00",
+        "rejection_rate": "12.50",
+        "active": true
+    },
+    {
+        "name": "HEAVY MALE 70 MM",
+        "operation": "BUFF",
+        "process": "",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "7.00",
+        "rejection_rate": "3.50",
+        "active": true
+    },
+    {
+        "name": "TRIPPLE PURPOSE NOZZLE",
+        "operation": "BUFF",
+        "process": "",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "15.00",
+        "rejection_rate": "7.50",
+        "active": true
+    },
+    {
+        "name": "HEAVY MALE 38 MM",
+        "operation": "BUFF",
+        "process": "",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "7.00",
+        "rejection_rate": "3.50",
+        "active": true
+    },
+    {
+        "name": "HEAVY FEMALE 38 MM",
+        "operation": "BUFF",
+        "process": "",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "25.00",
+        "rejection_rate": "12.50",
+        "active": true
+    },
+    {
+        "name": "16MM NOZZLE",
+        "operation": "BUFF",
+        "process": "",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "15.00",
+        "rejection_rate": "7.50",
+        "active": true
+    },
+    {
+        "name": "BODY \/ OTHA",
+        "operation": "BUFF",
+        "process": "",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "10.00",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "HEAVY ADAPTOR",
+        "operation": "BUFF",
+        "process": "",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "20.00",
+        "rejection_rate": "10.00",
+        "active": true
+    },
+    {
+        "name": "RUNNING ADAPTOR",
+        "operation": "BUFF",
+        "process": "",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "20.00",
+        "rejection_rate": "10.00",
+        "active": true
+    },
+    {
+        "name": "LURNING BUSH",
+        "operation": "BUFF",
+        "process": "",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "1.50",
+        "rejection_rate": "0.75",
+        "active": true
+    },
+    {
+        "name": "HEAVY NOZZLE",
+        "operation": "BUFF",
+        "process": "",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "15.00",
+        "rejection_rate": "7.50",
+        "active": true
+    },
+    {
+        "name": "LITE NOZZLE",
+        "operation": "BUFF",
+        "process": "",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "15.00",
+        "rejection_rate": "7.50",
+        "active": true
+    },
+    {
+        "name": "HEAVY BRANCH",
+        "operation": "BUFF",
+        "process": "",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "9.00",
+        "rejection_rate": "4.50",
+        "active": true
+    },
+    {
+        "name": "LITE BRANCH",
+        "operation": "BUFF",
+        "process": "",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "9.00",
+        "rejection_rate": "4.50",
+        "active": true
+    },
+    {
+        "name": "HEAVY MALE",
+        "operation": "BUFF",
+        "process": "",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "7.00",
+        "rejection_rate": "3.50",
+        "active": true
+    },
+    {
+        "name": "HEAVY FEMALE",
+        "operation": "BUFF",
+        "process": "",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "25.00",
+        "rejection_rate": "12.50",
+        "active": true
+    },
+    {
+        "name": "LITE MALE",
+        "operation": "BUFF",
+        "process": "",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "7.00",
+        "rejection_rate": "3.50",
+        "active": true
+    },
+    {
+        "name": "LITE FEMALE",
+        "operation": "BUFF",
+        "process": "",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "25.00",
+        "rejection_rate": "12.50",
+        "active": true
+    },
+    {
+        "name": "MORIMAX",
+        "operation": "CNC",
+        "process": "",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "10.00",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "WATER MONITER NOZZLE",
+        "operation": "CNC",
+        "process": "",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "8.00",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "ARIHANT",
+        "operation": "CNC",
+        "process": "",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "10.00",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "TRV.3",
+        "operation": "CNC",
+        "process": "",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "8.00",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "TRV.2",
+        "operation": "CNC",
+        "process": "",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "5.00",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "TRV.1",
+        "operation": "CNC",
+        "process": "",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "8.00",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "ELITECH",
+        "operation": "CNC",
+        "process": "",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "10.00",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "VICTOR",
+        "operation": "CNC",
+        "process": "",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "10.00",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "HEAVY MALE 70 MM",
+        "operation": "CNC",
+        "process": "",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "10.00",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "HEAVY FEMALE 70 MM",
+        "operation": "CNC",
+        "process": "",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "6.00",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "IC ARMOR",
+        "operation": "CNC",
+        "process": "",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "10.00",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "LITE NOZZLE",
+        "operation": "CNC",
+        "process": "",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "8.00",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "G MAX",
+        "operation": "CNC",
+        "process": "",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "10.00",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "KETEX",
+        "operation": "CNC",
+        "process": "",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "10.00",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "SAFEX",
+        "operation": "CNC",
+        "process": "",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "10.00",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "HEAVY BRANCH ISI",
+        "operation": "CNC",
+        "process": "",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "14.00",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "HEAVY NRV",
+        "operation": "CNC",
+        "process": "",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "10.00",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "TRIPLE PURPOSE NUT",
+        "operation": "CNC",
+        "process": "",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "7.00",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "TRIPLE PURPOSE BRANCH",
+        "operation": "CNC",
+        "process": "",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "14.00",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "TRIPLE PURPOSE NOZZLE",
+        "operation": "CNC",
+        "process": "",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "8.00",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "ISI NOZZLE",
+        "operation": "CNC",
+        "process": "",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "10.00",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "FLAME GUARD",
+        "operation": "CNC",
+        "process": "",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "10.00",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "LITE MALE",
+        "operation": "CNC",
+        "process": "",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "6.00",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "LITE ADAPTOR",
+        "operation": "CNC",
+        "process": "",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "6.00",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "SAFE GUARD",
+        "operation": "CNC",
+        "process": "",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "10.00",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "ARMOR BODY",
+        "operation": "CNC",
+        "process": "",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "10.00",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "HEAVY NOZZLE",
+        "operation": "CNC",
+        "process": "",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "8.00",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "LITE FEMALE",
+        "operation": "CNC",
+        "process": "",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "6.00",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "HEAVY FEMALE",
+        "operation": "CNC",
+        "process": "",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "6.00",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "BONNET",
+        "operation": "CNC",
+        "process": "",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "10.00",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "DOUBLE LAG HEAVY ADAPTOR",
+        "operation": "CNC",
+        "process": "",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "6.00",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "HEAVY ADAPTOR",
+        "operation": "CNC",
+        "process": "",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "6.00",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "LITE BRANCH",
+        "operation": "CNC",
+        "process": "",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "14.00",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "HEAVY BRANCH",
+        "operation": "CNC",
+        "process": "",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "14.00",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "HEAVY MALE",
+        "operation": "CNC",
+        "process": "",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "10.00",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "LITE BRANCH",
+        "operation": "Lathe Employee wise",
+        "process": "LITE BRANCH DIGRI",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "2.00",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "HEAVY BRANCH",
+        "operation": "Lathe Employee wise",
+        "process": "HEAVY BRANCH DIGRI",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "2.00",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "LITE MALE",
+        "operation": "Lathe Employee wise",
+        "process": "LITE MALE DIGRI",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "2.00",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "HEAVY MALE",
+        "operation": "Lathe Employee wise",
+        "process": "HEAVY MALE DIGRI",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "2.00",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "LITE MALE",
+        "operation": "Lathe Employee wise",
+        "process": "LITE MALE FACE",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "1.50",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "HEAVY MALE",
+        "operation": "Lathe Employee wise",
+        "process": "HEAVY MALE FACE",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "1.50",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "LITE MALE",
+        "operation": "Lathe Employee wise",
+        "process": "LITE MALE OD",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "2.00",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "HEAVY MALE",
+        "operation": "Lathe Employee wise",
+        "process": "HEAVY MALE OD",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "2.00",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "LITE FEMALE",
+        "operation": "Lathe Employee wise",
+        "process": "LITE FEMALE REDIUS",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "1.75",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "HEAVY  FEMALE",
+        "operation": "Lathe Employee wise",
+        "process": "HEAVY  FEMALE REDIUS",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "1.75",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "LITE FEMALE",
+        "operation": "Lathe Employee wise",
+        "process": "LITE FEMALE BORING",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "2.80",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "HEAVY FEMALE",
+        "operation": "Lathe Employee wise",
+        "process": "HEAVY FEMALE BORING",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "2.80",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "Hydrant Body",
+        "operation": "Lathe Employee wise",
+        "process": "HYDRO BODY",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "2.00",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "Hand Wheel",
+        "operation": "Lathe Employee wise",
+        "process": "WHEEL OD",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "2.00",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "LITE BRANCH",
+        "operation": "Lathe Employee wise",
+        "process": "LITE BRANCH BORING",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "3.75",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "HEAVY BRANCH",
+        "operation": "Lathe Employee wise",
+        "process": "HEAVY BRANCH BORING",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "3.75",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "Hydrant Body",
+        "operation": "Lathe Employee wise",
+        "process": "BODY 45 DIGRI NO FACE",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "6.50",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "Hydrant Body",
+        "operation": "Lathe Employee wise",
+        "process": "BODY GRU",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "2.50",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "LITE NOZZLE",
+        "operation": "Lathe Employee wise",
+        "process": "LITE NOZZLE FACE",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "1.50",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "HEAVY NOZZLE",
+        "operation": "Lathe Employee wise",
+        "process": "HEAVY NOZZLE FACE",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "1.50",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "LITE  MALE",
+        "operation": "Lathe Employee wise",
+        "process": "LITE  MALE REDIUS",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "1.75",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "HEAVY MALE",
+        "operation": "Lathe Employee wise",
+        "process": "HEAVY MALE REDIUS",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "1.75",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "LITE  NOZZLE",
+        "operation": "Lathe Employee wise",
+        "process": "LITE  NOZZLE BORING",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "2.25",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "HEAVY NOZZLE",
+        "operation": "Lathe Employee wise",
+        "process": "HEAVY NOZZLE BORING",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "2.25",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "LITE ADAPTOR",
+        "operation": "Lathe Employee wise",
+        "process": "LITE ADAPTOR LAG",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "3.00",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "HEAVY ADAPTOR",
+        "operation": "Lathe Employee wise",
+        "process": "HEAVY ADAPTOR LAG",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "3.00",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "LITE FEMALE",
+        "operation": "Lathe Employee wise",
+        "process": "LITE FEMALE OD",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "2.00",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "HEAVY FEMALE",
+        "operation": "Lathe Employee wise",
+        "process": "HEAVY FEMALE OD",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "2.00",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "LITE FEMALE",
+        "operation": "Lathe Employee wise",
+        "process": "LITE FEMALE DIGRI",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "3.00",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "HEAVY FEMALE",
+        "operation": "Lathe Employee wise",
+        "process": "HEAVY FEMALE DIGRI",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "3.00",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "LITE FEMALE",
+        "operation": "Lathe Employee wise",
+        "process": "LITE FEMALE GRU",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "2.25",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "HEAVY FEMALE",
+        "operation": "Lathe Employee wise",
+        "process": "HEAVY FEMALE GRU",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "2.25",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "LITE ADAPTOR",
+        "operation": "Lathe Employee wise",
+        "process": "LITE ADAPTOR DIGRI",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "3.00",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "HEAVY ADAPTOR",
+        "operation": "Lathe Employee wise",
+        "process": "HEAVY ADAPTOR DIGRI",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "3.00",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "LITE FEMALE",
+        "operation": "Lathe Employee wise",
+        "process": "LITE FEMALE LAG",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "3.00",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "HEAVY FEMALE",
+        "operation": "Lathe Employee wise",
+        "process": "HEAVY FEMALE LAG",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "3.00",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "Hydrant Body",
+        "operation": "Lathe Employee wise",
+        "process": "BODY FACE &amp; OD",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "7.50",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "LITE ADAPTOR",
+        "operation": "Lathe Employee wise",
+        "process": "LITE ADAPTOR GRU",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "2.25",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "HEAVY ADAPTOR",
+        "operation": "Lathe Employee wise",
+        "process": "HEAVY ADAPTOR GRU",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "2.25",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "LITE ADAPTOR",
+        "operation": "Lathe Employee wise",
+        "process": "LITE ADAPTOR TOPI",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "3.00",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "HEAVY ADAPTOR",
+        "operation": "Lathe Employee wise",
+        "process": "HEAVY ADAPTOR TOPI",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "3.00",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "LITE BRANCH",
+        "operation": "Lathe Employee wise",
+        "process": "LITE BRANCH OD",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "3.50",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "HEAVY BRANCH",
+        "operation": "Lathe Employee wise",
+        "process": "HEAVY BRANCH OD",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "3.50",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "LITE FEMALE",
+        "operation": "Lathe Employee wise",
+        "process": "LITE FEMALE KAN",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "3.00",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "HEAVY FEMALE",
+        "operation": "Lathe Employee wise",
+        "process": "HEAVY FEMALE KAN",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "3.00",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "LITE MALE",
+        "operation": "Lathe Employee wise",
+        "process": "LITE MALE BORING",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "2.80",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "HEAVY MALE",
+        "operation": "Lathe Employee wise",
+        "process": "HEAVY MALE BORING",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "2.80",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "NUT",
+        "operation": "GRINDING",
+        "process": "",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "2.25",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "SIKKA",
+        "operation": "GRINDING",
+        "process": "",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "2.25",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "WATER MONITOR NOZZLE",
+        "operation": "GRINDING",
+        "process": "",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "2.25",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "HEAVY FEMALE HEAVY ADAPTOR JOINT",
+        "operation": "GRINDING",
+        "process": "",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "2.25",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "HEAVY MALE 70 MM",
+        "operation": "GRINDING",
+        "process": "",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "2.25",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "HEAVY FEMALE 70 MM",
+        "operation": "GRINDING",
+        "process": "",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "2.25",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "NOZZLE 70MM",
+        "operation": "GRINDING",
+        "process": "",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "2.25",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "150 MM RING",
+        "operation": "GRINDING",
+        "process": "",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "2.25",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "HEAVY ADAPTOR",
+        "operation": "GRINDING",
+        "process": "",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "2.25",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "NRV 304",
+        "operation": "GRINDING",
+        "process": "",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "2.25",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "80MM RING",
+        "operation": "GRINDING",
+        "process": "",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "2.25",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "100 MM RING",
+        "operation": "GRINDING",
+        "process": "",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "2.25",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "WHEEL",
+        "operation": "GRINDING",
+        "process": "",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "2.25",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "BONNET",
+        "operation": "GRINDING",
+        "process": "",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "2.25",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "BONNET(SMALL)",
+        "operation": "GRINDING",
+        "process": "",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "2.25",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "LITE NOZZLE",
+        "operation": "GRINDING",
+        "process": "",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "2.25",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "HEAVY NRV",
+        "operation": "GRINDING",
+        "process": "",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "2.25",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "RUNNING ADAPTOR",
+        "operation": "GRINDING",
+        "process": "",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "2.25",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "HEAVY NOZZLE",
+        "operation": "GRINDING",
+        "process": "",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "2.25",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "HEAVY BRANCH",
+        "operation": "GRINDING",
+        "process": "",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "2.25",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "LITE BRANCH",
+        "operation": "GRINDING",
+        "process": "",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "2.25",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "HEAVY MALE",
+        "operation": "GRINDING",
+        "process": "",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "2.25",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "HEAVY FEMALE",
+        "operation": "GRINDING",
+        "process": "",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "2.25",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "LITE MALE",
+        "operation": "GRINDING",
+        "process": "",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "2.25",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "LITE FEMALE",
+        "operation": "GRINDING",
+        "process": "",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "2.25",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "Core 1.4",
+        "operation": "CORE",
+        "process": "",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "1.40",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "Core 0.4",
+        "operation": "CORE",
+        "process": "",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "0.40",
+        "rejection_rate": "0.00",
+        "active": true
+    },
+    {
+        "name": "Core 0.9",
+        "operation": "CORE",
+        "process": "",
+        "unit": "PCS",
+        "ot_text": "",
+        "rate": "0.90",
+        "rejection_rate": "0.00",
+        "active": true
+    }
+]

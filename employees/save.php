@@ -19,6 +19,10 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 
 $id            = (int) ($_POST['id'] ?? 0);
 $departmentId  = (int) ($_POST['department_id'] ?? 0);
+$subDeptId     = (int) ($_POST['sub_department_id'] ?? 0);
+if ($subDeptId > 0 && getSubDepartmentNameById($subDeptId, $departmentId) === '') {
+    $subDeptId = 0;
+}
 $payType       = (($_POST['pay_type'] ?? 'Salary') === 'Jobwork') ? 'Jobwork' : 'Salary';
 $empCode       = strtoupper(trim($_POST['employee_code'] ?? ''));
 
@@ -116,7 +120,7 @@ if ($id > 0) {
 
 if ($id > 0) {
     $sql = "UPDATE employees SET
-        employee_code=?, pay_type=?, department_id=?, employee_name=?, father_husband_name=?,
+        employee_code=?, pay_type=?, department_id=?, sub_department_id=?, employee_name=?, father_husband_name=?,
         permanent_address=?, present_address=?, mobile_number=?, emergency_mobile=?,
         aadhar_number=?, pan_number=?, date_of_birth=?, designation=?, date_of_joining=?,
         shift_type=?, shift_time=?, pf_deduction=?, uan_number=?,
@@ -127,10 +131,11 @@ if ($id > 0) {
 
     $stmt = $conn->prepare($sql);
     $stmt->bind_param(
-        'ssissssssssssssssssssssssssssi',
+        'ssiissssssssssssssssssssssssssi',
         $empCode,
         $payType,
         $departmentId,
+        $subDeptId,
         $employeeName,
         $fatherName,
         $permanentAddr,
@@ -161,21 +166,22 @@ if ($id > 0) {
     );
 } else {
     $sql = "INSERT INTO employees (
-        employee_code, pay_type, department_id, employee_name, father_husband_name,
+        employee_code, pay_type, department_id, sub_department_id, employee_name, father_husband_name,
         permanent_address, present_address, mobile_number, emergency_mobile,
         aadhar_number, pan_number, date_of_birth, designation, date_of_joining,
         shift_type, shift_time, pf_deduction, uan_number,
         bank_name, bank_account_number, ifsc_code, bank_branch_address,
         decided_salary, reporting_head, extra_note, week_off_day,
         week_off_benefits, holiday_benefits, overtime_benefits, created_by
-    ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
+    ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
 
     $stmt = $conn->prepare($sql);
     $stmt->bind_param(
-        'ssissssssssssssssssssssssssssi',
+        'ssiissssssssssssssssssssssssssi',
         $empCode,
         $payType,
         $departmentId,
+        $subDeptId,
         $employeeName,
         $fatherName,
         $permanentAddr,
@@ -234,9 +240,13 @@ if ($savedId > 0) {
 
 $conn->close();
 
+$fromContractor = (($_POST['from'] ?? '') === 'contractor');
+
 // After ADD → list with toaster
 // After EDIT → details page with toaster
-if ($id > 0) {
+if ($fromContractor) {
+    header('Location: ' . app_url('contractor/employees/index.php?msg=' . ($id > 0 ? 'updated' : 'added')));
+} elseif ($id > 0) {
     header('Location: ' . app_url('employees/view.php?id=' . $id . '&msg=updated'));
 } else {
     header('Location: ' . app_url('employees/index.php?department_id=' . $departmentId . '&msg=added'));

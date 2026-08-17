@@ -47,6 +47,7 @@ $mastersNav = getMastersConfig();
 
 $openDepartments = ($sidebarDeptId > 0 || $sidebarMode === 'department' || $sidebarMode === 'employees' || $sidebarActive === 'modules');
 $openMasters = ($sidebarMode === 'masters' || $sidebarActive === 'hub' || isset($mastersNav[$sidebarActive]));
+$openContractor = ($sidebarMode === 'contractor' || strpos((string) $sidebarActive, 'contractor') === 0);
 ?>
 
 <aside class="app-sidebar" id="appSidebar" aria-label="Sidebar navigation">
@@ -108,6 +109,52 @@ $openMasters = ($sidebarMode === 'masters' || $sidebarActive === 'hub' || isset(
                             <span><?php echo htmlspecialchars($m['title']); ?></span>
                         </a>
                     <?php endforeach; ?>
+                </div>
+            </div>
+        </div>
+
+        <!-- Contractor Manage -->
+        <div class="sidebar-section">
+            <div class="sidebar-section-title">Contractor</div>
+            <div class="sidebar-accordion <?php echo $openContractor ? 'is-open' : ''; ?>" data-accordion="contractor">
+                <button type="button" class="sidebar-acc-btn" aria-expanded="<?php echo $openContractor ? 'true' : 'false'; ?>">
+                    <span class="sidebar-acc-left">
+                        <i class="fa-solid fa-helmet-safety"></i>
+                        <span>Contractor Manage</span>
+                    </span>
+                    <i class="fa-solid fa-chevron-down sidebar-acc-caret"></i>
+                </button>
+                <div class="sidebar-submenu">
+                    <a href="<?php echo app_url('contractor/index.php'); ?>"
+                       class="sidebar-link sidebar-sublink <?php echo $sidebarActive === 'contractor_hub' ? 'active' : ''; ?>">
+                        <i class="fa-solid fa-border-all"></i>
+                        <span>Contractor Hub</span>
+                    </a>
+                    <a href="<?php echo app_url('contractor/employees/index.php'); ?>"
+                       class="sidebar-link sidebar-sublink <?php echo $sidebarActive === 'contractor_employees' ? 'active' : ''; ?>">
+                        <i class="fa-solid fa-circle"></i>
+                        <span>Contractor Employee</span>
+                    </a>
+                    <a href="<?php echo app_url('contractor/employment/index.php'); ?>"
+                       class="sidebar-link sidebar-sublink <?php echo $sidebarActive === 'contractor_employment' ? 'active' : ''; ?>">
+                        <i class="fa-solid fa-circle"></i>
+                        <span>Contractor Employment Details</span>
+                    </a>
+                    <a href="<?php echo app_url('contractor/products/index.php'); ?>"
+                       class="sidebar-link sidebar-sublink <?php echo $sidebarActive === 'contractor_products' ? 'active' : ''; ?>">
+                        <i class="fa-solid fa-circle"></i>
+                        <span>Product Master</span>
+                    </a>
+                    <a href="<?php echo app_url('contractor/grades/index.php'); ?>"
+                       class="sidebar-link sidebar-sublink <?php echo $sidebarActive === 'contractor_grades' ? 'active' : ''; ?>">
+                        <i class="fa-solid fa-circle"></i>
+                        <span>Grade Master</span>
+                    </a>
+                    <a href="<?php echo app_url('contractor/operations/index.php'); ?>"
+                       class="sidebar-link sidebar-sublink <?php echo $sidebarActive === 'contractor_operations' ? 'active' : ''; ?>">
+                        <i class="fa-solid fa-circle"></i>
+                        <span>Operations Rate List</span>
+                    </a>
                 </div>
             </div>
         </div>

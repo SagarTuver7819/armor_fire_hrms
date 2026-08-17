@@ -52,6 +52,28 @@ function getMastersConfig()
             ],
         ],
 
+        'sub_departments' => [
+            'key'         => 'sub_departments',
+            'title'       => 'Sub Department Master',
+            'singular'    => 'Sub Department',
+            'table'       => 'sub_departments',
+            'folder'      => 'sub_departments',
+            'icon'        => 'fa-sitemap',
+            'color'       => '#0F766E',
+            'name_field'  => 'name',
+            'fill_department_options' => true,
+            'list_columns'=> [
+                ['key' => 'department_name', 'label' => 'Department'],
+                ['key' => 'name', 'label' => 'Sub Department'],
+            ],
+            'fields' => [
+                ['name' => 'department_id', 'label' => 'Department', 'type' => 'select', 'required' => true, 'span' => 1,
+                    'options' => ['' => 'Select Department']],
+                ['name' => 'name', 'label' => 'Sub Department Name', 'type' => 'text', 'required' => true, 'span' => 2,
+                    'help' => 'One department can have many sub departments'],
+            ],
+        ],
+
         'shifts' => [
             'key'         => 'shifts',
             'title'       => 'Shift Master',

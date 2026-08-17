@@ -11,6 +11,7 @@ require_once __DIR__ . '/../includes/master_helper.php';
 
 $deptId = isset($_GET['department_id']) ? (int) $_GET['department_id'] : 0;
 $empId  = isset($_GET['id']) ? (int) $_GET['id'] : 0;
+$fromContractor = (($_GET['from'] ?? '') === 'contractor');
 
 $employee = null;
 if ($empId > 0) {
@@ -29,10 +30,10 @@ if (!$department) {
 $pageTitle = $employee ? 'Edit Employee' : 'Add Employee';
 
 $useSidebar = true;
-$sidebarMode = 'department';
+$sidebarMode = $fromContractor ? 'contractor' : 'department';
 $sidebarDeptId = $deptId;
-$sidebarActive = 'join_employee';
-$extraJs = ['assets/js/employee_form.js'];
+$sidebarActive = $fromContractor ? 'contractor_employees' : 'join_employee';
+$extraJs = ['assets/js/employee_form.js', 'assets/js/subdept_cascade.js'];
 
 require_once __DIR__ . '/../includes/header.php';
 
@@ -45,6 +46,9 @@ $reporters    = getReportingEmployees($empId);
 
 $currentDesignation = empField($employee, 'designation');
 $currentPayType     = empField($employee, 'pay_type', 'Salary');
+if (!$employee && (($_GET['pay_type'] ?? '') === 'Jobwork')) {
+    $currentPayType = 'Jobwork';
+}
 if ($currentPayType !== 'Jobwork') {
     $currentPayType = 'Salary';
 }
@@ -73,8 +77,11 @@ function empField($employee, $key, $default = '')
 
 <main class="dashboard-main">
     <div class="page-toolbar flex-between">
-        <a href="<?php echo app_url('employees/index.php?department_id=' . (int) $deptId); ?>" class="back-link">
-            <i class="fa-solid fa-arrow-left"></i> Back to Employee List
+        <a href="<?php echo $fromContractor
+            ? app_url('contractor/employees/index.php')
+            : app_url('employees/index.php?department_id=' . (int) $deptId); ?>" class="back-link">
+            <i class="fa-solid fa-arrow-left"></i>
+            <?php echo $fromContractor ? 'Back to Contractor Employee' : 'Back to Employee List'; ?>
         </a>
         <a href="<?php echo app_url('department.php?id=' . (int) $deptId); ?>" class="btn-secondary">
             <i class="fa-solid fa-puzzle-piece"></i> Module Boxes
@@ -93,6 +100,9 @@ function empField($employee, $key, $default = '')
 
         <form method="POST" action="<?php echo app_url('employees/save.php'); ?>" class="employee-form" autocomplete="off" enctype="multipart/form-data">
             <input type="hidden" name="id" value="<?php echo (int) $empId; ?>">
+            <?php if ($fromContractor): ?>
+                <input type="hidden" name="from" value="contractor">
+            <?php endif; ?>
 
             <!-- Section 1 -->
             <div class="form-section">
@@ -172,10 +182,15 @@ function empField($employee, $key, $default = '')
                 <div class="form-grid form-grid-3">
                     <div class="form-group">
                         <label>Pay Type <small>(Salary / Jobwork)</small></label>
+                        <?php if ($fromContractor): ?>
+                            <input type="hidden" name="pay_type" id="payType" value="Jobwork">
+                            <input type="text" class="form-control" value="Jobwork" readonly>
+                        <?php else: ?>
                         <select name="pay_type" id="payType" class="form-control" required>
                             <option value="Salary" <?php echo $currentPayType === 'Salary' ? 'selected' : ''; ?>>Salary</option>
                             <option value="Jobwork" <?php echo $currentPayType === 'Jobwork' ? 'selected' : ''; ?>>Jobwork</option>
                         </select>
+                        <?php endif; ?>
                     </div>
                     <div class="form-group">
                         <label>Employee Code <small>(editable · auto by pay type)</small></label>
@@ -195,6 +210,13 @@ function empField($employee, $key, $default = '')
                                     <?php echo htmlspecialchars($dept['department_name']); ?>
                                 </option>
                             <?php endforeach; ?>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>10b. Sub Department <small>(Sub Department Master)</small></label>
+                        <select name="sub_department_id" class="form-control"
+                                data-selected="<?php echo (int) empField($employee, 'sub_department_id', 0); ?>">
+                            <option value="">Select Sub Department</option>
                         </select>
                     </div>
                     <div class="form-group">
@@ -376,7 +398,9 @@ function empField($employee, $key, $default = '')
                 <button type="submit" class="btn-primary">
                     <i class="fa-solid fa-floppy-disk"></i> Save Employee
                 </button>
-                <a href="<?php echo app_url('employees/index.php?department_id=' . (int) $deptId); ?>" class="btn-secondary">Cancel</a>
+                <a href="<?php echo $fromContractor
+                    ? app_url('contractor/employees/index.php')
+                    : app_url('employees/index.php?department_id=' . (int) $deptId); ?>" class="btn-secondary">Cancel</a>
             </div>
         </form>
     </div>
@@ -385,5 +409,7 @@ function empField($employee, $key, $default = '')
         <script>
             window.EMP_NEXT_CODE_URL = <?php echo json_encode(app_url('employees/next_code.php')); ?>;
             window.EMP_IS_NEW = <?php echo $empId > 0 ? 'false' : 'true'; ?>;
+            window.SUBDEPT_URL = <?php echo json_encode(app_url('masters/sub_departments/by_department.php')); ?>;
+            window.SUBDEPT_SELECTED = <?php echo json_encode((string) empField($employee, 'sub_department_id', '0')); ?>;
         </script>
 <?php require_once __DIR__ . '/../includes/footer.php'; ?>

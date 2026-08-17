@@ -58,6 +58,7 @@ function ensureEmployeesTable($conn = null)
     ensureEmployeeColumn($conn, 'pay_type', "pay_type ENUM('Salary','Jobwork') NOT NULL DEFAULT 'Salary' AFTER designation");
     ensureEmployeeColumn($conn, 'aadhar_file', "aadhar_file VARCHAR(255) DEFAULT NULL AFTER aadhar_number");
     ensureEmployeeColumn($conn, 'pan_file', "pan_file VARCHAR(255) DEFAULT NULL AFTER pan_number");
+    ensureEmployeeColumn($conn, 'sub_department_id', "sub_department_id INT DEFAULT NULL AFTER department_id");
 
     if ($closeAfter) {
         $conn->close();

@@ -24,6 +24,18 @@ if (!$master) {
 
 ensureMasterTables();
 
+if (!empty($master['fill_department_options'])) {
+    $deptOpts = ['' => 'Select Department'];
+    foreach (getActiveMasterRows('departments', 'sort_order ASC, department_name ASC') as $d) {
+        $deptOpts[(string) $d['id']] = (string) $d['department_name'];
+    }
+    foreach ($master['fields'] as $fi => $field) {
+        if (($field['name'] ?? '') === 'department_id') {
+            $master['fields'][$fi]['options'] = $deptOpts;
+        }
+    }
+}
+
 $masterBase = 'masters/' . $master['folder'];
 $masterListUrl = app_url($masterBase . '/index.php');
 $masterAddUrl  = app_url($masterBase . '/edit.php');

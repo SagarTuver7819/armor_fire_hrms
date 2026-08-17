@@ -13,6 +13,7 @@ requireLogin();
 $id     = isset($_GET['id']) ? (int) $_GET['id'] : 0;
 $deptId = isset($_GET['department_id']) ? (int) $_GET['department_id'] : 0;
 $fromAll = isset($_GET['all']) ? 1 : 0;
+$fromContractor = (($_GET['from'] ?? '') === 'contractor');
 
 if ($id > 0) {
     $conn = getDBConnection();
@@ -24,7 +25,9 @@ if ($id > 0) {
     $conn->close();
 }
 
-if ($fromAll || $deptId <= 0) {
+if ($fromContractor) {
+    header('Location: ' . app_url('contractor/employees/index.php?msg=deleted'));
+} elseif ($fromAll || $deptId <= 0) {
     header('Location: ' . app_url('employees/index.php?msg=deleted'));
 } else {
     header('Location: ' . app_url('employees/index.php?department_id=' . $deptId . '&msg=deleted'));

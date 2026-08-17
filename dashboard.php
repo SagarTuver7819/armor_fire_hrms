@@ -55,6 +55,23 @@ $conn->close();
         </div>
     </section>
 
+    <!-- Contractor Manage -->
+    <section class="module-section">
+        <div class="section-heading">
+            <i class="fa-solid fa-helmet-safety"></i>
+            <span>CONTRACTOR MANAGE</span>
+        </div>
+        <div class="module-grid module-grid-sm">
+            <a href="<?php echo app_url('contractor/index.php'); ?>" class="module-card masters-entry-card" title="Contractor Manage">
+                <div class="module-icon" style="background-color: #8E44AD;">
+                    <i class="fa-solid fa-helmet-safety"></i>
+                </div>
+                <div class="module-label">Contractor Manage</div>
+                <div class="module-meta">Employees · Products · Rate List</div>
+            </a>
+        </div>
+    </section>
+
     <!-- Department workspace (Join Employee flow) -->
     <section class="module-section" id="department-workspace">
         <div class="section-heading">

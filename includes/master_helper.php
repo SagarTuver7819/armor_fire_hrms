@@ -167,9 +167,111 @@ function ensureMasterTables($conn = null)
         INDEX idx_products_status (status)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
 
+    $conn->query("CREATE TABLE IF NOT EXISTS sub_departments (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        department_id INT NOT NULL,
+        name VARCHAR(150) NOT NULL,
+        status TINYINT(1) NOT NULL DEFAULT 1,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        INDEX idx_subdept_dept (department_id),
+        INDEX idx_subdept_status (status)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+
+    seedSubDepartmentsFromDepartments($conn);
+
     if ($closeAfter) {
         $conn->close();
     }
+}
+
+/**
+ * First-run seed: one Sub Department per Department using the department name.
+ * Extra sub-departments can be added later under the same department.
+ */
+function seedSubDepartmentsFromDepartments($conn)
+{
+    $res = $conn->query(
+        "SELECT d.id, d.department_name
+         FROM departments d
+         WHERE d.status = 1
+           AND NOT EXISTS (
+               SELECT 1 FROM sub_departments s
+               WHERE s.department_id = d.id AND s.status = 1
+           )"
+    );
+    if (!$res) {
+        return;
+    }
+    $stmt = $conn->prepare('INSERT INTO sub_departments (department_id, name, status) VALUES (?, ?, 1)');
+    while ($row = $res->fetch_assoc()) {
+        $deptId = (int) $row['id'];
+        $name = (string) $row['department_name'];
+        $stmt->bind_param('is', $deptId, $name);
+        $stmt->execute();
+    }
+    $stmt->close();
+}
+
+function getSubDepartmentsByDepartment($departmentId, $conn = null)
+{
+    $closeAfter = false;
+    if ($conn === null) {
+        $conn = getDBConnection();
+        $closeAfter = true;
+        ensureMasterTables($conn);
+    }
+    $departmentId = (int) $departmentId;
+    $rows = [];
+    if ($departmentId > 0) {
+        $stmt = $conn->prepare(
+            'SELECT id, department_id, name FROM sub_departments
+             WHERE status = 1 AND department_id = ?
+             ORDER BY name ASC'
+        );
+        $stmt->bind_param('i', $departmentId);
+        $stmt->execute();
+        $res = $stmt->get_result();
+        while ($row = $res->fetch_assoc()) {
+            $rows[] = $row;
+        }
+        $stmt->close();
+    }
+    if ($closeAfter) {
+        $conn->close();
+    }
+    return $rows;
+}
+
+function getSubDepartmentNameById($id, $departmentId = 0, $conn = null)
+{
+    $closeAfter = false;
+    if ($conn === null) {
+        $conn = getDBConnection();
+        $closeAfter = true;
+    }
+    $id = (int) $id;
+    $name = '';
+    if ($id > 0) {
+        if ($departmentId > 0) {
+            $stmt = $conn->prepare(
+                'SELECT name FROM sub_departments WHERE id = ? AND department_id = ? AND status = 1 LIMIT 1'
+            );
+            $deptId = (int) $departmentId;
+            $stmt->bind_param('ii', $id, $deptId);
+        } else {
+            $stmt = $conn->prepare('SELECT name FROM sub_departments WHERE id = ? AND status = 1 LIMIT 1');
+            $stmt->bind_param('i', $id);
+        }
+        $stmt->execute();
+        $row = $stmt->get_result()->fetch_assoc();
+        $stmt->close();
+        $name = (string) ($row['name'] ?? '');
+    }
+    if ($closeAfter) {
+        $conn->close();
+    }
+    return $name;
 }
 
 /**

@@ -49,6 +49,16 @@ if (!defined('APP_BASE')) {
             $scriptName = dirname($scriptName);
         }
 
+        // Nested contractor: /contractor or /contractor/{slug}
+        if (preg_match('#^(.*?)/contractor(?:/[^/]+)?$#', $scriptName, $m)) {
+            $scriptName = $m[1] === '' ? '/' : $m[1];
+        }
+
+        // Nested payroll
+        if (preg_match('#^(.*?)/payroll(?:/[^/]+)?$#', $scriptName, $m)) {
+            $scriptName = $m[1] === '' ? '/' : $m[1];
+        }
+
         $base = rtrim($scriptName, '/');
         if ($base === '' || $base === '\\' || $base === '.') {
             $base = '';
