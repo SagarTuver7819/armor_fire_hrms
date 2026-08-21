@@ -94,7 +94,14 @@ $empCount = $department ? countEmployeesByDepartment($department['id']) : 0;
                         <i class="fa-solid fa-indian-rupee-sign"></i>
                     </div>
                     <div class="module-label">Generate Salary</div>
-                    <div class="module-meta">Diary / Jobwork + Slab</div>
+                    <div class="module-meta">Diary / Jobwork + days split</div>
+                </a>
+                <a href="<?php echo app_url('payroll/register.php?department_id=' . (int) $department['id']); ?>" class="module-card">
+                    <div class="module-icon" style="background-color: #1e3a5f;">
+                        <i class="fa-solid fa-table"></i>
+                    </div>
+                    <div class="module-label">Salary Register</div>
+                    <div class="module-meta">Salary · Jobwork Govt / Actual · Contractor Main</div>
                 </a>
             </div>
         </section>

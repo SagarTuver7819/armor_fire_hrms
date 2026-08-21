@@ -55,10 +55,12 @@ function ensureEmployeesTable($conn = null)
         INDEX idx_employees_name (employee_name)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
 
-    ensureEmployeeColumn($conn, 'pay_type', "pay_type ENUM('Salary','Jobwork') NOT NULL DEFAULT 'Salary' AFTER designation");
+    ensureEmployeeColumn($conn, 'pay_type', "pay_type ENUM('Salary','Jobwork','ContractorMain') NOT NULL DEFAULT 'Salary' AFTER designation");
+    ensureEmployeePayTypeEnum($conn);
     ensureEmployeeColumn($conn, 'aadhar_file', "aadhar_file VARCHAR(255) DEFAULT NULL AFTER aadhar_number");
     ensureEmployeeColumn($conn, 'pan_file', "pan_file VARCHAR(255) DEFAULT NULL AFTER pan_number");
     ensureEmployeeColumn($conn, 'sub_department_id', "sub_department_id INT DEFAULT NULL AFTER department_id");
+    ensureEmployeeColumn($conn, 'main_contractor_id', "main_contractor_id INT DEFAULT NULL AFTER pay_type");
 
     if ($closeAfter) {
         $conn->close();
@@ -75,6 +77,76 @@ function ensureEmployeeColumn($conn, $column, $definition)
     if ($res && $res->num_rows === 0) {
         $conn->query("ALTER TABLE employees ADD COLUMN " . $definition);
     }
+}
+
+function ensureEmployeePayTypeEnum($conn)
+{
+    $res = $conn->query("SHOW COLUMNS FROM employees LIKE 'pay_type'");
+    $col = $res ? $res->fetch_assoc() : null;
+    $type = strtolower((string) ($col['Type'] ?? ''));
+    if ($type !== '' && strpos($type, 'contractormain') === false) {
+        $conn->query("ALTER TABLE employees MODIFY pay_type ENUM('Salary','Jobwork','ContractorMain') NOT NULL DEFAULT 'Salary'");
+    }
+}
+
+function normalizePayType($value)
+{
+    $value = (string) $value;
+    if ($value === 'Jobwork') {
+        return 'Jobwork';
+    }
+    if ($value === 'ContractorMain') {
+        return 'ContractorMain';
+    }
+    return 'Salary';
+}
+
+function payTypeLabel($value)
+{
+    $type = normalizePayType($value);
+    if ($type === 'Jobwork') {
+        return 'Jobwork';
+    }
+    if ($type === 'ContractorMain') {
+        return 'Contractor Main';
+    }
+    return 'Salary';
+}
+
+function payTypeCssClass($value)
+{
+    $type = normalizePayType($value);
+    if ($type === 'Jobwork') {
+        return 'is-jobwork';
+    }
+    if ($type === 'ContractorMain') {
+        return 'is-contractor-main';
+    }
+    return 'is-salary';
+}
+
+function getEmployeesByPayType($payType, $excludeId = 0)
+{
+    $conn = getDBConnection();
+    ensureEmployeesTable($conn);
+    $payType = normalizePayType($payType);
+    $excludeId = (int) $excludeId;
+    $rows = [];
+    $stmt = $conn->prepare(
+        "SELECT id, employee_code, employee_name, department_id
+         FROM employees
+         WHERE status = 1 AND pay_type = ? AND id <> ?
+         ORDER BY employee_name ASC"
+    );
+    $stmt->bind_param('si', $payType, $excludeId);
+    $stmt->execute();
+    $res = $stmt->get_result();
+    while ($row = $res->fetch_assoc()) {
+        $rows[] = $row;
+    }
+    $stmt->close();
+    $conn->close();
+    return $rows;
 }
 
 /**
@@ -102,7 +174,13 @@ function getDepartmentById($departmentId)
  */
 function generateEmployeeCode($conn, $payType = 'Salary')
 {
-    $prefix = (strcasecmp((string) $payType, 'Jobwork') === 0) ? 'JW' : 'SAL';
+    $payType = normalizePayType($payType);
+    $prefix = 'SAL';
+    if ($payType === 'Jobwork') {
+        $prefix = 'JW';
+    } elseif ($payType === 'ContractorMain') {
+        $prefix = 'CM';
+    }
     $max = 0;
     $like = $conn->real_escape_string($prefix) . '%';
     $result = $conn->query("SELECT employee_code FROM employees WHERE employee_code LIKE '{$like}'");

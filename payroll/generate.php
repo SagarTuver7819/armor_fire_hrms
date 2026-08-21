@@ -122,8 +122,8 @@ if (isset($_GET['msg']) && $_GET['msg'] === 'generated') {
                         <td><?php echo htmlspecialchars($r['employee_code']); ?></td>
                         <td><?php echo htmlspecialchars($r['employee_name']); ?></td>
                         <td>
-                            <span class="pay-pill <?php echo (($r['pay_type'] ?? '') === 'Jobwork') ? 'is-jobwork' : 'is-salary'; ?>">
-                                <?php echo htmlspecialchars($r['pay_type'] ?? 'Salary'); ?>
+                            <span class="pay-pill <?php echo payTypeCssClass($r['pay_type'] ?? 'Salary'); ?>">
+                                <?php echo htmlspecialchars(payTypeLabel($r['pay_type'] ?? 'Salary')); ?>
                             </span>
                         </td>
                         <td><?php echo htmlspecialchars($r['generated_from'] ?: '-'); ?></td>

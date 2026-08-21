@@ -18,6 +18,9 @@ $modules = [
     ['key' => 'products', 'title' => 'Product Master', 'icon' => 'fa-box', 'color' => '#C0392B', 'url' => 'contractor/products/index.php', 'meta' => 'Operation · Rate · OT / R'],
     ['key' => 'grades', 'title' => 'Grade Master', 'icon' => 'fa-layer-group', 'color' => '#0F766E', 'url' => 'contractor/grades/index.php', 'meta' => 'Grade list'],
     ['key' => 'operations', 'title' => 'Operations Rate List', 'icon' => 'fa-table', 'color' => '#8E44AD', 'url' => 'contractor/operations/index.php', 'meta' => 'Daily qty × rate'],
+    ['key' => 'register_govt', 'title' => 'Jobwork Register (Government)', 'icon' => 'fa-landmark', 'color' => '#1e3a5f', 'url' => 'payroll/register.php?type=jobwork_govt', 'meta' => 'Actual ÷ month days'],
+    ['key' => 'register_actual', 'title' => 'Jobwork Register (Actual)', 'icon' => 'fa-scale-balanced', 'color' => '#0F766E', 'url' => 'payroll/register.php?type=jobwork_actual', 'meta' => 'Qty × rate as earned'],
+    ['key' => 'register_main', 'title' => 'Contractor Main Register', 'icon' => 'fa-users-line', 'color' => '#C0392B', 'url' => 'payroll/register.php?type=contractor_main', 'meta' => 'Under employee salaries'],
 ];
 ?>
 

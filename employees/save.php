@@ -23,7 +23,11 @@ $subDeptId     = (int) ($_POST['sub_department_id'] ?? 0);
 if ($subDeptId > 0 && getSubDepartmentNameById($subDeptId, $departmentId) === '') {
     $subDeptId = 0;
 }
-$payType       = (($_POST['pay_type'] ?? 'Salary') === 'Jobwork') ? 'Jobwork' : 'Salary';
+$payType       = normalizePayType($_POST['pay_type'] ?? 'Salary');
+$mainContractorId = (int) ($_POST['main_contractor_id'] ?? 0);
+if ($payType !== 'Jobwork') {
+    $mainContractorId = 0;
+}
 $empCode       = strtoupper(trim($_POST['employee_code'] ?? ''));
 
 $employeeName  = trim($_POST['employee_name'] ?? '');
@@ -125,13 +129,13 @@ if ($id > 0) {
         aadhar_number=?, pan_number=?, date_of_birth=?, designation=?, date_of_joining=?,
         shift_type=?, shift_time=?, pf_deduction=?, uan_number=?,
         bank_name=?, bank_account_number=?, ifsc_code=?, bank_branch_address=?,
-        decided_salary=?, reporting_head=?, extra_note=?, week_off_day=?,
-        week_off_benefits=?, holiday_benefits=?, overtime_benefits=?
+        decided_salary=?, reporting_head=?,         extra_note=?, week_off_day=?,
+        week_off_benefits=?, holiday_benefits=?, overtime_benefits=?, main_contractor_id=?
         WHERE id=?";
 
     $stmt = $conn->prepare($sql);
     $stmt->bind_param(
-        'ssiissssssssssssssssssssssssssi',
+        'ssiissssssssssssssssssssssssssii',
         $empCode,
         $payType,
         $departmentId,
@@ -162,6 +166,7 @@ if ($id > 0) {
         $weekOffBen,
         $holidayBen,
         $overtimeBen,
+        $mainContractorId,
         $id
     );
 } else {
@@ -172,12 +177,12 @@ if ($id > 0) {
         shift_type, shift_time, pf_deduction, uan_number,
         bank_name, bank_account_number, ifsc_code, bank_branch_address,
         decided_salary, reporting_head, extra_note, week_off_day,
-        week_off_benefits, holiday_benefits, overtime_benefits, created_by
-    ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
+        week_off_benefits, holiday_benefits, overtime_benefits, main_contractor_id, created_by
+    ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
 
     $stmt = $conn->prepare($sql);
     $stmt->bind_param(
-        'ssiissssssssssssssssssssssssssi',
+        'ssiissssssssssssssssssssssssssii',
         $empCode,
         $payType,
         $departmentId,
@@ -208,6 +213,7 @@ if ($id > 0) {
         $weekOffBen,
         $holidayBen,
         $overtimeBen,
+        $mainContractorId,
         $createdBy
     );
 }

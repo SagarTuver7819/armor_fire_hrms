@@ -11,7 +11,7 @@ require_once __DIR__ . '/../includes/employee_helper.php';
 requireLogin();
 header('Content-Type: application/json; charset=utf-8');
 
-$payType = (($_GET['pay_type'] ?? 'Salary') === 'Jobwork') ? 'Jobwork' : 'Salary';
+$payType = normalizePayType($_GET['pay_type'] ?? 'Salary');
 $conn = getDBConnection();
 ensureEmployeesTable($conn);
 $code = generateEmployeeCode($conn, $payType);

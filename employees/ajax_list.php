@@ -132,8 +132,9 @@ while ($row = $result->fetch_assoc()) {
     $pdfEn   = app_url('employees/pdf.php?id=' . $id . '&lang=en');
     $pdfHi   = app_url('employees/pdf.php?id=' . $id . '&lang=hi');
     $salaryUrl = app_url('employees/salary.php?id=' . $id);
-    $payType = (($row['pay_type'] ?? 'Salary') === 'Jobwork') ? 'Jobwork' : 'Salary';
-    $payClass = $payType === 'Jobwork' ? 'is-jobwork' : 'is-salary';
+    $payType = function_exists('normalizePayType') ? normalizePayType($row['pay_type'] ?? 'Salary') : ((($row['pay_type'] ?? '') === 'Jobwork') ? 'Jobwork' : 'Salary');
+    $payClass = function_exists('payTypeCssClass') ? payTypeCssClass($payType) : ($payType === 'Jobwork' ? 'is-jobwork' : 'is-salary');
+    $payLabel = function_exists('payTypeLabel') ? payTypeLabel($payType) : $payType;
 
     $item = [
         $sr++,
@@ -145,7 +146,7 @@ while ($row = $result->fetch_assoc()) {
         $item[] = htmlspecialchars($row['department_name'] ?? '-');
     }
 
-    $item[] = '<span class="pay-pill ' . $payClass . '">' . htmlspecialchars($payType) . '</span>';
+        $item[] = '<span class="pay-pill ' . $payClass . '">' . htmlspecialchars($payLabel) . '</span>';
     $item[] = htmlspecialchars($row['designation'] ?? '-');
     $item[] = htmlspecialchars($row['mobile_number'] ?? '-');
     $item[] = htmlspecialchars(formatDateDisplay($row['date_of_joining']));

@@ -95,8 +95,8 @@ if (isset($_GET['from']) && $_GET['from'] === 'all') {
                         <span class="sep">|</span>
                         <span><i class="fa-solid fa-building"></i> <?php echo showVal($emp['department_name']); ?></span>
                         <span class="sep">|</span>
-                        <span class="pay-pill <?php echo (($emp['pay_type'] ?? '') === 'Jobwork') ? 'is-jobwork' : 'is-salary'; ?>">
-                            <?php echo htmlspecialchars(($emp['pay_type'] ?? 'Salary') === 'Jobwork' ? 'Jobwork' : 'Salary'); ?>
+                        <span class="pay-pill <?php echo payTypeCssClass($emp['pay_type'] ?? 'Salary'); ?>">
+                            <?php echo htmlspecialchars(payTypeLabel($emp['pay_type'] ?? 'Salary')); ?>
                         </span>
                     </p>
                 </div>
@@ -192,7 +192,7 @@ if (isset($_GET['from']) && $_GET['from'] === 'all') {
             </div>
             <dl class="info-list">
                 <div class="info-row"><dt>Department</dt><dd><?php echo showVal($emp['department_name']); ?></dd></div>
-                <div class="info-row"><dt>Pay Type</dt><dd><?php echo showVal($emp['pay_type'] ?? 'Salary'); ?></dd></div>
+                <div class="info-row"><dt>Pay Type</dt><dd><?php echo showVal(payTypeLabel($emp['pay_type'] ?? 'Salary')); ?></dd></div>
                 <div class="info-row"><dt>Designation</dt><dd><?php echo showVal($emp['designation']); ?></dd></div>
                 <div class="info-row"><dt>Date of Joining</dt><dd><?php echo showVal(formatDateDisplay($emp['date_of_joining'])); ?></dd></div>
                 <div class="info-row"><dt>Shift Type</dt><dd><span class="shift-pill <?php echo $shiftClass; ?>"><?php echo showVal($emp['shift_type']); ?></span></dd></div>

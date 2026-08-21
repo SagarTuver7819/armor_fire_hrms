@@ -1291,8 +1291,63 @@ a {
     font-size: 12px;
     font-weight: 700;
 }
-.pay-pill.is-salary { background: #ecfdf5; color: #047857; }
-.pay-pill.is-jobwork { background: #fff7ed; color: #c2410c; }
+.pay-pill.is-contractor-main { background: #eff6ff; color: #1d4ed8; }
+
+.salary-register-sheet {
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 14px;
+    margin: 18px 0 28px;
+    overflow: hidden;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.04);
+}
+.salary-register-banner {
+    background: #94a3b8;
+    color: #0f172a;
+    padding: 10px 16px;
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+    font-size: 14px;
+}
+.salary-register-banner span { opacity: 0.85; font-weight: 500; }
+.salary-register-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+    min-width: 1400px;
+}
+.salary-register-table th,
+.salary-register-table td {
+    border: 1px solid #cbd5e1;
+    padding: 6px 8px;
+    white-space: nowrap;
+}
+.salary-register-table thead th {
+    background: #e2e8f0;
+    font-weight: 700;
+    text-align: center;
+}
+.salary-register-table .sr-group-row th { border-bottom: 0; }
+.salary-register-table .sr-earn { background: #86efac !important; }
+.salary-register-table .sr-gross { background: #bbf7d0 !important; }
+.salary-register-table .sr-ded { background: #fde047 !important; }
+.salary-register-table .sr-net { background: #facc15 !important; }
+.salary-register-table td.num { text-align: right; font-variant-numeric: tabular-nums; }
+.salary-register-table tfoot td { background: #f8fafc; font-weight: 700; }
+.sr-code { font-size: 11px; color: #64748b; font-weight: 600; }
+.register-toolbar-actions { display: flex; gap: 8px; }
+.register-filters { margin-bottom: 8px; }
+@media print {
+    .top-header, .app-sidebar, .sidebar-fab, .page-toolbar, .register-filters, .form-page-card.no-print-shadow {
+        display: none !important;
+    }
+    .form-page-card.no-print-shadow { display: none !important; }
+    .app-content, .dashboard-main { margin: 0 !important; padding: 0 !important; width: 100% !important; }
+    .salary-register-sheet { box-shadow: none; border-radius: 0; }
+    body.has-app-sidebar { padding: 0; }
+}
 
 .form-group label small {
     font-weight: 500;

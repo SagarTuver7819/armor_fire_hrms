@@ -55,4 +55,14 @@
     if (payType && window.EMP_IS_NEW) {
         payType.addEventListener('change', fetchCode);
     }
+
+    var mainWrap = document.getElementById('mainContractorWrap');
+    function toggleMainContractor() {
+        if (!mainWrap || !payType) return;
+        mainWrap.style.display = payType.value === 'Jobwork' ? '' : 'none';
+    }
+    if (payType) {
+        payType.addEventListener('change', toggleMainContractor);
+        toggleMainContractor();
+    }
 })();

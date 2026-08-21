@@ -45,13 +45,15 @@ $weekOffDays  = getWeekOffDaysFromMaster($holidays);
 $reporters    = getReportingEmployees($empId);
 
 $currentDesignation = empField($employee, 'designation');
-$currentPayType     = empField($employee, 'pay_type', 'Salary');
+$currentPayType     = normalizePayType(empField($employee, 'pay_type', 'Salary'));
 if (!$employee && (($_GET['pay_type'] ?? '') === 'Jobwork')) {
     $currentPayType = 'Jobwork';
 }
-if ($currentPayType !== 'Jobwork') {
-    $currentPayType = 'Salary';
+if (!$employee && (($_GET['pay_type'] ?? '') === 'ContractorMain')) {
+    $currentPayType = 'ContractorMain';
 }
+$currentMainContractor = (int) empField($employee, 'main_contractor_id', 0);
+$contractorMains = getEmployeesByPayType('ContractorMain', $empId);
 $currentEmpCode     = empField($employee, 'employee_code');
 if ($currentEmpCode === '') {
     $codeConn = getDBConnection();
@@ -181,16 +183,28 @@ function empField($employee, $key, $default = '')
                 <h3><i class="fa-solid fa-briefcase"></i> Job Information</h3>
                 <div class="form-grid form-grid-3">
                     <div class="form-group">
-                        <label>Pay Type <small>(Salary / Jobwork)</small></label>
+                        <label>Pay Type <small>(Salary / Jobwork / Contractor Main)</small></label>
                         <?php if ($fromContractor): ?>
                             <input type="hidden" name="pay_type" id="payType" value="Jobwork">
                             <input type="text" class="form-control" value="Jobwork" readonly>
                         <?php else: ?>
                         <select name="pay_type" id="payType" class="form-control" required>
-                            <option value="Salary" <?php echo $currentPayType === 'Salary' ? 'selected' : ''; ?>>Salary</option>
-                            <option value="Jobwork" <?php echo $currentPayType === 'Jobwork' ? 'selected' : ''; ?>>Jobwork</option>
+                            <option value="Salary" <?php echo $currentPayType === 'Salary' ? 'selected' : ''; ?>>1 · Normal Salary</option>
+                            <option value="Jobwork" <?php echo $currentPayType === 'Jobwork' ? 'selected' : ''; ?>>2 · Contractor Jobwork</option>
+                            <option value="ContractorMain" <?php echo $currentPayType === 'ContractorMain' ? 'selected' : ''; ?>>3 · Contractor Main</option>
                         </select>
                         <?php endif; ?>
+                    </div>
+                    <div class="form-group" id="mainContractorWrap" style="<?php echo $currentPayType === 'Jobwork' ? '' : 'display:none;'; ?>">
+                        <label>Contractor Main <small>(this jobwork employee is under)</small></label>
+                        <select name="main_contractor_id" id="mainContractorId" class="form-control">
+                            <option value="0">— None —</option>
+                            <?php foreach ($contractorMains as $cm): ?>
+                                <option value="<?php echo (int) $cm['id']; ?>" <?php echo $currentMainContractor === (int) $cm['id'] ? 'selected' : ''; ?>>
+                                    <?php echo htmlspecialchars(($cm['employee_code'] ?? '') . ' — ' . ($cm['employee_name'] ?? '')); ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
                     </div>
                     <div class="form-group">
                         <label>Employee Code <small>(editable · auto by pay type)</small></label>

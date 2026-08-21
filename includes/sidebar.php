@@ -47,7 +47,8 @@ $mastersNav = getMastersConfig();
 
 $openDepartments = ($sidebarDeptId > 0 || $sidebarMode === 'department' || $sidebarMode === 'employees' || $sidebarActive === 'modules');
 $openMasters = ($sidebarMode === 'masters' || $sidebarActive === 'hub' || isset($mastersNav[$sidebarActive]));
-$openContractor = ($sidebarMode === 'contractor' || strpos((string) $sidebarActive, 'contractor') === 0);
+$regType = (string) ($_GET['type'] ?? '');
+$openContractor = ($sidebarMode === 'contractor' || strpos((string) $sidebarActive, 'contractor') === 0 || $regType === 'jobwork_govt' || $regType === 'jobwork_actual' || $regType === 'contractor_main');
 ?>
 
 <aside class="app-sidebar" id="appSidebar" aria-label="Sidebar navigation">
@@ -74,6 +75,11 @@ $openContractor = ($sidebarMode === 'contractor' || strpos((string) $sidebarActi
                    class="sidebar-link <?php echo $sidebarActive === 'all_employees' ? 'active' : ''; ?>">
                     <i class="fa-solid fa-users"></i>
                     <span>All Employees</span>
+                </a>
+                <a href="<?php echo app_url('payroll/register.php'); ?>"
+                   class="sidebar-link <?php echo $sidebarActive === 'salary_register' ? 'active' : ''; ?>">
+                    <i class="fa-solid fa-table"></i>
+                    <span>Salary Register</span>
                 </a>
                 <?php if (function_exists('isAdmin') && isAdmin()): ?>
                 <a href="<?php echo app_url('company_settings.php'); ?>"
@@ -155,6 +161,11 @@ $openContractor = ($sidebarMode === 'contractor' || strpos((string) $sidebarActi
                         <i class="fa-solid fa-circle"></i>
                         <span>Operations Rate List</span>
                     </a>
+                    <a href="<?php echo app_url('payroll/register.php?type=jobwork_govt'); ?>"
+                       class="sidebar-link sidebar-sublink <?php echo in_array($regType, ['jobwork_govt', 'jobwork_actual', 'contractor_main'], true) ? 'active' : ''; ?>">
+                        <i class="fa-solid fa-circle"></i>
+                        <span>Jobwork Salary Register</span>
+                    </a>
                 </div>
             </div>
         </div>
@@ -225,6 +236,11 @@ $openContractor = ($sidebarMode === 'contractor' || strpos((string) $sidebarActi
                        class="sidebar-link <?php echo $sidebarActive === 'generate' ? 'active' : ''; ?>">
                         <i class="fa-solid fa-indian-rupee-sign"></i>
                         <span>Generate Salary</span>
+                    </a>
+                    <a href="<?php echo app_url('payroll/register.php?department_id=' . $sidebarDeptId); ?>"
+                       class="sidebar-link <?php echo $sidebarActive === 'salary_register' ? 'active' : ''; ?>">
+                        <i class="fa-solid fa-table"></i>
+                        <span>Salary Register</span>
                     </a>
                     <span class="sidebar-link disabled" title="Coming soon">
                         <i class="fa-solid fa-file-invoice"></i>

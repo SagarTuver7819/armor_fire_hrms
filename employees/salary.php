@@ -19,7 +19,7 @@ if (!$emp) {
 }
 
 ensurePayrollTables();
-$payType = (($emp['pay_type'] ?? 'Salary') === 'Jobwork') ? 'Jobwork' : 'Salary';
+$payType = normalizePayType($emp['pay_type'] ?? 'Salary');
 $deptId = (int) $emp['department_id'];
 $saved = getEmployeeSalaryDetails($id);
 $components = getActiveMasterRows('salary_components', 'id ASC');
