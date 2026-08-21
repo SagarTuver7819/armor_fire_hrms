@@ -100,11 +100,6 @@ $otJson = json_encode(contractorOtRepairOps());
                 </div>
             </div>
 
-            <p class="ops-hint">
-                Product stays on the left while you scroll dates.
-                Press <strong>Enter</strong> to jump to the next day.
-                Extra days of the month stay locked.
-            </p>
             <div class="ops-toolbar">
                 <button type="button" class="btn-primary" id="btnAddProduct"><i class="fa-solid fa-plus"></i> Add Product Row</button>
                 <div class="ops-live-summary">
@@ -163,12 +158,12 @@ $otJson = json_encode(contractorOtRepairOps());
                                 ?>
                                 <td class="day-cell" data-day="<?php echo $d; ?>">
                                     <div class="ops-day-triple">
-                                        <input type="number" step="0.01" class="grid-input day-qty" <?php echo $dis; ?>
-                                               name="items[<?php echo $i; ?>][days][<?php echo $d; ?>][q]" value="<?php echo htmlspecialchars((string) $cell['q']); ?>">
-                                        <input type="number" step="0.01" class="grid-input day-qty-r r-field" <?php echo $dis; ?>
-                                               name="items[<?php echo $i; ?>][days][<?php echo $d; ?>][r]" value="<?php echo htmlspecialchars((string) $cell['r']); ?>">
-                                        <input type="number" step="0.01" class="grid-input day-qty-ot ot-field" <?php echo $dis; ?>
-                                               name="items[<?php echo $i; ?>][days][<?php echo $d; ?>][ot]" value="<?php echo htmlspecialchars((string) $cell['ot']); ?>">
+                                        <input type="text" inputmode="decimal" class="grid-input day-qty" <?php echo $dis; ?>
+                                               name="items[<?php echo $i; ?>][days][<?php echo $d; ?>][q]" value="<?php echo htmlspecialchars((string) $cell['q']); ?>" autocomplete="off">
+                                        <input type="text" inputmode="decimal" class="grid-input day-qty-r r-field" <?php echo $dis; ?>
+                                               name="items[<?php echo $i; ?>][days][<?php echo $d; ?>][r]" value="<?php echo htmlspecialchars((string) $cell['r']); ?>" autocomplete="off">
+                                        <input type="text" inputmode="decimal" class="grid-input day-qty-ot ot-field" <?php echo $dis; ?>
+                                               name="items[<?php echo $i; ?>][days][<?php echo $d; ?>][ot]" value="<?php echo htmlspecialchars((string) $cell['ot']); ?>" autocomplete="off">
                                     </div>
                                 </td>
                             <?php endfor; ?>

@@ -2834,6 +2834,28 @@ body.confirm-modal-open {
     font-size: 13px;
     text-align: center;
     border: 1px solid #dbe3ee;
+    -moz-appearance: textfield;
+    appearance: textfield;
+}
+
+.ops-grid input[type="number"],
+.ops-grid .grid-input[type="number"] {
+    -moz-appearance: textfield !important;
+    appearance: textfield !important;
+}
+
+.ops-grid input[type="number"]::-webkit-outer-spin-button,
+.ops-grid input[type="number"]::-webkit-inner-spin-button,
+.ops-grid .grid-input::-webkit-outer-spin-button,
+.ops-grid .grid-input::-webkit-inner-spin-button {
+    -webkit-appearance: none !important;
+    appearance: none !important;
+    display: none !important;
+    margin: 0 !important;
+    height: 0 !important;
+    width: 0 !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
 }
 
 .ops-grid .day-qty:focus,
