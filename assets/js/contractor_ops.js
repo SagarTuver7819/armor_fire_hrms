@@ -73,14 +73,14 @@
         if ($sel.data('select2')) {
             $sel.select2('destroy');
         }
-        var html = '<option value="">Select Product</option>';
+        var html = '<option value="">Select Process</option>';
         products.forEach(function (p) {
             html += '<option value="' + p.id + '" data-rate="' + p.rate + '" data-ot="' + p.ot_rate + '" data-rej="' + p.rejection_rate + '" data-process="' + (p.process || '') + '"'
                 + (String(p.id) === String(selectedId) ? ' selected' : '') + '>'
                 + $('<div/>').text(p.name).html() + '</option>';
         });
         $sel.html(html);
-        bindRowSelect2($sel, 'Select Product');
+        bindRowSelect2($sel, 'Select Process');
     }
     function loadProducts(cb) {
         var op = encodeURIComponent(opVal());
@@ -236,7 +236,7 @@
         $clone.find('.row-product-id, .row-grade-id').val('0');
         $clone.find('.row-grade-id').val('0');
         fillProductSelect($clone.find('.product-select'), '');
-        bindRowSelect2($first.find('.product-select'), 'Select Product');
+        bindRowSelect2($first.find('.product-select'), 'Select Process');
         $('#opsRows').append($clone);
         reindex();
         applyDayEnable();

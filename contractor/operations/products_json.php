@@ -10,10 +10,15 @@ $conn->close();
 
 $outProducts = [];
 foreach ($products as $r) {
+    // Reference Operations list shows Contract Process label (process), not product name prefix
+    $process = trim(html_entity_decode((string) ($r['process'] ?? '')));
+    $name = trim(html_entity_decode((string) ($r['product_name'] ?? '')));
+    $label = $process !== '' && $process !== '-' ? $process : $name;
     $outProducts[] = [
         'id' => (int) $r['id'],
-        'name' => trim((string) ($r['product_name'] ?? '')),
-        'process' => (string) ($r['process'] ?? ''),
+        'name' => $label,
+        'product_name' => $name,
+        'process' => $process,
         'rate' => (float) $r['rate'],
         'ot_rate' => parseOtRate($r['ot_text'] ?? ''),
         'rejection_rate' => (float) $r['rejection_rate'],

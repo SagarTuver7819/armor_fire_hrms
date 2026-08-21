@@ -120,7 +120,7 @@ $otJson = json_encode(contractorOtRepairOps());
                         <tr>
                             <th class="sticky-col sticky-action">Action</th>
                             <th class="sticky-col sticky-sr">Sr</th>
-                            <th class="sticky-col sticky-name" id="col_header_name">Product Name</th>
+                            <th class="sticky-col sticky-name" id="col_header_name">Contract Process</th>
                             <?php for ($d = 1; $d <= 31; $d++):
                                 $wd = checkdate($curMonth, $d, $curYear) ? date('D', strtotime(sprintf('%04d-%02d-%02d', $curYear, $curMonth, $d))) : '';
                                 ?>
@@ -149,7 +149,7 @@ $otJson = json_encode(contractorOtRepairOps());
                             <td class="sticky-col sticky-sr ops-sr"><?php echo $i + 1; ?></td>
                             <td class="sticky-col sticky-name">
                                 <select name="items[<?php echo $i; ?>][product_id]" class="form-control product-select">
-                                    <option value="">Select Product</option>
+                                    <option value="">Select Process</option>
                                 </select>
                                 <input type="hidden" class="row-product-id" value="<?php echo (int) ($item['product_id'] ?? 0); ?>">
                                 <input type="hidden" name="items[<?php echo $i; ?>][grade_id]" class="row-grade-id" value="0">

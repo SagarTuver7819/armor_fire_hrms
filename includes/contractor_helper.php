@@ -495,7 +495,7 @@ function getContractorProductsByOperation($operation, $conn = null)
         $closeAfter = true;
     }
     $rows = [];
-    $stmt = $conn->prepare('SELECT * FROM contractor_products WHERE status = 1 AND operation = ? ORDER BY product_name ASC');
+    $stmt = $conn->prepare('SELECT * FROM contractor_products WHERE status = 1 AND operation = ? ORDER BY process ASC, product_name ASC');
     $stmt->bind_param('s', $operation);
     $stmt->execute();
     $res = $stmt->get_result();
