@@ -121,6 +121,7 @@ $otJson = json_encode(contractorOtRepairOps());
                             <th class="sticky-col sticky-action">Action</th>
                             <th class="sticky-col sticky-sr">Sr</th>
                             <th class="sticky-col sticky-name" id="col_header_name">Contract Process</th>
+                            <th class="sticky-col sticky-rate">Rate</th>
                             <?php for ($d = 1; $d <= 31; $d++):
                                 $wd = checkdate($curMonth, $d, $curYear) ? date('D', strtotime(sprintf('%04d-%02d-%02d', $curYear, $curMonth, $d))) : '';
                                 ?>
@@ -131,7 +132,6 @@ $otJson = json_encode(contractorOtRepairOps());
                                 </th>
                             <?php endfor; ?>
                             <th id="th_total_qty">TOTAL QTY</th>
-                            <th>RATE</th>
                             <th id="th_total_r">TOTAL R</th>
                             <th>OT RATE</th>
                             <th>REJ. RATE</th>
@@ -154,6 +154,9 @@ $otJson = json_encode(contractorOtRepairOps());
                                 <input type="hidden" class="row-product-id" value="<?php echo (int) ($item['product_id'] ?? 0); ?>">
                                 <input type="hidden" name="items[<?php echo $i; ?>][grade_id]" class="row-grade-id" value="0">
                             </td>
+                            <td class="sticky-col sticky-rate">
+                                <input type="number" step="0.01" name="items[<?php echo $i; ?>][rate]" class="form-control grid-input rate" readonly value="<?php echo htmlspecialchars((string) ($item['rate'] ?? 0)); ?>">
+                            </td>
                             <?php for ($d = 1; $d <= 31; $d++):
                                 $cell = $days[(string) $d];
                                 $dis = !empty($cell['disabled']) ? 'disabled' : '';
@@ -170,7 +173,6 @@ $otJson = json_encode(contractorOtRepairOps());
                                 </td>
                             <?php endfor; ?>
                             <td><input type="text" name="items[<?php echo $i; ?>][total_qty]" class="form-control grid-input total-qty" readonly value="<?php echo htmlspecialchars((string) ($item['total_qty'] ?? 0)); ?>"></td>
-                            <td><input type="number" step="0.01" name="items[<?php echo $i; ?>][rate]" class="form-control grid-input rate" readonly value="<?php echo htmlspecialchars((string) ($item['rate'] ?? 0)); ?>"></td>
                             <td><input type="text" name="items[<?php echo $i; ?>][total_r]" class="form-control grid-input total-r" readonly value="<?php echo htmlspecialchars((string) ($item['total_r'] ?? 0)); ?>"></td>
                             <td>
                                 <input type="number" step="0.01" name="items[<?php echo $i; ?>][ot_rate]" class="form-control grid-input row-ot-rate" readonly value="<?php echo htmlspecialchars((string) ($item['ot_rate'] ?? 0)); ?>">
@@ -184,12 +186,11 @@ $otJson = json_encode(contractorOtRepairOps());
                     </tbody>
                     <tfoot>
                         <tr>
-                            <td class="sticky-col sticky-action" colspan="3" id="tf_grand_total_label">GRAND TOTAL</td>
+                            <td class="sticky-col sticky-action" colspan="4" id="tf_grand_total_label">GRAND TOTAL</td>
                             <?php for ($d = 1; $d <= 31; $d++): ?>
                                 <td class="day-foot" data-day="<?php echo $d; ?>"></td>
                             <?php endfor; ?>
                             <td id="tf_total_qty">0</td>
-                            <td></td>
                             <td id="tf_total_r">0</td>
                             <td></td>
                             <td></td>

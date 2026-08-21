@@ -2736,6 +2736,19 @@ body.confirm-modal-open {
     min-width: 240px;
 }
 
+.ops-grid .sticky-rate {
+    left: 346px;
+    min-width: 80px;
+    width: 80px;
+    text-align: center;
+}
+
+.ops-grid .sticky-rate .rate {
+    text-align: center;
+    font-weight: 700;
+    color: #0f172a;
+}
+
 .ops-grid .sticky-grade,
 .ops-grid #col_header_grade,
 .ops-grid .td-grade {
