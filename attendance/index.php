@@ -28,7 +28,10 @@ require_once __DIR__ . '/../includes/header.php';
             <i class="fa-solid fa-arrow-left"></i> Back to Dashboard
         </a>
         <div class="toolbar-actions">
-            <a href="<?php echo app_url('attendance/import.php'); ?>" class="btn-primary">
+            <a href="<?php echo app_url('attendance/manual.php'); ?>" class="btn-primary">
+                <i class="fa-solid fa-pen-to-square"></i> Manual Entry
+            </a>
+            <a href="<?php echo app_url('attendance/import.php'); ?>" class="btn-secondary">
                 <i class="fa-solid fa-file-import"></i> Import Attendance
             </a>
             <a href="<?php echo app_url('attendance/report.php'); ?>" class="btn-secondary">
@@ -40,7 +43,7 @@ require_once __DIR__ . '/../includes/header.php';
     <div class="form-page-card">
         <div class="form-page-header">
             <h1>Attendance</h1>
-            <p>Punch list from import · Department-wise salary uses monthly totals</p>
+            <p>Punch list · Manual entry · Import · Department-wise salary uses monthly totals</p>
         </div>
 
         <div class="table-wrap">

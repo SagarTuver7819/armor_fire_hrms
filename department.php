@@ -75,6 +75,13 @@ $empCount = $department ? countEmployeesByDepartment($department['id']) : 0;
                     <div class="module-label">Dept. Employees Report</div>
                     <div class="module-meta">List + Excel download</div>
                 </a>
+                <a href="<?php echo app_url('attendance/manual.php?department_id=' . (int) $department['id'] . '&show=1'); ?>" class="module-card">
+                    <div class="module-icon" style="background-color: #0EA5E9;">
+                        <i class="fa-solid fa-pen-to-square"></i>
+                    </div>
+                    <div class="module-label">Manual Attendance</div>
+                    <div class="module-meta">Department wise In / Out · Shift time</div>
+                </a>
                 <a href="<?php echo app_url('attendance/report.php?show=1&department_id=' . (int) $department['id']); ?>" class="module-card">
                     <div class="module-icon" style="background-color: #0F766E;">
                         <i class="fa-solid fa-user-check"></i>

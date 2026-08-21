@@ -485,7 +485,7 @@ function attendanceRebuildDayStatus($conn, $employeeId, $month, $year)
 
         $minutes = 0;
         if ($punchIn && $punchOut) {
-            $minutes = max(0, (int) ((strtotime($date . ' ' . $punchOut) - strtotime($date . ' ' . $punchIn)) / 60));
+            $minutes = attendanceWorkingMinutes($date, $punchIn, $punchOut);
         }
 
         if ($list) {
@@ -854,4 +854,139 @@ function getAttendanceMonthlyReport($conn, $month, $year, $deptId = 0, $employee
         ];
     }
     return $rows;
+}
+
+function attendanceWorkingMinutes($date, $punchIn, $punchOut)
+{
+    if (!$punchIn || !$punchOut) {
+        return 0;
+    }
+    $start = strtotime($date . ' ' . $punchIn);
+    $end = strtotime($date . ' ' . $punchOut);
+    if ($start === false || $end === false) {
+        return 0;
+    }
+    if ($end <= $start) {
+        $end += 86400;
+    }
+    return max(0, (int) (($end - $start) / 60));
+}
+
+function attendanceTimeForInput($time)
+{
+    $time = trim((string) $time);
+    if ($time === '' || $time === '00:00:00') {
+        return '';
+    }
+    return date('H:i', strtotime($time));
+}
+
+function attendanceNormalizeInputTime($time)
+{
+    $time = trim((string) $time);
+    if ($time === '') {
+        return null;
+    }
+    if (preg_match('/^\d{1,2}:\d{2}$/', $time)) {
+        $time .= ':00';
+    }
+    $ts = strtotime($time);
+    if ($ts === false) {
+        return null;
+    }
+    return date('H:i:s', $ts);
+}
+
+/**
+ * Department employees + existing day attendance for manual grid
+ */
+function getDepartmentManualAttendanceRows($deptId, $date, $conn = null)
+{
+    $closeAfter = false;
+    if ($conn === null) {
+        $conn = getDBConnection();
+        $closeAfter = true;
+    }
+    ensureAttendanceTables($conn);
+    $deptId = (int) $deptId;
+    $date = date('Y-m-d', strtotime($date));
+
+    $sql = "SELECT e.id, e.employee_code, e.employee_name, e.shift_type, e.shift_time, e.week_off_day, e.pay_type,
+                   a.day_status, a.punch_in, a.punch_out, a.working_minutes, a.source
+            FROM employees e
+            LEFT JOIN attendance_day_status a
+              ON a.employee_id = e.id AND a.attendance_date = ?
+            WHERE e.status = 1 AND e.department_id = ?
+              AND e.pay_type IN ('Salary','Jobwork')
+            ORDER BY e.employee_code ASC, e.employee_name ASC";
+    $st = $conn->prepare($sql);
+    $st->bind_param('si', $date, $deptId);
+    $st->execute();
+    $rows = $st->get_result()->fetch_all(MYSQLI_ASSOC);
+    $st->close();
+
+    if ($closeAfter) {
+        $conn->close();
+    }
+    return $rows;
+}
+
+/**
+ * Save one employee day from manual department entry
+ */
+function attendanceSaveManualDay($conn, $employeeId, $date, $status, $punchIn, $punchOut, $shiftName = null, $remarks = null)
+{
+    ensureAttendanceTables($conn);
+    $employeeId = (int) $employeeId;
+    $date = date('Y-m-d', strtotime($date));
+    $allowed = ['Present', 'Absent', 'Week Off', 'Holiday', 'Leave', 'Half Day'];
+    if (!in_array($status, $allowed, true)) {
+        $status = 'Present';
+    }
+    $punchIn = attendanceNormalizeInputTime($punchIn);
+    $punchOut = attendanceNormalizeInputTime($punchOut);
+    $shiftName = $shiftName !== null && $shiftName !== '' ? (string) $shiftName : null;
+    $remarks = $remarks !== null && trim((string) $remarks) !== '' ? trim((string) $remarks) : null;
+
+    $del = $conn->prepare('DELETE FROM attendance_punches WHERE employee_id = ? AND attendance_date = ?');
+    $del->bind_param('is', $employeeId, $date);
+    $del->execute();
+    $del->close();
+
+    $minutes = 0;
+    if (in_array($status, ['Present', 'Half Day'], true)) {
+        if ($punchIn) {
+            attendanceInsertPunch($conn, $employeeId, $date, $punchIn, 'in', 'manual', null, $shiftName, $remarks);
+        }
+        if ($punchOut) {
+            attendanceInsertPunch($conn, $employeeId, $date, $punchOut, 'out', 'manual', null, $shiftName, $remarks);
+        }
+        $minutes = attendanceWorkingMinutes($date, $punchIn, $punchOut);
+        if ($status === 'Present' && $minutes > 0 && $minutes < 240) {
+            $status = 'Half Day';
+        }
+    } else {
+        $punchIn = null;
+        $punchOut = null;
+        $minutes = 0;
+    }
+
+    $upsert = $conn->prepare(
+        "INSERT INTO attendance_day_status
+            (employee_id, attendance_date, day_status, punch_in, punch_out, working_minutes, source)
+         VALUES (?, ?, ?, ?, ?, ?, 'manual')
+         ON DUPLICATE KEY UPDATE
+            day_status = VALUES(day_status),
+            punch_in = VALUES(punch_in),
+            punch_out = VALUES(punch_out),
+            working_minutes = VALUES(working_minutes),
+            source = 'manual'"
+    );
+    $upsert->bind_param('issssi', $employeeId, $date, $status, $punchIn, $punchOut, $minutes);
+    $upsert->execute();
+    $upsert->close();
+
+    $parts = explode('-', $date);
+    ensurePayrollDiaryFromAttendance($employeeId, (int) $parts[1], (int) $parts[0], $conn);
+    return true;
 }
