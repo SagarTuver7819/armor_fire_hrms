@@ -1310,6 +1310,9 @@ a {
     font-weight: 700;
 }
 .pay-pill.is-contractor-main { background: #eff6ff; color: #1d4ed8; }
+.pay-pill.is-salary { background: #ecfdf5; color: #047857; }
+.pay-pill.is-jobwork { background: #fff7ed; color: #c2410c; }
+.data-table td.num, .data-table th.num { text-align: right; font-variant-numeric: tabular-nums; }
 
 .salary-register-sheet {
     background: #fff;

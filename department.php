@@ -93,8 +93,8 @@ $empCount = $department ? countEmployeesByDepartment($department['id']) : 0;
                     <div class="module-icon" style="background-color: #3498DB;">
                         <i class="fa-solid fa-calendar-check"></i>
                     </div>
-                    <div class="module-label">Salary Diary</div>
-                    <div class="module-meta">Attendance days (editable)</div>
+                    <div class="module-label">Salary Structure</div>
+                    <div class="module-meta">Set employee salary · PF / PT norms</div>
                 </a>
                 <a href="<?php echo app_url('payroll/jobwork.php?department_id=' . (int) $department['id']); ?>" class="module-card">
                     <div class="module-icon" style="background-color: #E67E22;">

@@ -277,7 +277,7 @@ $openAttendance = ($sidebarMode === 'attendance' || strpos((string) $sidebarActi
                     <a href="<?php echo app_url('payroll/diary.php?department_id=' . $sidebarDeptId); ?>"
                        class="sidebar-link <?php echo $sidebarActive === 'diary' ? 'active' : ''; ?>">
                         <i class="fa-solid fa-calendar-check"></i>
-                        <span>Salary Diary</span>
+                        <span>Salary Structure</span>
                     </a>
                     <a href="<?php echo app_url('payroll/jobwork.php?department_id=' . $sidebarDeptId); ?>"
                        class="sidebar-link <?php echo $sidebarActive === 'jobwork' ? 'active' : ''; ?>">

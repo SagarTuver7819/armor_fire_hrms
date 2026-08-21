@@ -355,12 +355,15 @@ function statutoryPf($gross, array $emp)
     if (($emp['pf_deduction'] ?? 'No') !== 'Yes') {
         return 0.0;
     }
-    return round(min(1800, (float) $gross * 0.12), 2);
+    // PF wage ceiling ₹15,000 × 12% = ₹1,800 max
+    $pfWage = min(15000.0, (float) $gross);
+    return round($pfWage * 0.12, 2);
 }
 
 function statutoryPt($gross)
 {
-    return ((float) $gross >= 12000) ? 200.0 : 0.0;
+    // Professional Tax: ₹200 when amount is ₹12,001 or more; otherwise 0
+    return ((float) $gross >= 12001) ? 200.0 : 0.0;
 }
 
 function getPayrollAttendanceBundle(array $emp, $month, $year, $actualAmount)
