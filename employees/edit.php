@@ -267,6 +267,12 @@ function empField($employee, $key, $default = '')
                                value="<?php echo htmlspecialchars(empField($employee, 'date_of_joining')); ?>">
                     </div>
                     <div class="form-group">
+                        <label>12b. Exit Date</label>
+                        <input type="date" name="date_of_exit" class="form-control"
+                               value="<?php echo htmlspecialchars(empField($employee, 'date_of_exit')); ?>">
+                        <small class="form-hint">Salary week-off / present count only till this date</small>
+                    </div>
+                    <div class="form-group">
                         <label>13. Shift <small>(Shift Master)</small></label>
                         <select name="shift_id" id="shiftSelect" class="form-control">
                             <option value="">-- Select shift --</option>

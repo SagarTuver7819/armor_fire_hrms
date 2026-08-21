@@ -442,7 +442,7 @@ function attendanceRebuildDayStatus($conn, $employeeId, $month, $year)
     $to = sprintf('%04d-%02d-%02d', $year, $month, $monthDays);
 
     $emp = null;
-    $st = $conn->prepare("SELECT id, week_off_day FROM employees WHERE id = ? LIMIT 1");
+    $st = $conn->prepare('SELECT id, week_off_day, date_of_joining, date_of_exit FROM employees WHERE id = ? LIMIT 1');
     $st->bind_param('i', $employeeId);
     $st->execute();
     $emp = $st->get_result()->fetch_assoc();
@@ -453,6 +453,14 @@ function attendanceRebuildDayStatus($conn, $employeeId, $month, $year)
 
     $holidays = attendanceHolidaySet($conn, $year, $month);
     $weekOffName = trim((string) ($emp['week_off_day'] ?? 'Sunday'));
+    $joinDate = '';
+    if (!empty($emp['date_of_joining']) && $emp['date_of_joining'] !== '0000-00-00') {
+        $joinDate = substr((string) $emp['date_of_joining'], 0, 10);
+    }
+    $exitDate = '';
+    if (!empty($emp['date_of_exit']) && $emp['date_of_exit'] !== '0000-00-00') {
+        $exitDate = substr((string) $emp['date_of_exit'], 0, 10);
+    }
 
     $punchesByDate = [];
     $st = $conn->prepare(
@@ -498,6 +506,17 @@ function attendanceRebuildDayStatus($conn, $employeeId, $month, $year)
         $isWeekOff = ($weekOffName !== '' && strcasecmp($dow, $weekOffName) === 0);
         $isHoliday = isset($holidays[$date]);
         $list = $punchesByDate[$date] ?? [];
+
+        // Outside joining → exit window: do not count present / week-off / holiday
+        if (($joinDate !== '' && $date < $joinDate) || ($exitDate !== '' && $date > $exitDate)) {
+            $status = 'Absent';
+            $punchIn = null;
+            $punchOut = null;
+            $minutes = 0;
+            $upsert->bind_param('issssi', $employeeId, $date, $status, $punchIn, $punchOut, $minutes);
+            $upsert->execute();
+            continue;
+        }
 
         $punchIn = null;
         $punchOut = null;

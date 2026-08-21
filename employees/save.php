@@ -42,6 +42,7 @@ $pan           = trim($_POST['pan_number'] ?? '');
 $dob           = trim($_POST['date_of_birth'] ?? '');
 $designation   = trim($_POST['designation'] ?? '');
 $doj           = trim($_POST['date_of_joining'] ?? '');
+$doe           = trim($_POST['date_of_exit'] ?? '');
 $shiftType     = ($_POST['shift_type'] ?? 'Day') === 'Night' ? 'Night' : 'Day';
 $shiftTime     = trim($_POST['shift_time'] ?? '');
 $shiftId       = (int) ($_POST['shift_id'] ?? 0);
@@ -82,6 +83,7 @@ if ($reportingId > 0 && $reportingId !== $id) {
 // Empty values as NULL for DB
 $dob    = ($dob === '') ? null : $dob;
 $doj    = ($doj === '') ? null : $doj;
+$doe    = ($doe === '') ? null : $doe;
 $salary = ($salary === '') ? null : $salary;
 
 if ($departmentId <= 0 || $employeeName === '') {
@@ -127,7 +129,7 @@ if ($id > 0) {
     $sql = "UPDATE employees SET
         employee_code=?, biometric_user_id=?, pay_type=?, department_id=?, sub_department_id=?, employee_name=?, father_husband_name=?,
         permanent_address=?, present_address=?, mobile_number=?, emergency_mobile=?,
-        aadhar_number=?, pan_number=?, date_of_birth=?, designation=?, date_of_joining=?,
+        aadhar_number=?, pan_number=?, date_of_birth=?, designation=?, date_of_joining=?, date_of_exit=?,
         shift_type=?, shift_time=?, pf_deduction=?, uan_number=?,
         bank_name=?, bank_account_number=?, ifsc_code=?, bank_branch_address=?,
         decided_salary=?, reporting_head=?,         extra_note=?, week_off_day=?,
@@ -136,7 +138,7 @@ if ($id > 0) {
 
     $stmt = $conn->prepare($sql);
     $stmt->bind_param(
-        'sssiissssssssssssssssssssssssssii',
+        'sssiisssssssssssssssssssssssssssii',
         $empCode,
         $biometricId,
         $payType,
@@ -153,6 +155,7 @@ if ($id > 0) {
         $dob,
         $designation,
         $doj,
+        $doe,
         $shiftType,
         $shiftTime,
         $pfDeduction,
@@ -175,16 +178,16 @@ if ($id > 0) {
     $sql = "INSERT INTO employees (
         employee_code, biometric_user_id, pay_type, department_id, sub_department_id, employee_name, father_husband_name,
         permanent_address, present_address, mobile_number, emergency_mobile,
-        aadhar_number, pan_number, date_of_birth, designation, date_of_joining,
+        aadhar_number, pan_number, date_of_birth, designation, date_of_joining, date_of_exit,
         shift_type, shift_time, pf_deduction, uan_number,
         bank_name, bank_account_number, ifsc_code, bank_branch_address,
         decided_salary, reporting_head, extra_note, week_off_day,
         week_off_benefits, holiday_benefits, overtime_benefits, main_contractor_id, created_by
-    ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
+    ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
 
     $stmt = $conn->prepare($sql);
     $stmt->bind_param(
-        'sssiissssssssssssssssssssssssssii',
+        'sssiisssssssssssssssssssssssssssii',
         $empCode,
         $biometricId,
         $payType,
@@ -201,6 +204,7 @@ if ($id > 0) {
         $dob,
         $designation,
         $doj,
+        $doe,
         $shiftType,
         $shiftTime,
         $pfDeduction,

@@ -302,22 +302,88 @@ function getJobworkQtyTotal($employeeId, $month, $year)
     return round((float) ($cache['qty'][(int) $employeeId] ?? 0), 2);
 }
 
-function countWeekOffDaysInMonth($month, $year, $weekOffDay)
+function countWeekOffDaysInMonth($month, $year, $weekOffDay, $fromDate = null, $toDate = null)
 {
     $map = [
         'Sunday' => 0, 'Monday' => 1, 'Tuesday' => 2, 'Wednesday' => 3,
         'Thursday' => 4, 'Friday' => 5, 'Saturday' => 6,
     ];
     $want = $map[(string) $weekOffDay] ?? 0;
-    $days = (int) date('t', strtotime(sprintf('%04d-%02d-01', $year, $month)));
+    $monthStart = sprintf('%04d-%02d-01', $year, $month);
+    $monthEnd = date('Y-m-t', strtotime($monthStart));
+    $from = $monthStart;
+    $to = $monthEnd;
+    if ($fromDate && preg_match('/^\d{4}-\d{2}-\d{2}/', (string) $fromDate)) {
+        $from = substr((string) $fromDate, 0, 10);
+    }
+    if ($toDate && preg_match('/^\d{4}-\d{2}-\d{2}/', (string) $toDate)) {
+        $to = substr((string) $toDate, 0, 10);
+    }
+    if ($from < $monthStart) {
+        $from = $monthStart;
+    }
+    if ($to > $monthEnd) {
+        $to = $monthEnd;
+    }
+    if ($from > $to) {
+        return 0;
+    }
     $n = 0;
-    for ($d = 1; $d <= $days; $d++) {
-        $w = (int) date('w', strtotime(sprintf('%04d-%02d-%02d', $year, $month, $d)));
-        if ($w === $want) {
+    $ts = strtotime($from);
+    $endTs = strtotime($to);
+    while ($ts !== false && $ts <= $endTs) {
+        if ((int) date('w', $ts) === $want) {
             $n++;
         }
+        $ts = strtotime('+1 day', $ts);
     }
     return $n;
+}
+
+/**
+ * Employment-active date range inside a month (joining / exit aware).
+ * Returns null when employee is not active in that month.
+ */
+function payrollEmploymentRangeInMonth($month, $year, $joiningDate = null, $exitDate = null)
+{
+    $monthStart = sprintf('%04d-%02d-01', $year, $month);
+    $monthEnd = date('Y-m-t', strtotime($monthStart));
+    $from = $monthStart;
+    $to = $monthEnd;
+
+    $join = '';
+    if ($joiningDate && $joiningDate !== '0000-00-00' && preg_match('/^\d{4}-\d{2}-\d{2}/', (string) $joiningDate)) {
+        $join = substr((string) $joiningDate, 0, 10);
+    }
+    $exit = '';
+    if ($exitDate && $exitDate !== '0000-00-00' && preg_match('/^\d{4}-\d{2}-\d{2}/', (string) $exitDate)) {
+        $exit = substr((string) $exitDate, 0, 10);
+    }
+
+    if ($join !== '' && $join > $monthEnd) {
+        return null;
+    }
+    if ($exit !== '' && $exit < $monthStart) {
+        return null;
+    }
+    if ($join !== '' && $join > $from) {
+        $from = $join;
+    }
+    if ($exit !== '' && $exit < $to) {
+        $to = $exit;
+    }
+    if ($from > $to) {
+        return null;
+    }
+
+    $days = (int) ((strtotime($to) - strtotime($from)) / 86400) + 1;
+    return [
+        'from' => $from,
+        'to' => $to,
+        'days' => max(0, $days),
+        'month_start' => $monthStart,
+        'month_end' => $monthEnd,
+    ];
 }
 
 function getJobworkWorkedDays($employeeId, $month, $year)
@@ -370,14 +436,33 @@ function statutoryPt($gross)
 /**
  * Count Holiday Master dates in a month (optionally only Paid=Yes)
  */
-function payrollCountHolidaysInMonth($year, $month, $paidOnly = false)
+function payrollCountHolidaysInMonth($year, $month, $paidOnly = false, $fromDate = null, $toDate = null)
 {
-    if (function_exists('countHolidaysInMonth')) {
+    $monthStart = sprintf('%04d-%02d-01', $year, $month);
+    $monthEnd = date('Y-m-t', strtotime($monthStart));
+    $from = $monthStart;
+    $to = $monthEnd;
+    if ($fromDate && preg_match('/^\d{4}-\d{2}-\d{2}/', (string) $fromDate)) {
+        $from = substr((string) $fromDate, 0, 10);
+    }
+    if ($toDate && preg_match('/^\d{4}-\d{2}-\d{2}/', (string) $toDate)) {
+        $to = substr((string) $toDate, 0, 10);
+    }
+    if ($from < $monthStart) {
+        $from = $monthStart;
+    }
+    if ($to > $monthEnd) {
+        $to = $monthEnd;
+    }
+    if ($from > $to) {
+        return 0.0;
+    }
+
+    if (function_exists('countHolidaysInMonth') && $from === $monthStart && $to === $monthEnd) {
         return (float) countHolidaysInMonth($year, $month, $paidOnly);
     }
+
     $conn = getDBConnection();
-    $from = sprintf('%04d-%02d-01', $year, $month);
-    $to = date('Y-m-t', strtotime($from));
     $n = 0;
     $res = @$conn->query(
         "SELECT holiday_date, is_paid FROM holidays
@@ -407,49 +492,90 @@ function getPayrollAttendanceBundle(array $emp, $month, $year, $actualAmount)
         ? normalizePayType($emp['pay_type'] ?? 'Salary')
         : 'Salary';
 
-    $autoWeekOff = (float) countWeekOffDaysInMonth($month, $year, $emp['week_off_day'] ?? 'Sunday');
-    $autoHoliday = (float) payrollCountHolidaysInMonth($year, $month, false);
-    $autoPaidHoliday = (float) payrollCountHolidaysInMonth($year, $month, true);
+    $range = payrollEmploymentRangeInMonth(
+        $month,
+        $year,
+        $emp['date_of_joining'] ?? null,
+        $emp['date_of_exit'] ?? null
+    );
+
+    if ($range === null) {
+        return [
+            'month_days' => $monthDays,
+            'present' => 0.0,
+            'week_off' => 0.0,
+            'holiday' => 0.0,
+            'week_off_paid' => 0.0,
+            'holiday_paid' => 0.0,
+            'pl' => 0.0,
+            'sl' => 0.0,
+            'dl' => 0.0,
+            'total_days' => 0.0,
+            'loan' => $diary ? (float) ($diary['loan_amount'] ?? 0) : 0.0,
+            'advance' => $diary ? (float) ($diary['advance_amount'] ?? 0) : 0.0,
+            'arrears' => $diary ? (float) ($diary['arrears_amount'] ?? 0) : 0.0,
+            'salary' => round((float) ($emp['decided_salary'] ?? 0), 2),
+            'govt_gross' => 0.0,
+            'pf' => 0.0,
+            'pt' => 0.0,
+            'working' => 0.0,
+            'emp_from' => null,
+            'emp_to' => null,
+        ];
+    }
+
+    $empFrom = $range['from'];
+    $empTo = $range['to'];
+    $eligibleDays = (float) $range['days'];
+
+    // Week offs / holidays only from joining date through exit date inside this month
+    $autoWeekOff = (float) countWeekOffDaysInMonth(
+        $month,
+        $year,
+        $emp['week_off_day'] ?? 'Sunday',
+        $empFrom,
+        $empTo
+    );
+    $autoHoliday = (float) payrollCountHolidaysInMonth($year, $month, false, $empFrom, $empTo);
+    $autoPaidHoliday = (float) payrollCountHolidaysInMonth($year, $month, true, $empFrom, $empTo);
 
     $workedJw = (float) getJobworkWorkedDays($employeeId, $month, $year);
-    // Working calendar days excluding week-off (holidays handled via benefits below)
-    $fullPresent = max(0, (float) $monthDays - $autoWeekOff - $autoHoliday);
+    $fullPresent = max(0, $eligibleDays - $autoWeekOff - $autoHoliday);
 
     if ($payType === 'Salary') {
         $autoPresent = $fullPresent;
     } else {
-        $autoPresent = $workedJw > 0 ? $workedJw : $fullPresent;
+        $autoPresent = $workedJw > 0 ? min((float) $workedJw, $fullPresent) : $fullPresent;
     }
 
     $hasDiary = is_array($diary) && !empty($diary);
-    $weekOffRaw = $hasDiary ? (float) ($diary['week_off_days'] ?? 0) : $autoWeekOff;
-    $holidayRaw = $hasDiary ? (float) ($diary['holiday_days'] ?? 0) : $autoHoliday;
-    // Legacy diaries folded holidays into week_off_days — peel paid master holidays if holiday_days empty
-    if ($hasDiary && $holidayRaw <= 0 && $autoHoliday > 0 && $weekOffRaw >= $autoWeekOff + $autoHoliday) {
-        $holidayRaw = $autoHoliday;
-        $weekOffRaw = max(0, $weekOffRaw - $autoHoliday);
+    $weekOffRaw = $autoWeekOff;
+    $holidayRaw = $autoHoliday;
+    if ($hasDiary) {
+        $diaryHoliday = (float) ($diary['holiday_days'] ?? 0);
+        if ($diaryHoliday > 0) {
+            $holidayRaw = min($diaryHoliday, $autoHoliday > 0 ? $autoHoliday : $diaryHoliday);
+        }
     }
 
     $present = $hasDiary ? (float) ($diary['present_days'] ?? 0) : $autoPresent;
+    if ($present > $fullPresent) {
+        $present = $fullPresent;
+    }
     $pl = $hasDiary ? (float) ($diary['pl_days'] ?? 0) : 0;
     $sl = $hasDiary ? (float) ($diary['sl_days'] ?? 0) : 0;
     $dl = $hasDiary ? (float) ($diary['dl_days'] ?? 0) : 0;
 
-    if ($present >= $monthDays && ($weekOffRaw + $holidayRaw) > 0) {
-        $present = max(0, (float) $monthDays - $weekOffRaw - $holidayRaw - $pl - $sl - $dl);
+    if ($present >= $eligibleDays && ($weekOffRaw + $holidayRaw) > 0) {
+        $present = max(0, $eligibleDays - $weekOffRaw - $holidayRaw - $pl - $sl - $dl);
     }
 
-    // Paid day rules from employee join form
     $weekOffPaid = (($emp['week_off_benefits'] ?? 'No') === 'Yes') ? $weekOffRaw : 0.0;
     $holidayPaid = 0.0;
     if (($emp['holiday_benefits'] ?? 'No') === 'Yes') {
-        // Only master holidays marked Paid=Yes count toward salary
-        if ($hasDiary && $holidayRaw > 0) {
-            // Prefer paid count from master when available
-            $holidayPaid = min($holidayRaw, $autoPaidHoliday > 0 ? $autoPaidHoliday : $holidayRaw);
-            if ($autoPaidHoliday > 0 && $autoHoliday > 0) {
-                $holidayPaid = round($holidayRaw * ($autoPaidHoliday / $autoHoliday), 2);
-            }
+        if ($hasDiary && $holidayRaw > 0 && $autoHoliday > 0) {
+            $holidayPaid = round($holidayRaw * ($autoPaidHoliday / max(1.0, $autoHoliday)), 2);
+            $holidayPaid = min($holidayPaid, $autoPaidHoliday);
         } else {
             $holidayPaid = $autoPaidHoliday;
         }
@@ -460,6 +586,9 @@ function getPayrollAttendanceBundle(array $emp, $month, $year, $actualAmount)
     $arrears = $diary ? (float) ($diary['arrears_amount'] ?? 0) : 0;
 
     $totalDays = $present + $weekOffPaid + $holidayPaid + $pl + $sl + $dl;
+    if ($totalDays > $eligibleDays) {
+        $totalDays = $eligibleDays;
+    }
     if ($totalDays > $monthDays) {
         $totalDays = (float) $monthDays;
     }
@@ -495,7 +624,9 @@ function getPayrollAttendanceBundle(array $emp, $month, $year, $actualAmount)
         'govt_gross' => $govtGross,
         'pf' => $pf,
         'pt' => $pt,
-        'working' => $diary ? (float) ($diary['working_days'] ?? $monthDays) : (float) $monthDays,
+        'working' => $eligibleDays,
+        'emp_from' => $empFrom,
+        'emp_to' => $empTo,
     ];
 }
 

@@ -195,6 +195,7 @@ if (isset($_GET['from']) && $_GET['from'] === 'all') {
                 <div class="info-row"><dt>Pay Type</dt><dd><?php echo showVal(payTypeLabel($emp['pay_type'] ?? 'Salary')); ?></dd></div>
                 <div class="info-row"><dt>Designation</dt><dd><?php echo showVal($emp['designation']); ?></dd></div>
                 <div class="info-row"><dt>Date of Joining</dt><dd><?php echo showVal(formatDateDisplay($emp['date_of_joining'])); ?></dd></div>
+                <div class="info-row"><dt>Exit Date</dt><dd><?php echo showVal(formatDateDisplay($emp['date_of_exit'] ?? '')); ?></dd></div>
                 <div class="info-row"><dt>Shift Type</dt><dd><span class="shift-pill <?php echo $shiftClass; ?>"><?php echo showVal($emp['shift_type']); ?></span></dd></div>
                 <div class="info-row"><dt>Shift Time</dt><dd><?php echo showVal($emp['shift_time']); ?></dd></div>
                 <div class="info-row"><dt>PF Deduction</dt><dd><?php echo showVal($emp['pf_deduction']); ?></dd></div>
