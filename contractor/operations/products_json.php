@@ -23,19 +23,3 @@ echo json_encode([
     'products' => $outProducts,
     'grades' => [],
 ]);
-
-$outProducts = [];
-foreach ($products as $r) {
-    $outProducts[] = [
-        'id' => (int) $r['id'],
-        'name' => trim((string) ($r['product_name'] ?? '')),
-        'process' => (string) ($r['process'] ?? ''),
-        'rate' => (float) $r['rate'],
-        'ot_rate' => parseOtRate($r['ot_text'] ?? ''),
-        'rejection_rate' => (float) $r['rejection_rate'],
-    ];
-}
-echo json_encode([
-    'products' => $outProducts,
-    'grades' => [],
-]);

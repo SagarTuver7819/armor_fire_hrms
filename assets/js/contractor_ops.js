@@ -84,26 +84,33 @@
     }
     function loadProducts(cb) {
         var op = encodeURIComponent(opVal());
-        $.getJSON(window.OPS_PRODUCTS_URL + '?operation=' + op).done(function (data) {
-            products = (data && data.products) ? data.products : (Array.isArray(data) ? data : []);
-            $('#opsRows .ops-row').each(function () {
-                var $row = $(this);
-                var sid = $row.find('.row-product-id').val() || $row.find('.product-select').val();
-                fillProductSelect($row.find('.product-select'), sid);
-                $row.find('.row-grade-id').val('0');
-                var $opt = $row.find('.product-select option:selected');
-                if ($opt.val()) {
-                    if (!$row.find('.rate').val() || parseFloat($row.find('.rate').val()) === 0) {
-                        $row.find('.rate').val($opt.attr('data-rate') || 0);
-                        $row.find('.row-ot-rate').val($opt.attr('data-ot') || 0);
-                        $row.find('.row-rejection-rate').val($opt.attr('data-rej') || 0);
+        $.getJSON(window.OPS_PRODUCTS_URL + '?operation=' + op)
+            .done(function (data) {
+                products = (data && data.products) ? data.products : (Array.isArray(data) ? data : []);
+                $('#opsRows .ops-row').each(function () {
+                    var $row = $(this);
+                    var sid = $row.find('.row-product-id').val() || $row.find('.product-select').val();
+                    fillProductSelect($row.find('.product-select'), sid);
+                    $row.find('.row-grade-id').val('0');
+                    var $opt = $row.find('.product-select option:selected');
+                    if ($opt.val()) {
+                        if (!$row.find('.rate').val() || parseFloat($row.find('.rate').val()) === 0) {
+                            $row.find('.rate').val($opt.attr('data-rate') || 0);
+                            $row.find('.row-ot-rate').val($opt.attr('data-ot') || 0);
+                            $row.find('.row-rejection-rate').val($opt.attr('data-rej') || 0);
+                        }
+                        $row.find('.row-product-id').val($opt.val());
                     }
-                    $row.find('.row-product-id').val($opt.val());
-                }
+                });
+                if (typeof cb === 'function') cb();
+                recalcAll();
+            })
+            .fail(function () {
+                products = [];
+                $('#opsRows .ops-row').each(function () {
+                    fillProductSelect($(this).find('.product-select'), '');
+                });
             });
-            if (typeof cb === 'function') cb();
-            recalcAll();
-        });
     }
     function calculateRowTotals($row) {
         var op = opVal();
