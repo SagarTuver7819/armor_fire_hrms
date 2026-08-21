@@ -72,12 +72,26 @@ function ensureMasterTables($conn = null)
         holiday_type ENUM('Holiday','Week-Off') NOT NULL DEFAULT 'Holiday',
         holiday_date DATE DEFAULT NULL,
         week_day VARCHAR(20) DEFAULT NULL,
+        is_paid ENUM('Yes','No') NOT NULL DEFAULT 'Yes',
         remarks TEXT,
         status TINYINT(1) NOT NULL DEFAULT 1,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-        INDEX idx_holidays_status (status)
+        INDEX idx_holidays_status (status),
+        INDEX idx_holidays_date (holiday_date)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+
+    // Upgrade existing installs
+    $holCols = [];
+    $hc = $conn->query("SHOW COLUMNS FROM holidays");
+    if ($hc) {
+        while ($c = $hc->fetch_assoc()) {
+            $holCols[] = $c['Field'];
+        }
+    }
+    if ($holCols && !in_array('is_paid', $holCols, true)) {
+        $conn->query("ALTER TABLE holidays ADD COLUMN is_paid ENUM('Yes','No') NOT NULL DEFAULT 'Yes' AFTER week_day");
+    }
 
     $conn->query("CREATE TABLE IF NOT EXISTS salary_components (
         id INT AUTO_INCREMENT PRIMARY KEY,

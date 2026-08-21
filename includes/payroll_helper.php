@@ -61,7 +61,8 @@ function ensurePayrollTables($conn = null)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
 
     ensurePayrollColumn($conn, 'salary_diary', 'week_off_days', 'week_off_days DECIMAL(6,2) NOT NULL DEFAULT 0 AFTER present_days');
-    ensurePayrollColumn($conn, 'salary_diary', 'pl_days', 'pl_days DECIMAL(6,2) NOT NULL DEFAULT 0 AFTER week_off_days');
+    ensurePayrollColumn($conn, 'salary_diary', 'holiday_days', 'holiday_days DECIMAL(6,2) NOT NULL DEFAULT 0 AFTER week_off_days');
+    ensurePayrollColumn($conn, 'salary_diary', 'pl_days', 'pl_days DECIMAL(6,2) NOT NULL DEFAULT 0 AFTER holiday_days');
     ensurePayrollColumn($conn, 'salary_diary', 'sl_days', 'sl_days DECIMAL(6,2) NOT NULL DEFAULT 0 AFTER pl_days');
     ensurePayrollColumn($conn, 'salary_diary', 'dl_days', 'dl_days DECIMAL(6,2) NOT NULL DEFAULT 0 AFTER sl_days');
     ensurePayrollColumn($conn, 'salary_diary', 'loan_amount', 'loan_amount DECIMAL(12,2) NOT NULL DEFAULT 0 AFTER overtime_hours');
@@ -366,6 +367,37 @@ function statutoryPt($gross)
     return ((float) $gross >= 12001) ? 200.0 : 0.0;
 }
 
+/**
+ * Count Holiday Master dates in a month (optionally only Paid=Yes)
+ */
+function payrollCountHolidaysInMonth($year, $month, $paidOnly = false)
+{
+    if (function_exists('countHolidaysInMonth')) {
+        return (float) countHolidaysInMonth($year, $month, $paidOnly);
+    }
+    $conn = getDBConnection();
+    $from = sprintf('%04d-%02d-01', $year, $month);
+    $to = date('Y-m-t', strtotime($from));
+    $n = 0;
+    $res = @$conn->query(
+        "SELECT holiday_date, is_paid FROM holidays
+         WHERE status = 1 AND holiday_type = 'Holiday'
+           AND holiday_date BETWEEN '{$from}' AND '{$to}'"
+    );
+    if ($res) {
+        while ($r = $res->fetch_assoc()) {
+            if ($paidOnly && (($r['is_paid'] ?? 'Yes') === 'No')) {
+                continue;
+            }
+            if (!empty($r['holiday_date'])) {
+                $n++;
+            }
+        }
+    }
+    $conn->close();
+    return (float) $n;
+}
+
 function getPayrollAttendanceBundle(array $emp, $month, $year, $actualAmount)
 {
     $employeeId = (int) ($emp['id'] ?? 0);
@@ -376,11 +408,13 @@ function getPayrollAttendanceBundle(array $emp, $month, $year, $actualAmount)
         : 'Salary';
 
     $autoWeekOff = (float) countWeekOffDaysInMonth($month, $year, $emp['week_off_day'] ?? 'Sunday');
-    $workedJw = (float) getJobworkWorkedDays($employeeId, $month, $year);
-    $fullPresent = max(0, (float) $monthDays - $autoWeekOff);
+    $autoHoliday = (float) payrollCountHolidaysInMonth($year, $month, false);
+    $autoPaidHoliday = (float) payrollCountHolidaysInMonth($year, $month, true);
 
-    // Fixed salary + Jobwork both prefer real attendance (diary).
-    // Jobwork fallback: production days if any, else calendar working days (month − week off).
+    $workedJw = (float) getJobworkWorkedDays($employeeId, $month, $year);
+    // Working calendar days excluding week-off (holidays handled via benefits below)
+    $fullPresent = max(0, (float) $monthDays - $autoWeekOff - $autoHoliday);
+
     if ($payType === 'Salary') {
         $autoPresent = $fullPresent;
     } else {
@@ -388,23 +422,44 @@ function getPayrollAttendanceBundle(array $emp, $month, $year, $actualAmount)
     }
 
     $hasDiary = is_array($diary) && !empty($diary);
-    $weekOff = $hasDiary ? (float) ($diary['week_off_days'] ?? 0) : $autoWeekOff;
-    // If diary exists (manual/import attendance), use its present even when 0
+    $weekOffRaw = $hasDiary ? (float) ($diary['week_off_days'] ?? 0) : $autoWeekOff;
+    $holidayRaw = $hasDiary ? (float) ($diary['holiday_days'] ?? 0) : $autoHoliday;
+    // Legacy diaries folded holidays into week_off_days — peel paid master holidays if holiday_days empty
+    if ($hasDiary && $holidayRaw <= 0 && $autoHoliday > 0 && $weekOffRaw >= $autoWeekOff + $autoHoliday) {
+        $holidayRaw = $autoHoliday;
+        $weekOffRaw = max(0, $weekOffRaw - $autoHoliday);
+    }
+
     $present = $hasDiary ? (float) ($diary['present_days'] ?? 0) : $autoPresent;
     $pl = $hasDiary ? (float) ($diary['pl_days'] ?? 0) : 0;
     $sl = $hasDiary ? (float) ($diary['sl_days'] ?? 0) : 0;
     $dl = $hasDiary ? (float) ($diary['dl_days'] ?? 0) : 0;
 
-    // Present is working days only. If old data stored calendar days (31), do not add week-off again.
-    if ($present >= $monthDays && $weekOff > 0) {
-        $present = max(0, (float) $monthDays - $weekOff - $pl - $sl - $dl);
+    if ($present >= $monthDays && ($weekOffRaw + $holidayRaw) > 0) {
+        $present = max(0, (float) $monthDays - $weekOffRaw - $holidayRaw - $pl - $sl - $dl);
+    }
+
+    // Paid day rules from employee join form
+    $weekOffPaid = (($emp['week_off_benefits'] ?? 'No') === 'Yes') ? $weekOffRaw : 0.0;
+    $holidayPaid = 0.0;
+    if (($emp['holiday_benefits'] ?? 'No') === 'Yes') {
+        // Only master holidays marked Paid=Yes count toward salary
+        if ($hasDiary && $holidayRaw > 0) {
+            // Prefer paid count from master when available
+            $holidayPaid = min($holidayRaw, $autoPaidHoliday > 0 ? $autoPaidHoliday : $holidayRaw);
+            if ($autoPaidHoliday > 0 && $autoHoliday > 0) {
+                $holidayPaid = round($holidayRaw * ($autoPaidHoliday / $autoHoliday), 2);
+            }
+        } else {
+            $holidayPaid = $autoPaidHoliday;
+        }
     }
 
     $loan = $diary ? (float) ($diary['loan_amount'] ?? 0) : 0;
     $advance = $diary ? (float) ($diary['advance_amount'] ?? 0) : 0;
     $arrears = $diary ? (float) ($diary['arrears_amount'] ?? 0) : 0;
 
-    $totalDays = $present + $weekOff + $pl + $sl + $dl;
+    $totalDays = $present + $weekOffPaid + $holidayPaid + $pl + $sl + $dl;
     if ($totalDays > $monthDays) {
         $totalDays = (float) $monthDays;
     }
@@ -418,9 +473,6 @@ function getPayrollAttendanceBundle(array $emp, $month, $year, $actualAmount)
     }
     $factor = $monthDays > 0 ? ($totalDays / $monthDays) : 1;
     $govtGross = round($salary * $factor, 2);
-    if ($payType === 'Salary') {
-        $govtGross = round($salary * $factor, 2);
-    }
 
     $pf = statutoryPf($govtGross, $emp);
     $pt = statutoryPt($govtGross);
@@ -428,7 +480,10 @@ function getPayrollAttendanceBundle(array $emp, $month, $year, $actualAmount)
     return [
         'month_days' => $monthDays,
         'present' => $present,
-        'week_off' => $weekOff,
+        'week_off' => $weekOffRaw,
+        'holiday' => $holidayRaw,
+        'week_off_paid' => $weekOffPaid,
+        'holiday_paid' => $holidayPaid,
         'pl' => $pl,
         'sl' => $sl,
         'dl' => $dl,

@@ -2879,10 +2879,6 @@ body.confirm-modal-open {
     display: none !important;
 }
 
-.ops-grid.hide-grade #tf_grand_total_label {
-    left: 0;
-}
-
 .ops-grid .product-select,
 .ops-grid .grade-select {
     min-width: 190px;
@@ -3040,7 +3036,7 @@ body.confirm-modal-open {
 }
 
 .ops-grid.hide-grade #tf_grand_total_label {
-    min-width: 296px;
+    min-width: 424px;
 }
 
 .sidebar-sublink .fa-circle {

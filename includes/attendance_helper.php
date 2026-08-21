@@ -374,8 +374,7 @@ function attendanceHolidaySet($conn, $year, $month)
     $set = [];
     $from = sprintf('%04d-%02d-01', $year, $month);
     $to = date('Y-m-t', strtotime($from));
-    // holidays table from masters: holiday_date or date_from
-    $res = $conn->query("SHOW COLUMNS FROM holidays");
+    $res = $conn->query('SHOW COLUMNS FROM holidays');
     if (!$res) {
         return $set;
     }
@@ -388,15 +387,49 @@ function attendanceHolidaySet($conn, $year, $month)
         return $set;
     }
     $statusSql = in_array('status', $cols, true) ? ' AND status = 1' : '';
-    $q = $conn->query("SELECT `{$dateCol}` AS d FROM holidays WHERE `{$dateCol}` BETWEEN '{$from}' AND '{$to}'{$statusSql}");
+    $typeSql = in_array('holiday_type', $cols, true) ? " AND (holiday_type = 'Holiday' OR holiday_type IS NULL OR holiday_type = '')" : '';
+    $hasPaid = in_array('is_paid', $cols, true);
+    $paidSelect = $hasPaid ? ', is_paid' : ", 'Yes' AS is_paid";
+    $q = $conn->query(
+        "SELECT `{$dateCol}` AS d{$paidSelect}
+         FROM holidays
+         WHERE `{$dateCol}` BETWEEN '{$from}' AND '{$to}'{$statusSql}{$typeSql}"
+    );
     if ($q) {
         while ($r = $q->fetch_assoc()) {
             if (!empty($r['d'])) {
-                $set[substr($r['d'], 0, 10)] = true;
+                $key = substr($r['d'], 0, 10);
+                $set[$key] = [
+                    'paid' => (($r['is_paid'] ?? 'Yes') !== 'No'),
+                ];
             }
         }
     }
     return $set;
+}
+
+/**
+ * Count master holidays in month (all / paid-only)
+ */
+function countHolidaysInMonth($year, $month, $paidOnly = false, $conn = null)
+{
+    $closeAfter = false;
+    if ($conn === null) {
+        $conn = getDBConnection();
+        $closeAfter = true;
+    }
+    $set = attendanceHolidaySet($conn, $year, $month);
+    $n = 0;
+    foreach ($set as $info) {
+        if ($paidOnly && empty($info['paid'])) {
+            continue;
+        }
+        $n++;
+    }
+    if ($closeAfter) {
+        $conn->close();
+    }
+    return (float) $n;
 }
 
 function attendanceRebuildDayStatus($conn, $employeeId, $month, $year)
@@ -525,12 +558,13 @@ function attendanceSyncSalaryDiary($conn, $employeeId, $month, $year, array $sum
     $year = (int) $year;
     $monthDays = (int) date('t', strtotime(sprintf('%04d-%02d-01', $year, $month)));
     $present = round((float) ($summary['present'] ?? 0), 2);
-    $weekOff = round((float) ($summary['week_off'] ?? 0) + (float) ($summary['holiday'] ?? 0), 2);
+    $weekOff = round((float) ($summary['week_off'] ?? 0), 2);
+    $holidayDays = round((float) ($summary['holiday'] ?? 0), 2);
     $otHours = round(((int) ($summary['working_minutes'] ?? 0)) / 60, 2);
 
     // Preserve leave / loan / advance / arrears if diary already exists
     $existing = null;
-    $st = $conn->prepare("SELECT * FROM salary_diary WHERE employee_id = ? AND month_no = ? AND year_no = ? LIMIT 1");
+    $st = $conn->prepare('SELECT * FROM salary_diary WHERE employee_id = ? AND month_no = ? AND year_no = ? LIMIT 1');
     $st->bind_param('iii', $employeeId, $month, $year);
     $st->execute();
     $existing = $st->get_result()->fetch_assoc();
@@ -544,27 +578,33 @@ function attendanceSyncSalaryDiary($conn, $employeeId, $month, $year, array $sum
     $arrears = $existing ? (float) ($existing['arrears_amount'] ?? 0) : 0;
     $remarks = $existing ? ($existing['remarks'] ?? null) : 'Synced from attendance import';
 
+    if (function_exists('ensurePayrollColumn')) {
+        ensurePayrollColumn($conn, 'salary_diary', 'holiday_days', 'holiday_days DECIMAL(6,2) NOT NULL DEFAULT 0 AFTER week_off_days');
+    }
+
     $stmt = $conn->prepare(
         "INSERT INTO salary_diary
-            (employee_id, month_no, year_no, working_days, present_days, week_off_days, pl_days, sl_days, dl_days,
+            (employee_id, month_no, year_no, working_days, present_days, week_off_days, holiday_days, pl_days, sl_days, dl_days,
              overtime_hours, loan_amount, advance_amount, arrears_amount, remarks)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+         VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
          ON DUPLICATE KEY UPDATE
             working_days = VALUES(working_days),
             present_days = VALUES(present_days),
             week_off_days = VALUES(week_off_days),
+            holiday_days = VALUES(holiday_days),
             overtime_hours = VALUES(overtime_hours),
             remarks = VALUES(remarks)"
     );
     $working = (float) $monthDays;
     $stmt->bind_param(
-        'iiidddddddddds',
+        'iiiddddddddddds',
         $employeeId,
         $month,
         $year,
         $working,
         $present,
         $weekOff,
+        $holidayDays,
         $pl,
         $sl,
         $dl,

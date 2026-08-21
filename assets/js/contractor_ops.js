@@ -48,7 +48,8 @@
         $('.ot-field').prop('readonly', !showOt);
         if (!showR) $('.r-field').val('');
         if (!showOt) $('.ot-field').val('');
-        $('#tf_grand_total_label').attr('colspan', 3);
+        // Action + Sr + Contract Process + Rate = 4 sticky columns
+        $('#tf_grand_total_label').attr('colspan', 4);
     }
     function bindRowSelect2($sel, placeholder) {
         if (!$sel.length || !$.fn.select2) return;
