@@ -13,6 +13,7 @@ require_once __DIR__ . '/includes/master_helper.php';
 require_once __DIR__ . '/includes/contractor_helper.php';
 require_once __DIR__ . '/includes/payroll_helper.php';
 require_once __DIR__ . '/includes/attendance_helper.php';
+require_once __DIR__ . '/includes/department_icons.php';
 require_once __DIR__ . '/sql/seed_contractor_masters.php';
 
 requireAdmin();
@@ -66,6 +67,9 @@ try {
 
     ensureAttendanceTables($conn);
     $log[] = 'Attendance tables ready (punches, day status, import batches, biometric_user_id).';
+
+    $iconUpdated = syncDepartmentIcons($conn);
+    $log[] = 'Department dashboard icons updated: ' . $iconUpdated . ' row(s).';
 
     $seed = seedContractorProductMasters($conn);
     if ($seed['ok']) {

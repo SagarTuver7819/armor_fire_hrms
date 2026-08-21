@@ -65,7 +65,7 @@ if (isset($_GET['msg']) && $_GET['msg'] === 'generated') {
         <div class="form-page-header">
             <div>
                 <h1>Generate Salary</h1>
-                <p><?php echo htmlspecialchars($department['department_name']); ?> · Salary employees from diary, Jobwork from entries + slab</p>
+                <p><?php echo htmlspecialchars($department['department_name']); ?> · Uses attendance/diary days · Gross = Salary × Total Days ÷ Month Days · PF/PT included</p>
             </div>
         </div>
 

@@ -486,6 +486,10 @@ function calculateEmployeeSalary(array $emp, $month, $year)
         if ($att['advance'] > 0) {
             $breakup[] = ['label' => 'Advance', 'type' => 'Deduction', 'amount' => $att['advance']];
         }
+        if ($att['arrears'] > 0) {
+            $earnings += $att['arrears'];
+            $breakup[] = ['label' => 'Salary Arrears', 'type' => 'Earning', 'amount' => $att['arrears']];
+        }
         $actualAmount = $jwTotal;
         $govtAmount = $govtGross;
     } elseif ($payType === 'ContractorMain') {
@@ -502,27 +506,39 @@ function calculateEmployeeSalary(array $emp, $month, $year)
         $earnings = $att['govt_gross'];
         $breakup[] = ['label' => 'Under employees actual', 'type' => 'Info', 'amount' => $jwTotal];
         $breakup[] = ['label' => 'Govt gross (team)', 'type' => 'Earning', 'amount' => $att['govt_gross']];
+        $deductions += $att['pf'] + $att['pt'] + $att['loan'] + $att['advance'];
+        if ($att['pf'] > 0) {
+            $breakup[] = ['label' => 'P.F.', 'type' => 'Deduction', 'amount' => $att['pf']];
+        }
+        if ($att['pt'] > 0) {
+            $breakup[] = ['label' => 'P.T.', 'type' => 'Deduction', 'amount' => $att['pt']];
+        }
+        if ($att['loan'] > 0) {
+            $breakup[] = ['label' => 'Loan', 'type' => 'Deduction', 'amount' => $att['loan']];
+        }
+        if ($att['advance'] > 0) {
+            $breakup[] = ['label' => 'Advance', 'type' => 'Deduction', 'amount' => $att['advance']];
+        }
+        if ($att['arrears'] > 0) {
+            $earnings += $att['arrears'];
+            $breakup[] = ['label' => 'Salary Arrears', 'type' => 'Earning', 'amount' => $att['arrears']];
+        }
         $actualAmount = $jwTotal;
         $govtAmount = $att['govt_gross'];
     } else {
-        $diary = getDiaryRow($employeeId, $month, $year);
-        $working = $diary ? (float) $diary['working_days'] : 26;
-        $present = $diary ? (float) $diary['present_days'] : $working;
-        if ($working <= 0) {
-            $working = 26;
-        }
-        $factor = $present / $working;
-        if ($factor < 0) {
-            $factor = 0;
-        }
-        if ($factor > 1) {
-            $factor = 1;
-        }
-
-        $componentLines = array_filter($lines, function ($l) {
+        // Normal salary — same formula as Salary Register
+        $baseAmount = (float) ($emp['decided_salary'] ?? 0);
+        $componentLines = array_values(array_filter($lines, function ($l) {
             return ($l['line_type'] ?? 'component') === 'component';
-        });
-        if (!$componentLines) {
+        }));
+        if ($baseAmount <= 0) {
+            foreach ($componentLines as $line) {
+                if (($line['component_type'] ?? 'Earning') !== 'Deduction') {
+                    $baseAmount += (float) $line['amount'];
+                }
+            }
+        }
+        if ($baseAmount <= 0) {
             $masters = getActiveMasterRows('salary_components', 'id ASC');
             $basic = (float) ($emp['decided_salary'] ?? 0);
             foreach ($masters as $c) {
@@ -535,8 +551,12 @@ function calculateEmployeeSalary(array $emp, $month, $year)
                     'component_type' => $c['component_type'],
                     'amount' => $amt,
                 ];
+                if (($c['component_type'] ?? 'Earning') !== 'Deduction') {
+                    $baseAmount += $amt;
+                }
             }
-            if (!$componentLines && $basic > 0) {
+            if ($baseAmount <= 0 && $basic > 0) {
+                $baseAmount = $basic;
                 $componentLines[] = [
                     'label' => 'Decided Salary',
                     'component_type' => 'Earning',
@@ -545,18 +565,89 @@ function calculateEmployeeSalary(array $emp, $month, $year)
             }
         }
 
+        $att = getPayrollAttendanceBundle($emp, $month, $year, $baseAmount);
+        $present = $att['present'];
+        $working = (float) $att['month_days'];
+        $factor = $working > 0 ? ($att['total_days'] / $working) : 1;
+        if ($factor < 0) {
+            $factor = 0;
+        }
+        if ($factor > 1) {
+            $factor = 1;
+        }
+
+        $earningComponents = [];
+        $deductionComponents = [];
         foreach ($componentLines as $line) {
-            $amt = round((float) $line['amount'] * $factor, 2);
-            $type = ($line['component_type'] ?? 'Earning') === 'Deduction' ? 'Deduction' : 'Earning';
-            $breakup[] = ['label' => $line['label'], 'type' => $type, 'amount' => $amt];
-            if ($type === 'Deduction') {
-                $deductions += $amt;
+            if (($line['component_type'] ?? 'Earning') === 'Deduction') {
+                $deductionComponents[] = $line;
             } else {
-                $earnings += $amt;
+                $earningComponents[] = $line;
             }
         }
+
+        if ($earningComponents) {
+            $earnBase = 0.0;
+            foreach ($earningComponents as $line) {
+                $earnBase += (float) $line['amount'];
+            }
+            if ($earnBase <= 0) {
+                $earnBase = $baseAmount > 0 ? $baseAmount : 1;
+            }
+            // Scale component breakup to attendance-based gross (matches register)
+            $targetGross = (float) $att['govt_gross'];
+            foreach ($earningComponents as $line) {
+                $share = ((float) $line['amount'] / $earnBase) * $targetGross;
+                $amt = round($share, 2);
+                $breakup[] = ['label' => $line['label'], 'type' => 'Earning', 'amount' => $amt];
+                $earnings += $amt;
+            }
+            // Fix rounding drift
+            $diff = round($targetGross - $earnings, 2);
+            if (abs($diff) >= 0.01 && $breakup) {
+                $last = count($breakup) - 1;
+                $breakup[$last]['amount'] = round($breakup[$last]['amount'] + $diff, 2);
+                $earnings = $targetGross;
+            }
+        } else {
+            $earnings = (float) $att['govt_gross'];
+            $breakup[] = [
+                'label' => 'Gross (Salary × ' . $att['total_days'] . '/' . $att['month_days'] . ' days)',
+                'type' => 'Earning',
+                'amount' => $earnings,
+            ];
+        }
+
+        foreach ($deductionComponents as $line) {
+            $amt = round((float) $line['amount'] * $factor, 2);
+            $breakup[] = ['label' => $line['label'], 'type' => 'Deduction', 'amount' => $amt];
+            $deductions += $amt;
+        }
+
+        // Statutory + diary deductions (same as Salary Register)
+        if ($att['pf'] > 0) {
+            $deductions += $att['pf'];
+            $breakup[] = ['label' => 'P.F.', 'type' => 'Deduction', 'amount' => $att['pf']];
+        }
+        if ($att['pt'] > 0) {
+            $deductions += $att['pt'];
+            $breakup[] = ['label' => 'P.T.', 'type' => 'Deduction', 'amount' => $att['pt']];
+        }
+        if ($att['loan'] > 0) {
+            $deductions += $att['loan'];
+            $breakup[] = ['label' => 'Loan', 'type' => 'Deduction', 'amount' => $att['loan']];
+        }
+        if ($att['advance'] > 0) {
+            $deductions += $att['advance'];
+            $breakup[] = ['label' => 'Advance', 'type' => 'Deduction', 'amount' => $att['advance']];
+        }
+        if ($att['arrears'] > 0) {
+            $earnings += $att['arrears'];
+            $breakup[] = ['label' => 'Salary Arrears', 'type' => 'Earning', 'amount' => $att['arrears']];
+        }
+
         $actualAmount = $earnings;
-        $govtAmount = $earnings;
+        $govtAmount = (float) $att['govt_gross'];
     }
 
     $net = $earnings - $deductions;

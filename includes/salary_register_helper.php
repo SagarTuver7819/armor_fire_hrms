@@ -6,6 +6,7 @@
 require_once __DIR__ . '/payroll_helper.php';
 require_once __DIR__ . '/employee_helper.php';
 require_once __DIR__ . '/contractor_helper.php';
+require_once __DIR__ . '/attendance_helper.php';
 
 function salaryRegisterTypes()
 {
@@ -29,6 +30,9 @@ function formatRegisterDate($value)
 function buildSalaryRegisterRow(array $emp, $month, $year, $mode)
 {
     $mode = (string) $mode;
+    if (!empty($emp['id'])) {
+        ensurePayrollDiaryFromAttendance((int) $emp['id'], $month, $year);
+    }
     $payType = normalizePayType($emp['pay_type'] ?? 'Salary');
     $actual = getJobworkTotal((int) $emp['id'], $month, $year);
     $qty = getJobworkQtyTotal((int) $emp['id'], $month, $year);

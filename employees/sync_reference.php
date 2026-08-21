@@ -10,6 +10,7 @@ require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/employee_helper.php';
 require_once __DIR__ . '/../includes/attendance_helper.php';
 require_once __DIR__ . '/../includes/payroll_helper.php';
+require_once __DIR__ . '/../includes/department_icons.php';
 
 requireAdmin();
 
@@ -140,8 +141,9 @@ function refEnsureDepartment($conn, $name)
     if ($row) {
         return (int) $row['id'];
     }
-    $icon = 'fa-building';
-    $color = '#3498DB';
+    $iconMeta = resolveDepartmentIcon($name);
+    $icon = $iconMeta[0];
+    $color = $iconMeta[1];
     $ins = $conn->prepare('INSERT INTO departments (department_name, icon_class, icon_color, sort_order, status) VALUES (?, ?, ?, 100, 1)');
     $ins->bind_param('sss', $name, $icon, $color);
     $ins->execute();

@@ -578,6 +578,99 @@ function attendanceSyncSalaryDiary($conn, $employeeId, $month, $year, array $sum
     $stmt->close();
 }
 
+/**
+ * If attendance day-status exists for the month, refresh salary diary present / week-off.
+ * Returns true when diary was updated from attendance.
+ */
+function ensurePayrollDiaryFromAttendance($employeeId, $month, $year, $conn = null)
+{
+    $closeAfter = false;
+    if ($conn === null) {
+        $conn = getDBConnection();
+        $closeAfter = true;
+    }
+    ensureAttendanceTables($conn);
+    $employeeId = (int) $employeeId;
+    $month = (int) $month;
+    $year = (int) $year;
+    if ($employeeId <= 0 || $month < 1 || $month > 12) {
+        if ($closeAfter) {
+            $conn->close();
+        }
+        return false;
+    }
+
+    $from = sprintf('%04d-%02d-01', $year, $month);
+    $to = date('Y-m-t', strtotime($from));
+
+    $chk = $conn->prepare(
+        "SELECT COUNT(*) AS c FROM attendance_day_status WHERE employee_id = ? AND attendance_date BETWEEN ? AND ?"
+    );
+    $chk->bind_param('iss', $employeeId, $from, $to);
+    $chk->execute();
+    $dayCount = (int) ($chk->get_result()->fetch_assoc()['c'] ?? 0);
+    $chk->close();
+
+    if ($dayCount <= 0) {
+        // Rebuild from punches if any
+        $pchk = $conn->prepare(
+            "SELECT COUNT(*) AS c FROM attendance_punches WHERE employee_id = ? AND attendance_date BETWEEN ? AND ?"
+        );
+        $pchk->bind_param('iss', $employeeId, $from, $to);
+        $pchk->execute();
+        $punchCount = (int) ($pchk->get_result()->fetch_assoc()['c'] ?? 0);
+        $pchk->close();
+        if ($punchCount > 0) {
+            attendanceRebuildDayStatus($conn, $employeeId, $month, $year);
+            $dayCount = $punchCount;
+        }
+    }
+
+    if ($dayCount <= 0) {
+        if ($closeAfter) {
+            $conn->close();
+        }
+        return false;
+    }
+
+    $st = $conn->prepare(
+        "SELECT day_status, COUNT(*) AS c, COALESCE(SUM(working_minutes),0) AS mins
+         FROM attendance_day_status
+         WHERE employee_id = ? AND attendance_date BETWEEN ? AND ?
+         GROUP BY day_status"
+    );
+    $st->bind_param('iss', $employeeId, $from, $to);
+    $st->execute();
+    $res = $st->get_result();
+    $summary = [
+        'present' => 0,
+        'week_off' => 0,
+        'holiday' => 0,
+        'working_minutes' => 0,
+    ];
+    while ($r = $res->fetch_assoc()) {
+        $status = (string) $r['day_status'];
+        $c = (float) $r['c'];
+        $summary['working_minutes'] += (int) $r['mins'];
+        if ($status === 'Present') {
+            $summary['present'] += $c;
+        } elseif ($status === 'Half Day') {
+            $summary['present'] += ($c * 0.5);
+        } elseif ($status === 'Week Off') {
+            $summary['week_off'] += $c;
+        } elseif ($status === 'Holiday') {
+            $summary['holiday'] += $c;
+        }
+    }
+    $st->close();
+
+    attendanceSyncSalaryDiary($conn, $employeeId, $month, $year, $summary);
+    if ($closeAfter) {
+        $conn->close();
+    }
+    return true;
+}
+
 function attendanceImportFile($conn, $filePath, $originalName, $userId = null)
 {
     ensureAttendanceTables($conn);
