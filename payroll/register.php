@@ -161,13 +161,13 @@ require_once __DIR__ . '/../includes/header.php';
         </form>
 
         <?php if ($type === 'jobwork_govt'): ?>
-            <p class="form-hint">Government register: jobwork qty × rate = actual. Actual ÷ <?php echo $monthDays; ?> month days × paid days (Present + Week Off + P.L. + S.L. + D.L.).</p>
+            <p class="form-hint">Jobwork <strong>Government</strong>: Actual (Ops Qty × Rate) ÷ <?php echo $monthDays; ?> month days × paid days from <strong>Attendance</strong> (Present + Week Off + P.L. + S.L. + D.L.). Enter Manual Attendance first, then open this register / Generate Salary.</p>
         <?php elseif ($type === 'jobwork_actual'): ?>
-            <p class="form-hint">Actual register: same employees, production amount as earned (qty × rate). No day split.</p>
+            <p class="form-hint">Jobwork <strong>Regular / Actual</strong>: full production amount (Qty × Rate) from Operations Rate List. No attendance day split — contract base earning.</p>
         <?php elseif ($type === 'contractor_main'): ?>
-            <p class="form-hint">Contractor Main: each main contractor’s under employees, government-style day split. Link Jobwork employees to a Contractor Main on the employee form.</p>
+            <p class="form-hint">Contractor Main: under employees, government-style day split using each member’s attendance. Link Jobwork employees to a Contractor Main on the employee form.</p>
         <?php else: ?>
-            <p class="form-hint">Normal salary: Present = working days (week-off અલગ). Total Days = Present + Week Off + P.L. + S.L. + D.L. Gross = Salary × Total Days ÷ month days.</p>
+            <p class="form-hint">Normal <strong>Fixed Salary</strong>: Gross = Decided Salary × (Present + Week Off + P.L. + S.L. + D.L.) ÷ month days — from Manual Attendance / Import.</p>
         <?php endif; ?>
     </div>
 

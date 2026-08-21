@@ -376,20 +376,21 @@ function getPayrollAttendanceBundle(array $emp, $month, $year, $actualAmount)
     $workedJw = (float) getJobworkWorkedDays($employeeId, $month, $year);
     $fullPresent = max(0, (float) $monthDays - $autoWeekOff);
 
+    // Fixed salary + Jobwork both prefer real attendance (diary).
+    // Jobwork fallback: production days if any, else calendar working days (month − week off).
     if ($payType === 'Salary') {
         $autoPresent = $fullPresent;
     } else {
-        $autoPresent = $workedJw;
+        $autoPresent = $workedJw > 0 ? $workedJw : $fullPresent;
     }
 
-    $hasDiaryPresent = $diary && (float) ($diary['present_days'] ?? 0) > 0;
-    $hasDiaryWeekOff = $diary && (float) ($diary['week_off_days'] ?? 0) > 0;
-
-    $weekOff = $hasDiaryWeekOff ? (float) $diary['week_off_days'] : $autoWeekOff;
-    $present = $hasDiaryPresent ? (float) $diary['present_days'] : $autoPresent;
-    $pl = $diary ? (float) ($diary['pl_days'] ?? 0) : 0;
-    $sl = $diary ? (float) ($diary['sl_days'] ?? 0) : 0;
-    $dl = $diary ? (float) ($diary['dl_days'] ?? 0) : 0;
+    $hasDiary = is_array($diary) && !empty($diary);
+    $weekOff = $hasDiary ? (float) ($diary['week_off_days'] ?? 0) : $autoWeekOff;
+    // If diary exists (manual/import attendance), use its present even when 0
+    $present = $hasDiary ? (float) ($diary['present_days'] ?? 0) : $autoPresent;
+    $pl = $hasDiary ? (float) ($diary['pl_days'] ?? 0) : 0;
+    $sl = $hasDiary ? (float) ($diary['sl_days'] ?? 0) : 0;
+    $dl = $hasDiary ? (float) ($diary['dl_days'] ?? 0) : 0;
 
     // Present is working days only. If old data stored calendar days (31), do not add week-off again.
     if ($present >= $monthDays && $weekOff > 0) {

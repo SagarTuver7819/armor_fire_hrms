@@ -1109,7 +1109,12 @@ a {
 .pdf-btn.en { background: #2563eb; }
 .pdf-btn.hi { background: #F58220; }
 
-.action-links { white-space: nowrap; }
+.action-links {
+    white-space: nowrap;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
 
 .action-btn {
     display: inline-flex;
@@ -1117,12 +1122,25 @@ a {
     justify-content: center;
     width: 30px;
     height: 30px;
-    border-radius: 8px;
-    margin-right: 4px;
+    border-radius: 50%;
+    margin-right: 0;
+    flex-shrink: 0;
+    text-decoration: none;
+    border: none;
+    box-sizing: border-box;
 }
 
 .action-btn.edit { background: #e0f2fe; color: #0369a1; }
+.action-btn.print { background: #ecfdf5; color: #047857; }
+.action-btn.excel { background: #dcfce7; color: #15803d; }
+.action-btn.salary { background: #fef3c7; color: #b45309; }
 .action-btn.delete { background: #fee2e2; color: #b91c1c; }
+
+.action-btn.view {
+    background: #ecfdf5;
+    color: #047857;
+}
+
 
 /* Employee Form - compact 3 column + readable fonts */
 .form-page-card {
@@ -1432,11 +1450,6 @@ a {
 .emp-name-link:hover {
     color: #F58220;
     text-decoration: underline;
-}
-
-.action-btn.view {
-    background: #ecfdf5;
-    color: #047857;
 }
 
 .dataTables_wrapper .dataTables_filter input {

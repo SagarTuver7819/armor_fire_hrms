@@ -33,11 +33,19 @@ if (isset($_GET['msg'])) {
 <main class="dashboard-main">
     <div class="page-toolbar flex-between">
         <a href="<?php echo app_url('contractor/index.php'); ?>" class="back-link"><i class="fa-solid fa-arrow-left"></i> Back to Contractor Hub</a>
-        <a href="<?php echo app_url('contractor/operations/edit.php'); ?>" class="btn-primary"><i class="fa-solid fa-plus"></i> Add</a>
+        <div class="toolbar-actions">
+            <a href="#" id="btnOpsPrint" class="btn-secondary" title="Print / PDF">
+                <i class="fa-solid fa-print"></i> Print PDF
+            </a>
+            <a href="#" id="btnOpsExcel" class="btn-secondary" title="Excel">
+                <i class="fa-solid fa-file-excel"></i> Excel
+            </a>
+            <a href="<?php echo app_url('contractor/operations/edit.php'); ?>" class="btn-primary"><i class="fa-solid fa-plus"></i> Add</a>
+        </div>
     </div>
     <div class="list-header">
         <div class="master-list-title">
-            <div class="master-list-icon" style="background:#8E44AD;"><i class="fa-solid fa-table"></i></div>
+            <div class="master-list-icon" style="background:#F58220;"><i class="fa-solid fa-table"></i></div>
             <div>
                 <h1>Operations Rate List</h1>
                 <p>Search by operation, employee, month or year. Click Add to enter daily qty.</p>
@@ -109,6 +117,8 @@ if (isset($_GET['msg'])) {
 <script>
     window.C_TOAST_MSG = <?php echo json_encode($toastMsg); ?>;
     window.C_AJAX_URL = <?php echo json_encode(app_url('contractor/operations/ajax_list.php')); ?>;
+    window.C_OPS_PRINT_URL = <?php echo json_encode(app_url('contractor/operations/print.php')); ?>;
+    window.C_OPS_EXCEL_URL = <?php echo json_encode(app_url('contractor/operations/excel.php')); ?>;
     window.C_ACTION_COL = 7;
     window.C_AJAX_EXTRA = function () {
         return {
@@ -118,6 +128,18 @@ if (isset($_GET['msg'])) {
             filter_year: document.getElementById('filter_year').value
         };
     };
+    function opsExportQs() {
+        var q = new URLSearchParams(window.C_AJAX_EXTRA());
+        return q.toString();
+    }
+    document.getElementById('btnOpsPrint').addEventListener('click', function (e) {
+        e.preventDefault();
+        window.open(window.C_OPS_PRINT_URL + '?' + opsExportQs(), '_blank');
+    });
+    document.getElementById('btnOpsExcel').addEventListener('click', function (e) {
+        e.preventDefault();
+        window.location.href = window.C_OPS_EXCEL_URL + '?' + opsExportQs();
+    });
 </script>
 <?php
 $extraJs = [

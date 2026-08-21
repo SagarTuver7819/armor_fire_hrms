@@ -97,7 +97,9 @@ while ($row = $res->fetch_assoc()) {
     $genLabel = ((int) $row['salary_generated'] === 1) ? 'Generated' : 'Generate Salary';
     $actions = '<div class="action-links" onclick="event.stopPropagation();">'
         . '<a href="' . htmlspecialchars(app_url('contractor/operations/edit.php?id=' . $sid)) . '" class="action-btn edit" title="Edit"><i class="fa-solid fa-pen"></i></a>'
-        . '<a href="' . htmlspecialchars(app_url('contractor/operations/generate.php?id=' . $sid)) . '" class="action-btn view" title="' . htmlspecialchars($genLabel) . '"><i class="fa-solid fa-indian-rupee-sign"></i></a>'
+        . '<a href="' . htmlspecialchars(app_url('contractor/operations/print_sheet.php?id=' . $sid)) . '" class="action-btn print" title="Print PDF" target="_blank"><i class="fa-solid fa-print"></i></a>'
+        . '<a href="' . htmlspecialchars(app_url('contractor/operations/print_sheet.php?id=' . $sid . '&format=excel')) . '" class="action-btn excel" title="Excel"><i class="fa-solid fa-file-excel"></i></a>'
+        . '<a href="' . htmlspecialchars(app_url('contractor/operations/generate.php?id=' . $sid)) . '" class="action-btn salary" title="' . htmlspecialchars($genLabel) . '"><i class="fa-solid fa-indian-rupee-sign"></i></a>'
         . '<a href="' . htmlspecialchars(app_url('contractor/operations/delete.php?id=' . $sid)) . '" class="action-btn delete btn-delete" data-name="' . htmlspecialchars($row['employee_code'] . ' ' . $row['operation']) . '" title="Delete"><i class="fa-solid fa-trash"></i></a>'
         . '</div>';
     $data[] = [

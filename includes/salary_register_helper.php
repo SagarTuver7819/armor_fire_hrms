@@ -11,9 +11,9 @@ require_once __DIR__ . '/attendance_helper.php';
 function salaryRegisterTypes()
 {
     return [
-        'salary' => '1 · Normal Salary',
-        'jobwork_govt' => '2 · Jobwork (Government)',
-        'jobwork_actual' => '2 · Jobwork (Actual)',
+        'salary' => '1 · Normal Fixed Salary (Attendance)',
+        'jobwork_govt' => '2 · Jobwork Government (Attendance days)',
+        'jobwork_actual' => '2 · Jobwork Regular / Actual (Qty × Rate)',
         'contractor_main' => '3 · Contractor Main (Team)',
     ];
 }
@@ -190,20 +190,20 @@ function getSalaryRegisterData($type, $month, $year, $deptId = 0, $employeeId = 
     if ($type === 'salary') {
         $emps = fetchSalaryRegisterEmployees($deptId, $employeeId, ['Salary']);
         $mode = 'salary';
-        $title = 'Salaried Person';
-        $subtitle = 'Attendance-wise salary';
+        $title = 'Salaried Person (Fixed)';
+        $subtitle = 'Attendance-wise fixed salary';
         $payFilter = 'Salary';
     } elseif ($type === 'jobwork_actual') {
         $emps = fetchSalaryRegisterEmployees($deptId, $employeeId, ['Jobwork']);
         $mode = 'jobwork_actual';
-        $title = 'Jobwork — Actual (Qty × Rate)';
-        $subtitle = 'Actual production earning';
+        $title = 'Jobwork — Regular / Actual';
+        $subtitle = 'Qty × Rate (contract base, no day split)';
         $payFilter = 'Jobwork';
     } else {
         $emps = fetchSalaryRegisterEmployees($deptId, $employeeId, ['Jobwork']);
         $mode = 'jobwork_govt';
         $title = 'Jobwork — Government';
-        $subtitle = 'Actual earning divided across month days';
+        $subtitle = 'Actual earning × attendance paid days ÷ month days';
         $payFilter = 'Jobwork';
     }
 
