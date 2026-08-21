@@ -150,13 +150,13 @@ $hideGradeJson = json_encode(contractorHideGradeOps());
                             </td>
                             <td class="sticky-col sticky-sr ops-sr"><?php echo $i + 1; ?></td>
                             <td class="sticky-col sticky-name">
-                                <select name="items[<?php echo $i; ?>][product_id]" class="form-control product-select no-select2">
+                                <select name="items[<?php echo $i; ?>][product_id]" class="form-control product-select">
                                     <option value="">Select Product</option>
                                 </select>
                                 <input type="hidden" class="row-product-id" value="<?php echo (int) ($item['product_id'] ?? 0); ?>">
                             </td>
                             <td class="sticky-col sticky-grade td-grade">
-                                <select name="items[<?php echo $i; ?>][grade_id]" class="form-control grade-select no-select2">
+                                <select name="items[<?php echo $i; ?>][grade_id]" class="form-control grade-select">
                                     <option value="">Select Grade</option>
                                 </select>
                                 <input type="hidden" class="row-grade-id" value="<?php echo (int) ($item['grade_id'] ?? 0); ?>">

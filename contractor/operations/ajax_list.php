@@ -95,9 +95,11 @@ while ($row = $res->fetch_assoc()) {
     $name = htmlspecialchars((string) $row['employee_code'] . ' - ' . $row['employee_name']);
     $sid = (int) $row['id'];
     $genLabel = ((int) $row['salary_generated'] === 1) ? 'Generated' : 'Generate Salary';
-    $actions = '<a class="btn-icon" href="' . htmlspecialchars(app_url('contractor/operations/edit.php?id=' . $sid)) . '" title="Edit"><i class="fa-solid fa-pen"></i></a>'
-        . ' <a class="btn-icon" href="' . htmlspecialchars(app_url('contractor/operations/generate.php?id=' . $sid)) . '" title="' . $genLabel . '"><i class="fa-solid fa-indian-rupee-sign"></i></a>'
-        . ' <a class="btn-icon btn-delete" href="' . htmlspecialchars(app_url('contractor/operations/delete.php?id=' . $sid)) . '" data-name="' . htmlspecialchars($row['employee_code'] . ' ' . $row['operation']) . '" title="Delete"><i class="fa-solid fa-trash"></i></a>';
+    $actions = '<div class="action-links" onclick="event.stopPropagation();">'
+        . '<a href="' . htmlspecialchars(app_url('contractor/operations/edit.php?id=' . $sid)) . '" class="action-btn edit" title="Edit"><i class="fa-solid fa-pen"></i></a>'
+        . '<a href="' . htmlspecialchars(app_url('contractor/operations/generate.php?id=' . $sid)) . '" class="action-btn view" title="' . htmlspecialchars($genLabel) . '"><i class="fa-solid fa-indian-rupee-sign"></i></a>'
+        . '<a href="' . htmlspecialchars(app_url('contractor/operations/delete.php?id=' . $sid)) . '" class="action-btn delete btn-delete" data-name="' . htmlspecialchars($row['employee_code'] . ' ' . $row['operation']) . '" title="Delete"><i class="fa-solid fa-trash"></i></a>'
+        . '</div>';
     $data[] = [
         $sr,
         htmlspecialchars((string) $row['operation']),

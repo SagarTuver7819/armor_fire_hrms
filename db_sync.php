@@ -12,6 +12,7 @@ require_once __DIR__ . '/includes/employee_helper.php';
 require_once __DIR__ . '/includes/master_helper.php';
 require_once __DIR__ . '/includes/contractor_helper.php';
 require_once __DIR__ . '/includes/payroll_helper.php';
+require_once __DIR__ . '/includes/attendance_helper.php';
 require_once __DIR__ . '/sql/seed_contractor_masters.php';
 
 requireAdmin();
@@ -63,6 +64,9 @@ try {
     ensurePayrollTables($conn);
     $log[] = 'Payroll tables ready (diary, jobwork, payslips).';
 
+    ensureAttendanceTables($conn);
+    $log[] = 'Attendance tables ready (punches, day status, import batches, biometric_user_id).';
+
     $seed = seedContractorProductMasters($conn);
     if ($seed['ok']) {
         $log[] = 'Contractor grades: inserted ' . $seed['grades_inserted'] . ', active ' . $seed['grades_active'] . '.';
@@ -83,6 +87,9 @@ try {
         'contractor_products table' => dbSyncHasTable($conn, 'contractor_products'),
         'contractor_grades table' => dbSyncHasTable($conn, 'contractor_grades'),
         'contractor_operation_sheets table' => dbSyncHasTable($conn, 'contractor_operation_sheets'),
+        'attendance_punches table' => dbSyncHasTable($conn, 'attendance_punches'),
+        'attendance_day_status table' => dbSyncHasTable($conn, 'attendance_day_status'),
+        'employees.biometric_user_id' => dbSyncHasColumn($conn, 'employees', 'biometric_user_id'),
     ];
 
     $counts = [
@@ -92,6 +99,8 @@ try {
         'Contractor Grades' => dbSyncCount($conn, 'SELECT COUNT(*) AS c FROM contractor_grades WHERE status = 1'),
         'Jobwork Employees' => dbSyncCount($conn, "SELECT COUNT(*) AS c FROM employees WHERE status = 1 AND pay_type = 'Jobwork'"),
         'Operations Rate Lists' => dbSyncCount($conn, 'SELECT COUNT(*) AS c FROM contractor_operation_sheets WHERE status = 1'),
+        'Attendance Day Rows' => dbSyncCount($conn, 'SELECT COUNT(*) AS c FROM attendance_day_status'),
+        'Attendance Punches' => dbSyncCount($conn, 'SELECT COUNT(*) AS c FROM attendance_punches'),
     ];
 } catch (Throwable $e) {
     $ok = false;

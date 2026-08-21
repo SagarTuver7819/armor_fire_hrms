@@ -2727,14 +2727,23 @@ body.confirm-modal-open {
 
 .ops-grid .sticky-name {
     left: 86px;
-    min-width: 210px;
-    width: 210px;
+    min-width: 240px;
+    width: 240px;
+}
+
+.ops-grid .sticky-name .select2-container {
+    width: 100% !important;
+    min-width: 220px;
 }
 
 .ops-grid .sticky-grade {
-    left: 296px;
+    left: 326px;
     min-width: 128px;
     width: 128px;
+}
+
+.ops-grid .sticky-grade .select2-container {
+    width: 100% !important;
 }
 
 .ops-grid.hide-grade .sticky-grade,

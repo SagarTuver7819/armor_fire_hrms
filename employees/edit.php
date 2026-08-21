@@ -217,6 +217,11 @@ function empField($employee, $key, $default = '')
                         </div>
                     </div>
                     <div class="form-group">
+                        <label>Biometric User ID <small>(for attendance import match)</small></label>
+                        <input type="text" name="biometric_user_id" class="form-control" maxlength="50"
+                               value="<?php echo htmlspecialchars(empField($employee, 'biometric_user_id')); ?>">
+                    </div>
+                    <div class="form-group">
                         <label>10. Department <small>(Department Master)</small></label>
                         <select name="department_id" class="form-control" required>
                             <?php foreach ($departments as $dept): ?>

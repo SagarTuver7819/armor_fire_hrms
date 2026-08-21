@@ -49,6 +49,7 @@ $openDepartments = ($sidebarDeptId > 0 || $sidebarMode === 'department' || $side
 $openMasters = ($sidebarMode === 'masters' || $sidebarActive === 'hub' || isset($mastersNav[$sidebarActive]));
 $regType = (string) ($_GET['type'] ?? '');
 $openContractor = ($sidebarMode === 'contractor' || strpos((string) $sidebarActive, 'contractor') === 0 || $regType === 'jobwork_govt' || $regType === 'jobwork_actual' || $regType === 'contractor_main');
+$openAttendance = ($sidebarMode === 'attendance' || strpos((string) $sidebarActive, 'attendance') === 0);
 ?>
 
 <aside class="app-sidebar" id="appSidebar" aria-label="Sidebar navigation">
@@ -89,6 +90,42 @@ $openContractor = ($sidebarMode === 'contractor' || strpos((string) $sidebarActi
                 </a>
                 <?php endif; ?>
             </nav>
+        </div>
+
+        <!-- Attendance accordion -->
+        <div class="sidebar-section">
+            <div class="sidebar-section-title">Attendance</div>
+            <div class="sidebar-accordion <?php echo $openAttendance ? 'is-open' : ''; ?>" data-accordion="attendance">
+                <button type="button" class="sidebar-acc-btn" aria-expanded="<?php echo $openAttendance ? 'true' : 'false'; ?>">
+                    <span class="sidebar-acc-left">
+                        <i class="fa-solid fa-calendar-check"></i>
+                        <span>Attendance</span>
+                    </span>
+                    <i class="fa-solid fa-chevron-down sidebar-acc-caret"></i>
+                </button>
+                <div class="sidebar-submenu">
+                    <a href="<?php echo app_url('attendance/index.php'); ?>"
+                       class="sidebar-link sidebar-sublink <?php echo $sidebarActive === 'attendance_list' ? 'active' : ''; ?>">
+                        <i class="fa-solid fa-list"></i>
+                        <span>Attendance List</span>
+                    </a>
+                    <a href="<?php echo app_url('attendance/import.php'); ?>"
+                       class="sidebar-link sidebar-sublink <?php echo $sidebarActive === 'attendance_import' ? 'active' : ''; ?>">
+                        <i class="fa-solid fa-file-import"></i>
+                        <span>Attendance Import</span>
+                    </a>
+                    <a href="<?php echo app_url('attendance/report.php'); ?>"
+                       class="sidebar-link sidebar-sublink <?php echo $sidebarActive === 'attendance_report' ? 'active' : ''; ?>">
+                        <i class="fa-solid fa-chart-simple"></i>
+                        <span>Attendance Report</span>
+                    </a>
+                    <a href="<?php echo app_url('attendance/history.php'); ?>"
+                       class="sidebar-link sidebar-sublink <?php echo $sidebarActive === 'attendance_import' ? '' : ''; ?>">
+                        <i class="fa-solid fa-clock-rotate-left"></i>
+                        <span>Import History</span>
+                    </a>
+                </div>
+            </div>
         </div>
 
         <!-- Masters accordion -->
@@ -221,6 +258,11 @@ $openContractor = ($sidebarMode === 'contractor' || strpos((string) $sidebarActi
                        class="sidebar-link <?php echo $sidebarActive === 'join_employee' ? 'active' : ''; ?>">
                         <i class="fa-solid fa-user-plus"></i>
                         <span>Join Employee</span>
+                    </a>
+                    <a href="<?php echo app_url('attendance/report.php?show=1&department_id=' . $sidebarDeptId); ?>"
+                       class="sidebar-link <?php echo $sidebarActive === 'attendance_report' ? 'active' : ''; ?>">
+                        <i class="fa-solid fa-user-check"></i>
+                        <span>Attendance Report</span>
                     </a>
                     <a href="<?php echo app_url('payroll/diary.php?department_id=' . $sidebarDeptId); ?>"
                        class="sidebar-link <?php echo $sidebarActive === 'diary' ? 'active' : ''; ?>">

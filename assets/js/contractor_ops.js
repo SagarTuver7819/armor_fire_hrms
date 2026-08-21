@@ -54,7 +54,29 @@
         if (!showOt) $('.ot-field').val('');
         $('#tf_grand_total_label').attr('colspan', hideGrade ? 3 : 4);
     }
+    function bindRowSelect2($sel, placeholder) {
+        if (!$sel.length || !$.fn.select2) return;
+        if ($sel.data('select2')) {
+            $sel.off('change.select2ops');
+            $sel.select2('destroy');
+        }
+        $sel.removeClass('no-select2');
+        $sel.select2({
+            width: '100%',
+            placeholder: placeholder || 'Search & select',
+            allowClear: true,
+            minimumResultsForSearch: 0,
+            dropdownParent: $(document.body),
+            language: {
+                noResults: function () { return 'No matching option'; },
+                searching: function () { return 'Searching…'; }
+            }
+        });
+    }
     function fillProductSelect($sel, selectedId) {
+        if ($sel.data('select2')) {
+            $sel.select2('destroy');
+        }
         var html = '<option value="">Select Product</option>';
         products.forEach(function (p) {
             html += '<option value="' + p.id + '" data-rate="' + p.rate + '" data-ot="' + p.ot_rate + '" data-rej="' + p.rejection_rate + '" data-process="' + (p.process || '') + '"'
@@ -62,8 +84,12 @@
                 + $('<div/>').text(p.name).html() + '</option>';
         });
         $sel.html(html);
+        bindRowSelect2($sel, 'Select Product');
     }
     function fillGradeSelect($sel, selectedId) {
+        if ($sel.data('select2')) {
+            $sel.select2('destroy');
+        }
         var html = '<option value="">Select Grade</option>';
         grades.forEach(function (g) {
             html += '<option value="' + g.id + '"'
@@ -71,6 +97,7 @@
                 + $('<div/>').text(g.name).html() + '</option>';
         });
         $sel.html(html);
+        bindRowSelect2($sel, 'Select Grade');
     }
     function loadProducts(cb) {
         var op = encodeURIComponent(opVal());
@@ -199,17 +226,35 @@
     });
     $('#opsRows').on('click', '.btn-remove-row', function () {
         if ($('#opsRows .ops-row').length <= 1) return;
-        $(this).closest('tr').remove();
+        var $row = $(this).closest('tr');
+        $row.find('.product-select, .grade-select').each(function () {
+            if ($(this).data('select2')) {
+                $(this).select2('destroy');
+            }
+        });
+        $row.remove();
         reindex();
         updateGrandTotals();
     });
     $('#btnAddProduct').on('click', function () {
-        var $clone = $('#opsRows .ops-row').first().clone();
+        var $first = $('#opsRows .ops-row').first();
+        // Destroy Select2 before clone so UI markup is not duplicated
+        $first.find('.product-select, .grade-select').each(function () {
+            if ($(this).data('select2')) {
+                $(this).select2('destroy');
+            }
+        });
+        var $clone = $first.clone();
+        $clone.find('.select2-container').remove();
         $clone.find('input').val('');
-        $clone.find('.product-select, .grade-select').val('');
+        $clone.find('.product-select, .grade-select').val('').removeAttr('data-select2-id').removeClass('select2-hidden-accessible');
+        $clone.find('.product-select, .grade-select').find('option').removeAttr('data-select2-id');
         $clone.find('.row-product-id, .row-grade-id').val('');
         fillProductSelect($clone.find('.product-select'), '');
         fillGradeSelect($clone.find('.grade-select'), '');
+        // Re-bind Select2 on the original first row too
+        bindRowSelect2($first.find('.product-select'), 'Select Product');
+        bindRowSelect2($first.find('.grade-select'), 'Select Grade');
         $('#opsRows').append($clone);
         reindex();
         applyDayEnable();
@@ -218,7 +263,7 @@
         if (wrap) {
             wrap.scrollTop = wrap.scrollHeight;
         }
-        $clone.find('.product-select').focus();
+        $clone.find('.product-select').select2('open');
     });
     $('#operationSelect').on('change', function () {
         applyOpMode();

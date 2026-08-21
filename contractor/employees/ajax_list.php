@@ -70,9 +70,13 @@ while ($row = $res->fetch_assoc()) {
     $editUrl = app_url('employees/edit.php?id=' . $id . '&from=contractor');
     $delUrl = app_url('employees/delete.php?id=' . $id . '&department_id=' . $deptId . '&from=contractor');
     $viewUrl = app_url('employees/view.php?id=' . $id);
-    $actions = '<a class="btn-icon" href="' . htmlspecialchars($viewUrl) . '" title="View"><i class="fa-solid fa-eye"></i></a>'
-        . ' <a class="btn-icon" href="' . htmlspecialchars($editUrl) . '" title="Edit"><i class="fa-solid fa-pen"></i></a>'
-        . ' <a class="btn-icon btn-delete" href="' . htmlspecialchars($delUrl) . '" data-name="' . htmlspecialchars($name) . '" title="Delete"><i class="fa-solid fa-trash"></i></a>';
+    $salaryUrl = app_url('employees/salary.php?id=' . $id);
+    $actions = '<div class="action-links" onclick="event.stopPropagation();">'
+        . '<a href="' . htmlspecialchars($viewUrl) . '" class="action-btn view" title="View"><i class="fa-solid fa-eye"></i></a>'
+        . '<a href="' . htmlspecialchars($editUrl) . '" class="action-btn edit" title="Edit"><i class="fa-solid fa-pen"></i></a>'
+        . '<a href="' . htmlspecialchars($salaryUrl) . '" class="action-btn view" title="Salary Details"><i class="fa-solid fa-indian-rupee-sign"></i></a>'
+        . '<a href="' . htmlspecialchars($delUrl) . '" class="action-btn delete btn-delete" data-name="' . htmlspecialchars($name) . '" title="Delete"><i class="fa-solid fa-trash"></i></a>'
+        . '</div>';
     $data[] = [
         $sr,
         htmlspecialchars((string) $row['employee_code']),

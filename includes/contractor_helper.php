@@ -455,9 +455,11 @@ function contractorDtAjax($conn, $table, $select, $searchCols, $orderMap, $rowBu
 
 function contractorActionBtns($editUrl, $deleteUrl, $name)
 {
-    return '<a class="btn-icon" href="' . htmlspecialchars($editUrl) . '" title="Edit"><i class="fa-solid fa-pen"></i></a>'
-        . ' <a class="btn-icon btn-delete" href="' . htmlspecialchars($deleteUrl) . '" data-name="'
-        . htmlspecialchars($name) . '" title="Delete"><i class="fa-solid fa-trash"></i></a>';
+    return '<div class="action-links" onclick="event.stopPropagation();">'
+        . '<a href="' . htmlspecialchars($editUrl) . '" class="action-btn edit" title="Edit"><i class="fa-solid fa-pen"></i></a>'
+        . '<a href="' . htmlspecialchars($deleteUrl) . '" class="action-btn delete btn-delete" data-name="'
+        . htmlspecialchars($name) . '" title="Delete"><i class="fa-solid fa-trash"></i></a>'
+        . '</div>';
 }
 
 function contractorEmployeeOptionLabel(array $row)
