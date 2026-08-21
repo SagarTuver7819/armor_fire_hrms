@@ -110,6 +110,28 @@ if ($filterMonth > 0 && $filterYear > 0) {
 } else {
     $periodLabel = 'All Periods';
 }
+
+// Merge consecutive rows for same Operation + EMP Code + Name
+$empSpan = [];
+$nRows = count($rows);
+for ($i = 0; $i < $nRows; $i++) {
+    if (isset($empSpan[$i])) {
+        continue;
+    }
+    $key = ($rows[$i]['operation'] ?? '') . '|' . ($rows[$i]['employee_code'] ?? '') . '|' . ($rows[$i]['employee_name'] ?? '');
+    $span = 1;
+    for ($j = $i + 1; $j < $nRows; $j++) {
+        $key2 = ($rows[$j]['operation'] ?? '') . '|' . ($rows[$j]['employee_code'] ?? '') . '|' . ($rows[$j]['employee_name'] ?? '');
+        if ($key2 !== $key) {
+            break;
+        }
+        $span++;
+    }
+    $empSpan[$i] = $span;
+    for ($k = 1; $k < $span; $k++) {
+        $empSpan[$i + $k] = 0;
+    }
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -142,6 +164,11 @@ if ($filterMonth > 0 && $filterYear > 0) {
         th { background: #fff4e8; font-weight: 700; color: #1a2332; }
         td.num, th.num { text-align: right; }
         td.center, th.center { text-align: center; }
+        td.merge-mid {
+            text-align: center;
+            vertical-align: middle;
+            font-weight: 600;
+        }
         td.grand, th.grand { background: #ffe8cc; font-weight: 700; }
         tfoot td { font-weight: bold; background: #fffaf5; }
         .toolbar { margin-bottom: 12px; text-align: left; }
@@ -196,12 +223,15 @@ if ($filterMonth > 0 && $filterYear > 0) {
             $calcAmt = round($qty * $rate, 2);
             $reworkCalcAmt = round($rejQty * $rejRate, 2);
             $grand = round($calcAmt + $reworkCalcAmt, 2);
+            $span = (int) ($empSpan[$i] ?? 1);
             ?>
             <tr>
                 <td class="center"><?php echo $i + 1; ?></td>
-                <td><?php echo htmlspecialchars($r['operation']); ?></td>
-                <td><?php echo htmlspecialchars($r['employee_code']); ?></td>
-                <td><?php echo htmlspecialchars($r['employee_name']); ?></td>
+                <?php if ($span > 0): ?>
+                    <td class="merge-mid" rowspan="<?php echo $span; ?>"><?php echo htmlspecialchars($r['operation']); ?></td>
+                    <td class="merge-mid" rowspan="<?php echo $span; ?>"><?php echo htmlspecialchars($r['employee_code']); ?></td>
+                    <td class="merge-mid" rowspan="<?php echo $span; ?>"><?php echo htmlspecialchars($r['employee_name']); ?></td>
+                <?php endif; ?>
                 <td><?php echo htmlspecialchars($product); ?></td>
                 <td class="num"><?php echo number_format($qty, 2); ?></td>
                 <td class="num"><?php echo $hasItem ? number_format($rate, 2) : '-'; ?></td>
