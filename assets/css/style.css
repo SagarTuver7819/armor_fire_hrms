@@ -1357,14 +1357,122 @@ a {
 .sr-code { font-size: 11px; color: #64748b; font-weight: 600; }
 .register-toolbar-actions { display: flex; gap: 8px; }
 .register-filters { margin-bottom: 8px; }
+.sr-print-heading {
+    display: none;
+}
 @media print {
-    .top-header, .app-sidebar, .sidebar-fab, .page-toolbar, .register-filters, .form-page-card.no-print-shadow {
+    @page {
+        size: A4 landscape;
+        margin: 5mm;
+    }
+
+    html, body {
+        width: 100% !important;
+        height: auto !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        background: #fff !important;
+        overflow: visible !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+    }
+
+    .top-header,
+    .app-sidebar,
+    .sidebar-fab,
+    .page-toolbar,
+    .register-filters,
+    .form-page-card.no-print-shadow,
+    .page-footer {
         display: none !important;
     }
-    .form-page-card.no-print-shadow { display: none !important; }
-    .app-content, .dashboard-main { margin: 0 !important; padding: 0 !important; width: 100% !important; }
-    .salary-register-sheet { box-shadow: none; border-radius: 0; }
-    body.has-app-sidebar { padding: 0; }
+
+    .app-shell {
+        display: block !important;
+        min-height: 0 !important;
+        width: 100% !important;
+    }
+
+    .app-content,
+    .dashboard-main {
+        margin: 0 !important;
+        padding: 0 !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        overflow: visible !important;
+    }
+
+    body.has-app-sidebar {
+        padding: 0 !important;
+        overflow: visible !important;
+    }
+
+    .sr-print-heading {
+        display: block !important;
+        text-align: center;
+        font-size: 12px;
+        font-weight: 700;
+        margin: 0 0 4px;
+        color: #1a2332;
+    }
+
+    .salary-register-sheet {
+        box-shadow: none !important;
+        border-radius: 0 !important;
+        border: 0 !important;
+        margin: 0 0 8mm !important;
+        overflow: visible !important;
+        page-break-inside: avoid;
+    }
+
+    .salary-register-banner {
+        background: #94a3b8 !important;
+        color: #0f172a !important;
+        padding: 4px 8px !important;
+        font-size: 10px !important;
+        margin-bottom: 0 !important;
+    }
+
+    .salary-register-sheet .table-wrap {
+        overflow: visible !important;
+        width: 100% !important;
+    }
+
+    .salary-register-table {
+        min-width: 0 !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        table-layout: fixed !important;
+        font-size: 6.5px !important;
+        line-height: 1.15 !important;
+    }
+
+    .salary-register-table th,
+    .salary-register-table td {
+        padding: 2px 2px !important;
+        border-color: #94a3b8 !important;
+        white-space: normal !important;
+        word-break: break-word !important;
+        overflow-wrap: anywhere !important;
+        vertical-align: middle !important;
+        font-size: 6.5px !important;
+    }
+
+    .salary-register-table thead th {
+        background: #e2e8f0 !important;
+        color: #0f172a !important;
+    }
+
+    .salary-register-table .sr-earn { background: #86efac !important; }
+    .salary-register-table .sr-gross { background: #bbf7d0 !important; }
+    .salary-register-table .sr-ded { background: #fde047 !important; }
+    .salary-register-table .sr-net { background: #facc15 !important; color: inherit !important; }
+    .salary-register-table tfoot td { background: #f8fafc !important; }
+
+    .sr-code {
+        font-size: 5.5px !important;
+        color: #475569 !important;
+    }
 }
 
 .form-group label small {

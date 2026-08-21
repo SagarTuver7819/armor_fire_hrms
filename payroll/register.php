@@ -94,6 +94,11 @@ require_once __DIR__ . '/../includes/header.php';
         </div>
     </div>
 
+    <div class="sr-print-heading">
+        <strong><?php echo htmlspecialchars($companyName); ?></strong>
+        — Salary Register · <?php echo htmlspecialchars($monthLabel); ?>
+    </div>
+
     <div class="form-page-card no-print-shadow">
         <div class="form-page-header">
             <div>
@@ -204,34 +209,34 @@ require_once __DIR__ . '/../includes/header.php';
                             <th colspan="3"></th>
                         </tr>
                         <tr>
-                            <th>Department</th>
-                            <th>Designation</th>
+                            <th>Dept</th>
+                            <th>Desig.</th>
                             <th>D.O.J.</th>
-                            <th>UAN Number</th>
+                            <th>UAN</th>
                             <th>Employee Name</th>
                             <?php if ($isActual): ?>
                                 <th>Qty</th>
-                                <th>Actual Amount</th>
-                                <th>Gross Salary</th>
+                                <th>Actual Amt</th>
+                                <th>Gross</th>
                             <?php else: ?>
                                 <th>Salary</th>
-                                <th>Present Days</th>
-                                <th>Week Off</th>
+                                <th>P.Days</th>
+                                <th>W.Off</th>
                                 <th>P.L.</th>
                                 <th>S.L.</th>
                                 <th>D.L.</th>
                                 <th>Total Days</th>
-                                <th>Gross Salary</th>
+                                <th>Gross</th>
                             <?php endif; ?>
                             <th>P.F.</th>
                             <th>P.T.</th>
                             <th>Loan</th>
-                            <th>Advance</th>
-                            <th>Total Deduction</th>
-                            <th>Salary Arrears</th>
-                            <th>Net Salary</th>
-                            <th>Account Number</th>
-                            <th>IFSC Code</th>
+                            <th>Adv.</th>
+                            <th>Tot. Ded.</th>
+                            <th>Arrears</th>
+                            <th>Net</th>
+                            <th>A/C No.</th>
+                            <th>IFSC</th>
                             <th>Remarks</th>
                         </tr>
                     </thead>

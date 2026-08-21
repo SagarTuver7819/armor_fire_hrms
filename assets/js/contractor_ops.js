@@ -70,9 +70,8 @@
         });
     }
     function fillProductSelect($sel, selectedId) {
-        if ($sel.data('select2')) {
-            $sel.select2('destroy');
-        }
+        if (!$sel.length) return;
+        resetSelect2Artifacts($sel);
         var html = '<option value="">Select Process</option>';
         products.forEach(function (p) {
             html += '<option value="' + p.id + '" data-rate="' + p.rate + '" data-ot="' + p.ot_rate + '" data-rej="' + p.rejection_rate + '" data-process="' + (p.process || '') + '"'
@@ -221,31 +220,65 @@
         reindex();
         updateGrandTotals();
     });
-    $('#btnAddProduct').on('click', function () {
-        var $first = $('#opsRows .ops-row').first();
-        $first.find('.product-select').each(function () {
-            if ($(this).data('select2')) {
-                $(this).select2('destroy');
+    function resetSelect2Artifacts($sel) {
+        if (!$sel || !$sel.length) return;
+        if ($sel.data('select2')) {
+            try { $sel.select2('destroy'); } catch (e) { /* ignore */ }
+        }
+        $sel.removeClass('select2-hidden-accessible')
+            .removeAttr('data-select2-id')
+            .removeAttr('tabindex')
+            .removeAttr('aria-hidden')
+            .removeAttr('aria-disabled')
+            .removeData('select2');
+        $sel.find('option').removeAttr('data-select2-id');
+        $sel.closest('td').find('.select2-container').remove();
+    }
+    function clearRowInputs($row) {
+        $row.find('input').each(function () {
+            var $inp = $(this);
+            if ($inp.hasClass('row-product-id') || $inp.hasClass('row-grade-id')) {
+                $inp.val('0');
+            } else {
+                $inp.val('');
             }
         });
-        var $clone = $first.clone();
+    }
+    $('#btnAddProduct').on('click', function () {
+        var $first = $('#opsRows .ops-row').first();
+        if (!$first.length) return;
+
+        var firstProductId = $first.find('.row-product-id').val() || $first.find('.product-select').val() || '';
+        resetSelect2Artifacts($first.find('.product-select'));
+
+        var $clone = $first.clone(false, false);
         $clone.find('.select2-container').remove();
-        $clone.find('input').val('');
-        $clone.find('.product-select').val('').removeAttr('data-select2-id').removeClass('select2-hidden-accessible');
-        $clone.find('.product-select').find('option').removeAttr('data-select2-id');
-        $clone.find('.row-product-id, .row-grade-id').val('0');
-        $clone.find('.row-grade-id').val('0');
-        fillProductSelect($clone.find('.product-select'), '');
-        bindRowSelect2($first.find('.product-select'), 'Select Process');
+        clearRowInputs($clone);
+        resetSelect2Artifacts($clone.find('.product-select'));
+        $clone.find('.product-select').empty().append('<option value="">Select Process</option>');
+
         $('#opsRows').append($clone);
         reindex();
+
+        // Init Select2 only after the row is in the DOM
+        fillProductSelect($first.find('.product-select'), firstProductId);
+        fillProductSelect($clone.find('.product-select'), '');
+
         applyDayEnable();
         applyOpMode();
+        calculateRowTotals($clone);
+        updateGrandTotals();
+
         var wrap = document.querySelector('.ops-grid-wrap');
         if (wrap) {
             wrap.scrollTop = wrap.scrollHeight;
         }
-        $clone.find('.product-select').select2('open');
+        setTimeout(function () {
+            var $sel = $clone.find('.product-select');
+            if ($sel.data('select2')) {
+                $sel.select2('open');
+            }
+        }, 30);
     });
     $('#operationSelect').on('change', function () {
         applyOpMode();
