@@ -42,7 +42,6 @@ $extraJs = ['assets/js/contractor_ops.js'];
 require_once __DIR__ . '/../../includes/header.php';
 $repairJson = json_encode(contractorRepairOps());
 $otJson = json_encode(contractorOtRepairOps());
-$hideGradeJson = json_encode(contractorHideGradeOps());
 ?>
 <main class="dashboard-main">
     <div class="page-toolbar">
@@ -102,7 +101,7 @@ $hideGradeJson = json_encode(contractorHideGradeOps());
             </div>
 
             <p class="ops-hint">
-                Product and Grade stay on the left while you scroll dates.
+                Product stays on the left while you scroll dates.
                 Press <strong>Enter</strong> to jump to the next day.
                 Extra days of the month stay locked.
             </p>
@@ -116,13 +115,12 @@ $hideGradeJson = json_encode(contractorHideGradeOps());
             </div>
 
             <div class="ops-grid-wrap">
-                <table class="ops-grid" id="opsGrid">
+                <table class="ops-grid hide-grade" id="opsGrid">
                     <thead>
                         <tr>
                             <th class="sticky-col sticky-action">Action</th>
                             <th class="sticky-col sticky-sr">Sr</th>
                             <th class="sticky-col sticky-name" id="col_header_name">Product Name</th>
-                            <th class="sticky-col sticky-grade" id="col_header_grade">Grade</th>
                             <?php for ($d = 1; $d <= 31; $d++):
                                 $wd = checkdate($curMonth, $d, $curYear) ? date('D', strtotime(sprintf('%04d-%02d-%02d', $curYear, $curMonth, $d))) : '';
                                 ?>
@@ -154,12 +152,7 @@ $hideGradeJson = json_encode(contractorHideGradeOps());
                                     <option value="">Select Product</option>
                                 </select>
                                 <input type="hidden" class="row-product-id" value="<?php echo (int) ($item['product_id'] ?? 0); ?>">
-                            </td>
-                            <td class="sticky-col sticky-grade td-grade">
-                                <select name="items[<?php echo $i; ?>][grade_id]" class="form-control grade-select">
-                                    <option value="">Select Grade</option>
-                                </select>
-                                <input type="hidden" class="row-grade-id" value="<?php echo (int) ($item['grade_id'] ?? 0); ?>">
+                                <input type="hidden" name="items[<?php echo $i; ?>][grade_id]" class="row-grade-id" value="0">
                             </td>
                             <?php for ($d = 1; $d <= 31; $d++):
                                 $cell = $days[(string) $d];
@@ -191,7 +184,7 @@ $hideGradeJson = json_encode(contractorHideGradeOps());
                     </tbody>
                     <tfoot>
                         <tr>
-                            <td class="sticky-col sticky-action" colspan="4" id="tf_grand_total_label">GRAND TOTAL</td>
+                            <td class="sticky-col sticky-action" colspan="3" id="tf_grand_total_label">GRAND TOTAL</td>
                             <?php for ($d = 1; $d <= 31; $d++): ?>
                                 <td class="day-foot" data-day="<?php echo $d; ?>"></td>
                             <?php endfor; ?>
@@ -217,6 +210,5 @@ $hideGradeJson = json_encode(contractorHideGradeOps());
     window.OPS_PRODUCTS_URL = <?php echo json_encode(app_url('contractor/operations/products_json.php')); ?>;
     window.OPS_REPAIR = <?php echo $repairJson; ?>;
     window.OPS_OT_REPAIR = <?php echo $otJson; ?>;
-    window.OPS_HIDE_GRADE = <?php echo $hideGradeJson; ?>;
 </script>
 <?php require_once __DIR__ . '/../../includes/footer.php'; ?>

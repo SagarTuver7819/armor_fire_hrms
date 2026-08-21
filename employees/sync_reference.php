@@ -29,15 +29,19 @@ $defaults = [
 function refHttpRequest($url, $cookieFile, $postFields = null, $headers = [])
 {
     $ch = curl_init($url);
+    $defaultHeaders = [
+        'User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept-Language: en-US,en;q=0.9',
+    ];
     curl_setopt_array($ch, [
         CURLOPT_RETURNTRANSFER => true,
         CURLOPT_FOLLOWLOCATION => true,
+        CURLOPT_MAXREDIRS => 10,
         CURLOPT_COOKIEJAR => $cookieFile,
         CURLOPT_COOKIEFILE => $cookieFile,
         CURLOPT_SSL_VERIFYPEER => false,
-        CURLOPT_TIMEOUT => 120,
-        CURLOPT_USERAGENT => 'ArmorHRMS-Sync/1.0',
-        CURLOPT_HTTPHEADER => $headers,
+        CURLOPT_TIMEOUT => 180,
+        CURLOPT_HTTPHEADER => array_merge($defaultHeaders, $headers),
     ]);
     if ($postFields !== null) {
         curl_setopt($ch, CURLOPT_POST, true);
@@ -45,31 +49,38 @@ function refHttpRequest($url, $cookieFile, $postFields = null, $headers = [])
     }
     $body = curl_exec($ch);
     $code = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $finalUrl = (string) curl_getinfo($ch, CURLINFO_EFFECTIVE_URL);
     $err = curl_error($ch);
     curl_close($ch);
     if ($body === false) {
         throw new RuntimeException('cURL error: ' . $err);
     }
-    return [$code, $body];
+    return [$code, $body, $finalUrl];
 }
 
-function refFetchDataTable($base, $path, $cookieFile)
+function refFetchDataTable($base, $path, $cookieFile, $csrfToken = '')
 {
     $all = [];
     $start = 0;
     $total = null;
+    $headers = [
+        'X-Requested-With: XMLHttpRequest',
+        'Accept: application/json, text/javascript, */*; q=0.01',
+        'Referer: ' . rtrim($base, '/') . '/' . ltrim($path, '/'),
+    ];
+    if ($csrfToken !== '') {
+        $headers[] = 'X-CSRF-TOKEN: ' . $csrfToken;
+    }
     while (true) {
         $url = rtrim($base, '/') . '/' . ltrim($path, '/') . '?draw=1&start=' . $start . '&length=100';
-        [$code, $body] = refHttpRequest($url, $cookieFile, null, [
-            'X-Requested-With: XMLHttpRequest',
-            'Accept: application/json',
-        ]);
+        [$code, $body] = refHttpRequest($url, $cookieFile, null, $headers);
         if ($code >= 400) {
             throw new RuntimeException("Failed {$path}: HTTP {$code}");
         }
         $json = json_decode($body, true);
         if (!is_array($json) || !isset($json['data'])) {
-            throw new RuntimeException("Invalid JSON from {$path}");
+            $snippet = substr(trim(strip_tags($body)), 0, 120);
+            throw new RuntimeException("Invalid JSON from {$path} (HTTP {$code}). Got: " . $snippet);
         }
         if ($total === null) {
             $total = (int) ($json['recordsTotal'] ?? 0);
@@ -163,29 +174,47 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } elseif (preg_match('/csrf-token"\s+content="([^"]+)"/', $loginHtml, $m)) {
             $token = $m[1];
         }
+        if ($token === '') {
+            throw new RuntimeException('Could not read login CSRF token from reference site.');
+        }
 
         $post = [
+            '_token' => $token,
             'app_key' => $appKey,
-            'email' => $username,
             'username' => $username,
             'password' => $password,
-            'remember' => 'on',
         ];
-        if ($token !== '') {
-            $post['_token'] = $token;
-        }
-        [$code2, $after] = refHttpRequest($base . '/login', $cookieFile, http_build_query($post), [
+        // Reference form posts to /login-submit (not /login)
+        [$code2, $after, $finalUrl] = refHttpRequest($base . '/login-submit', $cookieFile, http_build_query($post), [
             'Content-Type: application/x-www-form-urlencoded',
-            'Accept: text/html',
+            'Accept: text/html,application/xhtml+xml',
+            'Origin: https://hrms.oceaninfotechcrm.com',
+            'Referer: ' . $base . '/login',
         ]);
+        if ($code2 === 405) {
+            throw new RuntimeException('Login endpoint rejected POST (HTTP 405).');
+        }
         if (stripos($after, 'Welcome to HRMS') !== false && stripos($after, 'Sign in') !== false) {
             throw new RuntimeException('Login failed. Check App Key / Username / Password.');
         }
+        if (stripos($finalUrl, 'login') !== false && stripos($after, 'password') !== false && stripos($after, 'Dashboard') === false) {
+            throw new RuntimeException('Login failed or session not created. Check credentials.');
+        }
         $log[] = 'Logged into reference HRMS.';
 
-        $employees = refFetchDataTable($base, 'employees', $cookieFile);
-        $employment = refFetchDataTable($base, 'employment-details', $cookieFile);
-        $salary = refFetchDataTable($base, 'employee-wise-salary-details', $cookieFile);
+        // Open employees page to refresh CSRF for AJAX
+        [$codeEmp, $empHtml] = refHttpRequest($base . '/employees', $cookieFile, null, [
+            'Accept: text/html',
+            'Referer: ' . $base . '/dashboard',
+        ]);
+        $csrf = $token;
+        if (preg_match('/csrf-token"\s+content="([^"]+)"/', $empHtml, $m)) {
+            $csrf = $m[1];
+        }
+
+        $employees = refFetchDataTable($base, 'employees', $cookieFile, $csrf);
+        $employment = refFetchDataTable($base, 'employment-details', $cookieFile, $csrf);
+        $salary = refFetchDataTable($base, 'employee-wise-salary-details', $cookieFile, $csrf);
         $log[] = 'Fetched employees: ' . count($employees) . ', employment: ' . count($employment) . ', salary: ' . count($salary);
 
         $empById = [];

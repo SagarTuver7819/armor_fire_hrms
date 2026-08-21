@@ -9,9 +9,7 @@
     var $ = window.jQuery;
     var repairOps = window.OPS_REPAIR || [];
     var otRepairOps = window.OPS_OT_REPAIR || [];
-    var hideGradeOps = window.OPS_HIDE_GRADE || [];
     var products = [];
-    var grades = [];
 
     function opVal() {
         return $('#operationSelect').val() || '';
@@ -43,16 +41,14 @@
         var op = opVal();
         var showR = repairOps.indexOf(op) !== -1;
         var showOt = otRepairOps.indexOf(op) !== -1;
-        var hideGrade = hideGradeOps.indexOf(op) !== -1;
         $('#opsGrid').toggleClass('show-r', showR);
         $('#opsGrid').toggleClass('show-ot', showOt);
-        $('#opsGrid').toggleClass('hide-grade', hideGrade);
-        $('#col_header_grade, .td-grade').toggle(!hideGrade);
+        $('#opsGrid').addClass('hide-grade');
         $('.r-field').prop('readonly', !showR);
         $('.ot-field').prop('readonly', !showOt);
         if (!showR) $('.r-field').val('');
         if (!showOt) $('.ot-field').val('');
-        $('#tf_grand_total_label').attr('colspan', hideGrade ? 3 : 4);
+        $('#tf_grand_total_label').attr('colspan', 3);
     }
     function bindRowSelect2($sel, placeholder) {
         if (!$sel.length || !$.fn.select2) return;
@@ -86,30 +82,15 @@
         $sel.html(html);
         bindRowSelect2($sel, 'Select Product');
     }
-    function fillGradeSelect($sel, selectedId) {
-        if ($sel.data('select2')) {
-            $sel.select2('destroy');
-        }
-        var html = '<option value="">Select Grade</option>';
-        grades.forEach(function (g) {
-            html += '<option value="' + g.id + '"'
-                + (String(g.id) === String(selectedId) ? ' selected' : '') + '>'
-                + $('<div/>').text(g.name).html() + '</option>';
-        });
-        $sel.html(html);
-        bindRowSelect2($sel, 'Select Grade');
-    }
     function loadProducts(cb) {
         var op = encodeURIComponent(opVal());
         $.getJSON(window.OPS_PRODUCTS_URL + '?operation=' + op).done(function (data) {
             products = (data && data.products) ? data.products : (Array.isArray(data) ? data : []);
-            grades = (data && data.grades) ? data.grades : [];
             $('#opsRows .ops-row').each(function () {
                 var $row = $(this);
                 var sid = $row.find('.row-product-id').val() || $row.find('.product-select').val();
-                var gid = $row.find('.row-grade-id').val() || $row.find('.grade-select').val();
                 fillProductSelect($row.find('.product-select'), sid);
-                fillGradeSelect($row.find('.grade-select'), gid);
+                $row.find('.row-grade-id').val('0');
                 var $opt = $row.find('.product-select option:selected');
                 if ($opt.val()) {
                     if (!$row.find('.rate').val() || parseFloat($row.find('.rate').val()) === 0) {
@@ -205,9 +186,6 @@
     $('#opsRows').on('change.selectProduct change', '.product-select', function () {
         applyProductToRow($(this).closest('tr'));
     });
-    $('#opsRows').on('change', '.grade-select', function () {
-        $(this).closest('tr').find('.row-grade-id').val($(this).val() || '');
-    });
     $('#opsRows').on('input', '.day-qty, .day-qty-r, .day-qty-ot, .rate', function () {
         calculateRowTotals($(this).closest('tr'));
     });
@@ -227,7 +205,7 @@
     $('#opsRows').on('click', '.btn-remove-row', function () {
         if ($('#opsRows .ops-row').length <= 1) return;
         var $row = $(this).closest('tr');
-        $row.find('.product-select, .grade-select').each(function () {
+        $row.find('.product-select').each(function () {
             if ($(this).data('select2')) {
                 $(this).select2('destroy');
             }
@@ -238,8 +216,7 @@
     });
     $('#btnAddProduct').on('click', function () {
         var $first = $('#opsRows .ops-row').first();
-        // Destroy Select2 before clone so UI markup is not duplicated
-        $first.find('.product-select, .grade-select').each(function () {
+        $first.find('.product-select').each(function () {
             if ($(this).data('select2')) {
                 $(this).select2('destroy');
             }
@@ -247,14 +224,12 @@
         var $clone = $first.clone();
         $clone.find('.select2-container').remove();
         $clone.find('input').val('');
-        $clone.find('.product-select, .grade-select').val('').removeAttr('data-select2-id').removeClass('select2-hidden-accessible');
-        $clone.find('.product-select, .grade-select').find('option').removeAttr('data-select2-id');
-        $clone.find('.row-product-id, .row-grade-id').val('');
+        $clone.find('.product-select').val('').removeAttr('data-select2-id').removeClass('select2-hidden-accessible');
+        $clone.find('.product-select').find('option').removeAttr('data-select2-id');
+        $clone.find('.row-product-id, .row-grade-id').val('0');
+        $clone.find('.row-grade-id').val('0');
         fillProductSelect($clone.find('.product-select'), '');
-        fillGradeSelect($clone.find('.grade-select'), '');
-        // Re-bind Select2 on the original first row too
         bindRowSelect2($first.find('.product-select'), 'Select Product');
-        bindRowSelect2($first.find('.grade-select'), 'Select Grade');
         $('#opsRows').append($clone);
         reindex();
         applyDayEnable();

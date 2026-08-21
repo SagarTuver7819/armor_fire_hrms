@@ -6,28 +6,36 @@ $operation = (string) ($_GET['operation'] ?? '');
 $conn = getDBConnection();
 ensureContractorTables($conn);
 $products = getContractorProductsByOperation($operation, $conn);
-$grades = getContractorGrades($conn);
 $conn->close();
 
 $outProducts = [];
 foreach ($products as $r) {
     $outProducts[] = [
         'id' => (int) $r['id'],
-        'name' => contractorProductLabel($r),
+        'name' => trim((string) ($r['product_name'] ?? '')),
         'process' => (string) ($r['process'] ?? ''),
         'rate' => (float) $r['rate'],
         'ot_rate' => parseOtRate($r['ot_text'] ?? ''),
         'rejection_rate' => (float) $r['rejection_rate'],
     ];
 }
-$outGrades = [];
-foreach ($grades as $g) {
-    $outGrades[] = [
-        'id' => (int) $g['id'],
-        'name' => (string) $g['name'],
+echo json_encode([
+    'products' => $outProducts,
+    'grades' => [],
+]);
+
+$outProducts = [];
+foreach ($products as $r) {
+    $outProducts[] = [
+        'id' => (int) $r['id'],
+        'name' => trim((string) ($r['product_name'] ?? '')),
+        'process' => (string) ($r['process'] ?? ''),
+        'rate' => (float) $r['rate'],
+        'ot_rate' => parseOtRate($r['ot_text'] ?? ''),
+        'rejection_rate' => (float) $r['rejection_rate'],
     ];
 }
 echo json_encode([
     'products' => $outProducts,
-    'grades' => $outGrades,
+    'grades' => [],
 ]);
