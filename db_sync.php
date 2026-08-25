@@ -14,6 +14,7 @@ require_once __DIR__ . '/includes/contractor_helper.php';
 require_once __DIR__ . '/includes/payroll_helper.php';
 require_once __DIR__ . '/includes/attendance_helper.php';
 require_once __DIR__ . '/includes/department_icons.php';
+require_once __DIR__ . '/includes/department_helper.php';
 require_once __DIR__ . '/sql/seed_contractor_masters.php';
 
 requireAdmin();
@@ -67,6 +68,14 @@ try {
 
     ensureAttendanceTables($conn);
     $log[] = 'Attendance tables ready (punches, day status, import batches, biometric_user_id).';
+
+    $deptMerge = mergeDuplicateDepartments($conn);
+    foreach ($deptMerge['log'] as $line) {
+        $log[] = 'Departments: ' . $line;
+    }
+    if (!$deptMerge['ok']) {
+        $ok = false;
+    }
 
     $iconUpdated = syncDepartmentIcons($conn);
     $log[] = 'Department dashboard icons updated: ' . $iconUpdated . ' row(s).';

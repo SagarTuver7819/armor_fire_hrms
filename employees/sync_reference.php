@@ -10,7 +10,7 @@ require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/employee_helper.php';
 require_once __DIR__ . '/../includes/attendance_helper.php';
 require_once __DIR__ . '/../includes/payroll_helper.php';
-require_once __DIR__ . '/../includes/department_icons.php';
+require_once __DIR__ . '/../includes/department_helper.php';
 
 requireAdmin();
 
@@ -129,27 +129,7 @@ function refWeekOffDay($raw)
 
 function refEnsureDepartment($conn, $name)
 {
-    $name = trim(html_entity_decode(strip_tags((string) $name)));
-    if ($name === '') {
-        $name = 'General';
-    }
-    $stmt = $conn->prepare('SELECT id FROM departments WHERE department_name = ? LIMIT 1');
-    $stmt->bind_param('s', $name);
-    $stmt->execute();
-    $row = $stmt->get_result()->fetch_assoc();
-    $stmt->close();
-    if ($row) {
-        return (int) $row['id'];
-    }
-    $iconMeta = resolveDepartmentIcon($name);
-    $icon = $iconMeta[0];
-    $color = $iconMeta[1];
-    $ins = $conn->prepare('INSERT INTO departments (department_name, icon_class, icon_color, sort_order, status) VALUES (?, ?, ?, 100, 1)');
-    $ins->bind_param('sss', $name, $icon, $color);
-    $ins->execute();
-    $id = (int) $conn->insert_id;
-    $ins->close();
-    return $id;
+    return ensureDepartmentByName($conn, $name);
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
