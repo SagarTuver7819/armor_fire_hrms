@@ -88,9 +88,9 @@ require_once __DIR__ . '/../includes/header.php';
             <a class="btn-secondary" href="<?php echo app_url('payroll/register_excel.php?' . $excelQs); ?>">
                 <i class="fa-solid fa-file-excel"></i> Excel
             </a>
-            <button type="button" class="btn-primary" onclick="window.print()">
+            <a class="btn-primary" href="<?php echo app_url('payroll/register_print.php?' . $excelQs); ?>" target="_blank">
                 <i class="fa-solid fa-print"></i> Print
-            </button>
+            </a>
         </div>
     </div>
 
