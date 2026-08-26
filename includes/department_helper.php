@@ -42,6 +42,8 @@ function canonicalDepartmentsCatalog()
         ['CANTEEN', 'fa-utensils', '#FDCB6E', 32],
         ['DISPATCH', 'fa-truck', '#00B894', 33],
         ['TRANSPORT', 'fa-truck-fast', '#636E72', 34],
+        ['BUTTERFLY VALVE', 'fa-circle-dot', '#00B894', 35],
+        ['DRUM', 'fa-drum', '#6C5CE7', 36],
     ];
 }
 
@@ -82,7 +84,11 @@ function departmentAliasMap()
         'QUALITY ASSURANCE' => 'QA AND QC',
         'STORE AND PURCHASE' => 'PURCHASE',
         'STORE PURCHASE' => 'PURCHASE',
-        'PURCHASE AND STORE' => 'PURCHASE',
+        'BUTTERFLY' => 'BUTTERFLY VALVE',
+        'BUTTER FLY VALVE' => 'BUTTERFLY VALVE',
+        'BUTTERFLY VALVE DEPARTMENT' => 'BUTTERFLY VALVE',
+        'DRUM DEPARTMENT' => 'DRUM',
+        'DRUMS' => 'DRUM',
     ];
 
     $map = [];
@@ -241,8 +247,9 @@ function reassignDepartmentForeignKeys($conn, $fromId, $toId)
 }
 
 /**
- * Merge duplicate / alias departments into the 34 canonical set.
- * Returns log lines for admin UI.
+ * Merge duplicate / alias departments into the canonical set.
+ * Only merges known aliases / exact duplicate names.
+ * Does NOT remove extra legitimate departments.
  */
 function mergeDuplicateDepartments($conn)
 {
@@ -274,16 +281,29 @@ function mergeDuplicateDepartments($conn)
         $id = getDepartmentIdByName($conn, $row[0]);
         if ($id > 0) {
             $canonicalIds[$row[0]] = $id;
+            // Reactivate canonical rows if previously soft-deleted
+            $conn->query('UPDATE departments SET status = 1 WHERE id = ' . (int) $id);
         }
     }
+
+    // Also reactivate common variants of Butterfly / Drum if inactive
+    $conn->query(
+        "UPDATE departments SET status = 1
+         WHERE status = 0
+           AND (
+                UPPER(department_name) LIKE '%BUTTERFLY%'
+             OR UPPER(department_name) = 'DRUM'
+             OR UPPER(department_name) LIKE 'DRUM %'
+           )"
+    );
 
     $seenCanonical = [];
     foreach ($rows as $row) {
         $id = (int) $row['id'];
         $name = (string) $row['department_name'];
-        $status = (int) $row['status'];
         $canonical = resolveCanonicalDepartmentName($name);
 
+        // Only merge when name maps to a different canonical department id
         if ($canonical !== '' && isset($canonicalIds[$canonical])) {
             $targetId = $canonicalIds[$canonical];
             if ($id === $targetId) {
@@ -291,6 +311,19 @@ function mergeDuplicateDepartments($conn)
                     $seenCanonical[$canonical] = $id;
                 }
                 continue;
+            }
+            // Do not merge a different real department into another just because of partial name match
+            // unless the alias map explicitly mapped it (exact normalize key).
+            $aliases = departmentAliasMap();
+            $key = normalizeDepartmentKey($name);
+            $explicitAlias = isset($aliases[$key]) && $aliases[$key] === $canonical && $name !== $canonical;
+            $exactDup = (normalizeDepartmentKey($name) === normalizeDepartmentKey($canonical) && $name !== $canonical);
+            if (!$explicitAlias && !$exactDup && !isset($canonicalNames[$name])) {
+                // Keep unmatched/extra department as-is
+                continue;
+            }
+            if ($name === $canonical) {
+                // Same display name duplicate rows
             }
             $counts = reassignDepartmentForeignKeys($conn, $id, $targetId);
             $conn->query("UPDATE departments SET status = 0 WHERE id = {$id}");
@@ -301,16 +334,7 @@ function mergeDuplicateDepartments($conn)
             continue;
         }
 
-        if ($status === 1 && !isset($canonicalNames[$name])) {
-            $fallback = $canonicalIds['ADMINISTRATION'] ?? 0;
-            if ($fallback > 0 && $id !== $fallback) {
-                $counts = reassignDepartmentForeignKeys($conn, $id, $fallback);
-                $conn->query("UPDATE departments SET status = 0 WHERE id = {$id}");
-                $deactivated++;
-                $log[] = "Unknown dept \"{$name}\" (id {$id}) → ADMINISTRATION; "
-                    . "employees {$counts['employees']}.";
-            }
-        }
+        // Extra departments (not in canonical list) are kept active — do not force to ADMINISTRATION
     }
 
     foreach ($rows as $row) {
@@ -342,7 +366,7 @@ function mergeDuplicateDepartments($conn)
         ->fetch_assoc()['c'];
 
     if ($merged === 0 && $deactivated === 0) {
-        $log[] = 'No duplicate departments found — list already clean.';
+        $log[] = 'Canonical departments ensured (incl. BUTTERFLY VALVE, DRUM). Active: ' . $active . '.';
     } else {
         $log[] = "Done: {$merged} merge(s), {$deactivated} deactivated. Active departments: {$active}.";
     }

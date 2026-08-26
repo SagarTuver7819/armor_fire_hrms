@@ -71,7 +71,9 @@ INSERT INTO departments (department_name, icon_class, icon_color, sort_order) VA
 ('MAINTENANCE', 'fa-wrench', '#FD79A8', 31),
 ('CANTEEN', 'fa-utensils', '#FDCB6E', 32),
 ('DISPATCH', 'fa-truck', '#00B894', 33),
-('TRANSPORT', 'fa-truck-fast', '#636E72', 34);
+('TRANSPORT', 'fa-truck-fast', '#636E72', 34),
+('BUTTERFLY VALVE', 'fa-circle-dot', '#00B894', 35),
+('DRUM', 'fa-drum', '#6C5CE7', 36);
 
 -- -----------------------------------------------------
 -- Table: company_settings (Logo + Company Name)

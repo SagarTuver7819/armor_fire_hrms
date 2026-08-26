@@ -42,6 +42,8 @@ function departmentIconCatalog()
         'ASSEMBLY 3 RRL & FLEXIBLE' => ['fa-diagram-project', '#6C5CE7'],
         'ASSEMBLY 4 ALARM & DELUGE VALVE' => ['fa-bell', '#E17055'],
         'BUTTERFLY VALVE' => ['fa-circle-dot', '#00B894'],
+        'BUTTERFLY' => ['fa-circle-dot', '#00B894'],
+        'DRUM' => ['fa-drum', '#6C5CE7'],
         'SPRINKLER' => ['fa-shower', '#00CEC9'],
         'ARGON' => ['fa-atom', '#0984E3'],
         'MAINTENANCE' => ['fa-wrench', '#FD79A8'],
