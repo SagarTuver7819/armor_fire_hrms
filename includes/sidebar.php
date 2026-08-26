@@ -63,7 +63,23 @@ $openAttendance = ($sidebarMode === 'attendance' || strpos((string) $sidebarActi
         </button>
     </div>
 
-    <div class="sidebar-scroll">
+    <div class="sidebar-search-wrap">
+        <label class="sidebar-search" for="sidebarMenuSearch">
+            <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
+            <input type="search"
+                   id="sidebarMenuSearch"
+                   class="sidebar-search-input"
+                   placeholder="Search menu…"
+                   autocomplete="off"
+                   spellcheck="false">
+            <button type="button" class="sidebar-search-clear" id="sidebarMenuSearchClear" title="Clear" aria-label="Clear search" hidden>
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </label>
+        <div class="sidebar-search-empty" id="sidebarSearchEmpty" hidden>No menu items found</div>
+    </div>
+
+    <div class="sidebar-scroll" id="sidebarScroll">
         <div class="sidebar-section">
             <div class="sidebar-section-title">Main</div>
             <nav class="sidebar-nav">
@@ -95,7 +111,7 @@ $openAttendance = ($sidebarMode === 'attendance' || strpos((string) $sidebarActi
         <!-- Attendance accordion -->
         <div class="sidebar-section">
             <div class="sidebar-section-title">Attendance</div>
-            <div class="sidebar-accordion <?php echo $openAttendance ? 'is-open' : ''; ?>" data-accordion="attendance">
+            <div class="sidebar-accordion <?php echo $openAttendance ? 'is-open' : ''; ?>" data-accordion="attendance" data-default-open="<?php echo $openAttendance ? '1' : '0'; ?>">
                 <button type="button" class="sidebar-acc-btn" aria-expanded="<?php echo $openAttendance ? 'true' : 'false'; ?>">
                     <span class="sidebar-acc-left">
                         <i class="fa-solid fa-calendar-check"></i>
@@ -136,7 +152,7 @@ $openAttendance = ($sidebarMode === 'attendance' || strpos((string) $sidebarActi
         <!-- Masters accordion -->
         <div class="sidebar-section">
             <div class="sidebar-section-title">Masters</div>
-            <div class="sidebar-accordion <?php echo $openMasters ? 'is-open' : ''; ?>" data-accordion="masters">
+            <div class="sidebar-accordion <?php echo $openMasters ? 'is-open' : ''; ?>" data-accordion="masters" data-default-open="<?php echo $openMasters ? '1' : '0'; ?>">
                 <button type="button" class="sidebar-acc-btn" aria-expanded="<?php echo $openMasters ? 'true' : 'false'; ?>">
                     <span class="sidebar-acc-left">
                         <i class="fa-solid fa-database"></i>
@@ -164,7 +180,7 @@ $openAttendance = ($sidebarMode === 'attendance' || strpos((string) $sidebarActi
         <!-- Contractor Manage -->
         <div class="sidebar-section">
             <div class="sidebar-section-title">Contractor</div>
-            <div class="sidebar-accordion <?php echo $openContractor ? 'is-open' : ''; ?>" data-accordion="contractor">
+            <div class="sidebar-accordion <?php echo $openContractor ? 'is-open' : ''; ?>" data-accordion="contractor" data-default-open="<?php echo $openContractor ? '1' : '0'; ?>">
                 <button type="button" class="sidebar-acc-btn" aria-expanded="<?php echo $openContractor ? 'true' : 'false'; ?>">
                     <span class="sidebar-acc-left">
                         <i class="fa-solid fa-helmet-safety"></i>
@@ -215,7 +231,7 @@ $openAttendance = ($sidebarMode === 'attendance' || strpos((string) $sidebarActi
         <!-- Departments accordion → opens department boxes page -->
         <div class="sidebar-section">
             <div class="sidebar-section-title">Departments</div>
-            <div class="sidebar-accordion <?php echo $openDepartments ? 'is-open' : ''; ?>" data-accordion="departments">
+            <div class="sidebar-accordion <?php echo $openDepartments ? 'is-open' : ''; ?>" data-accordion="departments" data-default-open="<?php echo $openDepartments ? '1' : '0'; ?>">
                 <button type="button" class="sidebar-acc-btn" aria-expanded="<?php echo $openDepartments ? 'true' : 'false'; ?>">
                     <span class="sidebar-acc-left">
                         <i class="fa-solid fa-building"></i>
@@ -294,10 +310,16 @@ $openAttendance = ($sidebarMode === 'attendance' || strpos((string) $sidebarActi
                         <i class="fa-solid fa-table"></i>
                         <span>Salary Register</span>
                     </a>
-                    <span class="sidebar-link disabled" title="Coming soon">
+                    <a href="<?php echo app_url('leave/index.php?department_id=' . $sidebarDeptId); ?>"
+                       class="sidebar-link <?php echo $sidebarActive === 'leave_request' ? 'active' : ''; ?>">
                         <i class="fa-solid fa-file-invoice"></i>
                         <span>Leave Request</span>
-                    </span>
+                    </a>
+                    <a href="<?php echo app_url('leave/balance.php?department_id=' . $sidebarDeptId); ?>"
+                       class="sidebar-link <?php echo $sidebarActive === 'leave_balance' ? 'active' : ''; ?>">
+                        <i class="fa-solid fa-scale-balanced"></i>
+                        <span>Leave Balance</span>
+                    </a>
                 </nav>
             </div>
         <?php endif; ?>

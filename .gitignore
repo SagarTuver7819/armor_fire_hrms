@@ -31,12 +31,16 @@ assets/uploads/logo/*
 !assets/uploads/logo/.gitkeep
 assets/uploads/docs/*
 !assets/uploads/docs/.gitkeep
+assets/uploads/policies/*
+!assets/uploads/policies/.gitkeep
 assets/uploads/*
 !assets/uploads/.gitkeep
 !assets/uploads/logo/
 !assets/uploads/logo/.gitkeep
 !assets/uploads/docs/
 !assets/uploads/docs/.gitkeep
+!assets/uploads/policies/
+!assets/uploads/policies/.gitkeep
 
 # Composer / vendor (if added later)
 /vendor/

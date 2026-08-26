@@ -15,6 +15,7 @@ require_once __DIR__ . '/includes/payroll_helper.php';
 require_once __DIR__ . '/includes/attendance_helper.php';
 require_once __DIR__ . '/includes/department_icons.php';
 require_once __DIR__ . '/includes/department_helper.php';
+require_once __DIR__ . '/includes/leave_helper.php';
 require_once __DIR__ . '/sql/seed_contractor_masters.php';
 
 requireAdmin();
@@ -69,6 +70,9 @@ try {
     ensureAttendanceTables($conn);
     $log[] = 'Attendance tables ready (punches, day status, import batches, biometric_user_id).';
 
+    ensureLeaveTables($conn);
+    $log[] = 'Leave tables ready (employee leave balances, leave requests).';
+
     $deptMerge = mergeDuplicateDepartments($conn);
     foreach ($deptMerge['log'] as $line) {
         $log[] = 'Departments: ' . $line;
@@ -103,6 +107,8 @@ try {
         'attendance_punches table' => dbSyncHasTable($conn, 'attendance_punches'),
         'attendance_day_status table' => dbSyncHasTable($conn, 'attendance_day_status'),
         'employees.biometric_user_id' => dbSyncHasColumn($conn, 'employees', 'biometric_user_id'),
+        'employee_leave_balances table' => dbSyncHasTable($conn, 'employee_leave_balances'),
+        'leave_requests table' => dbSyncHasTable($conn, 'leave_requests'),
     ];
 
     $counts = [
@@ -114,6 +120,8 @@ try {
         'Operations Rate Lists' => dbSyncCount($conn, 'SELECT COUNT(*) AS c FROM contractor_operation_sheets WHERE status = 1'),
         'Attendance Day Rows' => dbSyncCount($conn, 'SELECT COUNT(*) AS c FROM attendance_day_status'),
         'Attendance Punches' => dbSyncCount($conn, 'SELECT COUNT(*) AS c FROM attendance_punches'),
+        'Leave Balance Rows' => dbSyncCount($conn, 'SELECT COUNT(*) AS c FROM employee_leave_balances'),
+        'Leave Requests' => dbSyncCount($conn, 'SELECT COUNT(*) AS c FROM leave_requests'),
     ];
 } catch (Throwable $e) {
     $ok = false;

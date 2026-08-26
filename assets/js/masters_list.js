@@ -10,7 +10,11 @@
             timeOut: 3500
         };
         if (window.MASTER_TOAST_MSG) {
-            toastr.success(window.MASTER_TOAST_MSG);
+            if (window.MASTER_TOAST_TYPE === 'error') {
+                toastr.error(window.MASTER_TOAST_MSG);
+            } else {
+                toastr.success(window.MASTER_TOAST_MSG);
+            }
         }
     }
 

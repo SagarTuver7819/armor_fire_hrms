@@ -2252,6 +2252,97 @@ body.confirm-modal-open {
     border-color: #F58220;
 }
 
+.sidebar-search-wrap {
+    padding: 10px 12px 8px;
+    flex-shrink: 0;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+}
+
+.sidebar-search {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(255,255,255,0.07);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 10px;
+    padding: 0 10px;
+    min-height: 38px;
+}
+
+.sidebar-search:focus-within {
+    border-color: rgba(245, 130, 32, 0.7);
+    background: rgba(255,255,255,0.1);
+}
+
+.sidebar-search > i {
+    color: #94a3b8;
+    font-size: 12px;
+    flex-shrink: 0;
+}
+
+.sidebar-search-input {
+    flex: 1;
+    min-width: 0;
+    border: 0;
+    outline: none;
+    background: transparent;
+    color: #f8fafc;
+    font-size: 13px;
+    font-weight: 600;
+    padding: 8px 0;
+    font-family: inherit;
+}
+
+.sidebar-search-input::placeholder {
+    color: #64748b;
+    font-weight: 500;
+}
+
+.sidebar-search-input::-webkit-search-cancel-button {
+    display: none;
+}
+
+.sidebar-search-clear {
+    width: 22px;
+    height: 22px;
+    border: 0;
+    border-radius: 6px;
+    background: rgba(255,255,255,0.1);
+    color: #cbd5e1;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    padding: 0;
+    font-size: 11px;
+}
+
+.sidebar-search-clear:hover {
+    background: rgba(245, 130, 32, 0.85);
+    color: #fff;
+}
+
+.sidebar-search-empty {
+    margin-top: 8px;
+    font-size: 12px;
+    color: #94a3b8;
+    text-align: center;
+    padding: 6px 4px;
+}
+
+.sidebar-link.sidebar-search-hide,
+.sidebar-section.sidebar-search-hide,
+.sidebar-acc-btn.sidebar-search-hide,
+.sidebar-dept-card.sidebar-search-hide {
+    display: none !important;
+}
+
+.app-shell.sidebar-collapsed .sidebar-search-wrap {
+    display: none;
+}
+
 .sidebar-scroll {
     flex: 1;
     overflow-y: auto;

@@ -62,11 +62,12 @@ $empCount = $department ? countEmployeesByDepartment($department['id']) : 0;
                     <div class="module-meta"><?php echo (int) $empCount; ?> Employees · Open List</div>
                 </a>
 
-                <a href="#" class="module-card disabled-card" title="Coming soon">
+                <a href="<?php echo app_url('leave/index.php?department_id=' . (int) $department['id']); ?>" class="module-card">
                     <div class="module-icon" style="background-color: #2ECC71;">
                         <i class="fa-solid fa-file-invoice"></i>
                     </div>
                     <div class="module-label">Leave Request</div>
+                    <div class="module-meta">Apply · Approve · Balance</div>
                 </a>
                 <a href="<?php echo app_url('employees/index.php?department_id=' . (int) $department['id']); ?>" class="module-card">
                     <div class="module-icon" style="background-color: #9B59B6;">

@@ -1,3 +1,150 @@
 <?php
+/**
+ * Leave Master — types list + Leave Policy PDF (view / print / upload)
+ */
 $masterKey = 'leaves';
-require __DIR__ . '/../_core/list.php';
+require_once __DIR__ . '/../_core/bootstrap.php';
+require_once __DIR__ . '/../../includes/leave_policy.php';
+
+$pageTitle = $master['title'];
+$extraCss = [
+    'https://cdn.datatables.net/1.13.8/css/jquery.dataTables.min.css',
+    'https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.css',
+];
+
+$useSidebar = true;
+$sidebarMode = 'masters';
+$sidebarActive = $master['key'];
+
+require_once __DIR__ . '/../../includes/header.php';
+
+$toastMsg = '';
+$toastType = 'success';
+if (isset($_GET['msg'])) {
+    $map = [
+        'added'   => $master['singular'] . ' added successfully.',
+        'updated' => $master['singular'] . ' updated successfully.',
+        'deleted' => $master['singular'] . ' deleted successfully.',
+        'policy_uploaded' => 'Leave Policy PDF uploaded successfully.',
+        'policy_error' => (string) ($_GET['err'] ?? 'Leave Policy upload failed.'),
+    ];
+    $toastMsg = $map[$_GET['msg']] ?? '';
+    if ($_GET['msg'] === 'policy_error') {
+        $toastType = 'error';
+    }
+}
+
+$colCount = 1 + count($master['list_columns']) + 1;
+$actionColIndex = $colCount - 1;
+$hasPdf = leavePolicyExists();
+$policyUrl = app_url('masters/leaves/policy.php');
+$pdfApiUrl = app_url('masters/leaves/policy_pdf.php');
+?>
+
+<main class="dashboard-main">
+    <div class="page-toolbar flex-between">
+        <a href="<?php echo htmlspecialchars($mastersHubUrl); ?>" class="back-link">
+            <i class="fa-solid fa-arrow-left"></i> Back to Masters
+        </a>
+        <div class="toolbar-actions" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+            <?php if ($hasPdf): ?>
+                <a href="<?php echo htmlspecialchars($policyUrl); ?>" class="btn-secondary">
+                    <i class="fa-solid fa-file-pdf"></i> Show Leave Policy
+                </a>
+                <a href="<?php echo htmlspecialchars($policyUrl); ?>" class="btn-secondary" id="btnPrintLeavePolicy">
+                    <i class="fa-solid fa-print"></i> Print Policy
+                </a>
+            <?php endif; ?>
+            <button type="button" class="btn-secondary" id="btnUploadLeavePolicy">
+                <i class="fa-solid fa-upload"></i> Upload Leave Policy
+            </button>
+            <form id="leavePolicyUploadForm" method="POST" enctype="multipart/form-data"
+                  action="<?php echo app_url('masters/leaves/policy_upload.php'); ?>" style="display:none;">
+                <input type="file" name="policy_pdf" id="leavePolicyFile" accept="application/pdf,.pdf">
+            </form>
+            <a href="<?php echo htmlspecialchars($masterAddUrl); ?>" class="btn-primary">
+                <i class="fa-solid fa-plus"></i> Add <?php echo htmlspecialchars($master['singular']); ?>
+            </a>
+        </div>
+    </div>
+
+    <div class="list-header">
+        <div class="master-list-title">
+            <div class="master-list-icon" style="background: <?php echo htmlspecialchars($master['color']); ?>;">
+                <i class="fa-solid <?php echo htmlspecialchars($master['icon']); ?>"></i>
+            </div>
+            <div>
+                <h1><?php echo htmlspecialchars($master['title']); ?></h1>
+                <p>
+                    Leave types · Employee balance uses Days Allowed
+                    <?php if ($hasPdf): ?>
+                        · <a href="<?php echo htmlspecialchars($policyUrl); ?>" target="_blank">Leave Policy PDF ready</a>
+                    <?php else: ?>
+                        · Upload Leave Policy PDF to show / print
+                    <?php endif; ?>
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <div class="data-card data-card-pad">
+        <div class="table-wrap">
+            <table id="mastersTable" class="display data-table nowrap" style="width:100%">
+                <thead>
+                    <tr>
+                        <th>Sr.</th>
+                        <?php foreach ($master['list_columns'] as $col): ?>
+                            <th><?php echo htmlspecialchars($col['label']); ?></th>
+                        <?php endforeach; ?>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+    </div>
+</main>
+
+<script>
+    window.MASTER_TOAST_MSG = <?php echo json_encode($toastMsg); ?>;
+    window.MASTER_TOAST_TYPE = <?php echo json_encode($toastType); ?>;
+    window.MASTER_AJAX_URL  = <?php echo json_encode($masterAjaxUrl); ?>;
+    window.MASTER_ACTION_COL = <?php echo (int) $actionColIndex; ?>;
+    window.MASTER_LABEL = <?php echo json_encode($master['singular']); ?>;
+
+    (function () {
+        var fileInput = document.getElementById('leavePolicyFile');
+        var form = document.getElementById('leavePolicyUploadForm');
+        var uploadBtn = document.getElementById('btnUploadLeavePolicy');
+        if (uploadBtn && fileInput && form) {
+            uploadBtn.addEventListener('click', function () { fileInput.click(); });
+            fileInput.addEventListener('change', function () {
+                if (this.files && this.files.length) form.submit();
+            });
+        }
+        var printBtn = document.getElementById('btnPrintLeavePolicy');
+        if (printBtn) {
+            printBtn.addEventListener('click', function (e) {
+                e.preventDefault();
+                var w = window.open(<?php echo json_encode($pdfApiUrl); ?>, '_blank');
+                if (!w) {
+                    alert('Please allow pop-ups to print the Leave Policy PDF.');
+                    return;
+                }
+                setTimeout(function () {
+                    try { w.focus(); w.print(); } catch (err) {}
+                }, 1200);
+            });
+        }
+    })();
+</script>
+
+<?php
+$extraJs = [
+    'https://code.jquery.com/jquery-3.7.1.min.js',
+    'https://cdn.datatables.net/1.13.8/js/jquery.dataTables.min.js',
+    'https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.js',
+    'assets/js/masters_list.js',
+];
+require_once __DIR__ . '/../../includes/footer.php';
+?>
