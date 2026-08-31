@@ -61,9 +61,10 @@ if ($currentEmpCode === '') {
     $currentEmpCode = generateEmployeeCode($codeConn, $currentPayType);
     $codeConn->close();
 }
-$currentShiftType   = empField($employee, 'shift_type', 'Day');
-$currentShiftTime   = empField($employee, 'shift_time');
-$selectedShiftId    = findMatchingShiftId($shifts, $currentShiftType, $currentShiftTime);
+$shiftSelection     = resolveShiftSelection($shifts, $employee);
+$selectedShiftId    = (int) ($shiftSelection['shift_id'] ?? 0);
+$currentShiftType   = (string) ($shiftSelection['shift_type'] ?? '');
+$currentShiftTime   = (string) ($shiftSelection['shift_time'] ?? '');
 $selectedReporterId = findReportingEmployeeId($reporters, empField($employee, 'reporting_head'));
 $selectedWeekOff    = empField($employee, 'week_off_day');
 

@@ -171,28 +171,50 @@ function getDepartmentById($departmentId)
 }
 
 /**
- * Generate next employee code: SAL0001 / JW0001
+ * Prefix used when auto-generating employee codes.
+ */
+function employeeCodePrefix($payType = 'Salary')
+{
+    $payType = normalizePayType($payType);
+    if ($payType === 'Jobwork') {
+        return 'JW';
+    }
+    if ($payType === 'ContractorMain') {
+        return 'CM';
+    }
+    return 'AS';
+}
+
+/**
+ * Generate next unique employee code: AS76007 / JW0001 / CM0001
  */
 function generateEmployeeCode($conn, $payType = 'Salary')
 {
     $payType = normalizePayType($payType);
-    $prefix = 'SAL';
-    if ($payType === 'Jobwork') {
-        $prefix = 'JW';
-    } elseif ($payType === 'ContractorMain') {
-        $prefix = 'CM';
-    }
+    $prefix = employeeCodePrefix($payType);
     $max = 0;
+    $pad = 4;
     $like = $conn->real_escape_string($prefix) . '%';
-    $result = $conn->query("SELECT employee_code FROM employees WHERE employee_code LIKE '{$like}'");
+    $result = $conn->query("SELECT employee_code FROM employees WHERE UPPER(employee_code) LIKE '{$like}'");
     if ($result) {
         while ($row = $result->fetch_assoc()) {
-            if (preg_match('/(\d+)/', (string) $row['employee_code'], $m)) {
+            $code = strtoupper(trim((string) $row['employee_code']));
+            if (preg_match('/^' . preg_quote(strtoupper($prefix), '/') . '(\d+)$/', $code, $m)) {
                 $max = max($max, (int) $m[1]);
+                $pad = max($pad, strlen($m[1]));
             }
         }
+        $result->free();
     }
-    return $prefix . str_pad((string) ($max + 1), 4, '0', STR_PAD_LEFT);
+
+    for ($attempt = 0; $attempt < 1000; $attempt++) {
+        $code = $prefix . str_pad((string) ($max + 1 + $attempt), $pad, '0', STR_PAD_LEFT);
+        if (isEmployeeCodeUnique($conn, $code, 0)) {
+            return $code;
+        }
+    }
+
+    return $prefix . str_pad((string) ($max + 1), $pad, '0', STR_PAD_LEFT) . 'X';
 }
 
 function isEmployeeCodeUnique($conn, $code, $excludeId = 0)
@@ -345,14 +367,54 @@ function findMatchingShiftId($shifts, $shiftType, $shiftTime)
             return (int) $shift['id'];
         }
     }
-    if ($shiftType !== '') {
+    if ($shiftType !== '' && $shiftTime !== '') {
         foreach ($shifts as $shift) {
-            if (($shift['shift_type'] ?? '') === $shiftType) {
+            $range = formatShiftTimeRange($shift);
+            if (($shift['shift_type'] ?? '') === $shiftType && $range === $shiftTime) {
                 return (int) $shift['id'];
             }
         }
     }
     return 0;
+}
+
+/**
+ * Resolve shift dropdown + type/time fields for add/edit form.
+ */
+function resolveShiftSelection(array $shifts, $employee)
+{
+    $shiftType = '';
+    $shiftTime = '';
+    $selectedId = 0;
+
+    if ($employee) {
+        $shiftType = trim((string) ($employee['shift_type'] ?? ''));
+        $shiftTime = trim((string) ($employee['shift_time'] ?? ''));
+        $selectedId = findMatchingShiftId(
+            $shifts,
+            $shiftType !== '' ? $shiftType : 'Day',
+            $shiftTime
+        );
+    }
+
+    if ($selectedId > 0) {
+        foreach ($shifts as $shift) {
+            if ((int) ($shift['id'] ?? 0) === $selectedId) {
+                $shiftType = (string) ($shift['shift_type'] ?? 'Day');
+                $shiftTime = formatShiftTimeRange($shift);
+                break;
+            }
+        }
+    } else {
+        $shiftType = '';
+        $shiftTime = '';
+    }
+
+    return [
+        'shift_id' => $selectedId,
+        'shift_type' => $shiftType,
+        'shift_time' => $shiftTime,
+    ];
 }
 
 function findReportingEmployeeId($employees, $reportingHead)

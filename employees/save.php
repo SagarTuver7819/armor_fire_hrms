@@ -105,8 +105,24 @@ if (!preg_match('/^[A-Z0-9][A-Z0-9\-_\/]{0,29}$/i', $empCode)) {
     die('Employee code is invalid. Use letters, numbers, - or /. <a href="javascript:history.back()">Go Back</a>');
 }
 if (!isEmployeeCodeUnique($conn, $empCode, $id)) {
+    $dupName = '';
+    $dupStmt = $conn->prepare('SELECT employee_name FROM employees WHERE employee_code = ? LIMIT 1');
+    if ($dupStmt) {
+        $dupStmt->bind_param('s', $empCode);
+        $dupStmt->execute();
+        $dupRow = $dupStmt->get_result()->fetch_assoc();
+        $dupStmt->close();
+        if ($dupRow) {
+            $dupName = trim((string) ($dupRow['employee_name'] ?? ''));
+        }
+    }
     $conn->close();
-    die('Employee code already exists. Use another code. <a href="javascript:history.back()">Go Back</a>');
+    $dupMsg = 'Employee code <strong>' . htmlspecialchars($empCode) . '</strong> already exists';
+    if ($dupName !== '') {
+        $dupMsg .= ' for <strong>' . htmlspecialchars($dupName) . '</strong>';
+    }
+    $dupMsg .= '. Click refresh on the code field to get the next available code.';
+    die($dupMsg . ' <a href="javascript:history.back()">Go Back</a>');
 }
 
 $createdBy = (int) ($_SESSION['user_id'] ?? 0);
