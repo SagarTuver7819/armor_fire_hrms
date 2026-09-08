@@ -80,12 +80,14 @@ require_once __DIR__ . '/../includes/header.php';
                     </select>
                 </div>
                 <div class="form-group">
-                    <label>From Date <span class="req">*</span></label>
-                    <input type="date" name="from_date" class="form-control" required value="<?php echo date('Y-m-d'); ?>">
+                    <label>From Date <span class="req">*</span> <small>(DD-MM-YYYY)</small></label>
+                    <input type="text" name="from_date" class="form-control js-date" required placeholder="DD-MM-YYYY"
+                           value="<?php echo htmlspecialchars(dateInputValue(date('Y-m-d'))); ?>">
                 </div>
                 <div class="form-group">
-                    <label>To Date <span class="req">*</span></label>
-                    <input type="date" name="to_date" class="form-control" required value="<?php echo date('Y-m-d'); ?>">
+                    <label>To Date <span class="req">*</span> <small>(DD-MM-YYYY)</small></label>
+                    <input type="text" name="to_date" class="form-control js-date" required placeholder="DD-MM-YYYY"
+                           value="<?php echo htmlspecialchars(dateInputValue(date('Y-m-d'))); ?>">
                 </div>
                 <div class="form-group" style="grid-column: span 3;">
                     <label>Reason</label>

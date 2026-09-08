@@ -84,7 +84,7 @@ while ($row = $res->fetch_assoc()) {
         $sr,
         htmlspecialchars(($row['employee_code'] ?: '-') . ' — ' . ($row['employee_name'] ?: '-')),
         htmlspecialchars($row['department_name'] ?: '-'),
-        htmlspecialchars(date('d-m-Y', strtotime($row['attendance_date']))),
+        htmlspecialchars(formatDateDisplay($row['attendance_date'])),
         htmlspecialchars($row['punch_in'] ? substr($row['punch_in'], 0, 5) : '-'),
         htmlspecialchars($row['punch_out'] ? substr($row['punch_out'], 0, 5) : '-'),
         htmlspecialchars($row['day_status']),

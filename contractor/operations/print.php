@@ -258,7 +258,7 @@ for ($i = 0; $i < $nRows; $i++) {
         </tfoot>
         <?php endif; ?>
     </table>
-    <div class="meta">Printed <?php echo date('d/m/Y H:i'); ?> · Product rows: <?php echo count($rows); ?></div>
+    <div class="meta">Printed <?php echo date('d-m-Y H:i'); ?> · Product rows: <?php echo count($rows); ?></div>
     <?php if ($autoPrint): ?>
     <script>window.addEventListener('load', function () { window.print(); });</script>
     <?php endif; ?>

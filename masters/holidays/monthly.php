@@ -118,7 +118,7 @@ require_once __DIR__ . '/../../includes/header.php';
                             <td class="center">
                                 <input type="checkbox" name="days[<?php echo $d; ?>][on]" value="1" <?php echo $checked; ?>>
                             </td>
-                            <td><?php echo date('d/m/Y', strtotime($date)); ?></td>
+                            <td><?php echo formatDateDisplay($date); ?></td>
                             <td><?php echo htmlspecialchars($dayName); ?></td>
                             <td>
                                 <input type="text" name="days[<?php echo $d; ?>][title]" class="form-control"

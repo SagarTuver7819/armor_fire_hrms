@@ -120,14 +120,14 @@ function emVal($row, $key, $default = '')
                                value="<?php echo htmlspecialchars(emVal($row, 'process')); ?>">
                     </div>
                     <div class="form-group">
-                        <label>Date of Joining <span class="req">*</span></label>
-                        <input type="date" name="date_of_joining" class="form-control" required
-                               value="<?php echo htmlspecialchars(emVal($row, 'date_of_joining')); ?>">
+                        <label>Date of Joining <span class="req">*</span> <small>(DD-MM-YYYY)</small></label>
+                        <input type="text" name="date_of_joining" class="form-control js-date" required placeholder="DD-MM-YYYY"
+                               value="<?php echo htmlspecialchars(dateInputValue(emVal($row, 'date_of_joining'))); ?>">
                     </div>
                     <div class="form-group">
-                        <label>Confirmation Date</label>
-                        <input type="date" name="confirmation_date" class="form-control"
-                               value="<?php echo htmlspecialchars(emVal($row, 'confirmation_date')); ?>">
+                        <label>Confirmation Date <small>(DD-MM-YYYY)</small></label>
+                        <input type="text" name="confirmation_date" class="form-control js-date" placeholder="DD-MM-YYYY"
+                               value="<?php echo htmlspecialchars(dateInputValue(emVal($row, 'confirmation_date'))); ?>">
                     </div>
                     <div class="form-group">
                         <label>Employee PF Number</label>

@@ -12,7 +12,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 
 $deptId = (int) ($_POST['department_id'] ?? 0);
 $empId = (int) ($_POST['employee_id'] ?? 0);
-$date = trim($_POST['work_date'] ?? '');
+$date = parseDateInput($_POST['work_date'] ?? '') ?? '';
 $item = trim($_POST['item_name'] ?? '');
 $qty = (float) ($_POST['quantity'] ?? 0);
 $rate = (float) ($_POST['rate'] ?? 0);

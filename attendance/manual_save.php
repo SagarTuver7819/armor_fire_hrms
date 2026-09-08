@@ -16,12 +16,12 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 }
 
 $deptId = (int) ($_POST['department_id'] ?? 0);
-$date = trim((string) ($_POST['attendance_date'] ?? ''));
+$date = parseDateInput($_POST['attendance_date'] ?? '') ?? '';
 $shiftId = (int) ($_POST['shift_id'] ?? 0);
 $shiftName = trim((string) ($_POST['shift_name'] ?? ''));
 $rows = $_POST['rows'] ?? [];
 
-if ($deptId <= 0 || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $date) || !strtotime($date)) {
+if ($deptId <= 0 || $date === '') {
     header('Location: ' . app_url('attendance/manual.php?msg=error'));
     exit;
 }

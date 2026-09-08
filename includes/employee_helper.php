@@ -219,14 +219,41 @@ function generateEmployeeCode($conn, $payType = 'Salary')
 
 function isEmployeeCodeUnique($conn, $code, $excludeId = 0)
 {
-    $code = trim((string) $code);
+    $code = strtoupper(trim((string) $code));
     $excludeId = (int) $excludeId;
-    $stmt = $conn->prepare("SELECT id FROM employees WHERE employee_code = ? AND id <> ? LIMIT 1");
+    $stmt = $conn->prepare(
+        "SELECT id FROM employees
+         WHERE UPPER(TRIM(employee_code)) = ? AND id <> ?
+         LIMIT 1"
+    );
     $stmt->bind_param('si', $code, $excludeId);
     $stmt->execute();
     $row = $stmt->get_result()->fetch_assoc();
     $stmt->close();
     return empty($row);
+}
+
+/**
+ * Find employee by code (active or inactive). Used for duplicate checks.
+ */
+function findEmployeeByCode($conn, $code, $excludeId = 0)
+{
+    $code = strtoupper(trim((string) $code));
+    $excludeId = (int) $excludeId;
+    if ($code === '') {
+        return null;
+    }
+    $stmt = $conn->prepare(
+        "SELECT id, employee_code, employee_name, status, department_id
+         FROM employees
+         WHERE UPPER(TRIM(employee_code)) = ? AND id <> ?
+         LIMIT 1"
+    );
+    $stmt->bind_param('si', $code, $excludeId);
+    $stmt->execute();
+    $row = $stmt->get_result()->fetch_assoc();
+    $stmt->close();
+    return $row ?: null;
 }
 
 /**
@@ -274,13 +301,16 @@ function countEmployeesByDepartment($departmentId)
 
 /**
  * Format date for display d-m-Y
+ * @deprecated Use formatDateDisplay from includes/date_helper.php (loaded via app.php)
  */
-function formatDateDisplay($date)
-{
-    if (empty($date) || $date === '0000-00-00') {
-        return '';
+if (!function_exists('formatDateDisplay')) {
+    function formatDateDisplay($date)
+    {
+        if (empty($date) || $date === '0000-00-00') {
+            return '';
+        }
+        return date('d-m-Y', strtotime($date));
     }
-    return date('d-m-Y', strtotime($date));
 }
 
 function formatMasterTime($time)

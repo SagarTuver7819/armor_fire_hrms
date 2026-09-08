@@ -99,6 +99,9 @@ function attendanceNormalizeHeader($h)
 
 function attendanceParseDate($value)
 {
+    if (function_exists('parseDateInput')) {
+        return parseDateInput($value);
+    }
     $value = trim((string) $value);
     if ($value === '') {
         return null;

@@ -87,6 +87,14 @@ function masterFieldValue($row, $field)
                                     <?php endforeach; ?>
                                 </select>
 
+                            <?php elseif ($field['type'] === 'date'): ?>
+                                <input type="text"
+                                       name="<?php echo htmlspecialchars($field['name']); ?>"
+                                       class="form-control js-date"
+                                       placeholder="DD-MM-YYYY"
+                                       <?php echo $req; ?>
+                                       value="<?php echo htmlspecialchars(dateInputValue($val)); ?>">
+
                             <?php elseif ($field['type'] === 'color'): ?>
                                 <div class="color-input-row">
                                     <input type="color" class="form-control color-picker"
@@ -108,6 +116,8 @@ function masterFieldValue($row, $field)
 
                             <?php if (!empty($field['help'])): ?>
                                 <small class="form-help"><?php echo htmlspecialchars($field['help']); ?></small>
+                            <?php elseif ($field['type'] === 'date'): ?>
+                                <small class="form-help">Format: DD-MM-YYYY</small>
                             <?php endif; ?>
                         </div>
                     <?php endforeach; ?>

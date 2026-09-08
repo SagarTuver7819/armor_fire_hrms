@@ -91,8 +91,9 @@ require_once __DIR__ . '/../includes/header.php';
                     <?php endif; ?>
                 </div>
                 <div class="form-group">
-                    <label>Date</label>
-                    <input type="date" name="work_date" class="form-control" required value="<?php echo date('Y-m-d'); ?>">
+                    <label>Date <small>(DD-MM-YYYY)</small></label>
+                    <input type="text" name="work_date" class="form-control js-date" required placeholder="DD-MM-YYYY"
+                           value="<?php echo htmlspecialchars(dateInputValue(date('Y-m-d'))); ?>">
                 </div>
                 <div class="form-group">
                     <label>Item / Product</label>

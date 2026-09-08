@@ -116,7 +116,7 @@ require_once __DIR__ . '/../includes/header.php';
                     <h3>Required Columns</h3>
                     <ul style="margin:0;padding-left:18px;line-height:1.7;">
                         <li><code>employee_code</code> OR <code>biometric_user_id</code> OR <code>employee_name</code></li>
-                        <li><code>attendance_date</code> — YYYY-MM-DD or DD/MM/YYYY</li>
+                        <li><code>attendance_date</code> — DD-MM-YYYY or YYYY-MM-DD</li>
                         <li><code>punch_in_time</code> — HH:MM or HH:MM:SS</li>
                         <li><code>attendance_type</code> — in / out (optional)</li>
                         <li><code>punch_out_time</code> — optional same-row out punch</li>

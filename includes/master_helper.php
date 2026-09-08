@@ -382,7 +382,9 @@ function collectMasterPostData(array $config, array $post)
                     ? (float) $raw
                     : (int) $raw;
             }
-        } elseif ($type === 'date' || $type === 'time') {
+        } elseif ($type === 'date') {
+            $data[$name] = ($raw === '' || $raw === null) ? null : parseDateInput($raw);
+        } elseif ($type === 'time') {
             $data[$name] = ($raw === '') ? null : $raw;
         } else {
             $data[$name] = $raw;
@@ -524,7 +526,7 @@ function formatMasterCell($key, $value)
         return '<i class="fa-solid ' . $ic . '"></i> <code>' . $ic . '</code>';
     }
     if ($key === 'holiday_date' && $value) {
-        return date('d-m-Y', strtotime($value));
+        return formatDateDisplay($value) ?: '-';
     }
     if (($key === 'start_time' || $key === 'end_time') && $value) {
         return date('h:i A', strtotime($value));

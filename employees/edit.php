@@ -33,7 +33,12 @@ $useSidebar = true;
 $sidebarMode = $fromContractor ? 'contractor' : 'department';
 $sidebarDeptId = $deptId;
 $sidebarActive = $fromContractor ? 'contractor_employees' : 'join_employee';
-$extraJs = ['assets/js/employee_form.js', 'assets/js/subdept_cascade.js'];
+$extraCss = ['https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.css'];
+$extraJs = [
+    'https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.js',
+    'assets/js/employee_form.js',
+    'assets/js/subdept_cascade.js',
+];
 
 require_once __DIR__ . '/../includes/header.php';
 
@@ -126,9 +131,9 @@ function empField($employee, $key, $default = '')
                         <textarea name="permanent_address" class="form-control" rows="1"><?php echo htmlspecialchars(empField($employee, 'permanent_address')); ?></textarea>
                     </div>
                     <div class="form-group">
-                        <label>9. Date of Birth</label>
-                        <input type="date" name="date_of_birth" class="form-control"
-                               value="<?php echo htmlspecialchars(empField($employee, 'date_of_birth')); ?>">
+                        <label>9. Date of Birth <small>(DD-MM-YYYY)</small></label>
+                        <input type="text" name="date_of_birth" class="form-control js-date" placeholder="DD-MM-YYYY"
+                               value="<?php echo htmlspecialchars(dateInputValue(empField($employee, 'date_of_birth'))); ?>">
                     </div>
                     <div class="form-group span-2">
                         <label>4. Present Address <small>(Current)</small></label>
@@ -263,14 +268,14 @@ function empField($employee, $key, $default = '')
                         <?php endif; ?>
                     </div>
                     <div class="form-group">
-                        <label>12. Date of Joining</label>
-                        <input type="date" name="date_of_joining" class="form-control"
-                               value="<?php echo htmlspecialchars(empField($employee, 'date_of_joining')); ?>">
+                        <label>12. Date of Joining <small>(DD-MM-YYYY)</small></label>
+                        <input type="text" name="date_of_joining" class="form-control js-date" placeholder="DD-MM-YYYY"
+                               value="<?php echo htmlspecialchars(dateInputValue(empField($employee, 'date_of_joining'))); ?>">
                     </div>
                     <div class="form-group">
-                        <label>12b. Exit Date</label>
-                        <input type="date" name="date_of_exit" class="form-control"
-                               value="<?php echo htmlspecialchars(empField($employee, 'date_of_exit')); ?>">
+                        <label>12b. Exit Date <small>(DD-MM-YYYY)</small></label>
+                        <input type="text" name="date_of_exit" class="form-control js-date" placeholder="DD-MM-YYYY"
+                               value="<?php echo htmlspecialchars(dateInputValue(empField($employee, 'date_of_exit'))); ?>">
                         <small class="form-hint">Salary week-off / present count only till this date</small>
                     </div>
                     <div class="form-group">
@@ -434,7 +439,9 @@ function empField($employee, $key, $default = '')
 
         <script>
             window.EMP_NEXT_CODE_URL = <?php echo json_encode(app_url('employees/next_code.php')); ?>;
+            window.EMP_CHECK_CODE_URL = <?php echo json_encode(app_url('employees/check_code.php')); ?>;
             window.EMP_IS_NEW = <?php echo $empId > 0 ? 'false' : 'true'; ?>;
+            window.EMP_ID = <?php echo (int) $empId; ?>;
             window.SUBDEPT_URL = <?php echo json_encode(app_url('masters/sub_departments/by_department.php')); ?>;
             window.SUBDEPT_SELECTED = <?php echo json_encode((string) empField($employee, 'sub_department_id', '0')); ?>;
         </script>

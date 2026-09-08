@@ -13,9 +13,11 @@ $designation = trim($_POST['designation'] ?? '');
 $deptId = (int) ($_POST['department_id'] ?? 0);
 $subDeptId = (int) ($_POST['sub_department_id'] ?? 0);
 $process = trim($_POST['process'] ?? '');
-$doj = trim($_POST['date_of_joining'] ?? '');
-$conf = trim($_POST['confirmation_date'] ?? '');
-$conf = $conf === '' ? null : $conf;
+$doj = normalizeDatePost($_POST['date_of_joining'] ?? '', false);
+$conf = normalizeDatePost($_POST['confirmation_date'] ?? '', false);
+if ($doj === null) {
+    $doj = '';
+}
 $pf = trim($_POST['employee_pf_no'] ?? '');
 $uan = trim($_POST['uan_no'] ?? '');
 $pay = (string) ($_POST['payment_mode'] ?? 'Bank');

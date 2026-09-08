@@ -38,6 +38,8 @@ require_once __DIR__ . '/../config/app.php';
     <?php endif; ?>
     <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/js/select2.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script src="<?php echo app_url('assets/js/date_format.js'); ?>"></script>
     <?php if (!empty($extraJs) && is_array($extraJs)): ?>
         <?php foreach ($extraJs as $js): ?>
             <?php

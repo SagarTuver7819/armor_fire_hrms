@@ -58,7 +58,8 @@ $orderBy = $columns[$orderCol] ?? 'e.id';
 $conn = getDBConnection();
 ensureEmployeesTable($conn);
 
-$where = 'e.status = 1';
+// Default list: active only. Search also finds inactive (soft-deleted) so codes still in DB are discoverable.
+$where = ($search !== '') ? '1=1' : 'e.status = 1';
 $types = '';
 $params = [];
 
@@ -69,10 +70,19 @@ if (!$isAll) {
 }
 
 if ($search !== '') {
-    $where .= ' AND (e.employee_name LIKE ? OR e.employee_code LIKE ? OR e.mobile_number LIKE ? OR d.department_name LIKE ? OR e.designation LIKE ?)';
+    $where .= ' AND (
+        e.employee_name LIKE ?
+        OR e.employee_code LIKE ?
+        OR UPPER(TRIM(e.employee_code)) = ?
+        OR e.biometric_user_id LIKE ?
+        OR e.mobile_number LIKE ?
+        OR d.department_name LIKE ?
+        OR e.designation LIKE ?
+    )';
     $like = '%' . $search . '%';
-    $types .= 'sssss';
-    array_push($params, $like, $like, $like, $like, $like);
+    $exactCode = strtoupper($search);
+    $types .= 'sssssss';
+    array_push($params, $like, $like, $exactCode, $like, $like, $like, $like);
 }
 
 // Total records (filtered by dept if needed, no search)
@@ -105,7 +115,7 @@ $stmtC->close();
 
 // Data page
 $dataSql = "SELECT e.id, e.employee_code, e.employee_name, e.designation, e.mobile_number,
-                   e.date_of_joining, e.shift_type, e.department_id, e.pay_type, d.department_name
+                   e.date_of_joining, e.shift_type, e.department_id, e.pay_type, e.status, d.department_name
             FROM employees e
             LEFT JOIN departments d ON d.id = e.department_id
             WHERE $where
@@ -136,10 +146,16 @@ while ($row = $result->fetch_assoc()) {
     $payClass = function_exists('payTypeCssClass') ? payTypeCssClass($payType) : ($payType === 'Jobwork' ? 'is-jobwork' : 'is-salary');
     $payLabel = function_exists('payTypeLabel') ? payTypeLabel($payType) : $payType;
 
+    $isInactive = ((int) ($row['status'] ?? 1) !== 1);
+    $nameHtml = '<a class="emp-name-link" href="' . htmlspecialchars($viewUrl) . '">' . htmlspecialchars($row['employee_name']) . '</a>';
+    if ($isInactive) {
+        $nameHtml .= ' <span class="pay-pill is-jobwork" title="Soft-deleted / inactive">Inactive</span>';
+    }
+
     $item = [
         $sr++,
         '<span class="code-badge">' . htmlspecialchars($row['employee_code']) . '</span>',
-        '<a class="emp-name-link" href="' . htmlspecialchars($viewUrl) . '">' . htmlspecialchars($row['employee_name']) . '</a>',
+        $nameHtml,
     ];
 
     if ($isAll) {

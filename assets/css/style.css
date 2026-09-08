@@ -1297,6 +1297,22 @@ a {
     flex: 1;
 }
 
+.code-input-row .form-control.is-invalid-code {
+    border-color: #dc2626;
+    box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.15);
+}
+
+input.js-date,
+.flatpickr-input {
+    letter-spacing: 0.02em;
+}
+
+.flatpickr-calendar {
+    font-family: inherit;
+    box-shadow: 0 12px 28px rgba(15, 23, 42, 0.18);
+    border: 1px solid #e2e8f0;
+}
+
 .code-input-row .btn-secondary {
     white-space: nowrap;
     padding: 0 14px;

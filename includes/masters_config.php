@@ -144,7 +144,7 @@ function getMastersConfig()
                 ['name' => 'title', 'label' => 'Holiday Title', 'type' => 'text', 'required' => true, 'span' => 2],
                 ['name' => 'holiday_type', 'label' => 'Type', 'type' => 'select', 'required' => true, 'span' => 1,
                     'options' => ['Holiday' => 'Holiday', 'Week-Off' => 'Week-Off']],
-                ['name' => 'holiday_date', 'label' => 'Holiday Date', 'type' => 'date', 'required' => false, 'span' => 1, 'help' => 'For monthly Holiday (required for Holiday type)'],
+                ['name' => 'holiday_date', 'label' => 'Holiday Date', 'type' => 'date', 'required' => false, 'span' => 1, 'help' => 'DD-MM-YYYY · For monthly Holiday (required for Holiday type)'],
                 ['name' => 'is_paid', 'label' => 'Paid Holiday', 'type' => 'select', 'required' => true, 'span' => 1,
                     'options' => ['Yes' => 'Yes (count in salary)', 'No' => 'No'], 'default' => 'Yes',
                     'help' => 'Yes = paid day in salary when employee Holiday Benefits = Yes'],

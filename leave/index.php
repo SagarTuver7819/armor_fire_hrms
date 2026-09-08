@@ -148,8 +148,8 @@ $qsBase = http_build_query([
                             <?php echo htmlspecialchars(($r['code'] ? $r['code'] . ' · ' : '') . $r['leave_type']); ?>
                             <div class="sr-code"><?php echo htmlspecialchars($r['is_paid'] === 'Yes' ? 'Paid' : 'Unpaid'); ?></div>
                         </td>
-                        <td><?php echo htmlspecialchars(date('d/m/Y', strtotime($r['from_date']))); ?></td>
-                        <td><?php echo htmlspecialchars(date('d/m/Y', strtotime($r['to_date']))); ?></td>
+                        <td><?php echo htmlspecialchars(formatDateDisplay($r['from_date'])); ?></td>
+                        <td><?php echo htmlspecialchars(formatDateDisplay($r['to_date'])); ?></td>
                         <td><?php echo number_format((float) $r['days'], 1); ?></td>
                         <td>
                             <?php

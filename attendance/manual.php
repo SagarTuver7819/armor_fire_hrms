@@ -14,13 +14,10 @@ requireLogin();
 ensureAttendanceTables();
 
 $deptId = (int) ($_GET['department_id'] ?? 0);
-$date = trim((string) ($_GET['attendance_date'] ?? date('Y-m-d')));
+$dateRaw = trim((string) ($_GET['attendance_date'] ?? date('Y-m-d')));
+$date = parseDateInput($dateRaw) ?: date('Y-m-d');
 $shiftId = (int) ($_GET['shift_id'] ?? 0);
 $show = isset($_GET['show']) || $deptId > 0;
-
-if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $date) || !strtotime($date)) {
-    $date = date('Y-m-d');
-}
 
 $departments = getActiveMasterRows('departments', 'sort_order ASC, department_name ASC');
 $shifts = getActiveMasterRows('shifts', 'name ASC');
@@ -108,7 +105,8 @@ if (isset($_GET['msg']) && $_GET['msg'] === 'saved') {
                 </div>
                 <div class="form-group">
                     <label>Attendance Date *</label>
-                    <input type="date" name="attendance_date" class="form-control" required value="<?php echo htmlspecialchars($date); ?>">
+                    <input type="text" name="attendance_date" class="form-control js-date" required placeholder="DD-MM-YYYY"
+                           value="<?php echo htmlspecialchars(dateInputValue($date)); ?>">
                 </div>
                 <div class="form-group">
                     <label>Shift *</label>
@@ -142,7 +140,7 @@ if (isset($_GET['msg']) && $_GET['msg'] === 'saved') {
         <?php elseif ($show && $rows): ?>
             <div class="ops-live-summary" style="margin-bottom:12px;">
                 <span class="ops-chip"><?php echo htmlspecialchars($department['department_name']); ?></span>
-                <span class="ops-chip"><?php echo htmlspecialchars(date('d M Y', strtotime($date))); ?></span>
+                <span class="ops-chip"><?php echo htmlspecialchars(formatDateDisplay($date)); ?></span>
                 <span class="ops-chip"><?php echo htmlspecialchars($shiftName ?: 'Shift'); ?> · In <?php echo htmlspecialchars($defaultIn ?: '-'); ?> / Out <?php echo htmlspecialchars($defaultOut ?: '-'); ?></span>
                 <span class="ops-chip"><?php echo count($rows); ?> employees</span>
             </div>

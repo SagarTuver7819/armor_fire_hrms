@@ -287,6 +287,6 @@ foreach ($groups as $g) {
         </div>
     <?php endforeach; ?>
 
-    <div class="meta">Printed <?php echo date('d/m/Y H:i'); ?> · Employee rows: <?php echo $totalRows; ?></div>
+    <div class="meta">Printed <?php echo date('d-m-Y H:i'); ?> · Employee rows: <?php echo $totalRows; ?></div>
 </body>
 </html>

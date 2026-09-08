@@ -39,10 +39,10 @@ $mobile        = trim($_POST['mobile_number'] ?? '');
 $emergency     = trim($_POST['emergency_mobile'] ?? '');
 $aadhar        = trim($_POST['aadhar_number'] ?? '');
 $pan           = trim($_POST['pan_number'] ?? '');
-$dob           = trim($_POST['date_of_birth'] ?? '');
+$dob           = normalizeDatePost($_POST['date_of_birth'] ?? '', false);
 $designation   = trim($_POST['designation'] ?? '');
-$doj           = trim($_POST['date_of_joining'] ?? '');
-$doe           = trim($_POST['date_of_exit'] ?? '');
+$doj           = normalizeDatePost($_POST['date_of_joining'] ?? '', false);
+$doe           = normalizeDatePost($_POST['date_of_exit'] ?? '', false);
 $shiftType     = ($_POST['shift_type'] ?? 'Day') === 'Night' ? 'Night' : 'Day';
 $shiftTime     = trim($_POST['shift_time'] ?? '');
 $shiftId       = (int) ($_POST['shift_id'] ?? 0);
@@ -81,9 +81,6 @@ if ($reportingId > 0 && $reportingId !== $id) {
 }
 
 // Empty values as NULL for DB
-$dob    = ($dob === '') ? null : $dob;
-$doj    = ($doj === '') ? null : $doj;
-$doe    = ($doe === '') ? null : $doe;
 $salary = ($salary === '') ? null : $salary;
 
 if ($departmentId <= 0 || $employeeName === '') {
@@ -105,21 +102,15 @@ if (!preg_match('/^[A-Z0-9][A-Z0-9\-_\/]{0,29}$/i', $empCode)) {
     die('Employee code is invalid. Use letters, numbers, - or /. <a href="javascript:history.back()">Go Back</a>');
 }
 if (!isEmployeeCodeUnique($conn, $empCode, $id)) {
-    $dupName = '';
-    $dupStmt = $conn->prepare('SELECT employee_name FROM employees WHERE employee_code = ? LIMIT 1');
-    if ($dupStmt) {
-        $dupStmt->bind_param('s', $empCode);
-        $dupStmt->execute();
-        $dupRow = $dupStmt->get_result()->fetch_assoc();
-        $dupStmt->close();
-        if ($dupRow) {
-            $dupName = trim((string) ($dupRow['employee_name'] ?? ''));
-        }
-    }
+    $dup = findEmployeeByCode($conn, $empCode, $id);
     $conn->close();
+    $dupName = trim((string) ($dup['employee_name'] ?? ''));
     $dupMsg = 'Employee code <strong>' . htmlspecialchars($empCode) . '</strong> already exists';
     if ($dupName !== '') {
         $dupMsg .= ' for <strong>' . htmlspecialchars($dupName) . '</strong>';
+    }
+    if ($dup && (int) ($dup['status'] ?? 1) !== 1) {
+        $dupMsg .= ' (inactive/deleted employee)';
     }
     $dupMsg .= '. Click refresh on the code field to get the next available code.';
     die($dupMsg . ' <a href="javascript:history.back()">Go Back</a>');
@@ -149,7 +140,8 @@ if ($id > 0) {
         shift_type=?, shift_time=?, pf_deduction=?, uan_number=?,
         bank_name=?, bank_account_number=?, ifsc_code=?, bank_branch_address=?,
         decided_salary=?, reporting_head=?,         extra_note=?, week_off_day=?,
-        week_off_benefits=?, holiday_benefits=?, overtime_benefits=?, main_contractor_id=?
+        week_off_benefits=?, holiday_benefits=?, overtime_benefits=?, main_contractor_id=?,
+        status=1
         WHERE id=?";
 
     $stmt = $conn->prepare($sql);

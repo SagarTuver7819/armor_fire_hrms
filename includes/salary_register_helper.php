@@ -20,11 +20,8 @@ function salaryRegisterTypes()
 
 function formatRegisterDate($value)
 {
-    if (!$value || $value === '0000-00-00') {
-        return '-';
-    }
-    $ts = strtotime((string) $value);
-    return $ts ? date('d/m/Y', $ts) : '-';
+    $formatted = formatDateDisplay($value);
+    return $formatted !== '' ? $formatted : '-';
 }
 
 function buildSalaryRegisterRow(array $emp, $month, $year, $mode)

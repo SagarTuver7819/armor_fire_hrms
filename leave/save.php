@@ -25,8 +25,8 @@ try {
     leaveApplyRequest($conn, [
         'employee_id' => (int) ($_POST['employee_id'] ?? 0),
         'leave_type_id' => (int) ($_POST['leave_type_id'] ?? 0),
-        'from_date' => (string) ($_POST['from_date'] ?? ''),
-        'to_date' => (string) ($_POST['to_date'] ?? ''),
+        'from_date' => (string) (parseDateInput($_POST['from_date'] ?? '') ?? ''),
+        'to_date' => (string) (parseDateInput($_POST['to_date'] ?? '') ?? ''),
         'reason' => (string) ($_POST['reason'] ?? ''),
         'applied_by' => (int) ($_SESSION['user_id'] ?? 0),
     ]);

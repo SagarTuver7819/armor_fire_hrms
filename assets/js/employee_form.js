@@ -1,9 +1,22 @@
 /**
  * Department-wise employee form
- * Shift master + pay type code generate
+ * Shift master + pay type code generate + duplicate code check on blur
  */
 (function ($) {
     'use strict';
+
+    function toastWarn(msg) {
+        if (window.toastr) {
+            toastr.options = toastr.options || {};
+            toastr.options.closeButton = true;
+            toastr.options.progressBar = true;
+            toastr.options.positionClass = 'toast-top-right';
+            toastr.options.timeOut = 4500;
+            toastr.warning(msg);
+            return;
+        }
+        window.alert(msg);
+    }
 
     function applyShift() {
         var $select = $('#shiftSelect');
@@ -64,6 +77,8 @@
             .then(function (data) {
                 if (data && data.code) {
                     empCode.value = data.code;
+                    empCode.classList.remove('is-invalid-code');
+                    lastCheckedCode = String(data.code).toUpperCase();
                 }
             })
             .catch(function () { /* ignore */ });
@@ -76,6 +91,62 @@
             return;
         }
         mainWrap.style.display = payType.value === 'Jobwork' ? '' : 'none';
+    }
+
+    var lastCheckedCode = '';
+    var checkTimer = null;
+
+    function checkEmployeeCode() {
+        var empCode = document.getElementById('employeeCode');
+        var checkUrl = window.EMP_CHECK_CODE_URL;
+        if (!empCode || !checkUrl) {
+            return;
+        }
+        var code = String(empCode.value || '').trim().toUpperCase();
+        empCode.value = code;
+        if (code === '' || code === lastCheckedCode) {
+            return;
+        }
+        lastCheckedCode = code;
+
+        var excludeId = parseInt(window.EMP_ID || '0', 10) || 0;
+        var url = checkUrl
+            + '?code=' + encodeURIComponent(code)
+            + '&exclude_id=' + encodeURIComponent(String(excludeId));
+
+        fetch(url, { credentials: 'same-origin' })
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+                if (!data || !data.exists) {
+                    empCode.classList.remove('is-invalid-code');
+                    return;
+                }
+                // Keep all form data — only warn
+                empCode.classList.add('is-invalid-code');
+                var name = data.employee_name ? (' for "' + data.employee_name + '"') : '';
+                var inactive = data.active === false ? ' (inactive/deleted record)' : '';
+                toastWarn('Employee code ' + code + ' already exists' + name + inactive + '. Change the code or click refresh for next available.');
+            })
+            .catch(function () { /* ignore network errors on blur */ });
+    }
+
+    function bindCodeDuplicateCheck() {
+        var empCode = document.getElementById('employeeCode');
+        if (!empCode) {
+            return;
+        }
+        empCode.addEventListener('blur', function () {
+            checkEmployeeCode();
+        });
+        empCode.addEventListener('input', function () {
+            empCode.classList.remove('is-invalid-code');
+            if (checkTimer) {
+                clearTimeout(checkTimer);
+            }
+            checkTimer = setTimeout(function () {
+                lastCheckedCode = '';
+            }, 300);
+        });
     }
 
     $(function () {
@@ -94,5 +165,7 @@
                 payType.addEventListener('change', fetchCode);
             }
         }
+
+        bindCodeDuplicateCheck();
     });
 })(window.jQuery);

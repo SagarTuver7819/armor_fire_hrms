@@ -69,7 +69,7 @@ $data = [];
 $sr = $start;
 while ($row = $res->fetch_assoc()) {
     $sr++;
-    $date = $row['date_of_joining'] ? date('d-m-Y', strtotime($row['date_of_joining'])) : '-';
+    $date = $row['date_of_joining'] ? formatDateDisplay($row['date_of_joining']) : '-';
     $data[] = [
         $sr,
         htmlspecialchars((string) $row['employee_code']),
