@@ -564,3 +564,261 @@ function applyEmployeeDocumentUpload($fileKey, $employeeId, $kind, $currentPath)
     }
     return $newPath;
 }
+
+/**
+ * Column headers for employee Excel import / sample template
+ */
+function employeeImportHeaders()
+{
+    return [
+        'employee_code',
+        'biometric_user_id',
+        'pay_type',
+        'employee_name',
+        'father_husband_name',
+        'department',
+        'designation',
+        'date_of_birth',
+        'date_of_joining',
+        'date_of_exit',
+        'mobile_number',
+        'emergency_mobile',
+        'aadhar_number',
+        'pan_number',
+        'permanent_address',
+        'present_address',
+        'shift_type',
+        'shift_time',
+        'pf_deduction',
+        'uan_number',
+        'bank_name',
+        'bank_account_number',
+        'ifsc_code',
+        'bank_branch_address',
+        'decided_salary',
+        'reporting_head',
+        'week_off_day',
+        'week_off_benefits',
+        'holiday_benefits',
+        'overtime_benefits',
+        'extra_note',
+    ];
+}
+
+function employeeImportYesNo($value, $default = 'No')
+{
+    $v = strtolower(trim((string) $value));
+    if ($v === '' || $v === '-') {
+        return $default;
+    }
+    if (in_array($v, ['yes', 'y', '1', 'true'], true)) {
+        return 'Yes';
+    }
+    if (in_array($v, ['no', 'n', '0', 'false'], true)) {
+        return 'No';
+    }
+    return $default;
+}
+
+function employeeImportGet(array $row, $keys)
+{
+    foreach ((array) $keys as $key) {
+        $key = strtolower(str_replace([' ', '-'], '_', (string) $key));
+        if (array_key_exists($key, $row) && trim((string) $row[$key]) !== '') {
+            return trim((string) $row[$key]);
+        }
+    }
+    return '';
+}
+
+function employeeImportFindDepartmentId($conn, $departmentName, $fallbackDeptId = 0)
+{
+    $fallbackDeptId = (int) $fallbackDeptId;
+    $name = trim((string) $departmentName);
+    if ($name !== '') {
+        $stmt = $conn->prepare(
+            "SELECT id FROM departments
+             WHERE status = 1 AND UPPER(TRIM(department_name)) = UPPER(TRIM(?))
+             LIMIT 1"
+        );
+        $stmt->bind_param('s', $name);
+        $stmt->execute();
+        $row = $stmt->get_result()->fetch_assoc();
+        $stmt->close();
+        if ($row) {
+            return (int) $row['id'];
+        }
+    }
+    return $fallbackDeptId > 0 ? $fallbackDeptId : 0;
+}
+
+/**
+ * Import employees from CSV / XLS / XLSX.
+ * @return array{success:int,skipped:int,errors:int,error_log:string[]}
+ */
+function employeeImportFile($conn, $filePath, $originalName, $defaultDeptId = 0, $createdBy = 0)
+{
+    require_once __DIR__ . '/attendance_helper.php';
+    require_once __DIR__ . '/date_helper.php';
+
+    ensureEmployeesTable($conn);
+    $ext = strtolower(pathinfo((string) $originalName, PATHINFO_EXTENSION));
+    $rows = attendanceReadSpreadsheet($filePath, $ext);
+
+    $success = 0;
+    $skipped = 0;
+    $errors = 0;
+    $errorLog = [];
+    $lineNo = 1; // header = 1, first data = 2
+
+    $insertSql = "INSERT INTO employees (
+        employee_code, biometric_user_id, pay_type, department_id, sub_department_id, employee_name, father_husband_name,
+        permanent_address, present_address, mobile_number, emergency_mobile,
+        aadhar_number, pan_number, date_of_birth, designation, date_of_joining, date_of_exit,
+        shift_type, shift_time, pf_deduction, uan_number,
+        bank_name, bank_account_number, ifsc_code, bank_branch_address,
+        decided_salary, reporting_head, extra_note, week_off_day,
+        week_off_benefits, holiday_benefits, overtime_benefits, main_contractor_id, created_by, status
+    ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,1)";
+
+    $stmt = $conn->prepare($insertSql);
+    if (!$stmt) {
+        throw new RuntimeException('Could not prepare employee insert: ' . $conn->error);
+    }
+
+    foreach ($rows as $row) {
+        $lineNo++;
+        $name = employeeImportGet($row, ['employee_name', 'name']);
+        if ($name === '') {
+            // empty row
+            if (count(array_filter($row, static function ($v) {
+                return trim((string) $v) !== '';
+            })) === 0) {
+                continue;
+            }
+            $errors++;
+            $errorLog[] = "Row {$lineNo}: Employee Name is required.";
+            continue;
+        }
+
+        $deptName = employeeImportGet($row, ['department', 'department_name']);
+        $departmentId = employeeImportFindDepartmentId($conn, $deptName, $defaultDeptId);
+        if ($departmentId <= 0) {
+            $errors++;
+            $errorLog[] = "Row {$lineNo}: Department missing/invalid for \"{$name}\".";
+            continue;
+        }
+
+        $payType = normalizePayType(employeeImportGet($row, ['pay_type', 'type', 'punch_type']) ?: 'Salary');
+        $empCode = strtoupper(employeeImportGet($row, ['employee_code', 'emp_code', 'code']));
+        if ($empCode === '') {
+            $empCode = generateEmployeeCode($conn, $payType);
+        } elseif (!isEmployeeCodeUnique($conn, $empCode, 0)) {
+            $skipped++;
+            $errorLog[] = "Row {$lineNo}: Code {$empCode} already exists — skipped.";
+            continue;
+        }
+        if (!preg_match('/^[A-Z0-9][A-Z0-9\-_\/]{0,29}$/i', $empCode)) {
+            $errors++;
+            $errorLog[] = "Row {$lineNo}: Invalid employee code \"{$empCode}\".";
+            continue;
+        }
+
+        $biometricId = employeeImportGet($row, ['biometric_user_id', 'biometric_id', 'bio_id']);
+        if ($biometricId === '') {
+            $biometricId = $empCode;
+        }
+
+        $dob = parseDateInput(employeeImportGet($row, ['date_of_birth', 'dob', 'birth_date']));
+        $doj = parseDateInput(employeeImportGet($row, ['date_of_joining', 'doj', 'joining_date']));
+        $doe = parseDateInput(employeeImportGet($row, ['date_of_exit', 'exit_date', 'doe']));
+
+        $shiftTypeRaw = employeeImportGet($row, ['shift_type', 'shift']);
+        $shiftType = (stripos($shiftTypeRaw, 'night') !== false) ? 'Night' : 'Day';
+        $shiftTime = employeeImportGet($row, ['shift_time']);
+        $pf = employeeImportYesNo(employeeImportGet($row, ['pf_deduction', 'pf']), 'No');
+        $weekOffBen = employeeImportYesNo(employeeImportGet($row, ['week_off_benefits']), 'No');
+        $holidayBen = employeeImportYesNo(employeeImportGet($row, ['holiday_benefits']), 'No');
+        $overtimeBen = employeeImportYesNo(employeeImportGet($row, ['overtime_benefits']), 'No');
+
+        $salaryRaw = employeeImportGet($row, ['decided_salary', 'salary']);
+        $salary = ($salaryRaw === '' || !is_numeric(str_replace(',', '', $salaryRaw)))
+            ? null
+            : (string) (float) str_replace(',', '', $salaryRaw);
+
+        $father = employeeImportGet($row, ['father_husband_name', 'father_name', 'husband_name']);
+        $designation = employeeImportGet($row, ['designation']);
+        $mobile = employeeImportGet($row, ['mobile_number', 'mobile']);
+        $emergency = employeeImportGet($row, ['emergency_mobile', 'emergency']);
+        $aadhar = employeeImportGet($row, ['aadhar_number', 'aadhar']);
+        $pan = employeeImportGet($row, ['pan_number', 'pan']);
+        $permAddr = employeeImportGet($row, ['permanent_address']);
+        $presAddr = employeeImportGet($row, ['present_address']);
+        $uan = employeeImportGet($row, ['uan_number', 'uan']);
+        $bankName = employeeImportGet($row, ['bank_name']);
+        $bankAccount = employeeImportGet($row, ['bank_account_number', 'account_number']);
+        $ifsc = employeeImportGet($row, ['ifsc_code', 'ifsc']);
+        $bankBranch = employeeImportGet($row, ['bank_branch_address', 'bank_branch']);
+        $reporting = employeeImportGet($row, ['reporting_head', 'reporting_person']);
+        $weekOffDay = employeeImportGet($row, ['week_off_day']);
+        $extraNote = employeeImportGet($row, ['extra_note', 'remarks', 'remark']);
+        $subDeptId = 0;
+        $mainContractorId = 0;
+        $createdByInt = (int) $createdBy;
+
+        $stmt->bind_param(
+            'sssiisssssssssssssssssssssssssssii',
+            $empCode,
+            $biometricId,
+            $payType,
+            $departmentId,
+            $subDeptId,
+            $name,
+            $father,
+            $permAddr,
+            $presAddr,
+            $mobile,
+            $emergency,
+            $aadhar,
+            $pan,
+            $dob,
+            $designation,
+            $doj,
+            $doe,
+            $shiftType,
+            $shiftTime,
+            $pf,
+            $uan,
+            $bankName,
+            $bankAccount,
+            $ifsc,
+            $bankBranch,
+            $salary,
+            $reporting,
+            $extraNote,
+            $weekOffDay,
+            $weekOffBen,
+            $holidayBen,
+            $overtimeBen,
+            $mainContractorId,
+            $createdByInt
+        );
+
+        if ($stmt->execute()) {
+            $success++;
+        } else {
+            $errors++;
+            $errorLog[] = "Row {$lineNo}: DB error for \"{$name}\" — " . $stmt->error;
+        }
+    }
+
+    $stmt->close();
+
+    return [
+        'success' => $success,
+        'skipped' => $skipped,
+        'errors' => $errors,
+        'error_log' => $errorLog,
+    ];
+}
+

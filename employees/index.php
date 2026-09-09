@@ -73,6 +73,9 @@ $addUrl = app_url('employees/edit.php' . ($deptId > 0 ? ('?department_id=' . $de
             <a href="<?php echo htmlspecialchars(app_url('employees/export_excel.php') . ($deptId > 0 ? ('?department_id=' . $deptId) : '')); ?>" class="btn-secondary">
                 <i class="fa-solid fa-file-excel"></i> Excel
             </a>
+            <a href="<?php echo htmlspecialchars(app_url('employees/import.php') . ($deptId > 0 ? ('?department_id=' . $deptId) : '')); ?>" class="btn-secondary">
+                <i class="fa-solid fa-file-import"></i> Import Employee
+            </a>
             <?php if ($isAllReport && function_exists('isAdmin') && isAdmin()): ?>
                 <a href="<?php echo app_url('employees/sync_reference.php'); ?>" class="btn-secondary">
                     <i class="fa-solid fa-cloud-arrow-down"></i> Sync from Reference
