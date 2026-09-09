@@ -536,7 +536,8 @@ function findReportingEmployeeId($employees, $reportingHead)
 
 function getWeekOffDaysFromMaster($holidays)
 {
-    $days = [];
+    // Always allow all 7 days so Join Employee can set employee-wise week-off.
+    $days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
     foreach ($holidays as $row) {
         if (($row['holiday_type'] ?? '') !== 'Week-Off') {
             continue;
@@ -545,9 +546,6 @@ function getWeekOffDaysFromMaster($holidays)
         if ($day !== '' && !in_array($day, $days, true)) {
             $days[] = $day;
         }
-    }
-    if (!$days) {
-        $days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
     }
     return $days;
 }

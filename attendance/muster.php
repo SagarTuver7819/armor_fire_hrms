@@ -1,11 +1,12 @@
 <?php
 /**
- * Muster report — day grid P / A / WO / H / HD
+ * Muster Report — Excel format (same as Attendance Report.xlsx)
  */
 
 require_once __DIR__ . '/../config/app.php';
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/auth.php';
+require_once __DIR__ . '/../includes/employee_helper.php';
 require_once __DIR__ . '/../includes/attendance_helper.php';
 
 requireLogin();
@@ -17,69 +18,34 @@ $year = (int) ($_GET['year'] ?? date('Y'));
 if ($month < 1 || $month > 12) {
     $month = (int) date('n');
 }
-$monthDays = (int) date('t', strtotime(sprintf('%04d-%02d-01', $year, $month)));
-$from = sprintf('%04d-%02d-01', $year, $month);
-$to = sprintf('%04d-%02d-%02d', $year, $month, $monthDays);
+if ($year < 2000 || $year > 2100) {
+    $year = (int) date('Y');
+}
 
 $conn = getDBConnection();
 ensureAttendanceTables($conn);
-
-$where = "e.status = 1 AND e.pay_type IN ('Salary','Jobwork')";
-$types = '';
-$params = [];
-if ($deptId > 0) {
-    $where .= ' AND e.department_id = ?';
-    $types .= 'i';
-    $params[] = $deptId;
+$departments = [];
+$dres = $conn->query('SELECT id, department_name FROM departments WHERE status = 1 ORDER BY sort_order ASC, department_name ASC');
+if ($dres) {
+    while ($r = $dres->fetch_assoc()) {
+        $departments[] = $r;
+    }
 }
-if ($employeeId > 0) {
-    $where .= ' AND e.id = ?';
-    $types .= 'i';
-    $params[] = $employeeId;
-}
-$sql = "SELECT e.id, e.employee_code, e.employee_name, d.department_name
-        FROM employees e
-        LEFT JOIN departments d ON d.id = e.department_id
-        WHERE {$where}
-        ORDER BY d.department_name ASC, e.employee_code ASC";
-if ($params) {
-    $st = $conn->prepare($sql);
-    $st->bind_param($types, ...$params);
-    $st->execute();
-    $emps = $st->get_result()->fetch_all(MYSQLI_ASSOC);
-    $st->close();
-} else {
-    $emps = $conn->query($sql)->fetch_all(MYSQLI_ASSOC);
-}
-
-$statusMap = [];
-$st = $conn->prepare(
-    "SELECT employee_id, attendance_date, day_status
-     FROM attendance_day_status
-     WHERE attendance_date BETWEEN ? AND ?"
-);
-$st->bind_param('ss', $from, $to);
-$st->execute();
-$res = $st->get_result();
-while ($r = $res->fetch_assoc()) {
-    $statusMap[(int) $r['employee_id']][$r['attendance_date']] = $r['day_status'];
-}
-$st->close();
+$grid = getAttendanceExcelMonthGrid($month, $year, $deptId, $employeeId, $conn);
 $conn->close();
-
-$codeMap = [
-    'Present' => 'P',
-    'Absent' => 'A',
-    'Week Off' => 'WO',
-    'Holiday' => 'H',
-    'Leave' => 'L',
-    'Half Day' => 'HD',
-];
 
 $pageTitle = 'Muster Report';
 $useSidebar = true;
 $sidebarMode = 'attendance';
 $sidebarActive = 'attendance_report';
+$sidebarDeptId = $deptId;
+
+$excelQs = http_build_query([
+    'department_id' => $deptId,
+    'month' => $month,
+    'year' => $year,
+    'employee_id' => $employeeId,
+]);
 
 require_once __DIR__ . '/../includes/header.php';
 ?>
@@ -91,45 +57,78 @@ require_once __DIR__ . '/../includes/header.php';
             'department_id' => $deptId,
             'month' => $month,
             'year' => $year,
+            'employee_id' => $employeeId,
         ]))); ?>" class="back-link">
-            <i class="fa-solid fa-arrow-left"></i> Back to Report
+            <i class="fa-solid fa-arrow-left"></i> Back to Attendance Report
         </a>
+        <div class="toolbar-actions">
+            <a class="btn-secondary" href="<?php echo htmlspecialchars(app_url('attendance/report_excel.php?' . $excelQs)); ?>">
+                <i class="fa-solid fa-file-excel"></i> Export Excel
+            </a>
+            <a class="btn-primary" href="<?php echo htmlspecialchars(app_url('attendance/manual.php?' . http_build_query([
+                'department_id' => $deptId,
+                'month' => $month,
+                'year' => $year,
+                'show' => 1,
+            ]))); ?>">
+                <i class="fa-solid fa-pen-to-square"></i> Manual Entry
+            </a>
+        </div>
     </div>
 
     <div class="form-page-card">
         <div class="form-page-header">
             <h1>Muster Report</h1>
-            <p><?php echo htmlspecialchars(date('F Y', mktime(0, 0, 0, $month, 1, $year))); ?> · P=Present, A=Absent, WO=Week Off, H=Holiday, HD=Half Day, L=Leave</p>
+            <p>Excel format · <?php echo htmlspecialchars(date('F Y', mktime(0, 0, 0, $month, 1, $year))); ?> · In/Out times · Leave · Week Off · PL/SL totals</p>
         </div>
-        <div class="table-wrap" style="overflow:auto;">
-            <table class="data-table" style="min-width:100%;font-size:12px;">
-                <thead>
-                    <tr>
-                        <th>Code</th>
-                        <th>Name</th>
-                        <?php for ($d = 1; $d <= $monthDays; $d++): ?>
-                            <th><?php echo $d; ?></th>
+
+        <form method="GET" class="employee-form" style="margin-bottom:14px;">
+            <div class="form-grid form-grid-4">
+                <div class="form-group">
+                    <label>Department</label>
+                    <select name="department_id" class="form-control">
+                        <option value="0">All Departments / All Employees</option>
+                        <?php foreach ($departments as $d): ?>
+                            <option value="<?php echo (int) $d['id']; ?>" <?php echo $deptId === (int) $d['id'] ? 'selected' : ''; ?>>
+                                <?php echo htmlspecialchars($d['department_name']); ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Month</label>
+                    <select name="month" class="form-control">
+                        <?php for ($m = 1; $m <= 12; $m++): ?>
+                            <option value="<?php echo $m; ?>" <?php echo $m === $month ? 'selected' : ''; ?>>
+                                <?php echo date('F', mktime(0, 0, 0, $m, 1)); ?>
+                            </option>
                         <?php endfor; ?>
-                    </tr>
-                </thead>
-                <tbody>
-                    <?php foreach ($emps as $emp): ?>
-                        <?php $eid = (int) $emp['id']; ?>
-                        <tr>
-                            <td><?php echo htmlspecialchars($emp['employee_code']); ?></td>
-                            <td><?php echo htmlspecialchars($emp['employee_name']); ?></td>
-                            <?php for ($d = 1; $d <= $monthDays; $d++): ?>
-                                <?php
-                                $date = sprintf('%04d-%02d-%02d', $year, $month, $d);
-                                $stt = $statusMap[$eid][$date] ?? '';
-                                $code = $codeMap[$stt] ?? '';
-                                ?>
-                                <td style="text-align:center;"><?php echo htmlspecialchars($code); ?></td>
-                            <?php endfor; ?>
-                        </tr>
-                    <?php endforeach; ?>
-                </tbody>
-            </table>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Year</label>
+                    <select name="year" class="form-control">
+                        <?php for ($y = (int) date('Y') - 2; $y <= (int) date('Y') + 1; $y++): ?>
+                            <option value="<?php echo $y; ?>" <?php echo $y === $year ? 'selected' : ''; ?>><?php echo $y; ?></option>
+                        <?php endfor; ?>
+                    </select>
+                </div>
+                <div class="form-group" style="display:flex;align-items:flex-end;">
+                    <button type="submit" class="btn-primary" style="width:100%;">
+                        <i class="fa-solid fa-filter"></i> Show Muster
+                    </button>
+                </div>
+            </div>
+        </form>
+
+        <div class="ops-live-summary" style="margin-bottom:12px;">
+            <span class="ops-chip"><?php echo $deptId > 0 ? 'Department filter' : 'All Employees'; ?></span>
+            <span class="ops-chip"><?php echo htmlspecialchars(date('F Y', mktime(0, 0, 0, $month, 1, $year))); ?></span>
+            <span class="ops-chip"><?php echo count($grid['employees']); ?> employees</span>
+        </div>
+
+        <div class="table-wrap excel-att-wrap">
+            <?php echo attendanceRenderExcelMonthTableHtml($grid, ['tableClass' => 'data-table excel-att-table']); ?>
         </div>
     </div>
 </main>

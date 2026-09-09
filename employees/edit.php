@@ -72,6 +72,9 @@ $currentShiftType   = (string) ($shiftSelection['shift_type'] ?? '');
 $currentShiftTime   = (string) ($shiftSelection['shift_time'] ?? '');
 $selectedReporterId = findReportingEmployeeId($reporters, empField($employee, 'reporting_head'));
 $selectedWeekOff    = empField($employee, 'week_off_day');
+if ($selectedWeekOff === '' && !$employee) {
+    $selectedWeekOff = 'Sunday';
+}
 
 // Helper to get old value from employee row
 function empField($employee, $key, $default = '')
@@ -390,8 +393,8 @@ function empField($employee, $key, $default = '')
                 <h3><i class="fa-solid fa-clipboard-list"></i> Other Details</h3>
                 <div class="form-grid form-grid-3">
                     <div class="form-group">
-                        <label>22. Week-off Day <small>(Holiday / Week-Off Master)</small></label>
-                        <select name="week_off_day" class="form-control">
+                        <label>22. Week-off Day <span class="req">*</span> <small>(employee-wise · used in Manual Attendance)</small></label>
+                        <select name="week_off_day" class="form-control" required>
                             <option value="">-- Select --</option>
                             <?php foreach ($weekOffDays as $day): ?>
                                 <option value="<?php echo htmlspecialchars($day); ?>" <?php echo ($selectedWeekOff === $day) ? 'selected' : ''; ?>>

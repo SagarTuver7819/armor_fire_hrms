@@ -28,14 +28,17 @@ require_once __DIR__ . '/../includes/header.php';
             <i class="fa-solid fa-arrow-left"></i> Back to Dashboard
         </a>
         <div class="toolbar-actions">
-            <a href="<?php echo app_url('attendance/manual.php'); ?>" class="btn-primary">
-                <i class="fa-solid fa-pen-to-square"></i> Manual Entry
+            <a href="<?php echo app_url('attendance/manual.php?show=1'); ?>" class="btn-primary">
+                <i class="fa-solid fa-pen-to-square"></i> Manual Entry (All)
             </a>
             <a href="<?php echo app_url('attendance/import.php'); ?>" class="btn-secondary">
                 <i class="fa-solid fa-file-import"></i> Import Attendance
             </a>
             <a href="<?php echo app_url('attendance/report.php'); ?>" class="btn-secondary">
                 <i class="fa-solid fa-chart-simple"></i> Attendance Report
+            </a>
+            <a href="<?php echo app_url('attendance/muster.php'); ?>" class="btn-secondary">
+                <i class="fa-solid fa-table-cells"></i> Muster Report
             </a>
         </div>
     </div>

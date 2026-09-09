@@ -55,11 +55,18 @@ function ensureAttendanceTables($conn = null)
         punch_out TIME DEFAULT NULL,
         working_minutes INT NOT NULL DEFAULT 0,
         source VARCHAR(30) NOT NULL DEFAULT 'import',
+        remarks VARCHAR(255) DEFAULT NULL,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
         UNIQUE KEY uq_att_day (employee_id, attendance_date),
         INDEX idx_att_day_emp_month (employee_id, attendance_date)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+
+    // Older installs may miss remarks
+    $col = $conn->query("SHOW COLUMNS FROM attendance_day_status LIKE 'remarks'");
+    if ($col && $col->num_rows === 0) {
+        $conn->query("ALTER TABLE attendance_day_status ADD COLUMN remarks VARCHAR(255) DEFAULT NULL AFTER source");
+    }
 
     if ($closeAfter) {
         $conn->close();
@@ -960,9 +967,12 @@ function attendanceNormalizeInputTime($time)
 }
 
 /**
- * Department employees + existing day attendance for manual grid
+ * Excel-style monthly attendance grid (same as Attendance Report.xlsx)
+ * Columns: Code, Name, Designation, Department, DOJ, Days 1-N, PL, SL, C-Off, DL, LWP, Total Days
+ *
+ * @return array{employees:array, days:array, leave_totals:array, month_days:int, from:string, to:string}
  */
-function getDepartmentManualAttendanceRows($deptId, $date, $conn = null)
+function getAttendanceExcelMonthGrid($month, $year, $deptId = 0, $employeeId = 0, $conn = null)
 {
     $closeAfter = false;
     if ($conn === null) {
@@ -971,32 +981,338 @@ function getDepartmentManualAttendanceRows($deptId, $date, $conn = null)
     }
     ensureAttendanceTables($conn);
     $deptId = (int) $deptId;
-    $date = date('Y-m-d', strtotime($date));
+    $employeeId = (int) $employeeId;
+    $month = (int) $month;
+    $year = (int) $year;
+    if ($month < 1 || $month > 12) {
+        $month = (int) date('n');
+    }
+    $monthDays = (int) date('t', mktime(0, 0, 0, $month, 1, $year));
+    $from = sprintf('%04d-%02d-01', $year, $month);
+    $to = sprintf('%04d-%02d-%02d', $year, $month, $monthDays);
 
-    $sql = "SELECT e.id, e.employee_code, e.employee_name, e.shift_type, e.shift_time, e.week_off_day, e.pay_type,
-                   a.day_status, a.punch_in, a.punch_out, a.working_minutes, a.source
+    $where = 'e.status = 1';
+    $types = '';
+    $params = [];
+    if ($deptId > 0) {
+        $where .= ' AND e.department_id = ?';
+        $types .= 'i';
+        $params[] = $deptId;
+    }
+    if ($employeeId > 0) {
+        $where .= ' AND e.id = ?';
+        $types .= 'i';
+        $params[] = $employeeId;
+    }
+
+    $sql = "SELECT e.id, e.employee_code, e.employee_name, e.designation, e.date_of_joining,
+                   e.week_off_day, e.shift_type, e.shift_time, e.pay_type, e.department_id,
+                   d.department_name
             FROM employees e
-            LEFT JOIN attendance_day_status a
-              ON a.employee_id = e.id AND a.attendance_date = ?
-            WHERE e.status = 1 AND e.department_id = ?
-              AND e.pay_type IN ('Salary','Jobwork')
-            ORDER BY e.employee_code ASC, e.employee_name ASC";
-    $st = $conn->prepare($sql);
-    $st->bind_param('si', $date, $deptId);
-    $st->execute();
-    $rows = $st->get_result()->fetch_all(MYSQLI_ASSOC);
-    $st->close();
+            LEFT JOIN departments d ON d.id = e.department_id
+            WHERE {$where}
+            ORDER BY d.department_name ASC, e.employee_code ASC, e.employee_name ASC";
+
+    if ($types !== '') {
+        $st = $conn->prepare($sql);
+        $st->bind_param($types, ...$params);
+        $st->execute();
+        $employees = $st->get_result()->fetch_all(MYSQLI_ASSOC);
+        $st->close();
+    } else {
+        $employees = $conn->query($sql)->fetch_all(MYSQLI_ASSOC);
+    }
+
+    $dayMap = [];
+    if ($employees) {
+        $ids = array_map(static function ($e) {
+            return (int) $e['id'];
+        }, $employees);
+        $idList = implode(',', $ids);
+        $res = $conn->query(
+            "SELECT employee_id, attendance_date, day_status, punch_in, punch_out, remarks, working_minutes
+             FROM attendance_day_status
+             WHERE attendance_date BETWEEN '{$conn->real_escape_string($from)}' AND '{$conn->real_escape_string($to)}'
+               AND employee_id IN ({$idList})"
+        );
+        if ($res) {
+            while ($r = $res->fetch_assoc()) {
+                $dayMap[(int) $r['employee_id']][$r['attendance_date']] = $r;
+            }
+        }
+    }
+
+    $leaveTotals = [];
+    foreach ($employees as $emp) {
+        $eid = (int) $emp['id'];
+        $totals = ['PL' => 0.0, 'SL' => 0.0, 'C-Off' => 0.0, 'DL' => 0.0, 'LWP' => 0.0, 'total_days' => $monthDays];
+        for ($d = 1; $d <= $monthDays; $d++) {
+            $date = sprintf('%04d-%02d-%02d', $year, $month, $d);
+            $cell = $dayMap[$eid][$date] ?? null;
+            if (!$cell) {
+                continue;
+            }
+            $parsed = attendanceParseLeaveRemark($cell['remarks'] ?? '');
+            $type = $parsed['leave_type'];
+            $half = $parsed['leave_half'];
+            $status = (string) ($cell['day_status'] ?? '');
+            if ($type === '' && $status === 'Leave') {
+                $type = 'PL';
+            }
+            if ($type === '') {
+                continue;
+            }
+            $key = ($type === 'C-OFF') ? 'C-Off' : $type;
+            if (!isset($totals[$key])) {
+                continue;
+            }
+            $inc = ($status === 'Half Day' || in_array($half, ['FHF', 'SHF'], true)) ? 0.5 : 1.0;
+            $totals[$key] += $inc;
+        }
+        $leaveTotals[$eid] = $totals;
+    }
 
     if ($closeAfter) {
         $conn->close();
     }
-    return $rows;
+
+    return [
+        'employees' => $employees,
+        'days' => $dayMap,
+        'leave_totals' => $leaveTotals,
+        'month_days' => $monthDays,
+        'from' => $from,
+        'to' => $to,
+        'month' => $month,
+        'year' => $year,
+    ];
+}
+
+/**
+ * Department employees + full month day map for Excel-style manual grid
+ * @return array{employees:array, days:array<int,array>, leave_totals:array}
+ */
+function getDepartmentManualAttendanceMonth($deptId, $month, $year, $conn = null)
+{
+    return getAttendanceExcelMonthGrid($month, $year, (int) $deptId, 0, $conn);
+}
+
+/**
+ * Format leave total for display (1 / 0.5 / blank)
+ */
+function attendanceFormatLeaveTotal($n)
+{
+    $n = (float) $n;
+    if ($n <= 0) {
+        return '';
+    }
+    if (abs($n - (int) $n) < 0.001) {
+        return (string) (int) $n;
+    }
+    return rtrim(rtrim(number_format($n, 1, '.', ''), '0'), '.');
+}
+
+/**
+ * Render Excel-format month table HTML (screen or export).
+ * @param array $grid from getAttendanceExcelMonthGrid
+ * @param array $opts export=bool, tableClass=string, editable=bool
+ */
+function attendanceRenderExcelMonthTableHtml(array $grid, array $opts = [])
+{
+    $export = !empty($opts['export']);
+    $tableClass = $opts['tableClass'] ?? ($export ? '' : 'data-table excel-att-table');
+    $monthDays = (int) ($grid['month_days'] ?? 0);
+    $month = (int) ($grid['month'] ?? date('n'));
+    $year = (int) ($grid['year'] ?? date('Y'));
+    $employees = $grid['employees'] ?? [];
+    $dayMap = $grid['days'] ?? [];
+    $leaveTotals = $grid['leave_totals'] ?? [];
+
+    $dayNames = [];
+    for ($d = 1; $d <= $monthDays; $d++) {
+        $dayNames[$d] = date('D', mktime(0, 0, 0, $month, $d, $year));
+    }
+
+    $border = $export ? ' border="1"' : '';
+    $html = '<table class="' . htmlspecialchars($tableClass) . '"' . $border . ' style="width:100%;border-collapse:collapse;">';
+    $html .= '<thead>';
+    $html .= '<tr>';
+    $html .= '<th>Employee Code</th><th>Employee Name</th><th>Designation</th><th>Department</th><th>Date of Joining</th>';
+    for ($d = 1; $d <= $monthDays; $d++) {
+        $html .= '<th style="text-align:center;">' . $d . '</th>';
+    }
+    $html .= '<th>PL</th><th>SL</th><th>C-Off</th><th>DL</th><th>LWP</th><th>Total Days</th>';
+    $html .= '</tr>';
+    $html .= '<tr>';
+    $html .= '<th></th><th></th><th></th><th></th><th></th>';
+    for ($d = 1; $d <= $monthDays; $d++) {
+        $html .= '<th style="text-align:center;font-weight:500;">' . htmlspecialchars($dayNames[$d]) . '</th>';
+    }
+    $html .= '<th></th><th></th><th></th><th></th><th></th><th style="text-align:center;">' . $monthDays . '</th>';
+    $html .= '</tr></thead><tbody>';
+
+    if (!$employees) {
+        $cols = 5 + $monthDays + 6;
+        $html .= '<tr><td colspan="' . $cols . '">No employees found.</td></tr>';
+    }
+
+    foreach ($employees as $emp) {
+        $eid = (int) $emp['id'];
+        $totals = $leaveTotals[$eid] ?? ['PL' => 0, 'SL' => 0, 'C-Off' => 0, 'DL' => 0, 'LWP' => 0, 'total_days' => $monthDays];
+        $html .= '<tr>';
+        $html .= '<td>' . htmlspecialchars((string) ($emp['employee_code'] ?? '')) . '</td>';
+        $html .= '<td>' . htmlspecialchars((string) ($emp['employee_name'] ?? '')) . '</td>';
+        $html .= '<td>' . htmlspecialchars((string) ($emp['designation'] ?? '')) . '</td>';
+        $html .= '<td>' . htmlspecialchars((string) ($emp['department_name'] ?? '')) . '</td>';
+        $doj = '';
+        if (function_exists('formatDateDisplay')) {
+            $doj = formatDateDisplay($emp['date_of_joining'] ?? '');
+        } elseif (!empty($emp['date_of_joining'])) {
+            $ts = strtotime((string) $emp['date_of_joining']);
+            $doj = $ts ? date('d-m-Y', $ts) : '';
+        }
+        $html .= '<td>' . htmlspecialchars($doj) . '</td>';
+
+        for ($d = 1; $d <= $monthDays; $d++) {
+            $date = sprintf('%04d-%02d-%02d', $year, $month, $d);
+            $day = $dayMap[$eid][$date] ?? null;
+            $text = $day ? attendanceDayToExcelText($day) : '';
+            $status = (string) ($day['day_status'] ?? '');
+            $bg = '';
+            if ($status === 'Present') {
+                $bg = 'background:#ecfdf5;';
+            } elseif ($status === 'Half Day') {
+                $bg = 'background:#fff7ed;';
+            } elseif ($status === 'Leave') {
+                $bg = 'background:#fef2f2;';
+            } elseif ($status === 'Week Off') {
+                $bg = 'background:#f1f5f9;';
+            } elseif ($status === 'Holiday') {
+                $bg = 'background:#eff6ff;';
+            } elseif ($status === 'Absent') {
+                $bg = 'background:#fef2f2;';
+            }
+            $cellInner = $text !== '' ? nl2br(htmlspecialchars($text)) : ($export ? '' : '');
+            $html .= '<td style="text-align:center;font-size:11px;white-space:pre-line;' . $bg . '">' . $cellInner . '</td>';
+        }
+
+        $html .= '<td style="text-align:center;">' . htmlspecialchars(attendanceFormatLeaveTotal($totals['PL'] ?? 0)) . '</td>';
+        $html .= '<td style="text-align:center;">' . htmlspecialchars(attendanceFormatLeaveTotal($totals['SL'] ?? 0)) . '</td>';
+        $html .= '<td style="text-align:center;">' . htmlspecialchars(attendanceFormatLeaveTotal($totals['C-Off'] ?? 0)) . '</td>';
+        $html .= '<td style="text-align:center;">' . htmlspecialchars(attendanceFormatLeaveTotal($totals['DL'] ?? 0)) . '</td>';
+        $html .= '<td style="text-align:center;">' . htmlspecialchars(attendanceFormatLeaveTotal($totals['LWP'] ?? 0)) . '</td>';
+        $html .= '<td style="text-align:center;">' . (int) ($totals['total_days'] ?? $monthDays) . '</td>';
+        $html .= '</tr>';
+    }
+
+    $html .= '</tbody></table>';
+    return $html;
+}
+
+/**
+ * Format stored day row as Excel cell text
+ */
+function attendanceDayToExcelText(array $day = null)
+{
+    if (!$day || empty($day['day_status'])) {
+        return '';
+    }
+    $parsed = attendanceParseLeaveRemark($day['remarks'] ?? '');
+    return attendanceExcelCellPreview(
+        $day['day_status'],
+        $day['punch_in'] ?? '',
+        $day['punch_out'] ?? '',
+        $parsed['leave_type'],
+        $parsed['leave_half']
+    );
+}
+
+
+/**
+ * Build Excel-style day cell text: "9:00 AM | 06:00 PM" / "PL" / "week off"
+ */
+function attendanceExcelCellPreview($status, $punchIn, $punchOut, $leaveType = '', $leaveHalf = '')
+{
+    $status = (string) $status;
+    $leaveType = strtoupper(trim((string) $leaveType));
+    $leaveHalf = strtoupper(trim((string) $leaveHalf));
+
+    if ($status === 'Week Off') {
+        return 'week off';
+    }
+    if ($status === 'Holiday') {
+        return 'holiday';
+    }
+    if ($status === 'Absent') {
+        return 'absent';
+    }
+    if ($status === 'Leave' && ($leaveHalf === '' || $leaveHalf === 'FULL')) {
+        return $leaveType !== '' ? $leaveType : 'Leave';
+    }
+
+    $inDisp = '';
+    $outDisp = '';
+    if ($punchIn) {
+        $ts = strtotime((string) $punchIn);
+        $inDisp = $ts ? date('g:i A', $ts) : '';
+    }
+    if ($punchOut) {
+        $ts = strtotime((string) $punchOut);
+        $outDisp = $ts ? date('g:i A', $ts) : '';
+    }
+
+    $timePart = '';
+    if ($inDisp !== '' || $outDisp !== '') {
+        $timePart = trim($inDisp . ' | ' . $outDisp, ' |');
+    }
+
+    $leavePart = '';
+    if ($leaveType !== '') {
+        $leavePart = $leaveType;
+        if (in_array($leaveHalf, ['FHF', 'SHF'], true)) {
+            $leavePart .= ' ' . $leaveHalf;
+        }
+    }
+
+    if ($timePart !== '' && $leavePart !== '') {
+        return $timePart . "\n" . $leavePart;
+    }
+    if ($timePart !== '') {
+        return $timePart;
+    }
+    if ($leavePart !== '') {
+        return $leavePart;
+    }
+    return $status !== '' ? $status : '-';
+}
+
+/**
+ * Parse leave type / half from saved remarks (e.g. "PL SHF", "SL")
+ */
+function attendanceParseLeaveRemark($remarks)
+{
+    $remarks = strtoupper(trim((string) $remarks));
+    $out = ['leave_type' => '', 'leave_half' => ''];
+    if ($remarks === '') {
+        return $out;
+    }
+    if (preg_match('/\b(PL|SL|C-?OFF|COFF|DL|LWP|CL|EL)\b/', $remarks, $m)) {
+        $code = strtoupper($m[1]);
+        if ($code === 'COFF' || $code === 'C-OFF') {
+            $code = 'C-Off';
+        }
+        $out['leave_type'] = $code;
+    }
+    if (preg_match('/\b(FHF|SHF|FULL)\b/', $remarks, $m)) {
+        $out['leave_half'] = strtoupper($m[1]);
+    }
+    return $out;
 }
 
 /**
  * Save one employee day from manual department entry
  */
-function attendanceSaveManualDay($conn, $employeeId, $date, $status, $punchIn, $punchOut, $shiftName = null, $remarks = null)
+function attendanceSaveManualDay($conn, $employeeId, $date, $status, $punchIn, $punchOut, $shiftName = null, $remarks = null, $leaveType = null, $leaveHalf = null)
 {
     ensureAttendanceTables($conn);
     $employeeId = (int) $employeeId;
@@ -1008,7 +1324,39 @@ function attendanceSaveManualDay($conn, $employeeId, $date, $status, $punchIn, $
     $punchIn = attendanceNormalizeInputTime($punchIn);
     $punchOut = attendanceNormalizeInputTime($punchOut);
     $shiftName = $shiftName !== null && $shiftName !== '' ? (string) $shiftName : null;
-    $remarks = $remarks !== null && trim((string) $remarks) !== '' ? trim((string) $remarks) : null;
+
+    $leaveType = strtoupper(trim((string) $leaveType));
+    if ($leaveType === 'COFF') {
+        $leaveType = 'C-OFF';
+    }
+    $leaveHalf = strtoupper(trim((string) $leaveHalf));
+    if (!in_array($leaveHalf, ['FULL', 'FHF', 'SHF'], true)) {
+        $leaveHalf = '';
+    }
+
+    // Build remarks like Excel: "PL SHF" / "SL" / free text
+    $remarkParts = [];
+    if (in_array($status, ['Leave', 'Half Day'], true) && $leaveType !== '') {
+        $tag = $leaveType === 'C-OFF' ? 'C-Off' : $leaveType;
+        if ($status === 'Half Day' && in_array($leaveHalf, ['FHF', 'SHF'], true)) {
+            $tag .= ' ' . $leaveHalf;
+        } elseif ($status === 'Leave' && $leaveHalf === 'FULL') {
+            // full day leave — type only
+        } elseif ($status === 'Leave' && in_array($leaveHalf, ['FHF', 'SHF'], true)) {
+            $tag .= ' ' . $leaveHalf;
+            $status = 'Half Day';
+        }
+        $remarkParts[] = $tag;
+    }
+    $extraRemark = trim((string) $remarks);
+    // Strip old leave tags from free remark to avoid duplication
+    if ($extraRemark !== '') {
+        $extraRemark = trim(preg_replace('/\b(PL|SL|C-?Off|COFF|DL|LWP|CL|EL)(\s+(FHF|SHF|FULL))?\b/i', '', $extraRemark));
+        if ($extraRemark !== '') {
+            $remarkParts[] = $extraRemark;
+        }
+    }
+    $remarks = $remarkParts ? implode(' · ', $remarkParts) : null;
 
     $del = $conn->prepare('DELETE FROM attendance_punches WHERE employee_id = ? AND attendance_date = ?');
     $del->bind_param('is', $employeeId, $date);
@@ -1027,6 +1375,10 @@ function attendanceSaveManualDay($conn, $employeeId, $date, $status, $punchIn, $
         if ($status === 'Present' && $minutes > 0 && $minutes < 240) {
             $status = 'Half Day';
         }
+    } elseif ($status === 'Leave') {
+        $punchIn = null;
+        $punchOut = null;
+        $minutes = 0;
     } else {
         $punchIn = null;
         $punchOut = null;
@@ -1035,20 +1387,25 @@ function attendanceSaveManualDay($conn, $employeeId, $date, $status, $punchIn, $
 
     $upsert = $conn->prepare(
         "INSERT INTO attendance_day_status
-            (employee_id, attendance_date, day_status, punch_in, punch_out, working_minutes, source)
-         VALUES (?, ?, ?, ?, ?, ?, 'manual')
+            (employee_id, attendance_date, day_status, punch_in, punch_out, working_minutes, source, remarks)
+         VALUES (?, ?, ?, ?, ?, ?, 'manual', ?)
          ON DUPLICATE KEY UPDATE
             day_status = VALUES(day_status),
             punch_in = VALUES(punch_in),
             punch_out = VALUES(punch_out),
             working_minutes = VALUES(working_minutes),
-            source = 'manual'"
+            source = 'manual',
+            remarks = VALUES(remarks)"
     );
-    $upsert->bind_param('issssi', $employeeId, $date, $status, $punchIn, $punchOut, $minutes);
+    $upsert->bind_param('issssis', $employeeId, $date, $status, $punchIn, $punchOut, $minutes, $remarks);
     $upsert->execute();
     $upsert->close();
 
-    $parts = explode('-', $date);
-    ensurePayrollDiaryFromAttendance($employeeId, (int) $parts[1], (int) $parts[0], $conn);
+    // Sync diary buckets for salary
+    if (function_exists('ensurePayrollDiaryFromAttendance')) {
+        $m = (int) date('n', strtotime($date));
+        $y = (int) date('Y', strtotime($date));
+        ensurePayrollDiaryFromAttendance($employeeId, $m, $y, $conn);
+    }
     return true;
 }

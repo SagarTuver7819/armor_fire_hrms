@@ -1313,6 +1313,261 @@ input.js-date,
     border: 1px solid #e2e8f0;
 }
 
+.manual-att-wrap {
+    overflow-x: auto;
+}
+
+.manual-att-table th,
+.manual-att-table td {
+    vertical-align: middle;
+    white-space: nowrap;
+}
+
+.manual-att-table .row-in,
+.manual-att-table .row-out {
+    min-width: 110px;
+    cursor: pointer;
+    background: #fff;
+}
+
+.manual-att-table .leave-box {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 140px;
+}
+
+.manual-att-table .leave-box.is-hidden {
+    display: none;
+}
+
+.manual-att-table .excel-cell-preview {
+    min-width: 140px;
+    max-width: 180px;
+    padding: 6px 8px;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    background: #f8fafc;
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 1.35;
+    white-space: pre-line;
+    color: #0f172a;
+}
+
+/* Excel-style monthly attendance grid */
+.excel-att-wrap {
+    overflow: auto;
+    max-height: calc(100vh - 280px);
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+}
+
+.excel-att-table {
+    border-collapse: separate;
+    border-spacing: 0;
+    font-size: 11px;
+    min-width: 1600px;
+}
+
+.excel-att-table th,
+.excel-att-table td {
+    border: 1px solid #e2e8f0;
+    padding: 4px 6px;
+    vertical-align: middle;
+    background: #fff;
+}
+
+.excel-att-table thead th {
+    position: sticky;
+    top: 0;
+    z-index: 3;
+    background: #f1f5f9;
+    font-weight: 700;
+    text-align: center;
+}
+
+.excel-att-table thead tr.dayname-row th {
+    top: 28px;
+    font-weight: 500;
+    color: #64748b;
+    font-size: 10px;
+}
+
+.excel-att-table .sticky-col,
+.excel-att-table .sticky-col-2 {
+    position: sticky;
+    left: 0;
+    z-index: 2;
+    background: #fff;
+    min-width: 90px;
+}
+
+.excel-att-table .sticky-col-2 {
+    left: 90px;
+    min-width: 140px;
+}
+
+.excel-att-table thead .sticky-col,
+.excel-att-table thead .sticky-col-2 {
+    z-index: 4;
+    background: #f1f5f9;
+}
+
+.excel-att-table .day-col {
+    min-width: 78px;
+    max-width: 88px;
+    text-align: center;
+}
+
+.excel-att-table td.day-cell {
+    cursor: pointer;
+    text-align: center;
+    min-width: 78px;
+    max-width: 88px;
+    height: 48px;
+    line-height: 1.25;
+    white-space: normal;
+    font-size: 10px;
+    font-weight: 600;
+    transition: background 0.12s ease;
+}
+
+.excel-att-table td.day-cell:hover {
+    outline: 2px solid #f58220;
+    outline-offset: -2px;
+    z-index: 1;
+}
+
+.excel-att-table td.day-cell .cell-empty {
+    color: #cbd5e1;
+    font-weight: 700;
+    font-size: 14px;
+}
+
+.excel-att-table td.day-cell.is-present { background: #ecfdf5; color: #047857; }
+.excel-att-table td.day-cell.is-half { background: #fff7ed; color: #c2410c; }
+.excel-att-table td.day-cell.is-leave { background: #fef2f2; color: #b91c1c; }
+.excel-att-table td.day-cell.is-weekoff { background: #f1f5f9; color: #475569; }
+.excel-att-table td.day-cell.is-holiday { background: #eff6ff; color: #1d4ed8; }
+.excel-att-table td.day-cell.is-absent { background: #fef2f2; color: #991b1b; }
+
+.att-cell-modal[hidden] { display: none !important; }
+.att-cell-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 10040;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.att-cell-modal-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.45);
+}
+.att-cell-modal-box {
+    position: relative;
+    z-index: 10041;
+    width: min(520px, 94vw);
+    background: #fff;
+    border-radius: 12px;
+    padding: 18px 18px 14px;
+    box-shadow: 0 20px 50px rgba(15, 23, 42, 0.25);
+    overflow: visible;
+}
+.att-cell-modal-box h3 {
+    margin: 0 0 12px;
+    font-size: 16px;
+}
+.att-cell-modal-box select.no-select2,
+.att-cell-modal-box select.form-control {
+    appearance: auto;
+    -webkit-appearance: menulist;
+    background-image: none;
+    padding-right: 12px;
+    cursor: pointer;
+    position: relative;
+    z-index: 10042;
+}
+
+.att-time-wrap {
+    position: relative;
+}
+
+.att-time-wrap input {
+    cursor: pointer;
+}
+
+/* Round MDTimePicker — full screen center */
+.mdtimepicker {
+    z-index: 120000 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+}
+
+.mdtimepicker.hidden {
+    display: none !important;
+}
+
+.mdtimepicker .mdtp__wrapper,
+body > .mdtimepicker .mdtp__wrapper {
+    top: 50% !important;
+    left: 50% !important;
+    bottom: auto !important;
+    right: auto !important;
+    transform: translate(-50%, -50%) scale(1) !important;
+    margin: 0 !important;
+    z-index: 120001 !important;
+}
+
+.mdtimepicker .mdtp__wrapper.animate {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(1.05) !important;
+}
+
+.mdtp__clock {
+    border-radius: 50% !important;
+}
+
+/* Brand orange for round clock */
+.mdtp__wrapper[data-theme="orange"] .mdtp__time_holder,
+.mdtp__wrapper[data-theme="orange"] .mdtp__clock .mdtp__clock_dot,
+.mdtp__wrapper[data-theme="orange"] .mdtp__clock .mdtp__am.active,
+.mdtp__wrapper[data-theme="orange"] .mdtp__clock .mdtp__pm.active {
+    background-color: #f58220 !important;
+}
+
+.mdtp__wrapper[data-theme="orange"] .mdtp__clock .mdtp__digit.active span,
+.mdtp__wrapper[data-theme="orange"] .mdtp__clock .mdtp__digit:not(.digit--disabled) span:hover {
+    background-color: #f58220 !important;
+    color: #fff !important;
+}
+
+.mdtp__wrapper[data-theme="orange"] .mdtp__clock .mdtp__digit.active:before {
+    background-color: #f58220 !important;
+}
+
+.mdtp__wrapper[data-theme="orange"] .mdtp__button {
+    color: #f58220 !important;
+}
+
+.leave-box-inline {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+/* Select2 dropdown above attendance modal if still used elsewhere */
+.att-cell-modal ~ .select2-container,
+body > .select2-container--open {
+    z-index: 10060 !important;
+}
+.select2-container--open .select2-dropdown {
+    z-index: 10061 !important;
+}
+
 .code-input-row .btn-secondary {
     white-space: nowrap;
     padding: 0 14px;

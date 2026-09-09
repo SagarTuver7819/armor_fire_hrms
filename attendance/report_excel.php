@@ -1,11 +1,12 @@
 <?php
 /**
- * Attendance report Excel export
+ * Attendance Report Excel export — same format as Attendance Report.xlsx
  */
 
 require_once __DIR__ . '/../config/app.php';
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/auth.php';
+require_once __DIR__ . '/../includes/employee_helper.php';
 require_once __DIR__ . '/../includes/attendance_helper.php';
 
 requireLogin();
@@ -17,41 +18,29 @@ $year = (int) ($_GET['year'] ?? date('Y'));
 if ($month < 1 || $month > 12) {
     $month = (int) date('n');
 }
+if ($year < 2000 || $year > 2100) {
+    $year = (int) date('Y');
+}
 
 $conn = getDBConnection();
 ensureAttendanceTables($conn);
-$rows = getAttendanceMonthlyReport($conn, $month, $year, $deptId, $employeeId);
+$grid = getAttendanceExcelMonthGrid($month, $year, $deptId, $employeeId, $conn);
 $conn->close();
 
-$filename = 'Attendance_Report_' . date('F_Y', mktime(0, 0, 0, $month, 1, $year)) . '.xls';
+$label = date('F_Y', mktime(0, 0, 0, $month, 1, $year));
+$filename = 'Attendance_Report_' . $label . '.xls';
 header('Content-Type: application/vnd.ms-excel; charset=utf-8');
 header('Content-Disposition: attachment; filename="' . $filename . '"');
+header('Cache-Control: max-age=0');
 
-$headers = ['Sr', 'Employee Code', 'Employee Name', 'Department', 'Present', 'Week Off', 'Half Days', 'Leave', 'Absent', 'Holiday', 'Working Hours'];
-echo '<html><head><meta charset="UTF-8"></head><body><table border="1">';
-echo '<tr><th colspan="' . count($headers) . '">Attendance Report — ' . htmlspecialchars(date('F Y', mktime(0, 0, 0, $month, 1, $year))) . '</th></tr><tr>';
-foreach ($headers as $h) {
-    echo '<th>' . htmlspecialchars($h) . '</th>';
+$title = 'Attendance Report — ' . date('F Y', mktime(0, 0, 0, $month, 1, $year));
+if ($deptId > 0 && !empty($grid['employees'][0]['department_name'])) {
+    // optional subtitle from first row dept when filtered
 }
-echo '</tr>';
-foreach ($rows as $i => $r) {
-    echo '<tr>';
-    $cells = [
-        $i + 1,
-        $r['employee_code'],
-        $r['employee_name'],
-        $r['department_name'],
-        $r['present'],
-        $r['week_off'],
-        $r['half_days'],
-        $r['leave'],
-        $r['absent'],
-        $r['holiday'],
-        $r['working_hours'],
-    ];
-    foreach ($cells as $c) {
-        echo '<td>' . htmlspecialchars((string) $c) . '</td>';
-    }
-    echo '</tr>';
-}
-echo '</table></body></html>';
+
+echo '<html><head><meta charset="UTF-8"></head><body>';
+echo '<h3>' . htmlspecialchars($title) . '</h3>';
+echo attendanceRenderExcelMonthTableHtml($grid, ['export' => true]);
+echo '<p>Dates shown as day cells · Times like 9:00 AM | 6:00 PM · Leave: PL / SL / C-Off / DL / LWP</p>';
+echo '</body></html>';
+exit;
