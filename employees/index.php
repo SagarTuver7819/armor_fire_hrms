@@ -14,6 +14,8 @@ require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/employee_helper.php';
 
 $deptId = isset($_GET['department_id']) ? (int) $_GET['department_id'] : 0;
+$view   = isset($_GET['view']) && $_GET['view'] === 'exit' ? 'exit' : 'active';
+$isExit = ($view === 'exit');
 $department = null;
 $isAllReport = ($deptId <= 0);
 
@@ -25,7 +27,12 @@ if (!$isAllReport) {
     }
 }
 
-$pageTitle = $isAllReport ? 'All Employees Report' : 'Join Employee';
+if ($isExit) {
+    $pageTitle = $isAllReport ? 'Exit Employee List (All Departments)' : ('Exit Employee List — ' . $department['department_name']);
+} else {
+    $pageTitle = $isAllReport ? 'All Employees Report' : 'Join Employee';
+}
+
 $extraCss = [
     'https://cdn.datatables.net/1.13.8/css/jquery.dataTables.min.css',
     'https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.css',
@@ -35,7 +42,7 @@ $extraCss = [
 $useSidebar = true;
 $sidebarMode = $isAllReport ? 'employees' : 'department';
 $sidebarDeptId = $deptId;
-$sidebarActive = $isAllReport ? 'all_employees' : 'join_employee';
+$sidebarActive = $isExit ? 'exit_employee' : ($isAllReport ? 'all_employees' : 'join_employee');
 
 require_once __DIR__ . '/../includes/header.php';
 
@@ -51,11 +58,18 @@ if (isset($_GET['msg'])) {
     $toastMsg = $map[$_GET['msg']] ?? '';
 }
 
-$ajaxUrl = app_url('employees/ajax_list.php') . ($deptId > 0 ? ('?department_id=' . $deptId) : '');
+$activeCount = countActiveEmployeesByDepartment($deptId);
+$exitCount   = countExitEmployeesByDepartment($deptId);
+
+$activeListUrl = app_url('employees/index.php' . ($deptId > 0 ? '?department_id=' . $deptId : ''));
+$exitListUrl   = app_url('employees/exit_list.php' . ($deptId > 0 ? '?department_id=' . $deptId : ''));
+
+$ajaxUrl = app_url('employees/ajax_list.php?view=' . $view . ($deptId > 0 ? ('&department_id=' . $deptId) : ''));
 $backUrl = $isAllReport
     ? app_url('dashboard.php')
     : app_url('department.php?id=' . $deptId);
 $addUrl = app_url('employees/edit.php' . ($deptId > 0 ? ('?department_id=' . $deptId) : ''));
+$excelUrl = app_url('employees/export_excel.php?view=' . $view . ($deptId > 0 ? ('&department_id=' . $deptId) : ''));
 ?>
 
 <main class="dashboard-main">
@@ -66,17 +80,19 @@ $addUrl = app_url('employees/edit.php' . ($deptId > 0 ? ('?department_id=' . $de
         </a>
         <div class="toolbar-actions">
             <?php if (!$isAllReport): ?>
-                <a href="<?php echo app_url('employees/index.php'); ?>" class="btn-secondary">
+                <a href="<?php echo app_url('employees/index.php' . ($isExit ? '?view=exit' : '')); ?>" class="btn-secondary">
                     <i class="fa-solid fa-users"></i> All Employees
                 </a>
             <?php endif; ?>
-            <a href="<?php echo htmlspecialchars(app_url('employees/export_excel.php') . ($deptId > 0 ? ('?department_id=' . $deptId) : '')); ?>" class="btn-secondary">
+            <a href="<?php echo htmlspecialchars($excelUrl); ?>" class="btn-secondary">
                 <i class="fa-solid fa-file-excel"></i> Excel
             </a>
+            <?php if (!$isExit): ?>
             <a href="<?php echo htmlspecialchars(app_url('employees/import.php') . ($deptId > 0 ? ('?department_id=' . $deptId) : '')); ?>" class="btn-secondary">
                 <i class="fa-solid fa-file-import"></i> Import Employee
             </a>
-            <?php if ($isAllReport && function_exists('isAdmin') && isAdmin()): ?>
+            <?php endif; ?>
+            <?php if ($isAllReport && function_exists('isAdmin') && isAdmin() && !$isExit): ?>
                 <a href="<?php echo app_url('employees/sync_reference.php'); ?>" class="btn-secondary">
                     <i class="fa-solid fa-cloud-arrow-down"></i> Sync from Reference
                 </a>
@@ -91,15 +107,31 @@ $addUrl = app_url('employees/edit.php' . ($deptId > 0 ? ('?department_id=' . $de
 
     <div class="list-header">
         <div>
-            <h1><?php echo $isAllReport ? 'All Employees Report' : 'Join Employee'; ?></h1>
+            <h1><?php echo $isExit ? 'Exit Employee List' : ($isAllReport ? 'All Employees Report' : 'Join Employee'); ?></h1>
             <p>
-                <?php if ($isAllReport): ?>
+                <?php if ($isExit): ?>
+                    <?php echo $isAllReport ? 'All departments · Deactive & Exited employees' : (htmlspecialchars($department['department_name']) . ' · Deactive & Exited employees'); ?>
+                <?php elseif ($isAllReport): ?>
                     All departments · Server-side loading (fast with large data)
                 <?php else: ?>
                     <?php echo htmlspecialchars($department['department_name']); ?> · Employee Listing
                 <?php endif; ?>
             </p>
         </div>
+    </div>
+
+    <!-- Active vs Exit Employee Tabs -->
+    <div class="emp-nav-tabs">
+        <a href="<?php echo htmlspecialchars($activeListUrl); ?>" class="emp-nav-tab <?php echo !$isExit ? 'active' : ''; ?>">
+            <i class="fa-solid fa-user-check"></i>
+            <span>Active Employees</span>
+            <span class="emp-tab-badge"><?php echo (int) $activeCount; ?></span>
+        </a>
+        <a href="<?php echo htmlspecialchars($exitListUrl); ?>" class="emp-nav-tab is-exit <?php echo $isExit ? 'active' : ''; ?>">
+            <i class="fa-solid fa-user-xmark"></i>
+            <span>Exit Employee List</span>
+            <span class="emp-tab-badge"><?php echo (int) $exitCount; ?></span>
+        </a>
     </div>
 
     <div class="data-card data-card-pad">
@@ -117,7 +149,13 @@ $addUrl = app_url('employees/edit.php' . ($deptId > 0 ? ('?department_id=' . $de
                         <th>Designation</th>
                         <th>Mobile</th>
                         <th>Joining Date</th>
+                        <?php if ($isExit): ?>
+                            <th>Exit Date</th>
+                        <?php endif; ?>
                         <th>Shift</th>
+                        <?php if ($isExit): ?>
+                            <th>Status</th>
+                        <?php endif; ?>
                         <th>PDF</th>
                         <th>Action</th>
                     </tr>
@@ -133,6 +171,8 @@ $addUrl = app_url('employees/edit.php' . ($deptId > 0 ? ('?department_id=' . $de
     window.EMP_TOAST_TYPE  = <?php echo json_encode($toastType); ?>;
     window.EMP_AJAX_URL    = <?php echo json_encode($ajaxUrl); ?>;
     window.EMP_IS_ALL      = <?php echo $isAllReport ? 'true' : 'false'; ?>;
+    window.EMP_IS_EXIT     = <?php echo $isExit ? 'true' : 'false'; ?>;
+    window.EMP_ACTION_COLS = <?php echo json_encode($isExit ? ($isAllReport ? [11, 12] : [10, 11]) : ($isAllReport ? [9, 10] : [8, 9])); ?>;
     window.EMP_APP_BASE    = <?php echo json_encode(APP_BASE); ?>;
     window.EMP_DEPT_ID     = <?php echo (int) $deptId; ?>;
 </script>

@@ -11,13 +11,20 @@ require_once __DIR__ . '/../includes/employee_helper.php';
 requireLogin();
 
 $deptId = isset($_GET['department_id']) ? (int) $_GET['department_id'] : 0;
+$view   = isset($_GET['view']) && $_GET['view'] === 'exit' ? 'exit' : 'active';
+$isExit = ($view === 'exit');
+
 $conn = getDBConnection();
 ensureEmployeesTable($conn);
+
+$baseWhere = $isExit
+    ? "(e.status = 0 OR (e.date_of_exit IS NOT NULL AND e.date_of_exit != '' AND e.date_of_exit != '0000-00-00'))"
+    : "(e.status = 1 AND (e.date_of_exit IS NULL OR e.date_of_exit = '' OR e.date_of_exit = '0000-00-00'))";
 
 $sql = "SELECT e.*, d.department_name
         FROM employees e
         LEFT JOIN departments d ON d.id = e.department_id
-        WHERE e.status = 1";
+        WHERE $baseWhere";
 $params = [];
 $types = '';
 if ($deptId > 0) {
@@ -45,14 +52,15 @@ if ($deptId > 0) {
     }
 }
 
-$filename = 'Dept_Employee_Report_' . $deptName . '_' . date('Ymd') . '.xls';
+$filePrefix = $isExit ? 'Exit_Employee_List_' : 'Dept_Employee_Report_';
+$filename = $filePrefix . $deptName . '_' . date('Ymd') . '.xls';
 header('Content-Type: application/vnd.ms-excel; charset=utf-8');
 header('Content-Disposition: attachment; filename="' . $filename . '"');
 header('Cache-Control: max-age=0');
 
 $headers = [
     'Sr', 'Employee Code', 'Pay Type', 'Employee Name', 'Father / Husband Name',
-    'Department', 'Designation', 'Date of Birth', 'Date of Joining',
+    'Department', 'Designation', 'Date of Birth', 'Date of Joining', 'Exit Date',
     'Mobile', 'Emergency Mobile', 'Aadhar', 'PAN',
     'Permanent Address', 'Present Address',
     'Shift Type', 'Shift Time', 'PF Deduction', 'UAN',
@@ -83,6 +91,7 @@ if ($result) {
             $row['designation'] ?? '',
             formatDateDisplay($row['date_of_birth'] ?? ''),
             formatDateDisplay($row['date_of_joining'] ?? ''),
+            formatDateDisplay($row['date_of_exit'] ?? ''),
             $row['mobile_number'] ?? '',
             $row['emergency_mobile'] ?? '',
             $row['aadhar_number'] ?? '',
@@ -104,7 +113,7 @@ if ($result) {
             $row['holiday_benefits'] ?? '',
             $row['overtime_benefits'] ?? '',
             $row['extra_note'] ?? '',
-            ((int) ($row['status'] ?? 1) === 1) ? 'Active' : 'Inactive',
+            isEmployeeDeactive($row) ? 'Deactive' : 'Active',
         ];
         echo '<tr>';
         foreach ($cells as $c) {

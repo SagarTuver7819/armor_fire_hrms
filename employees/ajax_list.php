@@ -14,6 +14,8 @@ requireLogin();
 header('Content-Type: application/json; charset=utf-8');
 
 $deptId = isset($_GET['department_id']) ? (int) $_GET['department_id'] : 0;
+$view   = isset($_GET['view']) && $_GET['view'] === 'exit' ? 'exit' : (isset($_POST['view']) && $_POST['view'] === 'exit' ? 'exit' : 'active');
+$isExit = ($view === 'exit');
 
 $draw   = (int) ($_POST['draw'] ?? 1);
 $start  = max(0, (int) ($_POST['start'] ?? 0));
@@ -28,8 +30,37 @@ $orderDir = (strtolower($_POST['order'][0]['dir'] ?? 'desc') === 'asc') ? 'ASC' 
 
 $isAll = ($deptId <= 0);
 
-// Column map depends on All vs Department list
-if ($isAll) {
+// Column map depends on All vs Department and Active vs Exit list
+if ($isExit) {
+    if ($isAll) {
+        $columns = [
+            0 => 'e.id',
+            1 => 'e.employee_code',
+            2 => 'e.employee_name',
+            3 => 'd.department_name',
+            4 => 'e.pay_type',
+            5 => 'e.designation',
+            6 => 'e.mobile_number',
+            7 => 'e.date_of_joining',
+            8 => 'e.date_of_exit',
+            9 => 'e.shift_type',
+            10 => 'e.status',
+        ];
+    } else {
+        $columns = [
+            0 => 'e.id',
+            1 => 'e.employee_code',
+            2 => 'e.employee_name',
+            3 => 'e.pay_type',
+            4 => 'e.designation',
+            5 => 'e.mobile_number',
+            6 => 'e.date_of_joining',
+            7 => 'e.date_of_exit',
+            8 => 'e.shift_type',
+            9 => 'e.status',
+        ];
+    }
+} elseif ($isAll) {
     $columns = [
         0 => 'e.id',
         1 => 'e.employee_code',
@@ -58,8 +89,14 @@ $orderBy = $columns[$orderCol] ?? 'e.id';
 $conn = getDBConnection();
 ensureEmployeesTable($conn);
 
-// Default list: active only. Search also finds inactive (soft-deleted) so codes still in DB are discoverable.
-$where = ($search !== '') ? '1=1' : 'e.status = 1';
+// Active list vs Exit list base condition
+if ($isExit) {
+    $baseCondition = "(e.status = 0 OR (e.date_of_exit IS NOT NULL AND e.date_of_exit != '' AND e.date_of_exit != '0000-00-00'))";
+} else {
+    $baseCondition = "(e.status = 1 AND (e.date_of_exit IS NULL OR e.date_of_exit = '' OR e.date_of_exit = '0000-00-00'))";
+}
+
+$where = $baseCondition;
 $types = '';
 $params = [];
 
@@ -85,16 +122,16 @@ if ($search !== '') {
     array_push($params, $like, $like, $exactCode, $like, $like, $like, $like);
 }
 
-// Total records (filtered by dept if needed, no search)
+// Total records (filtered by base condition and dept if needed, no search)
 if ($isAll) {
-    $totalRes = $conn->query("SELECT COUNT(*) AS c FROM employees e WHERE e.status = 1");
+    $totalRes = $conn->query("SELECT COUNT(*) AS c FROM employees e WHERE {$baseCondition}");
 } else {
-    $stmtT = $conn->prepare("SELECT COUNT(*) AS c FROM employees e WHERE e.status = 1 AND e.department_id = ?");
+    $stmtT = $conn->prepare("SELECT COUNT(*) AS c FROM employees e WHERE {$baseCondition} AND e.department_id = ?");
     $stmtT->bind_param('i', $deptId);
     $stmtT->execute();
     $totalRes = $stmtT->get_result();
 }
-$totalRow = $totalRes->fetch_assoc();
+$totalRow = $totalRes ? $totalRes->fetch_assoc() : null;
 $recordsTotal = (int) ($totalRow['c'] ?? 0);
 if (isset($stmtT)) {
     $stmtT->close();
@@ -115,7 +152,7 @@ $stmtC->close();
 
 // Data page
 $dataSql = "SELECT e.id, e.employee_code, e.employee_name, e.designation, e.mobile_number,
-                   e.date_of_joining, e.shift_type, e.department_id, e.pay_type, e.status, d.department_name
+                   e.date_of_joining, e.date_of_exit, e.shift_type, e.department_id, e.pay_type, e.status, d.department_name
             FROM employees e
             LEFT JOIN departments d ON d.id = e.department_id
             WHERE $where
@@ -136,7 +173,7 @@ $data = [];
 $sr = $start + 1;
 while ($row = $result->fetch_assoc()) {
     $id = (int) $row['id'];
-    $viewUrl = app_url('employees/view.php?id=' . $id . ($isAll ? '&from=all' : ''));
+    $viewUrl = app_url('employees/view.php?id=' . $id . ($isExit ? '&from=exit' : ($isAll ? '&from=all' : '')));
     $editUrl = app_url('employees/edit.php?id=' . $id . '&department_id=' . (int) $row['department_id']);
     $delUrl  = app_url('employees/delete.php?id=' . $id . '&department_id=' . (int) $row['department_id'] . ($isAll ? '&all=1' : ''));
     $pdfEn   = app_url('employees/pdf.php?id=' . $id . '&lang=en');
@@ -146,10 +183,10 @@ while ($row = $result->fetch_assoc()) {
     $payClass = function_exists('payTypeCssClass') ? payTypeCssClass($payType) : ($payType === 'Jobwork' ? 'is-jobwork' : 'is-salary');
     $payLabel = function_exists('payTypeLabel') ? payTypeLabel($payType) : $payType;
 
-    $isInactive = ((int) ($row['status'] ?? 1) !== 1);
+    $isDeactive = isEmployeeDeactive($row);
     $nameHtml = '<a class="emp-name-link" href="' . htmlspecialchars($viewUrl) . '">' . htmlspecialchars($row['employee_name']) . '</a>';
-    if ($isInactive) {
-        $nameHtml .= ' <span class="pay-pill is-jobwork" title="Soft-deleted / inactive">Inactive</span>';
+    if ($isDeactive && !$isExit) {
+        $nameHtml .= ' <span class="pay-pill is-jobwork" title="Soft-deleted / deactive">Deactive</span>';
     }
 
     $item = [
@@ -162,11 +199,23 @@ while ($row = $result->fetch_assoc()) {
         $item[] = htmlspecialchars($row['department_name'] ?? '-');
     }
 
-        $item[] = '<span class="pay-pill ' . $payClass . '">' . htmlspecialchars($payLabel) . '</span>';
+    $item[] = '<span class="pay-pill ' . $payClass . '">' . htmlspecialchars($payLabel) . '</span>';
     $item[] = htmlspecialchars($row['designation'] ?? '-');
     $item[] = htmlspecialchars($row['mobile_number'] ?? '-');
     $item[] = htmlspecialchars(formatDateDisplay($row['date_of_joining']));
+
+    if ($isExit) {
+        $exitDateFormatted = formatDateDisplay($row['date_of_exit'] ?? '');
+        $exitDateShow = $exitDateFormatted !== '' ? $exitDateFormatted : 'Deactive';
+        $item[] = '<span class="exit-date-badge"><i class="fa-solid fa-door-open"></i> ' . htmlspecialchars($exitDateShow) . '</span>';
+    }
+
     $item[] = htmlspecialchars($row['shift_type'] ?? '-');
+
+    if ($isExit) {
+        $item[] = '<span class="status-pill status-deactive"><i class="fa-solid fa-circle"></i> Deactive</span>';
+    }
+
     $item[] = '<div class="pdf-links" onclick="event.stopPropagation();">'
             . '<a href="' . htmlspecialchars($pdfEn) . '" target="_blank" class="pdf-btn en">EN</a>'
             . '<a href="' . htmlspecialchars($pdfHi) . '" target="_blank" class="pdf-btn hi">HI</a>'

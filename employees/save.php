@@ -43,6 +43,12 @@ $dob           = normalizeDatePost($_POST['date_of_birth'] ?? '', false);
 $designation   = trim($_POST['designation'] ?? '');
 $doj           = normalizeDatePost($_POST['date_of_joining'] ?? '', false);
 $doe           = normalizeDatePost($_POST['date_of_exit'] ?? '', false);
+$status        = 1;
+if ($doe !== null && $doe !== '') {
+    $status = 0; // Exit Date entered -> Deactive
+} elseif (isset($_POST['status'])) {
+    $status = (int) $_POST['status'] === 0 ? 0 : 1;
+}
 $shiftType     = ($_POST['shift_type'] ?? 'Day') === 'Night' ? 'Night' : 'Day';
 $shiftTime     = trim($_POST['shift_time'] ?? '');
 $shiftId       = (int) ($_POST['shift_id'] ?? 0);
@@ -141,12 +147,12 @@ if ($id > 0) {
         bank_name=?, bank_account_number=?, ifsc_code=?, bank_branch_address=?,
         decided_salary=?, reporting_head=?,         extra_note=?, week_off_day=?,
         week_off_benefits=?, holiday_benefits=?, overtime_benefits=?, main_contractor_id=?,
-        status=1
+        status=?
         WHERE id=?";
 
     $stmt = $conn->prepare($sql);
     $stmt->bind_param(
-        'sssiisssssssssssssssssssssssssssii',
+        'sssiisssssssssssssssssssssssssssiii',
         $empCode,
         $biometricId,
         $payType,
@@ -180,6 +186,7 @@ if ($id > 0) {
         $holidayBen,
         $overtimeBen,
         $mainContractorId,
+        $status,
         $id
     );
 } else {
@@ -190,12 +197,12 @@ if ($id > 0) {
         shift_type, shift_time, pf_deduction, uan_number,
         bank_name, bank_account_number, ifsc_code, bank_branch_address,
         decided_salary, reporting_head, extra_note, week_off_day,
-        week_off_benefits, holiday_benefits, overtime_benefits, main_contractor_id, created_by
-    ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
+        week_off_benefits, holiday_benefits, overtime_benefits, main_contractor_id, created_by, status
+    ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
 
     $stmt = $conn->prepare($sql);
     $stmt->bind_param(
-        'sssiisssssssssssssssssssssssssssii',
+        'sssiisssssssssssssssssssssssssssiii',
         $empCode,
         $biometricId,
         $payType,
@@ -229,7 +236,8 @@ if ($id > 0) {
         $holidayBen,
         $overtimeBen,
         $mainContractorId,
-        $createdBy
+        $createdBy,
+        $status
     );
 }
 

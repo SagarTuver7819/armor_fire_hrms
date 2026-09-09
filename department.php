@@ -21,6 +21,7 @@ $sidebarActive = 'modules';
 require_once __DIR__ . '/includes/header.php';
 
 $empCount = $department ? countEmployeesByDepartment($department['id']) : 0;
+$exitEmpCount = $department ? countExitEmployeesByDepartment($department['id']) : 0;
 ?>
 
 <main class="dashboard-main">
@@ -28,9 +29,14 @@ $empCount = $department ? countEmployeesByDepartment($department['id']) : 0;
         <a href="<?php echo app_url('dashboard.php'); ?>" class="back-link">
             <i class="fa-solid fa-arrow-left"></i> Back to Dashboard
         </a>
-        <a href="<?php echo app_url('employees/index.php'); ?>" class="btn-secondary">
-            <i class="fa-solid fa-users"></i> All Employees
-        </a>
+        <div class="toolbar-actions">
+            <a href="<?php echo app_url('employees/index.php'); ?>" class="btn-secondary">
+                <i class="fa-solid fa-users"></i> All Employees
+            </a>
+            <a href="<?php echo app_url('employees/exit_list.php' . ($department ? '?department_id=' . (int)$department['id'] : '')); ?>" class="btn-secondary">
+                <i class="fa-solid fa-user-xmark"></i> Exit Employees
+            </a>
+        </div>
     </div>
 
     <?php if (!$department): ?>
@@ -60,6 +66,14 @@ $empCount = $department ? countEmployeesByDepartment($department['id']) : 0;
                     </div>
                     <div class="module-label">Join Employee</div>
                     <div class="module-meta"><?php echo (int) $empCount; ?> Employees · Open List</div>
+                </a>
+
+                <a href="<?php echo app_url('employees/exit_list.php?department_id=' . (int) $department['id']); ?>" class="module-card">
+                    <div class="module-icon" style="background-color: #EF4444;">
+                        <i class="fa-solid fa-user-xmark"></i>
+                    </div>
+                    <div class="module-label">Exit Employee List</div>
+                    <div class="module-meta"><?php echo (int) $exitEmpCount; ?> Exited · Open List</div>
                 </a>
 
                 <a href="<?php echo app_url('leave/index.php?department_id=' . (int) $department['id']); ?>" class="module-card">

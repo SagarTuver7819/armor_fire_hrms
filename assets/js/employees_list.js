@@ -19,8 +19,8 @@
     }
 
     var isAll = !!window.EMP_IS_ALL;
-    // Column indexes for non-orderable PDF/Action
-    var actionCols = isAll ? [9, 10] : [8, 9];
+    // Column indexes for non-orderable PDF/Action (dynamically configured for active vs exit lists)
+    var actionCols = window.EMP_ACTION_COLS || (isAll ? [9, 10] : [8, 9]);
 
     var table = jQuery('#employeesTable').DataTable({
         processing: true,

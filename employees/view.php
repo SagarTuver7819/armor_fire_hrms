@@ -11,13 +11,14 @@ require_once __DIR__ . '/../includes/employee_helper.php';
 $id = isset($_GET['id']) ? (int) $_GET['id'] : 0;
 $emp = $id > 0 ? getEmployeeById($id) : null;
 
-if (!$emp || (int) $emp['status'] !== 1) {
+if (!$emp) {
     header('Location: ' . app_url('dashboard.php'));
     exit;
 }
 
 $deptId = (int) $emp['department_id'];
-$pageTitle = 'Employee Details';
+$isDeactive = isEmployeeDeactive($emp);
+$pageTitle = 'Employee Details' . ($isDeactive ? ' (Deactive)' : '');
 $extraCss = [
     'https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.css',
 ];
@@ -25,7 +26,7 @@ $extraCss = [
 $useSidebar = true;
 $sidebarMode = 'department';
 $sidebarDeptId = $deptId;
-$sidebarActive = 'join_employee';
+$sidebarActive = $isDeactive ? 'exit_employee' : 'join_employee';
 
 require_once __DIR__ . '/../includes/header.php';
 
@@ -59,16 +60,27 @@ $salaryShow = ($emp['decided_salary'] !== null && $emp['decided_salary'] !== '')
     : '-';
 
 $shiftClass = (strtolower((string) $emp['shift_type']) === 'night') ? 'is-night' : 'is-day';
-$backUrl = app_url('employees/index.php?department_id=' . $deptId);
-if (isset($_GET['from']) && $_GET['from'] === 'all') {
+
+$from = (string) ($_GET['from'] ?? '');
+if ($from === 'exit') {
+    $backUrl = app_url('employees/exit_list.php' . ($deptId > 0 ? '?department_id=' . $deptId : ''));
+    $backText = 'Back to Exit Employee List';
+} elseif ($from === 'all') {
     $backUrl = app_url('employees/index.php');
+    $backText = 'Back to All Employees';
+} elseif ($isDeactive) {
+    $backUrl = app_url('employees/exit_list.php' . ($deptId > 0 ? '?department_id=' . $deptId : ''));
+    $backText = 'Back to Exit Employee List';
+} else {
+    $backUrl = app_url('employees/index.php?department_id=' . $deptId);
+    $backText = 'Back to Employee List';
 }
 ?>
 
 <main class="dashboard-main">
     <div class="page-toolbar flex-between">
         <a href="<?php echo htmlspecialchars($backUrl); ?>" class="back-link">
-            <i class="fa-solid fa-arrow-left"></i> Back to Employee List
+            <i class="fa-solid fa-arrow-left"></i> <?php echo htmlspecialchars($backText); ?>
         </a>
         <?php if (!isset($_GET['from']) || $_GET['from'] !== 'all'): ?>
         <a href="<?php echo app_url('department.php?id=' . $deptId); ?>" class="btn-secondary">
@@ -87,7 +99,13 @@ if (isset($_GET['from']) && $_GET['from'] === 'all') {
                 <div class="emp-id-copy">
                     <div class="emp-id-tags">
                         <span class="code-badge"><?php echo showVal($emp['employee_code']); ?></span>
-                        <span class="status-pill status-active"><i class="fa-solid fa-circle"></i> Active</span>
+                        <?php if ($isDeactive): ?>
+                            <span class="status-pill status-deactive" title="<?php echo !empty($emp['date_of_exit']) ? ('Exit Date: ' . htmlspecialchars(formatDateDisplay($emp['date_of_exit']))) : 'Deactive'; ?>">
+                                <i class="fa-solid fa-circle"></i> Deactive
+                            </span>
+                        <?php else: ?>
+                            <span class="status-pill status-active"><i class="fa-solid fa-circle"></i> Active</span>
+                        <?php endif; ?>
                     </div>
                     <h1><?php echo showVal($emp['employee_name']); ?></h1>
                     <p class="emp-id-role">
@@ -125,6 +143,15 @@ if (isset($_GET['from']) && $_GET['from'] === 'all') {
                     <strong><?php echo showVal(formatDateDisplay($emp['date_of_joining'])); ?></strong>
                 </div>
             </div>
+            <?php if (!empty($emp['date_of_exit']) && $emp['date_of_exit'] !== '0000-00-00'): ?>
+            <div class="emp-stat-item is-exit-stat">
+                <div class="emp-stat-icon" style="background:#fee2e2; color:#dc2626;"><i class="fa-solid fa-door-open"></i></div>
+                <div>
+                    <span>Exit Date</span>
+                    <strong style="color:#dc2626;"><?php echo showVal(formatDateDisplay($emp['date_of_exit'])); ?></strong>
+                </div>
+            </div>
+            <?php endif; ?>
             <div class="emp-stat-item">
                 <div class="emp-stat-icon"><i class="fa-solid fa-clock"></i></div>
                 <div>

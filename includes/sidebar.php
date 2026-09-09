@@ -93,6 +93,11 @@ $openAttendance = ($sidebarMode === 'attendance' || strpos((string) $sidebarActi
                     <i class="fa-solid fa-users"></i>
                     <span>All Employees</span>
                 </a>
+                <a href="<?php echo app_url('employees/exit_list.php'); ?>"
+                   class="sidebar-link <?php echo $sidebarActive === 'exit_employee' ? 'active' : ''; ?>">
+                    <i class="fa-solid fa-user-xmark"></i>
+                    <span>Exit Employee List</span>
+                </a>
                 <a href="<?php echo app_url('payroll/register.php'); ?>"
                    class="sidebar-link <?php echo $sidebarActive === 'salary_register' ? 'active' : ''; ?>">
                     <i class="fa-solid fa-table"></i>
@@ -279,6 +284,11 @@ $openAttendance = ($sidebarMode === 'attendance' || strpos((string) $sidebarActi
                        class="sidebar-link <?php echo $sidebarActive === 'join_employee' ? 'active' : ''; ?>">
                         <i class="fa-solid fa-user-plus"></i>
                         <span>Join Employee</span>
+                    </a>
+                    <a href="<?php echo app_url('employees/exit_list.php?department_id=' . $sidebarDeptId); ?>"
+                       class="sidebar-link <?php echo $sidebarActive === 'exit_employee' ? 'active' : ''; ?>">
+                        <i class="fa-solid fa-user-xmark"></i>
+                        <span>Exit Employee List</span>
                     </a>
                     <a href="<?php echo app_url('attendance/manual.php?department_id=' . $sidebarDeptId . '&show=1'); ?>"
                        class="sidebar-link <?php echo $sidebarActive === 'attendance_manual' ? 'active' : ''; ?>">

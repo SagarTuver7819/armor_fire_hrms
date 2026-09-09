@@ -63,6 +63,9 @@ function ensureEmployeesTable($conn = null)
     ensureEmployeeColumn($conn, 'main_contractor_id', "main_contractor_id INT DEFAULT NULL AFTER pay_type");
     ensureEmployeeColumn($conn, 'date_of_exit', "date_of_exit DATE DEFAULT NULL AFTER date_of_joining");
 
+    // Auto-sync: Employees with an exit date are marked Deactive (status = 0)
+    $conn->query("UPDATE employees SET status = 0 WHERE (date_of_exit IS NOT NULL AND date_of_exit != '' AND date_of_exit != '0000-00-00') AND status = 1");
+
     if ($closeAfter) {
         $conn->close();
     }
@@ -280,23 +283,88 @@ function getEmployeeById($employeeId)
 }
 
 /**
- * Count employees in a department
+ * Determine if employee is Deactive / Exited
  */
-function countEmployeesByDepartment($departmentId)
+function isEmployeeDeactive($emp)
+{
+    if (!$emp) {
+        return false;
+    }
+    if (isset($emp['status']) && (int) $emp['status'] === 0) {
+        return true;
+    }
+    if (!empty($emp['date_of_exit']) && $emp['date_of_exit'] !== '0000-00-00') {
+        return true;
+    }
+    return false;
+}
+
+/**
+ * Count active employees in a department (or across all departments if deptId <= 0)
+ */
+function countActiveEmployeesByDepartment($departmentId = 0)
 {
     $conn = getDBConnection();
     ensureEmployeesTable($conn);
+    $departmentId = (int) $departmentId;
 
-    $stmt = $conn->prepare(
-        "SELECT COUNT(*) AS total FROM employees WHERE department_id = ? AND status = 1"
-    );
-    $stmt->bind_param('i', $departmentId);
-    $stmt->execute();
-    $row = $stmt->get_result()->fetch_assoc();
-    $stmt->close();
+    if ($departmentId > 0) {
+        $stmt = $conn->prepare(
+            "SELECT COUNT(*) AS total FROM employees
+             WHERE department_id = ? AND status = 1 AND (date_of_exit IS NULL OR date_of_exit = '' OR date_of_exit = '0000-00-00')"
+        );
+        $stmt->bind_param('i', $departmentId);
+        $stmt->execute();
+        $row = $stmt->get_result()->fetch_assoc();
+        $stmt->close();
+    } else {
+        $res = $conn->query(
+            "SELECT COUNT(*) AS total FROM employees
+             WHERE status = 1 AND (date_of_exit IS NULL OR date_of_exit = '' OR date_of_exit = '0000-00-00')"
+        );
+        $row = $res ? $res->fetch_assoc() : null;
+    }
     $conn->close();
 
     return (int) ($row['total'] ?? 0);
+}
+
+/**
+ * Count exit / deactive employees in a department (or across all departments if deptId <= 0)
+ */
+function countExitEmployeesByDepartment($departmentId = 0)
+{
+    $conn = getDBConnection();
+    ensureEmployeesTable($conn);
+    $departmentId = (int) $departmentId;
+
+    if ($departmentId > 0) {
+        $stmt = $conn->prepare(
+            "SELECT COUNT(*) AS total FROM employees
+             WHERE department_id = ? AND (status = 0 OR (date_of_exit IS NOT NULL AND date_of_exit != '' AND date_of_exit != '0000-00-00'))"
+        );
+        $stmt->bind_param('i', $departmentId);
+        $stmt->execute();
+        $row = $stmt->get_result()->fetch_assoc();
+        $stmt->close();
+    } else {
+        $res = $conn->query(
+            "SELECT COUNT(*) AS total FROM employees
+             WHERE status = 0 OR (date_of_exit IS NOT NULL AND date_of_exit != '' AND date_of_exit != '0000-00-00')"
+        );
+        $row = $res ? $res->fetch_assoc() : null;
+    }
+    $conn->close();
+
+    return (int) ($row['total'] ?? 0);
+}
+
+/**
+ * Count active employees in a department (kept for backward compatibility)
+ */
+function countEmployeesByDepartment($departmentId)
+{
+    return countActiveEmployeesByDepartment($departmentId);
 }
 
 /**

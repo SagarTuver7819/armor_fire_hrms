@@ -109,6 +109,14 @@ $conn->close();
                     <i class="fa-solid fa-list"></i>
                 </div>
                 <div class="module-label">All Employees Report</div>
+                <div class="module-meta">Active staff directory</div>
+            </a>
+            <a href="<?php echo app_url('employees/exit_list.php'); ?>" class="module-card" title="Exit Employee List">
+                <div class="module-icon" style="background-color: #EF4444;">
+                    <i class="fa-solid fa-user-xmark"></i>
+                </div>
+                <div class="module-label">Exit Employee List</div>
+                <div class="module-meta">Deactive &amp; Exited staff</div>
             </a>
         </div>
     </section>

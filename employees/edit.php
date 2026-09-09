@@ -274,9 +274,20 @@ function empField($employee, $key, $default = '')
                     </div>
                     <div class="form-group">
                         <label>12b. Exit Date <small>(DD-MM-YYYY)</small></label>
-                        <input type="text" name="date_of_exit" class="form-control js-date" placeholder="DD-MM-YYYY"
+                        <input type="text" name="date_of_exit" id="dateOfExitInput" class="form-control js-date" placeholder="DD-MM-YYYY"
                                value="<?php echo htmlspecialchars(dateInputValue(empField($employee, 'date_of_exit'))); ?>">
-                        <small class="form-hint">Salary week-off / present count only till this date</small>
+                        <small class="form-hint">Salary &amp; attendance counted till this date. Entering exit date marks employee as <strong>Deactive</strong> (Exit Employee List).</small>
+                    </div>
+                    <div class="form-group">
+                        <label>12c. Employee Status</label>
+                        <?php
+                        $isExited = !empty(empField($employee, 'date_of_exit')) || (int) empField($employee, 'status', 1) === 0;
+                        ?>
+                        <select name="status" id="empStatusSelect" class="form-control">
+                            <option value="1" <?php echo !$isExited ? 'selected' : ''; ?>>Active</option>
+                            <option value="0" <?php echo $isExited ? 'selected' : ''; ?>>Deactive (Exit / Inactive)</option>
+                        </select>
+                        <small class="form-hint">Exit employees appear in the Exit Employee List.</small>
                     </div>
                     <div class="form-group">
                         <label>13. Shift <small>(Shift Master)</small></label>
