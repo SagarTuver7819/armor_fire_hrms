@@ -59,149 +59,214 @@
         if (!showOt) $('.ot-field').val('');
         // Action + Sr + Process + (Grade?) + Rate
         $('#tf_grand_total_label').attr('colspan', showG ? 5 : 4);
-        // Cleanup any Select2 leftovers from Grade column when hidden
+        // Cleanup Select2 leftovers / custom combo when Grade column hidden
         if (!showG) {
             $('#opsRows .grade-select').each(function () {
-                resetSelect2Artifacts($(this));
-                $(this).closest('td').find('.select2-container').remove();
+                teardownOpsCombo($(this));
             });
-            // Orphan select2 containers that escaped into the row
             $('#opsRows .ops-row').each(function () {
                 $(this).children('.select2-container').remove();
             });
         }
     }
-    /**
-     * Reposition Select2 dropdown under sticky Process/Grade cell.
-     * Styles ONLY body > .select2-container--open — never document.body.
-     * Always open BELOW the field (no flip-above) so DevTools / short viewports
-     * don't park the list over Operation/Name.
-     */
-    var opsDdWatch = null;
-    var opsDdSel = null;
 
-    function repositionOpsDropdown($sel) {
-        try {
-            var data = $sel.data('select2');
-            if (!data || !data.$container || !data.$container.length) return;
+    /* ========== Custom searchable combo (NO Select2 in sticky grid) ========== */
+    var $opsComboPanel = null;
+    var opsComboActiveSel = null;
 
-            var trigger = data.$container[0];
-            var rect = trigger.getBoundingClientRect();
-            if (!rect || rect.width < 2) return;
+    function ensureOpsComboPanel() {
+        if ($opsComboPanel && $opsComboPanel.length) return $opsComboPanel;
+        $opsComboPanel = $(
+            '<div id="opsComboPanel" class="ops-combo-panel" hidden>' +
+            '<div class="ops-combo-search-wrap">' +
+            '<input type="search" class="ops-combo-search" placeholder="Type to search…" autocomplete="off">' +
+            '</div>' +
+            '<ul class="ops-combo-list" role="listbox"></ul>' +
+            '</div>'
+        );
+        $(document.body).append($opsComboPanel);
 
-            var $shell = $('body > .select2-container--open').filter(function () {
-                return this !== trigger && $(this).find('.select2-dropdown').length;
-            }).last();
-            if (!$shell.length) {
-                $shell = $('body > .select2-container--open').last();
+        $opsComboPanel.on('input', '.ops-combo-search', function () {
+            filterOpsComboList($(this).val());
+        });
+        $opsComboPanel.on('keydown', '.ops-combo-search', function (e) {
+            if (e.key === 'Escape') {
+                e.preventDefault();
+                closeOpsCombo();
+            } else if (e.key === 'Enter') {
+                e.preventDefault();
+                var $hi = $opsComboPanel.find('.ops-combo-item.is-active:visible').first();
+                if (!$hi.length) $hi = $opsComboPanel.find('.ops-combo-item:visible').first();
+                if ($hi.length) $hi.trigger('click');
+            } else if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+                e.preventDefault();
+                var $items = $opsComboPanel.find('.ops-combo-item:visible');
+                if (!$items.length) return;
+                var idx = $items.index($items.filter('.is-active'));
+                $items.removeClass('is-active');
+                if (e.key === 'ArrowDown') idx = idx < $items.length - 1 ? idx + 1 : 0;
+                else idx = idx > 0 ? idx - 1 : $items.length - 1;
+                var $next = $items.eq(idx).addClass('is-active');
+                if ($next[0] && $next[0].scrollIntoView) $next[0].scrollIntoView({ block: 'nearest' });
             }
-            if (!$shell.length) return;
+        });
+        $opsComboPanel.on('mousedown', '.ops-combo-item', function (e) {
+            e.preventDefault();
+            pickOpsCombo($(this));
+        });
+        $(document).on('mousedown.opsCombo', function (e) {
+            if (!$opsComboPanel || !$opsComboPanel.length || $opsComboPanel[0].hasAttribute('hidden')) return;
+            if ($(e.target).closest('#opsComboPanel, .ops-combo-trigger').length) return;
+            closeOpsCombo();
+        });
+        $(window).on('resize.opsCombo', function () {
+            if (opsComboActiveSel) positionOpsComboPanel();
+        });
+        return $opsComboPanel;
+    }
 
-            var el = $shell[0];
-            if (el === document.body || el === document.documentElement) return;
-            if (!el.classList.contains('select2-container')) return;
-
-            var width = Math.max(Math.round(rect.width), 240);
-            var left = rect.left;
-            var top = rect.bottom + 2;
-            var maxLeft = window.innerWidth - width - 8;
-            if (left > maxLeft) left = Math.max(8, maxLeft);
-            if (left < 8) left = 8;
-
-            // Cap list height so it stays on-screen below the field (never flip above)
-            var drop = $shell.children('.select2-dropdown')[0];
-            var maxDropH = Math.max(120, window.innerHeight - top - 12);
-            if (drop) {
-                var results = drop.querySelector('.select2-results__options');
-                if (results) {
-                    results.style.maxHeight = Math.min(280, maxDropH - 42) + 'px';
-                }
-                drop.style.width = width + 'px';
-                drop.style.left = '0';
-                drop.style.right = 'auto';
-            }
-
-            el.style.setProperty('position', 'fixed', 'important');
-            el.style.setProperty('top', top + 'px', 'important');
-            el.style.setProperty('left', left + 'px', 'important');
-            el.style.setProperty('width', width + 'px', 'important');
-            el.style.setProperty('right', 'auto', 'important');
-            el.style.setProperty('bottom', 'auto', 'important');
-            el.style.setProperty('transform', 'none', 'important');
-            el.style.setProperty('z-index', '120600', 'important');
-            el.classList.add('ops-dd-fixed');
-        } catch (err) {
-            if (window.console && console.warn) console.warn('ops dropdown position skipped', err);
+    function filterOpsComboList(q) {
+        q = (q || '').toString().toLowerCase().trim();
+        var $list = $opsComboPanel.find('.ops-combo-list');
+        $list.find('.ops-combo-empty').remove();
+        var $items = $list.find('.ops-combo-item');
+        var visible = 0;
+        $items.each(function () {
+            var text = ($(this).text() || '').toLowerCase();
+            var show = !q || text.indexOf(q) !== -1;
+            this.style.display = show ? '' : 'none';
+            if (show) visible += 1;
+        });
+        $items.removeClass('is-active');
+        $items.filter(function () { return this.style.display !== 'none'; }).first().addClass('is-active');
+        if (!visible) {
+            $list.append('<li class="ops-combo-empty">No matching option</li>');
         }
     }
 
-    function clearOpsDropdownPosition() {
-        $('body > .select2-container.ops-dd-fixed').each(function () {
-            this.classList.remove('ops-dd-fixed');
-            this.style.removeProperty('position');
-            this.style.removeProperty('top');
-            this.style.removeProperty('left');
-            this.style.removeProperty('width');
-            this.style.removeProperty('right');
-            this.style.removeProperty('bottom');
-            this.style.removeProperty('transform');
-            this.style.removeProperty('z-index');
-            var results = this.querySelector('.select2-results__options');
-            if (results) results.style.maxHeight = '';
-        });
+    function positionOpsComboPanel() {
+        if (!opsComboActiveSel || !$opsComboPanel) return;
+        var $td = opsComboActiveSel.closest('td');
+        var $trig = $td.find('.ops-combo-trigger');
+        if (!$trig.length) return;
+        // Inline under trigger inside sticky cell — cannot drift to Action/Sr
+        if ($opsComboPanel.parent()[0] !== $td[0]) {
+            $td.append($opsComboPanel);
+        }
+        $td.addClass('ops-combo-open-cell');
+        $opsComboPanel.addClass('ops-combo-inline').css({
+            position: 'absolute',
+            left: '4px',
+            right: '4px',
+            top: '100%',
+            width: 'auto',
+            zIndex: 60
+        }).removeAttr('hidden');
+        $opsComboPanel.find('.ops-combo-list').css('max-height', '260px');
     }
 
-    function startOpsDdWatch($sel) {
-        opsDdSel = $sel;
-        repositionOpsDropdown($sel);
-        if (opsDdWatch) clearInterval(opsDdWatch);
-        // Keep aligned while Select2 / scroll try to move it
-        opsDdWatch = setInterval(function () {
-            if (!opsDdSel || !opsDdSel.data('select2')) {
-                stopOpsDdWatch();
+    function openOpsCombo($sel) {
+        ensureOpsComboPanel();
+        closeOpsCombo();
+        opsComboActiveSel = $sel;
+        var html = '';
+        $sel.find('option').each(function () {
+            var val = $(this).attr('value');
+            var text = $(this).text();
+            if (val === '' || val === undefined) {
+                html += '<li class="ops-combo-item ops-combo-clear" data-value="">' + $('<div/>').text(text || '— Clear —').html() + '</li>';
+            } else {
+                var sel = String($sel.val()) === String(val) ? ' is-selected' : '';
+                html += '<li class="ops-combo-item' + sel + '" data-value="' + String(val).replace(/"/g, '&quot;') + '">'
+                    + $('<div/>').text(text).html() + '</li>';
+            }
+        });
+        $opsComboPanel.find('.ops-combo-list').html(html);
+        $opsComboPanel.find('.ops-combo-search').val('');
+        filterOpsComboList('');
+        $sel.closest('td').find('.ops-combo-trigger').addClass('is-open');
+        positionOpsComboPanel();
+        setTimeout(function () {
+            var inp = $opsComboPanel.find('.ops-combo-search')[0];
+            if (inp) {
+                try { inp.focus({ preventScroll: true }); } catch (e) { /* ignore */ }
+            }
+            positionOpsComboPanel();
+        }, 0);
+    }
+
+    function closeOpsCombo() {
+        $('.ops-combo-open-cell').removeClass('ops-combo-open-cell');
+        if ($opsComboPanel) {
+            $opsComboPanel.attr('hidden', 'hidden').removeClass('ops-combo-inline');
+            $opsComboPanel.find('.ops-combo-search').val('');
+            if ($opsComboPanel.parent()[0] !== document.body) {
+                $(document.body).append($opsComboPanel);
+            }
+        }
+        $('.ops-combo-trigger.is-open').removeClass('is-open');
+        opsComboActiveSel = null;
+    }
+
+    function pickOpsCombo($item) {
+        if (!opsComboActiveSel) return;
+        var $sel = opsComboActiveSel;
+        var val = $item.attr('data-value');
+        $sel.val(val === undefined ? '' : val).trigger('change');
+        syncOpsComboTrigger($sel);
+        closeOpsCombo();
+    }
+
+    function syncOpsComboTrigger($sel) {
+        var $trig = $sel.closest('td').find('.ops-combo-trigger');
+        if (!$trig.length) return;
+        var $opt = $sel.find('option:selected');
+        var text = ($opt.text() || '').trim();
+        var empty = !$opt.val();
+        $trig.toggleClass('is-placeholder', empty);
+        $trig.find('.ops-combo-label').text(empty ? ($sel.data('placeholder') || 'Select') : text);
+    }
+
+    function teardownOpsCombo($sel) {
+        if (!$sel || !$sel.length) return;
+        if (opsComboActiveSel && opsComboActiveSel[0] === $sel[0]) closeOpsCombo();
+        $sel.closest('td').find('.ops-combo-trigger').remove();
+        $sel.removeClass('ops-combo-native');
+        resetSelect2Artifacts($sel);
+    }
+
+    function bindOpsCombo($sel, placeholder) {
+        if (!$sel.length) return;
+        teardownOpsCombo($sel);
+        $sel.addClass('no-select2 ops-combo-native')
+            .attr('tabindex', '-1')
+            .data('placeholder', placeholder || 'Select');
+
+        var $td = $sel.closest('td');
+        $td.find('.ops-combo-trigger, .select2-container').remove();
+        var $trig = $(
+            '<button type="button" class="ops-combo-trigger">' +
+            '<span class="ops-combo-label"></span>' +
+            '<span class="ops-combo-caret"><i class="fa-solid fa-chevron-down"></i></span>' +
+            '</button>'
+        );
+        $sel.after($trig);
+        syncOpsComboTrigger($sel);
+
+        $trig.on('click', function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            applyCrosshair($sel);
+            if (opsComboActiveSel && opsComboActiveSel[0] === $sel[0] && $opsComboPanel && !$opsComboPanel.is('[hidden]')) {
+                closeOpsCombo();
                 return;
             }
-            repositionOpsDropdown(opsDdSel);
-        }, 50);
+            openOpsCombo($sel);
+        });
     }
 
-    function stopOpsDdWatch() {
-        opsDdSel = null;
-        if (opsDdWatch) {
-            clearInterval(opsDdWatch);
-            opsDdWatch = null;
-        }
-        clearOpsDropdownPosition();
-    }
-
-    function bindRowSelect2($sel, placeholder) {
-        if (!$sel.length || !$.fn.select2) return;
-        if ($sel.data('select2')) {
-            $sel.off('change.select2ops select2:open.opsDd select2:closing.opsDd');
-            try { $sel.select2('destroy'); } catch (e) { /* ignore */ }
-        }
-        $sel.removeClass('no-select2');
-        $sel.select2({
-            width: '100%',
-            placeholder: placeholder || 'Search & select',
-            allowClear: true,
-            minimumResultsForSearch: 0,
-            dropdownParent: $(document.body),
-            language: {
-                noResults: function () { return 'No matching option'; },
-                searching: function () { return 'Searching…'; }
-            }
-        });
-        $sel.on('select2:open.opsDd', function () {
-            startOpsDdWatch($(this));
-        });
-        $sel.on('select2:closing.opsDd', function () {
-            stopOpsDdWatch();
-        });
-    }
     function fillProductSelect($sel, selectedId) {
         if (!$sel.length) return;
-        resetSelect2Artifacts($sel);
         var html = '<option value="">Select Process</option>';
         products.forEach(function (p) {
             html += '<option value="' + p.id + '" data-rate="' + p.rate + '" data-ot="' + p.ot_rate + '" data-rej="' + p.rejection_rate + '" data-process="' + (p.process || '') + '"'
@@ -209,14 +274,13 @@
                 + $('<div/>').text(p.name).html() + '</option>';
         });
         $sel.html(html);
-        bindRowSelect2($sel, 'Select Process');
+        if (selectedId) $sel.val(String(selectedId));
+        bindOpsCombo($sel, 'Select Process');
     }
     function fillGradeSelect($sel, selectedId) {
         if (!$sel.length) return;
-        resetSelect2Artifacts($sel);
-        $sel.closest('td').find('.select2-container').remove();
+        teardownOpsCombo($sel);
 
-        // Do not init Select2 while Grade column is hidden — causes blank sticky gap
         if (!showsGrade()) {
             $sel.html('<option value="">Select Grade</option>');
             $sel.val('');
@@ -231,7 +295,8 @@
                 + $('<div/>').text(g.name).html() + '</option>';
         });
         $sel.html(html);
-        bindRowSelect2($sel, 'Select Grade');
+        if (selectedId) $sel.val(String(selectedId));
+        bindOpsCombo($sel, 'Select Grade');
         $sel.closest('tr').find('.row-grade-id').val($sel.val() || '0');
     }
     function loadProducts(cb) {
@@ -372,7 +437,7 @@
     });
     function destroyRowSelect2($row) {
         $row.find('.product-select, .grade-select').each(function () {
-            resetSelect2Artifacts($(this));
+            teardownOpsCombo($(this));
         });
     }
     function doRemoveRow($row) {
@@ -470,7 +535,7 @@
         destroyRowSelect2($first);
 
         var $clone = $first.clone(false, false);
-        $clone.find('.select2-container').remove();
+        $clone.find('.select2-container, .ops-combo-trigger').remove();
         clearRowInputs($clone);
         destroyRowSelect2($clone);
         $clone.find('.product-select').empty().append('<option value="">Select Process</option>');
@@ -497,9 +562,7 @@
         }
         setTimeout(function () {
             var $sel = $clone.find('.product-select');
-            if ($sel.data('select2')) {
-                $sel.select2('open');
-            }
+            if ($sel.length) openOpsCombo($sel);
         }, 30);
     });
     $('#operationSelect').on('change', function () {
@@ -546,21 +609,20 @@
     }
 
     // Crosshair: full row + full column when cell focused (theme highlight)
-    $('#opsGrid').on('focusin', 'input:not(.select2-hidden-accessible), .select2-selection', function () {
+    $('#opsGrid').on('focusin', 'input, .ops-combo-trigger', function () {
         applyCrosshair($(this));
     });
     $('#opsGrid').on('click', 'td.day-cell, td.sticky-name, td.sticky-grade, td.sticky-rate, td.td-grade', function (e) {
-        if ($(e.target).closest('.select2-container').length) {
+        if ($(e.target).closest('.ops-combo-trigger, .ops-combo-panel').length) {
             return;
         }
-        if ($(e.target).is('input, button')) {
+        if ($(e.target).is('input, button, select')) {
             return;
         }
         var $td = $(this);
-        var $sel = $td.find('select.select2-hidden-accessible').first();
-        if ($sel.length && $sel.data('select2')) {
-            applyCrosshair($sel);
-            $sel.select2('open');
+        var $trig = $td.find('.ops-combo-trigger').first();
+        if ($trig.length) {
+            $trig.trigger('click');
             return;
         }
         var $input = $td.find('input:not([disabled]):not([readonly])').filter(':visible').first();
@@ -570,11 +632,8 @@
             applyCrosshair($td);
         }
     });
-    $(document).on('select2:open', '.product-select, .grade-select', function () {
-        applyCrosshair($(this));
-    });
 
-    // Recover if a previous buggy dropdown left body / portal styles broken
+    // Recover leftover Select2 / body styles from older buggy builds
     try {
         document.body.style.removeProperty('position');
         document.body.style.removeProperty('top');
@@ -585,7 +644,8 @@
         document.body.classList.remove('ops-select2-fixed', 'ops-dd-fixed');
         var oldPortal = document.getElementById('opsSelect2Portal');
         if (oldPortal) oldPortal.remove();
-        stopOpsDdWatch();
+        $('.select2-container.ops-dd-fixed').remove();
+        closeOpsCombo();
     } catch (e) { /* ignore */ }
 
     applyDayEnable();
