@@ -3023,6 +3023,32 @@ body.confirm-modal-open {
     font-family: "Plus Jakarta Sans", "Segoe UI", sans-serif;
 }
 
+/*
+ * Body-attached open dropdowns must NEVER be width:100% —
+ * that paints a full-viewport white layer (looks like blank page).
+ */
+body > .select2-container {
+    width: auto !important;
+    max-width: none !important;
+    height: auto !important;
+    background: transparent !important;
+    z-index: 120600 !important;
+}
+
+body > .select2-container.ops-dd-fixed {
+    margin: 0 !important;
+}
+
+body > .select2-container.ops-dd-fixed .select2-dropdown {
+    margin-top: 2px !important;
+    box-sizing: border-box;
+}
+
+body > .select2-container .select2-dropdown {
+    box-sizing: border-box;
+    background: #fff;
+}
+
 .select2-container .select2-selection--single {
     height: 44px !important;
     border: 1px solid #dce3ec !important;
@@ -3319,7 +3345,8 @@ body.confirm-modal-open {
 
 .ops-grid .sticky-name .select2-container {
     width: 100% !important;
-    min-width: 240px;
+    min-width: 0 !important;
+    max-width: 100% !important;
 }
 
 .ops-grid .sticky-rate {
@@ -3341,10 +3368,39 @@ body.confirm-modal-open {
     display: none !important;
 }
 
+/* Fully collapse Grade column when not CNC/BUFF/ARGON/GRINDING */
+.ops-grid:not(.show-grade) .sticky-grade,
+.ops-grid:not(.show-grade) #col_header_grade,
+.ops-grid:not(.show-grade) .td-grade {
+    display: none !important;
+    width: 0 !important;
+    min-width: 0 !important;
+    max-width: 0 !important;
+    padding: 0 !important;
+    border: 0 !important;
+    overflow: hidden !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
+    position: static !important;
+    left: auto !important;
+}
+
+.ops-grid:not(.show-grade) .sticky-grade .select2-container,
+.ops-grid:not(.show-grade) .td-grade .select2-container {
+    display: none !important;
+    width: 0 !important;
+    min-width: 0 !important;
+}
+
 .ops-grid.show-grade .sticky-grade,
 .ops-grid.show-grade #col_header_grade,
 .ops-grid.show-grade .td-grade {
     display: table-cell !important;
+    visibility: visible !important;
+    pointer-events: auto !important;
+    position: sticky !important;
+    overflow: visible !important;
+    border: 1px solid #e2e8f0 !important;
 }
 
 .ops-grid.show-grade .sticky-name {
@@ -3356,21 +3412,39 @@ body.confirm-modal-open {
     left: 306px;
     min-width: 130px;
     width: 130px;
+    padding: 4px 6px !important;
 }
 
 .ops-grid.show-grade .sticky-rate {
     left: 436px;
 }
 
-.ops-grid .product-select,
-.ops-grid .grade-select {
-    min-width: 190px;
+.ops-grid .sticky-name .select2-selection {
+    min-height: 36px;
+}
+
+.ops-grid .product-select:not(.select2-hidden-accessible),
+.ops-grid .grade-select:not(.select2-hidden-accessible) {
+    width: 100%;
+    min-width: 0;
     height: 36px;
     font-size: 13px;
 }
 
-.ops-grid .grade-select {
-    min-width: 112px;
+/* Never let grid styles un-hide Select2's native select (causes blank cell + aria warning) */
+.ops-grid select.select2-hidden-accessible {
+    position: absolute !important;
+    width: 1px !important;
+    height: 1px !important;
+    margin: -1px !important;
+    padding: 0 !important;
+    border: 0 !important;
+    clip: rect(0 0 0 0) !important;
+    overflow: hidden !important;
+}
+
+.ops-grid.show-grade .grade-select {
+    min-width: 100px;
 }
 
 .ops-grid .btn-remove-row {
@@ -3477,6 +3551,44 @@ body.confirm-modal-open {
 .ops-grid .day-qty-ot:focus {
     outline: 2px solid #F58220;
     border-color: #F58220;
+    background: #fff;
+    position: relative;
+    z-index: 2;
+}
+
+/* Crosshair — row (horizontal) + column (vertical) like reference */
+.ops-grid tbody tr.cross-row > td {
+    background: #fff7ed !important;
+}
+
+.ops-grid tbody tr.cross-row > td.sticky-col {
+    background: #ffedd5 !important;
+}
+
+.ops-grid thead th.cross-col,
+.ops-grid tbody td.cross-col,
+.ops-grid tfoot td.cross-col {
+    background: #ffedd5 !important;
+}
+
+.ops-grid thead th.cross-col {
+    color: #9a3412;
+    box-shadow: inset 0 -3px 0 #F58220;
+}
+
+.ops-grid tbody td.cross-cell {
+    background: #fdba74 !important;
+    box-shadow: inset 0 0 0 2px #F58220;
+    position: relative;
+    z-index: 3;
+}
+
+.ops-grid tbody td.cross-cell.cross-col {
+    background: #fb923c !important;
+}
+
+.ops-grid tbody tr.cross-row > td.cross-cell .grid-input:focus {
+    background: #fff;
 }
 
 .ops-grid .total-qty,

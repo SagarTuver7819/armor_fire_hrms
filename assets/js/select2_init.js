@@ -14,6 +14,17 @@
         return 'Search & select';
     }
 
+    function focusOpenSearch() {
+        var field = document.querySelector('.select2-container--open .select2-search__field');
+        if (!field) return;
+        field.setAttribute('placeholder', 'Type to search…');
+        try {
+            field.focus({ preventScroll: true });
+        } catch (e) {
+            field.focus();
+        }
+    }
+
     function bindSelect2($el) {
         if (!$el.length || $el.hasClass('no-select2') || $el.data('select2')) {
             return;
@@ -34,11 +45,26 @@
         });
     }
 
-    $(document).on('select2:open', function () {
-        var field = document.querySelector('.select2-container--open .select2-search__field');
-        if (field) {
-            field.setAttribute('placeholder', 'Type to search…');
-            setTimeout(function () { field.focus(); }, 0);
+    // Select2 hides the native <select> with aria-hidden; never leave focus on it
+    $(document).on('select2:opening select2:open', function (e) {
+        var el = e.target;
+        if (el && el.blur && document.activeElement === el) {
+            el.blur();
+        }
+        focusOpenSearch();
+        setTimeout(focusOpenSearch, 0);
+    });
+
+    $(document).on('focusin', 'select.select2-hidden-accessible', function (e) {
+        var $sel = $(this);
+        var data = $sel.data('select2');
+        if (!data) return;
+        e.preventDefault();
+        this.blur();
+        if (data.isOpen && data.isOpen()) {
+            focusOpenSearch();
+        } else if (data.$selection && data.$selection.length) {
+            data.$selection.trigger('focus');
         }
     });
 

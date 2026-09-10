@@ -59,12 +59,126 @@
         if (!showOt) $('.ot-field').val('');
         // Action + Sr + Process + (Grade?) + Rate
         $('#tf_grand_total_label').attr('colspan', showG ? 5 : 4);
+        // Cleanup any Select2 leftovers from Grade column when hidden
+        if (!showG) {
+            $('#opsRows .grade-select').each(function () {
+                resetSelect2Artifacts($(this));
+                $(this).closest('td').find('.select2-container').remove();
+            });
+            // Orphan select2 containers that escaped into the row
+            $('#opsRows .ops-row').each(function () {
+                $(this).children('.select2-container').remove();
+            });
+        }
     }
+    /**
+     * Reposition Select2 dropdown under sticky Process/Grade cell.
+     * Styles ONLY body > .select2-container--open — never document.body.
+     * Always open BELOW the field (no flip-above) so DevTools / short viewports
+     * don't park the list over Operation/Name.
+     */
+    var opsDdWatch = null;
+    var opsDdSel = null;
+
+    function repositionOpsDropdown($sel) {
+        try {
+            var data = $sel.data('select2');
+            if (!data || !data.$container || !data.$container.length) return;
+
+            var trigger = data.$container[0];
+            var rect = trigger.getBoundingClientRect();
+            if (!rect || rect.width < 2) return;
+
+            var $shell = $('body > .select2-container--open').filter(function () {
+                return this !== trigger && $(this).find('.select2-dropdown').length;
+            }).last();
+            if (!$shell.length) {
+                $shell = $('body > .select2-container--open').last();
+            }
+            if (!$shell.length) return;
+
+            var el = $shell[0];
+            if (el === document.body || el === document.documentElement) return;
+            if (!el.classList.contains('select2-container')) return;
+
+            var width = Math.max(Math.round(rect.width), 240);
+            var left = rect.left;
+            var top = rect.bottom + 2;
+            var maxLeft = window.innerWidth - width - 8;
+            if (left > maxLeft) left = Math.max(8, maxLeft);
+            if (left < 8) left = 8;
+
+            // Cap list height so it stays on-screen below the field (never flip above)
+            var drop = $shell.children('.select2-dropdown')[0];
+            var maxDropH = Math.max(120, window.innerHeight - top - 12);
+            if (drop) {
+                var results = drop.querySelector('.select2-results__options');
+                if (results) {
+                    results.style.maxHeight = Math.min(280, maxDropH - 42) + 'px';
+                }
+                drop.style.width = width + 'px';
+                drop.style.left = '0';
+                drop.style.right = 'auto';
+            }
+
+            el.style.setProperty('position', 'fixed', 'important');
+            el.style.setProperty('top', top + 'px', 'important');
+            el.style.setProperty('left', left + 'px', 'important');
+            el.style.setProperty('width', width + 'px', 'important');
+            el.style.setProperty('right', 'auto', 'important');
+            el.style.setProperty('bottom', 'auto', 'important');
+            el.style.setProperty('transform', 'none', 'important');
+            el.style.setProperty('z-index', '120600', 'important');
+            el.classList.add('ops-dd-fixed');
+        } catch (err) {
+            if (window.console && console.warn) console.warn('ops dropdown position skipped', err);
+        }
+    }
+
+    function clearOpsDropdownPosition() {
+        $('body > .select2-container.ops-dd-fixed').each(function () {
+            this.classList.remove('ops-dd-fixed');
+            this.style.removeProperty('position');
+            this.style.removeProperty('top');
+            this.style.removeProperty('left');
+            this.style.removeProperty('width');
+            this.style.removeProperty('right');
+            this.style.removeProperty('bottom');
+            this.style.removeProperty('transform');
+            this.style.removeProperty('z-index');
+            var results = this.querySelector('.select2-results__options');
+            if (results) results.style.maxHeight = '';
+        });
+    }
+
+    function startOpsDdWatch($sel) {
+        opsDdSel = $sel;
+        repositionOpsDropdown($sel);
+        if (opsDdWatch) clearInterval(opsDdWatch);
+        // Keep aligned while Select2 / scroll try to move it
+        opsDdWatch = setInterval(function () {
+            if (!opsDdSel || !opsDdSel.data('select2')) {
+                stopOpsDdWatch();
+                return;
+            }
+            repositionOpsDropdown(opsDdSel);
+        }, 50);
+    }
+
+    function stopOpsDdWatch() {
+        opsDdSel = null;
+        if (opsDdWatch) {
+            clearInterval(opsDdWatch);
+            opsDdWatch = null;
+        }
+        clearOpsDropdownPosition();
+    }
+
     function bindRowSelect2($sel, placeholder) {
         if (!$sel.length || !$.fn.select2) return;
         if ($sel.data('select2')) {
-            $sel.off('change.select2ops');
-            $sel.select2('destroy');
+            $sel.off('change.select2ops select2:open.opsDd select2:closing.opsDd');
+            try { $sel.select2('destroy'); } catch (e) { /* ignore */ }
         }
         $sel.removeClass('no-select2');
         $sel.select2({
@@ -77,6 +191,12 @@
                 noResults: function () { return 'No matching option'; },
                 searching: function () { return 'Searching…'; }
             }
+        });
+        $sel.on('select2:open.opsDd', function () {
+            startOpsDdWatch($(this));
+        });
+        $sel.on('select2:closing.opsDd', function () {
+            stopOpsDdWatch();
         });
     }
     function fillProductSelect($sel, selectedId) {
@@ -94,14 +214,22 @@
     function fillGradeSelect($sel, selectedId) {
         if (!$sel.length) return;
         resetSelect2Artifacts($sel);
-        var html = '<option value="">Select Grade</option>';
-        if (showsGrade()) {
-            grades.forEach(function (g) {
-                html += '<option value="' + g.id + '"'
-                    + (String(g.id) === String(selectedId) ? ' selected' : '') + '>'
-                    + $('<div/>').text(g.name).html() + '</option>';
-            });
+        $sel.closest('td').find('.select2-container').remove();
+
+        // Do not init Select2 while Grade column is hidden — causes blank sticky gap
+        if (!showsGrade()) {
+            $sel.html('<option value="">Select Grade</option>');
+            $sel.val('');
+            $sel.closest('tr').find('.row-grade-id').val('0');
+            return;
         }
+
+        var html = '<option value="">Select Grade</option>';
+        grades.forEach(function (g) {
+            html += '<option value="' + g.id + '"'
+                + (String(g.id) === String(selectedId) ? ' selected' : '') + '>'
+                + $('<div/>').text(g.name).html() + '</option>';
+        });
         $sel.html(html);
         bindRowSelect2($sel, 'Select Grade');
         $sel.closest('tr').find('.row-grade-id').val($sel.val() || '0');
@@ -389,6 +517,77 @@
             calculateRowTotals($(this));
         });
     }
+    function clearCrosshair() {
+        $('#opsGrid')
+            .find('.cross-row, .cross-col, .cross-cell')
+            .removeClass('cross-row cross-col cross-cell');
+    }
+
+    function applyCrosshair($el) {
+        clearCrosshair();
+        var $td = $el.closest('td');
+        var $tr = $el.closest('tr.ops-row');
+        if (!$tr.length || !$td.length) {
+            return;
+        }
+        $tr.addClass('cross-row');
+        $td.addClass('cross-cell');
+
+        var day = $td.attr('data-day');
+        if (day) {
+            $('#opsGrid').find('th[data-day="' + day + '"], td[data-day="' + day + '"]').addClass('cross-col');
+        } else if ($td.hasClass('sticky-name')) {
+            $('#opsGrid thead th.sticky-name, #opsGrid tbody td.sticky-name').addClass('cross-col');
+        } else if ($td.hasClass('sticky-grade') || $td.hasClass('td-grade')) {
+            $('#opsGrid thead th.sticky-grade, #opsGrid tbody td.sticky-grade, #opsGrid tbody td.td-grade').addClass('cross-col');
+        } else if ($td.hasClass('sticky-rate')) {
+            $('#opsGrid thead th.sticky-rate, #opsGrid tbody td.sticky-rate').addClass('cross-col');
+        }
+    }
+
+    // Crosshair: full row + full column when cell focused (theme highlight)
+    $('#opsGrid').on('focusin', 'input:not(.select2-hidden-accessible), .select2-selection', function () {
+        applyCrosshair($(this));
+    });
+    $('#opsGrid').on('click', 'td.day-cell, td.sticky-name, td.sticky-grade, td.sticky-rate, td.td-grade', function (e) {
+        if ($(e.target).closest('.select2-container').length) {
+            return;
+        }
+        if ($(e.target).is('input, button')) {
+            return;
+        }
+        var $td = $(this);
+        var $sel = $td.find('select.select2-hidden-accessible').first();
+        if ($sel.length && $sel.data('select2')) {
+            applyCrosshair($sel);
+            $sel.select2('open');
+            return;
+        }
+        var $input = $td.find('input:not([disabled]):not([readonly])').filter(':visible').first();
+        if ($input.length) {
+            $input.trigger('focus');
+        } else {
+            applyCrosshair($td);
+        }
+    });
+    $(document).on('select2:open', '.product-select, .grade-select', function () {
+        applyCrosshair($(this));
+    });
+
+    // Recover if a previous buggy dropdown left body / portal styles broken
+    try {
+        document.body.style.removeProperty('position');
+        document.body.style.removeProperty('top');
+        document.body.style.removeProperty('left');
+        document.body.style.removeProperty('width');
+        document.body.style.removeProperty('right');
+        document.body.style.removeProperty('transform');
+        document.body.classList.remove('ops-select2-fixed', 'ops-dd-fixed');
+        var oldPortal = document.getElementById('opsSelect2Portal');
+        if (oldPortal) oldPortal.remove();
+        stopOpsDdWatch();
+    } catch (e) { /* ignore */ }
+
     applyDayEnable();
     applyOpMode();
     loadProducts();
