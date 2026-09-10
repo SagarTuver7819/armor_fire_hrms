@@ -555,6 +555,7 @@ a {
     left: 0;
     right: 0;
     bottom: 0;
+    z-index: 20;
 }
 
 /* -------------------- Company Settings -------------------- */
@@ -1358,9 +1359,12 @@ input.js-date,
 /* Excel-style monthly attendance grid */
 .excel-att-wrap {
     overflow: auto;
-    max-height: calc(100vh - 280px);
+    max-height: calc(100vh - 340px);
     border: 1px solid #e2e8f0;
     border-radius: 8px;
+    margin-bottom: 8px;
+    background: #fff;
+    -webkit-overflow-scrolling: touch;
 }
 
 .excel-att-table {
@@ -1385,10 +1389,11 @@ input.js-date,
     background: #f1f5f9;
     font-weight: 700;
     text-align: center;
+    box-shadow: 0 1px 0 #e2e8f0;
 }
 
 .excel-att-table thead tr.dayname-row th {
-    top: 28px;
+    top: 30px;
     font-weight: 500;
     color: #64748b;
     font-size: 10px;
@@ -1431,6 +1436,8 @@ input.js-date,
     font-size: 10px;
     font-weight: 600;
     transition: background 0.12s ease;
+    position: relative;
+    z-index: 0;
 }
 
 .excel-att-table td.day-cell:hover {
@@ -1451,6 +1458,20 @@ input.js-date,
 .excel-att-table td.day-cell.is-weekoff { background: #f1f5f9; color: #475569; }
 .excel-att-table td.day-cell.is-holiday { background: #eff6ff; color: #1d4ed8; }
 .excel-att-table td.day-cell.is-absent { background: #fef2f2; color: #991b1b; }
+
+/* Keep save bar in flow — sticky overlay was covering last grid rows */
+.sticky-actions {
+    position: relative;
+    bottom: auto;
+    z-index: 1;
+    background: #fff;
+    padding: 12px 14px;
+    border-radius: 10px;
+    border: 1px solid #eef1f5;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+    margin-top: 12px;
+    margin-bottom: 8px;
+}
 
 .att-cell-modal[hidden] { display: none !important; }
 .att-cell-modal {
@@ -1771,17 +1792,6 @@ body > .select2-container--open {
     color: #334155;
     cursor: pointer;
     margin-bottom: 0;
-}
-
-.sticky-actions {
-    position: sticky;
-    bottom: 8px;
-    background: #fff;
-    padding: 12px 14px;
-    border-radius: 10px;
-    border: 1px solid #eef1f5;
-    box-shadow: 0 -4px 16px rgba(0,0,0,0.04);
-    margin-top: 4px;
 }
 
 .sticky-actions .btn-primary,
@@ -2448,7 +2458,7 @@ body.confirm-modal-open {
 .confirm-modal {
     position: fixed;
     inset: 0;
-    z-index: 9999;
+    z-index: 120500;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -2510,6 +2520,7 @@ body.confirm-modal-open {
     color: #64748b;
     line-height: 1.55;
     margin-bottom: 22px;
+    white-space: pre-line;
 }
 
 .confirm-modal-actions {
@@ -3330,6 +3341,27 @@ body.confirm-modal-open {
     display: none !important;
 }
 
+.ops-grid.show-grade .sticky-grade,
+.ops-grid.show-grade #col_header_grade,
+.ops-grid.show-grade .td-grade {
+    display: table-cell !important;
+}
+
+.ops-grid.show-grade .sticky-name {
+    min-width: 220px;
+    width: 220px;
+}
+
+.ops-grid.show-grade .sticky-grade {
+    left: 306px;
+    min-width: 130px;
+    width: 130px;
+}
+
+.ops-grid.show-grade .sticky-rate {
+    left: 436px;
+}
+
 .ops-grid .product-select,
 .ops-grid .grade-select {
     min-width: 190px;
@@ -3339,6 +3371,30 @@ body.confirm-modal-open {
 
 .ops-grid .grade-select {
     min-width: 112px;
+}
+
+.ops-grid .btn-remove-row {
+    width: 34px;
+    height: 34px;
+    border-radius: 10px;
+    border: 1px solid #fecaca;
+    background: #fff1f2;
+    color: #dc2626;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.ops-grid .btn-remove-row:hover {
+    background: #fee2e2;
+    border-color: #f87171;
+    color: #b91c1c;
+}
+
+.ops-grid .btn-remove-row i {
+    font-size: 14px;
 }
 
 .ops-filter-bar {
@@ -3488,6 +3544,10 @@ body.confirm-modal-open {
 
 .ops-grid.hide-grade #tf_grand_total_label {
     min-width: 424px;
+}
+
+.ops-grid.show-grade #tf_grand_total_label {
+    min-width: 554px;
 }
 
 .sidebar-sublink .fa-circle {

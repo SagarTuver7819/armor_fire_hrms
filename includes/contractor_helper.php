@@ -31,6 +31,30 @@ function contractorHideGradeOps()
     return ['ASS-2', 'BUTTERFLY', 'FOUNDRY', 'CORE'];
 }
 
+/**
+ * Operations that show Grade next to Product (old reference: 304, 202, GUNMETAL, ALUMINIUM)
+ */
+function contractorShowGradeOps()
+{
+    return ['CNC', 'BUFF', 'ARGON WELDING', 'GRINDING'];
+}
+
+function contractorOperationShowsGrade($operation)
+{
+    $op = trim((string) $operation);
+    if ($op === '') {
+        return false;
+    }
+    if (in_array($op, contractorShowGradeOps(), true)) {
+        return true;
+    }
+    // Allow short label "ARGON"
+    if (stripos($op, 'ARGON') === 0) {
+        return true;
+    }
+    return false;
+}
+
 function contractorRepairOps()
 {
     return ['BUFF', 'RRL', 'FLEXIBLE', 'ASS-2', 'COATING', 'FOUNDRY'];

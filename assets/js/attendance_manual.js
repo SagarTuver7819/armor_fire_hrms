@@ -9,7 +9,23 @@
     var tpIn = null;
     var tpOut = null;
 
-    function shiftTimes() {
+    function shiftTimes($ctx) {
+        var $row = null;
+        if ($ctx && $ctx.length) {
+            $row = $ctx.closest('tr.excel-emp-row');
+        } else if ($activeCell && $activeCell.length) {
+            $row = $activeCell.closest('tr.excel-emp-row');
+        }
+        if ($row && $row.length) {
+            var rin = ($row.attr('data-shift-in') || '').toString().trim();
+            var rout = ($row.attr('data-shift-out') || '').toString().trim();
+            if (rin || rout) {
+                return {
+                    inn: rin || (window.ATT_DEFAULT_IN || '9:00 AM').toString(),
+                    out: rout || (window.ATT_DEFAULT_OUT || '6:00 PM').toString()
+                };
+            }
+        }
         var $opt = $('#shiftSelect option:selected');
         return {
             inn: ($opt.data('in') || window.ATT_DEFAULT_IN || '9:00 AM').toString(),
@@ -214,31 +230,46 @@
         $('#mIn, #mOut').closest('.form-group').toggle(showTime || status === '');
     }
 
-    function openModal($td) {
-        destroyModalSelect2();
-        $activeCell = $td;
-        var date = $td.data('date');
-        var day = $td.data('day');
-        var name = $td.closest('tr').find('.sticky-col-2 strong').text();
-        $('#attCellTitle').text(name + ' · Day ' + day + ' (' + date + ')');
+        function formatDateDisplay(ymd) {
+            var s = String(ymd || '');
+            var m = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+            if (m) return m[3] + '-' + m[2] + '-' + m[1];
+            return s;
+        }
 
-        var status = $td.attr('data-status') || '';
-        var inn = $td.attr('data-in') || '';
-        var out = $td.attr('data-out') || '';
-        var lt = $td.attr('data-leave-type') || '';
-        var lh = $td.attr('data-leave-half') || '';
+        function openModal($td) {
+            destroyModalSelect2();
+            $activeCell = $td;
+            var date = $td.data('date');
+            var day = $td.data('day');
+            var name = $td.closest('tr').find('.sticky-col-2 strong').text();
+            $('#attCellTitle').text(name + ' · Day ' + day + ' (' + formatDateDisplay(date) + ')');
 
-        $('#mStatus').val(status);
-        $('#mLeaveType').val(lt);
-        $('#mLeaveHalf').val(lh || (status === 'Leave' ? 'FULL' : 'SHF'));
-        syncModalPreview();
+            var status = $td.attr('data-status') || '';
+            var inn = $td.attr('data-in') || '';
+            var out = $td.attr('data-out') || '';
+            var lt = $td.attr('data-leave-type') || '';
+            var lh = $td.attr('data-leave-half') || '';
+            var t = shiftTimes($td);
 
-        $('#attCellModal').prop('hidden', false);
-        initModalTimePickers();
-        setModalTime('#mIn', inn);
-        setModalTime('#mOut', out);
-        syncModalPreview();
-    }
+            // Empty cell → default Present with employee shift times
+            if (!status) {
+                status = 'Present';
+                if (!inn) inn = t.inn;
+                if (!out) out = t.out;
+            }
+
+            $('#mStatus').val(status);
+            $('#mLeaveType').val(lt);
+            $('#mLeaveHalf').val(lh || (status === 'Leave' ? 'FULL' : 'SHF'));
+            syncModalPreview();
+
+            $('#attCellModal').prop('hidden', false);
+            initModalTimePickers();
+            setModalTime('#mIn', inn);
+            setModalTime('#mOut', out);
+            syncModalPreview();
+        }
 
     function closeModal() {
         // Hide any open round clock overlay
@@ -254,7 +285,7 @@
         var lh = $('#mLeaveHalf').val() || '';
         var inn = $('#mIn').val() || '';
         var out = $('#mOut').val() || '';
-        var t = shiftTimes();
+        var t = shiftTimes($activeCell);
 
         if (status === 'Present') {
             if (!inn) inn = t.inn;
@@ -306,7 +337,11 @@
 
     $(function () {
         if (window.ATT_TOAST && typeof toastr !== 'undefined') {
-            toastr.success(window.ATT_TOAST);
+            if (window.ATT_TOAST_TYPE === 'error') {
+                toastr.error(window.ATT_TOAST);
+            } else {
+                toastr.success(window.ATT_TOAST);
+            }
         }
 
         destroyModalSelect2();
@@ -321,7 +356,7 @@
 
         $('#mStatus, #mLeaveType, #mLeaveHalf').on('change', function () {
             var status = $('#mStatus').val();
-            var t = shiftTimes();
+            var t = shiftTimes($activeCell);
             var lh = $('#mLeaveHalf').val();
             if (status === 'Present') {
                 if (!$('#mIn').val()) setModalTime('#mIn', t.inn);
@@ -363,7 +398,6 @@
         }
 
         $('#btnFillPresent').on('click', function () {
-            var t = shiftTimes();
             var presentN = 0;
             var offN = 0;
             $('#manualAttTable td.day-cell').each(function () {
@@ -374,11 +408,12 @@
                     offN++;
                     return;
                 }
+                var t = shiftTimes($td);
                 writeCell($td, { status: 'Present', in: t.inn, out: t.out, leaveType: '', leaveHalf: '' });
                 presentN++;
             });
             if (typeof toastr !== 'undefined') {
-                toastr.info('Filled Present: ' + presentN + ' · Week Off (employee-wise): ' + offN);
+                toastr.info('Filled Present (employee shift): ' + presentN + ' · Week Off: ' + offN);
             }
         });
 
@@ -398,13 +433,53 @@
             }
         });
 
-        $('#manualAttForm').on('submit', function () {
-            var n = $('#manualAttTable .cell-touched[value="1"]').length;
+        $('#manualAttForm').on('submit', function (e) {
+            var payload = {};
+            var n = 0;
+
+            $('#manualAttTable td.day-cell').each(function () {
+                var $td = $(this);
+                var touched = String($td.find('.cell-touched').val() || '0') === '1';
+                if (!touched) {
+                    $td.find('input').prop('disabled', true);
+                    return;
+                }
+                n++;
+                var emp = String($td.data('emp') || '');
+                var date = String($td.data('date') || '');
+                var row = {
+                    status: $td.find('.cell-status').val() || '',
+                    punch_in: $td.find('.cell-in').val() || '',
+                    punch_out: $td.find('.cell-out').val() || '',
+                    leave_type: $td.find('.cell-leave-type').val() || '',
+                    leave_half: $td.find('.cell-leave-half').val() || '',
+                    touched: '1'
+                };
+                // Do not POST thousands of hidden fields (PHP max_input_vars truncates)
+                $td.find('input').prop('disabled', true);
+                if (!emp || !date) return;
+                if (!payload[emp]) payload[emp] = {};
+                payload[emp][date] = row;
+            });
+
             if (!n) {
-                alert('No cells changed. Click a day cell to edit, then Save.');
+                e.preventDefault();
+                $('#manualAttTable td.day-cell input').prop('disabled', false);
+                alert('No cells changed. Click a day cell to edit (or Fill Present / Week Off), then Save.');
                 return false;
             }
-            return confirm('Save ' + n + ' edited day cell(s)?');
+
+            if (!confirm('Save ' + n + ' edited day cell(s)?')) {
+                e.preventDefault();
+                $('#manualAttTable td.day-cell input').prop('disabled', false);
+                return false;
+            }
+
+            $('#cellsJson').val(JSON.stringify(payload));
+            $('#manualAttForm .js-save-att').prop('disabled', true).each(function () {
+                $(this).html('<i class="fa-solid fa-spinner fa-spin"></i> Saving...');
+            });
+            return true;
         });
     });
 })(jQuery);

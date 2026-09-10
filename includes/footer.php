@@ -31,15 +31,15 @@ require_once __DIR__ . '/../config/app.php';
         </div>
     </div>
 
-    <script src="<?php echo app_url('assets/js/dashboard.js'); ?>"></script>
-    <script src="<?php echo app_url('assets/js/confirm_delete.js'); ?>"></script>
+    <script src="<?php echo app_url('assets/js/dashboard.js'); ?>?v=<?php echo (int) @filemtime(__DIR__ . '/../assets/js/dashboard.js'); ?>"></script>
+    <script src="<?php echo app_url('assets/js/confirm_delete.js'); ?>?v=<?php echo (int) @filemtime(__DIR__ . '/../assets/js/confirm_delete.js'); ?>"></script>
     <?php if (!empty($useSidebar)): ?>
-        <script src="<?php echo app_url('assets/js/sidebar.js'); ?>"></script>
+        <script src="<?php echo app_url('assets/js/sidebar.js'); ?>?v=<?php echo (int) @filemtime(__DIR__ . '/../assets/js/sidebar.js'); ?>"></script>
     <?php endif; ?>
     <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/js/select2.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
-    <script src="<?php echo app_url('assets/js/date_format.js'); ?>"></script>
+    <script src="<?php echo app_url('assets/js/date_format.js'); ?>?v=<?php echo (int) @filemtime(__DIR__ . '/../assets/js/date_format.js'); ?>"></script>
     <?php if (!empty($extraJs) && is_array($extraJs)): ?>
         <?php foreach ($extraJs as $js): ?>
             <?php
@@ -47,10 +47,16 @@ require_once __DIR__ . '/../config/app.php';
             if (strpos($js, 'jquery') !== false && strpos($js, 'dataTables') === false) {
                 continue;
             }
+            $src = (strpos($js, 'http') === 0) ? $js : app_url($js);
+            // Preserve ?v= cache-bust if already present; otherwise add filemtime for local assets
+            if (strpos($js, 'http') !== 0 && strpos($js, '?') === false) {
+                $local = __DIR__ . '/../' . ltrim(explode('?', $js)[0], '/');
+                $src .= '?v=' . (int) @filemtime($local);
+            }
             ?>
-            <script src="<?php echo htmlspecialchars((strpos($js, 'http') === 0) ? $js : app_url($js)); ?>"></script>
+            <script src="<?php echo htmlspecialchars($src); ?>"></script>
         <?php endforeach; ?>
     <?php endif; ?>
-    <script src="<?php echo app_url('assets/js/select2_init.js'); ?>"></script>
+    <script src="<?php echo app_url('assets/js/select2_init.js'); ?>?v=<?php echo (int) @filemtime(__DIR__ . '/../assets/js/select2_init.js'); ?>"></script>
 </body>
 </html>

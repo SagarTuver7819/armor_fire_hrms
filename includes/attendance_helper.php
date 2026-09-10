@@ -967,6 +967,76 @@ function attendanceNormalizeInputTime($time)
 }
 
 /**
+ * Resolve employee In/Out display times from Join Employee shift (master match or shift_time text).
+ * @return array{in:string,out:string,label:string}
+ */
+function attendanceResolveEmployeeShiftTimes(array $emp, array $shifts = [], $fallbackIn = '9:00 AM', $fallbackOut = '6:00 PM')
+{
+    $fallbackIn = trim((string) $fallbackIn) !== '' ? trim((string) $fallbackIn) : '9:00 AM';
+    $fallbackOut = trim((string) $fallbackOut) !== '' ? trim((string) $fallbackOut) : '6:00 PM';
+
+    $shiftType = trim((string) ($emp['shift_type'] ?? ''));
+    $shiftTime = trim((string) ($emp['shift_time'] ?? ''));
+    $inDisp = '';
+    $outDisp = '';
+    $label = '';
+
+    if ($shifts && function_exists('findMatchingShiftId')) {
+        $sid = findMatchingShiftId($shifts, $shiftType !== '' ? $shiftType : 'Day', $shiftTime);
+        if ($sid > 0) {
+            foreach ($shifts as $s) {
+                if ((int) ($s['id'] ?? 0) !== $sid) {
+                    continue;
+                }
+                $inRaw = attendanceTimeForInput($s['start_time'] ?? '');
+                $outRaw = attendanceTimeForInput($s['end_time'] ?? '');
+                if ($inRaw) {
+                    $inDisp = date('g:i A', strtotime($inRaw));
+                }
+                if ($outRaw) {
+                    $outDisp = date('g:i A', strtotime($outRaw));
+                }
+                $label = function_exists('formatShiftOptionLabel') ? formatShiftOptionLabel($s) : (string) ($s['name'] ?? '');
+                break;
+            }
+        }
+    }
+
+    // Parse stored text like "02:00 PM - 10:00 PM" / "9:00 AM - 6:00 PM"
+    if (($inDisp === '' || $outDisp === '') && $shiftTime !== '') {
+        if (preg_match('/(\d{1,2}:\d{2}\s*[AP]M)\s*[-–to]+\s*(\d{1,2}:\d{2}\s*[AP]M)/i', $shiftTime, $m)) {
+            if ($inDisp === '') {
+                $tsIn = strtotime($m[1]);
+                $inDisp = $tsIn ? date('g:i A', $tsIn) : trim($m[1]);
+            }
+            if ($outDisp === '') {
+                $tsOut = strtotime($m[2]);
+                $outDisp = $tsOut ? date('g:i A', $tsOut) : trim($m[2]);
+            }
+            if ($label === '') {
+                $label = $shiftTime . ($shiftType !== '' ? ' · ' . $shiftType : '');
+            }
+        }
+    }
+
+    if ($inDisp === '') {
+        $inDisp = $fallbackIn;
+    }
+    if ($outDisp === '') {
+        $outDisp = $fallbackOut;
+    }
+    if ($label === '') {
+        $label = $inDisp . ' → ' . $outDisp;
+    }
+
+    return [
+        'in' => $inDisp,
+        'out' => $outDisp,
+        'label' => $label,
+    ];
+}
+
+/**
  * Excel-style monthly attendance grid (same as Attendance Report.xlsx)
  * Columns: Code, Name, Designation, Department, DOJ, Days 1-N, PL, SL, C-Off, DL, LWP, Total Days
  *
@@ -1311,8 +1381,9 @@ function attendanceParseLeaveRemark($remarks)
 
 /**
  * Save one employee day from manual department entry
+ * @param bool $syncDiary when false, caller should sync diary once per employee/month
  */
-function attendanceSaveManualDay($conn, $employeeId, $date, $status, $punchIn, $punchOut, $shiftName = null, $remarks = null, $leaveType = null, $leaveHalf = null)
+function attendanceSaveManualDay($conn, $employeeId, $date, $status, $punchIn, $punchOut, $shiftName = null, $remarks = null, $leaveType = null, $leaveHalf = null, $syncDiary = true)
 {
     ensureAttendanceTables($conn);
     $employeeId = (int) $employeeId;
@@ -1402,7 +1473,7 @@ function attendanceSaveManualDay($conn, $employeeId, $date, $status, $punchIn, $
     $upsert->close();
 
     // Sync diary buckets for salary
-    if (function_exists('ensurePayrollDiaryFromAttendance')) {
+    if ($syncDiary && function_exists('ensurePayrollDiaryFromAttendance')) {
         $m = (int) date('n', strtotime($date));
         $y = (int) date('Y', strtotime($date));
         ensurePayrollDiaryFromAttendance($employeeId, $m, $y, $conn);

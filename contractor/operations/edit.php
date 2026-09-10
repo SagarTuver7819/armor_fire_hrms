@@ -19,6 +19,7 @@ $curOp = (string) ($sheet['operation'] ?? 'Lathe Employee wise');
 $curEmp = (int) ($sheet['employee_id'] ?? 0);
 $curMonth = (int) ($sheet['month_no'] ?? date('n'));
 $curYear = (int) ($sheet['year_no'] ?? date('Y'));
+$showGrade = contractorOperationShowsGrade($curOp);
 $items = $sheet['items'] ?? [];
 if (!$items) {
     $items = [[
@@ -38,7 +39,6 @@ $pageTitle = $sheet ? 'Edit Operations Rate List' : 'Add Operations Rate List';
 $useSidebar = true;
 $sidebarMode = 'contractor';
 $sidebarActive = 'contractor_operations';
-$extraJs = ['assets/js/contractor_ops.js'];
 require_once __DIR__ . '/../../includes/header.php';
 $repairJson = json_encode(contractorRepairOps());
 $otJson = json_encode(contractorOtRepairOps());
@@ -110,12 +110,13 @@ $otJson = json_encode(contractorOtRepairOps());
             </div>
 
             <div class="ops-grid-wrap">
-                <table class="ops-grid hide-grade" id="opsGrid">
+                <table class="ops-grid <?php echo $showGrade ? 'show-grade' : 'hide-grade'; ?>" id="opsGrid">
                     <thead>
                         <tr>
                             <th class="sticky-col sticky-action">Action</th>
                             <th class="sticky-col sticky-sr">Sr</th>
                             <th class="sticky-col sticky-name" id="col_header_name">Contract Process</th>
+                            <th class="sticky-col sticky-grade" id="col_header_grade">GRADE</th>
                             <th class="sticky-col sticky-rate">Rate</th>
                             <?php for ($d = 1; $d <= 31; $d++):
                                 $wd = checkdate($curMonth, $d, $curYear) ? date('D', strtotime(sprintf('%04d-%02d-%02d', $curYear, $curMonth, $d))) : '';
@@ -136,10 +137,13 @@ $otJson = json_encode(contractorOtRepairOps());
                     <tbody id="opsRows">
                     <?php foreach ($items as $i => $item):
                         $days = mergeDayMap($item['days'] ?? [], $curMonth, $curYear);
+                        $itemGradeId = (int) ($item['grade_id'] ?? 0);
                         ?>
                         <tr class="ops-row">
                             <td class="sticky-col sticky-action">
-                                <button type="button" class="btn-icon btn-remove-row" title="Remove row"><i class="fa-solid fa-xmark"></i></button>
+                                <button type="button" class="btn-icon btn-remove-row" title="Delete row">
+                                    <i class="fa-solid fa-trash-can"></i>
+                                </button>
                             </td>
                             <td class="sticky-col sticky-sr ops-sr"><?php echo $i + 1; ?></td>
                             <td class="sticky-col sticky-name">
@@ -147,7 +151,12 @@ $otJson = json_encode(contractorOtRepairOps());
                                     <option value="">Select Process</option>
                                 </select>
                                 <input type="hidden" class="row-product-id" value="<?php echo (int) ($item['product_id'] ?? 0); ?>">
-                                <input type="hidden" name="items[<?php echo $i; ?>][grade_id]" class="row-grade-id" value="0">
+                            </td>
+                            <td class="sticky-col sticky-grade td-grade">
+                                <select name="items[<?php echo $i; ?>][grade_id]" class="form-control grade-select">
+                                    <option value="">Select Grade</option>
+                                </select>
+                                <input type="hidden" class="row-grade-id" value="<?php echo $itemGradeId; ?>">
                             </td>
                             <td class="sticky-col sticky-rate">
                                 <input type="number" step="0.01" name="items[<?php echo $i; ?>][rate]" class="form-control grid-input rate" readonly value="<?php echo htmlspecialchars((string) ($item['rate'] ?? 0)); ?>">
@@ -181,7 +190,7 @@ $otJson = json_encode(contractorOtRepairOps());
                     </tbody>
                     <tfoot>
                         <tr>
-                            <td class="sticky-col sticky-action" colspan="4" id="tf_grand_total_label">GRAND TOTAL</td>
+                            <td class="sticky-col sticky-action" colspan="<?php echo $showGrade ? 5 : 4; ?>" id="tf_grand_total_label">GRAND TOTAL</td>
                             <?php for ($d = 1; $d <= 31; $d++): ?>
                                 <td class="day-foot" data-day="<?php echo $d; ?>"></td>
                             <?php endfor; ?>
@@ -206,5 +215,11 @@ $otJson = json_encode(contractorOtRepairOps());
     window.OPS_PRODUCTS_URL = <?php echo json_encode(app_url('contractor/operations/products_json.php')); ?>;
     window.OPS_REPAIR = <?php echo $repairJson; ?>;
     window.OPS_OT_REPAIR = <?php echo $otJson; ?>;
+    window.OPS_GRADE_OPS = <?php echo json_encode(array_values(contractorShowGradeOps())); ?>;
 </script>
-<?php require_once __DIR__ . '/../../includes/footer.php'; ?>
+<?php
+$extraJs = [
+    'assets/js/contractor_ops.js?v=' . (string) @filemtime(__DIR__ . '/../../assets/js/contractor_ops.js'),
+];
+require_once __DIR__ . '/../../includes/footer.php';
+?>

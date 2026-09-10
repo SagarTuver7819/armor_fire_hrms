@@ -9,10 +9,17 @@
     var $ = window.jQuery;
     var repairOps = window.OPS_REPAIR || [];
     var otRepairOps = window.OPS_OT_REPAIR || [];
+    var gradeOps = window.OPS_GRADE_OPS || ['CNC', 'BUFF', 'ARGON WELDING', 'GRINDING'];
     var products = [];
+    var grades = [];
 
     function opVal() {
         return $('#operationSelect').val() || '';
+    }
+    function showsGrade(op) {
+        op = (op || opVal() || '').toString();
+        if (gradeOps.indexOf(op) !== -1) return true;
+        return op.toUpperCase().indexOf('ARGON') === 0;
     }
     function daysInMonth(month, year) {
         return new Date(year, month, 0).getDate();
@@ -41,15 +48,17 @@
         var op = opVal();
         var showR = repairOps.indexOf(op) !== -1;
         var showOt = otRepairOps.indexOf(op) !== -1;
+        var showG = showsGrade(op);
         $('#opsGrid').toggleClass('show-r', showR);
         $('#opsGrid').toggleClass('show-ot', showOt);
-        $('#opsGrid').addClass('hide-grade');
+        $('#opsGrid').toggleClass('show-grade', showG);
+        $('#opsGrid').toggleClass('hide-grade', !showG);
         $('.r-field').prop('readonly', !showR);
         $('.ot-field').prop('readonly', !showOt);
         if (!showR) $('.r-field').val('');
         if (!showOt) $('.ot-field').val('');
-        // Action + Sr + Contract Process + Rate = 4 sticky columns
-        $('#tf_grand_total_label').attr('colspan', 4);
+        // Action + Sr + Process + (Grade?) + Rate
+        $('#tf_grand_total_label').attr('colspan', showG ? 5 : 4);
     }
     function bindRowSelect2($sel, placeholder) {
         if (!$sel.length || !$.fn.select2) return;
@@ -82,16 +91,34 @@
         $sel.html(html);
         bindRowSelect2($sel, 'Select Process');
     }
+    function fillGradeSelect($sel, selectedId) {
+        if (!$sel.length) return;
+        resetSelect2Artifacts($sel);
+        var html = '<option value="">Select Grade</option>';
+        if (showsGrade()) {
+            grades.forEach(function (g) {
+                html += '<option value="' + g.id + '"'
+                    + (String(g.id) === String(selectedId) ? ' selected' : '') + '>'
+                    + $('<div/>').text(g.name).html() + '</option>';
+            });
+        }
+        $sel.html(html);
+        bindRowSelect2($sel, 'Select Grade');
+        $sel.closest('tr').find('.row-grade-id').val($sel.val() || '0');
+    }
     function loadProducts(cb) {
         var op = encodeURIComponent(opVal());
         $.getJSON(window.OPS_PRODUCTS_URL + '?operation=' + op)
             .done(function (data) {
                 products = (data && data.products) ? data.products : (Array.isArray(data) ? data : []);
+                grades = (data && data.grades) ? data.grades : [];
+                applyOpMode();
                 $('#opsRows .ops-row').each(function () {
                     var $row = $(this);
                     var sid = $row.find('.row-product-id').val() || $row.find('.product-select').val();
+                    var gid = $row.find('.row-grade-id').val() || $row.find('.grade-select').val() || '';
                     fillProductSelect($row.find('.product-select'), sid);
-                    $row.find('.row-grade-id').val('0');
+                    fillGradeSelect($row.find('.grade-select'), showsGrade() ? gid : '');
                     var $opt = $row.find('.product-select option:selected');
                     if ($opt.val()) {
                         if (!$row.find('.rate').val() || parseFloat($row.find('.rate').val()) === 0) {
@@ -107,8 +134,10 @@
             })
             .fail(function () {
                 products = [];
+                grades = [];
                 $('#opsRows .ops-row').each(function () {
                     fillProductSelect($(this).find('.product-select'), '');
+                    fillGradeSelect($(this).find('.grade-select'), '');
                 });
             });
     }
@@ -193,6 +222,10 @@
     $('#opsRows').on('change.selectProduct change', '.product-select', function () {
         applyProductToRow($(this).closest('tr'));
     });
+    $('#opsRows').on('change.selectGrade change', '.grade-select', function () {
+        var $row = $(this).closest('tr');
+        $row.find('.row-grade-id').val($(this).val() || '0');
+    });
     $('#opsRows').on('input', '.day-qty, .day-qty-r, .day-qty-ot, .rate', function () {
         calculateRowTotals($(this).closest('tr'));
     });
@@ -209,17 +242,72 @@
             $next.focus().select();
         }
     });
-    $('#opsRows').on('click', '.btn-remove-row', function () {
-        if ($('#opsRows .ops-row').length <= 1) return;
-        var $row = $(this).closest('tr');
-        $row.find('.product-select').each(function () {
-            if ($(this).data('select2')) {
-                $(this).select2('destroy');
-            }
+    function destroyRowSelect2($row) {
+        $row.find('.product-select, .grade-select').each(function () {
+            resetSelect2Artifacts($(this));
         });
+    }
+    function doRemoveRow($row) {
+        destroyRowSelect2($row);
         $row.remove();
         reindex();
         updateGrandTotals();
+    }
+    $('#opsRows').on('click', '.btn-remove-row', function () {
+        if ($('#opsRows .ops-row').length <= 1) {
+            if (window.ConfirmDelete) {
+                window.ConfirmDelete.ask('At least one product row is required.', null, {
+                    title: 'Cannot Delete',
+                    yesLabel: 'OK'
+                });
+            }
+            return;
+        }
+        var $row = $(this).closest('tr');
+        var label = ($row.find('.product-select option:selected').text() || '').trim();
+        if (!label || label === 'Select Process') {
+            label = '';
+        }
+        var msg = 'You Want To Delete This Row?';
+        if (label) {
+            msg += '\n\n' + label;
+        }
+        function runDelete() {
+            doRemoveRow($row);
+        }
+        if (window.ConfirmDelete && typeof window.ConfirmDelete.ask === 'function') {
+            window.ConfirmDelete.ask(msg, runDelete, {
+                title: 'Delete Row?',
+                yesLabel: 'Yes, Delete'
+            });
+            return;
+        }
+        // Last-resort theme modal (never use browser alert)
+        var box = document.createElement('div');
+        box.className = 'confirm-modal';
+        box.innerHTML =
+            '<div class="confirm-modal-backdrop"></div>' +
+            '<div class="confirm-modal-box">' +
+            '<div class="confirm-modal-icon"><i class="fa-solid fa-triangle-exclamation"></i></div>' +
+            '<h3>Delete Row?</h3>' +
+            '<p class="confirm-modal-msg" style="white-space:pre-line;"></p>' +
+            '<div class="confirm-modal-actions">' +
+            '<button type="button" class="btn-secondary js-tmp-cancel">Cancel</button>' +
+            '<button type="button" class="btn-primary js-tmp-yes"><i class="fa-solid fa-trash-can"></i> Yes, Delete</button>' +
+            '</div></div>';
+        box.querySelector('.confirm-modal-msg').textContent = msg;
+        document.body.appendChild(box);
+        document.body.classList.add('confirm-modal-open');
+        function closeTmp() {
+            document.body.classList.remove('confirm-modal-open');
+            box.remove();
+        }
+        box.querySelector('.js-tmp-cancel').onclick = closeTmp;
+        box.querySelector('.confirm-modal-backdrop').onclick = closeTmp;
+        box.querySelector('.js-tmp-yes').onclick = function () {
+            closeTmp();
+            runDelete();
+        };
     });
     function resetSelect2Artifacts($sel) {
         if (!$sel || !$sel.length) return;
@@ -250,20 +338,25 @@
         if (!$first.length) return;
 
         var firstProductId = $first.find('.row-product-id').val() || $first.find('.product-select').val() || '';
-        resetSelect2Artifacts($first.find('.product-select'));
+        var firstGradeId = $first.find('.row-grade-id').val() || $first.find('.grade-select').val() || '';
+        destroyRowSelect2($first);
 
         var $clone = $first.clone(false, false);
         $clone.find('.select2-container').remove();
         clearRowInputs($clone);
-        resetSelect2Artifacts($clone.find('.product-select'));
+        destroyRowSelect2($clone);
         $clone.find('.product-select').empty().append('<option value="">Select Process</option>');
+        $clone.find('.grade-select').empty().append('<option value="">Select Grade</option>');
+        $clone.find('.btn-remove-row').attr('title', 'Delete row')
+            .html('<i class="fa-solid fa-trash-can"></i>');
 
         $('#opsRows').append($clone);
         reindex();
 
-        // Init Select2 only after the row is in the DOM
         fillProductSelect($first.find('.product-select'), firstProductId);
+        fillGradeSelect($first.find('.grade-select'), firstGradeId);
         fillProductSelect($clone.find('.product-select'), '');
+        fillGradeSelect($clone.find('.grade-select'), '');
 
         applyDayEnable();
         applyOpMode();

@@ -6,6 +6,7 @@ $operation = (string) ($_GET['operation'] ?? '');
 $conn = getDBConnection();
 ensureContractorTables($conn);
 $products = getContractorProductsByOperation($operation, $conn);
+$grades = contractorOperationShowsGrade($operation) ? getContractorGrades($conn) : [];
 $conn->close();
 
 $outProducts = [];
@@ -24,7 +25,17 @@ foreach ($products as $r) {
         'rejection_rate' => (float) $r['rejection_rate'],
     ];
 }
+
+$outGrades = [];
+foreach ($grades as $g) {
+    $outGrades[] = [
+        'id' => (int) ($g['id'] ?? 0),
+        'name' => (string) ($g['name'] ?? ''),
+    ];
+}
+
 echo json_encode([
     'products' => $outProducts,
-    'grades' => [],
+    'grades' => $outGrades,
+    'show_grade' => contractorOperationShowsGrade($operation),
 ]);

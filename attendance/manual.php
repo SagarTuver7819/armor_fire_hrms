@@ -101,8 +101,15 @@ $extraCss = [
 require_once __DIR__ . '/../includes/header.php';
 
 $toast = '';
+$toastType = 'success';
 if (isset($_GET['msg']) && $_GET['msg'] === 'saved') {
     $toast = 'Manual attendance saved for ' . (int) ($_GET['count'] ?? 0) . ' day cell(s).';
+} elseif (isset($_GET['msg']) && $_GET['msg'] === 'error') {
+    $toastType = 'error';
+    $err = (string) ($_GET['err'] ?? '');
+    $toast = $err === 'nocells'
+        ? 'Nothing to save. Edit cells (or Fill Present / Week Off), then Save again.'
+        : 'Could not save attendance. Please try again.';
 }
 ?>
 
@@ -133,7 +140,7 @@ if (isset($_GET['msg']) && $_GET['msg'] === 'saved') {
         <div class="form-page-header">
             <div>
                 <h1>Manual Attendance</h1>
-                <p>All employees ek saath · Same Excel format · Click day cell for In/Out or Leave · Export same format</p>
+                <p>All employees ek saath · Employee-wise shift + week-off · Fill Present one click · Cell click thi edit · Export Excel format</p>
             </div>
         </div>
 
@@ -169,7 +176,7 @@ if (isset($_GET['msg']) && $_GET['msg'] === 'saved') {
                     </select>
                 </div>
                 <div class="form-group">
-                    <label>Default Shift (for times)</label>
+                    <label>Fallback Shift (if employee shift missing)</label>
                     <select name="shift_id" id="shiftSelect" class="form-control">
                         <?php foreach ($shifts as $s): ?>
                             <?php
@@ -212,15 +219,16 @@ if (isset($_GET['msg']) && $_GET['msg'] === 'saved') {
                 <input type="hidden" name="year" value="<?php echo $year; ?>">
                 <input type="hidden" name="shift_id" value="<?php echo $shiftId; ?>">
                 <input type="hidden" name="shift_name" value="<?php echo htmlspecialchars($shiftName); ?>">
+                <input type="hidden" name="cells_json" id="cellsJson" value="">
 
                 <div class="form-actions" style="margin-bottom:12px; gap:8px; flex-wrap:wrap;">
                     <button type="button" class="btn-secondary" id="btnFillPresent">
-                        <i class="fa-solid fa-check"></i> Fill Empty = Present (shift time)
+                        <i class="fa-solid fa-check"></i> Fill Empty = Present (employee shift)
                     </button>
                     <button type="button" class="btn-secondary" id="btnFillWeekOff">
                         <i class="fa-solid fa-calendar-week"></i> Mark Week Off (employee-wise)
                     </button>
-                    <button type="submit" class="btn-primary">
+                    <button type="submit" class="btn-primary js-save-att" id="btnSaveAttendance">
                         <i class="fa-solid fa-floppy-disk"></i> Save Attendance
                     </button>
                 </div>
@@ -265,12 +273,20 @@ if (isset($_GET['msg']) && $_GET['msg'] === 'saved') {
                             if ($empWeekOff === '') {
                                 $empWeekOff = 'Sunday';
                             }
+                            $empShift = attendanceResolveEmployeeShiftTimes($emp, $shifts, $defaultInDisp, $defaultOutDisp);
                             ?>
-                            <tr class="excel-emp-row" data-emp="<?php echo $eid; ?>" data-week-off="<?php echo htmlspecialchars($empWeekOff); ?>">
+                            <tr class="excel-emp-row"
+                                data-emp="<?php echo $eid; ?>"
+                                data-week-off="<?php echo htmlspecialchars($empWeekOff); ?>"
+                                data-shift-in="<?php echo htmlspecialchars($empShift['in']); ?>"
+                                data-shift-out="<?php echo htmlspecialchars($empShift['out']); ?>">
                                 <td class="sticky-col"><span class="code-badge"><?php echo htmlspecialchars($emp['employee_code']); ?></span></td>
                                 <td class="sticky-col-2">
                                     <strong><?php echo htmlspecialchars($emp['employee_name']); ?></strong>
-                                    <div class="form-hint" style="margin:2px 0 0;font-size:11px;">Off: <?php echo htmlspecialchars($empWeekOff); ?></div>
+                                    <div class="form-hint" style="margin:2px 0 0;font-size:11px;">
+                                        Off: <?php echo htmlspecialchars($empWeekOff); ?>
+                                        · <?php echo htmlspecialchars($empShift['in'] . ' → ' . $empShift['out']); ?>
+                                    </div>
                                 </td>
                                 <td><?php echo htmlspecialchars($emp['designation'] ?: '-'); ?></td>
                                 <td><?php echo htmlspecialchars($emp['department_name'] ?: '-'); ?></td>
@@ -337,12 +353,6 @@ if (isset($_GET['msg']) && $_GET['msg'] === 'saved') {
                     <code>PL</code>/<code>SL</code> ·
                     <code>week off</code>
                 </div>
-
-                <div class="form-actions sticky-actions">
-                    <button type="submit" class="btn-primary">
-                        <i class="fa-solid fa-floppy-disk"></i> Save Attendance
-                    </button>
-                </div>
             </form>
         <?php endif; ?>
     </div>
@@ -357,9 +367,9 @@ if (isset($_GET['msg']) && $_GET['msg'] === 'saved') {
             <div class="form-group">
                 <label>Status</label>
                 <select id="mStatus" class="form-control no-select2">
-                    <option value="Present">Present (full day)</option>
+                    <option value="Present">Present</option>
                     <option value="Half Day">Half Day + Leave</option>
-                    <option value="Leave">Leave (full day)</option>
+                    <option value="Leave">Leave</option>
                     <option value="Week Off">Week Off</option>
                     <option value="Holiday">Holiday</option>
                     <option value="Absent">Absent</option>
@@ -411,13 +421,14 @@ window.ATT_DEFAULT_OUT = <?php echo json_encode($defaultOutDisp); ?>;
 window.ATT_MONTH_DAYS = <?php echo (int) $monthDays; ?>;
 <?php if ($toast): ?>
 window.ATT_TOAST = <?php echo json_encode($toast); ?>;
+window.ATT_TOAST_TYPE = <?php echo json_encode($toastType); ?>;
 <?php endif; ?>
 </script>
 <?php
 $extraJs = [
     'https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.js',
     'https://cdn.jsdelivr.net/npm/@dmuy/timepicker@2.0.1/dist/mdtimepicker.min.js',
-    'assets/js/attendance_manual.js',
+    'assets/js/attendance_manual.js?v=' . (string) @filemtime(__DIR__ . '/../assets/js/attendance_manual.js'),
 ];
 require_once __DIR__ . '/../includes/footer.php';
 ?>
