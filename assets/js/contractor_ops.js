@@ -60,13 +60,13 @@
         if (!showR) $('.r-field').val('');
         if (!showOt) $('.ot-field').val('');
 
-        // Foundry: D / N (+ Qty). Other repair ops: Q / R
+        // Foundry: D / N with separate Day Qty Total & Night Qty Total (not combined)
         $('.q-lab').text(isFoundry ? 'D' : 'Q');
         $('.r-lab').text(isFoundry ? 'N' : 'R');
-        $('#th_total_qty').text(isFoundry ? 'Qty' : 'TOTAL QTY');
-        $('#th_total_r').text(isFoundry ? 'TOTAL N' : 'TOTAL R');
-        $('#sum_qty_lab').text('Qty');
-        $('#sum_r_lab').text(isFoundry ? 'N' : 'R');
+        $('#th_total_qty').text(isFoundry ? 'Day Qty Total' : 'TOTAL QTY');
+        $('#th_total_r').text(isFoundry ? 'Night Qty Total' : 'TOTAL R');
+        $('#sum_qty_lab').text(isFoundry ? 'Day Qty Total' : 'Qty');
+        $('#sum_r_lab').text(isFoundry ? 'Night Qty Total' : 'R');
 
         // Action + Sr + Process + (Grade?) + Rate
         $('#tf_grand_total_label').attr('colspan', showG ? 5 : 4);
@@ -279,12 +279,40 @@
 
     function fillProductSelect($sel, selectedId) {
         if (!$sel.length) return;
+        var prevLabel = '';
+        if (selectedId) {
+            prevLabel = ($sel.find('option:selected').text() || '').trim();
+            if (!prevLabel) {
+                prevLabel = ($sel.closest('td').find('.ops-combo-label').text() || '').trim();
+            }
+        }
         var html = '<option value="">Select Process</option>';
+        var hasSelected = false;
         products.forEach(function (p) {
+            var selAttr = String(p.id) === String(selectedId) ? ' selected' : '';
+            if (selAttr) hasSelected = true;
             html += '<option value="' + p.id + '" data-rate="' + p.rate + '" data-ot="' + p.ot_rate + '" data-rej="' + p.rejection_rate + '" data-process="' + (p.process || '') + '"'
-                + (String(p.id) === String(selectedId) ? ' selected' : '') + '>'
+                + selAttr + '>'
                 + $('<div/>').text(p.name).html() + '</option>';
         });
+        // Old duplicate product id → map to unique label match
+        if (selectedId && !hasSelected && prevLabel) {
+            products.forEach(function (p) {
+                if (hasSelected) return;
+                if (String(p.name).toLowerCase() === String(prevLabel).toLowerCase()) {
+                    selectedId = p.id;
+                    hasSelected = true;
+                }
+            });
+            if (hasSelected) {
+                html = '<option value="">Select Process</option>';
+                products.forEach(function (p) {
+                    html += '<option value="' + p.id + '" data-rate="' + p.rate + '" data-ot="' + p.ot_rate + '" data-rej="' + p.rejection_rate + '" data-process="' + (p.process || '') + '"'
+                        + (String(p.id) === String(selectedId) ? ' selected' : '') + '>'
+                        + $('<div/>').text(p.name).html() + '</option>';
+                });
+            }
+        }
         $sel.html(html);
         if (selectedId) $sel.val(String(selectedId));
         bindOpsCombo($sel, 'Select Process');
@@ -368,9 +396,9 @@
             });
         }
         var totalQty = normalQty + otQty;
-        // Foundry: Qty = D + N (stored as q + r)
+        // Foundry: show Day & Night separately (not combined as one Qty)
         if (op === 'FOUNDRY') {
-            totalQty = normalQty + rQty;
+            totalQty = normalQty;
         }
         $row.find('.total-qty').val(parseFloat(totalQty.toFixed(2)));
         $row.find('.total-r').val(parseFloat(rQty.toFixed(2)));
