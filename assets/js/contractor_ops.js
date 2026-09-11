@@ -46,17 +46,28 @@
     }
     function applyOpMode() {
         var op = opVal();
+        var isFoundry = op === 'FOUNDRY';
         var showR = repairOps.indexOf(op) !== -1;
         var showOt = otRepairOps.indexOf(op) !== -1;
         var showG = showsGrade(op);
         $('#opsGrid').toggleClass('show-r', showR);
         $('#opsGrid').toggleClass('show-ot', showOt);
+        $('#opsGrid').toggleClass('show-foundry', isFoundry);
         $('#opsGrid').toggleClass('show-grade', showG);
         $('#opsGrid').toggleClass('hide-grade', !showG);
         $('.r-field').prop('readonly', !showR);
         $('.ot-field').prop('readonly', !showOt);
         if (!showR) $('.r-field').val('');
         if (!showOt) $('.ot-field').val('');
+
+        // Foundry: D / N (+ Qty). Other repair ops: Q / R
+        $('.q-lab').text(isFoundry ? 'D' : 'Q');
+        $('.r-lab').text(isFoundry ? 'N' : 'R');
+        $('#th_total_qty').text(isFoundry ? 'Qty' : 'TOTAL QTY');
+        $('#th_total_r').text(isFoundry ? 'TOTAL N' : 'TOTAL R');
+        $('#sum_qty_lab').text('Qty');
+        $('#sum_r_lab').text(isFoundry ? 'N' : 'R');
+
         // Action + Sr + Process + (Grade?) + Rate
         $('#tf_grand_total_label').attr('colspan', showG ? 5 : 4);
         // Cleanup Select2 leftovers / custom combo when Grade column hidden
@@ -68,6 +79,7 @@
                 $(this).children('.select2-container').remove();
             });
         }
+        updateGrandTotals();
     }
 
     /* ========== Custom searchable combo (NO Select2 in sticky grid) ========== */
@@ -356,6 +368,10 @@
             });
         }
         var totalQty = normalQty + otQty;
+        // Foundry: Qty = D + N (stored as q + r)
+        if (op === 'FOUNDRY') {
+            totalQty = normalQty + rQty;
+        }
         $row.find('.total-qty').val(parseFloat(totalQty.toFixed(2)));
         $row.find('.total-r').val(parseFloat(rQty.toFixed(2)));
         var totalAmt = 0;
@@ -369,17 +385,38 @@
         $row.find('.total-amount').val(totalAmt.toFixed(2));
         updateGrandTotals();
     }
+    function fmtFoot(v) {
+        v = parseFloat(v) || 0;
+        return v ? parseFloat(v.toFixed(2)) : '';
+    }
     function updateGrandTotals() {
+        var op = opVal();
+        var showR = repairOps.indexOf(op) !== -1;
+        var showOt = otRepairOps.indexOf(op) !== -1;
         var gQty = 0, gR = 0, gAmt = 0;
-        var dayQty = {};
+        var dayQ = {};
+        var dayR = {};
+        var dayOt = {};
         $('#opsRows .ops-row').each(function () {
             gQty += parseFloat($(this).find('.total-qty').val()) || 0;
             gR += parseFloat($(this).find('.total-r').val()) || 0;
             gAmt += parseFloat($(this).find('.total-amount').val()) || 0;
             $(this).find('.day-qty').each(function () {
                 var d = $(this).closest('.day-cell').attr('data-day');
-                dayQty[d] = (dayQty[d] || 0) + (parseFloat($(this).val()) || 0);
+                dayQ[d] = (dayQ[d] || 0) + (parseFloat($(this).val()) || 0);
             });
+            if (showR) {
+                $(this).find('.day-qty-r').each(function () {
+                    var d = $(this).closest('.day-cell').attr('data-day');
+                    dayR[d] = (dayR[d] || 0) + (parseFloat($(this).val()) || 0);
+                });
+            }
+            if (showOt) {
+                $(this).find('.day-qty-ot').each(function () {
+                    var d = $(this).closest('.day-cell').attr('data-day');
+                    dayOt[d] = (dayOt[d] || 0) + (parseFloat($(this).val()) || 0);
+                });
+            }
         });
         $('#tf_total_qty').text(parseFloat(gQty.toFixed(2)));
         $('#tf_total_r').text(parseFloat(gR.toFixed(2)));
@@ -389,8 +426,18 @@
         $('#sum_amt').text(gAmt.toFixed(2));
         $('.day-foot').each(function () {
             var d = $(this).attr('data-day');
-            var v = dayQty[d] || 0;
-            $(this).text(v ? parseFloat(v.toFixed(2)) : '');
+            var $q = $(this).find('.foot-q');
+            var $r = $(this).find('.foot-r');
+            var $ot = $(this).find('.foot-ot');
+            if (!$q.length) {
+                // fallback for old markup
+                var onlyQ = dayQ[d] || 0;
+                $(this).text(onlyQ ? parseFloat(onlyQ.toFixed(2)) : '');
+                return;
+            }
+            $q.text(fmtFoot(dayQ[d]));
+            $r.text(showR ? fmtFoot(dayR[d]) : '');
+            $ot.text(showOt ? fmtFoot(dayOt[d]) : '');
         });
     }
     function reindex() {

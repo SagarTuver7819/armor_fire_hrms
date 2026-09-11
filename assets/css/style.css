@@ -3795,18 +3795,36 @@ body > .select2-container .select2-dropdown {
 .ops-grid .r-field,
 .ops-grid .ot-field,
 .ops-grid .r-lab,
-.ops-grid .ot-lab {
+.ops-grid .ot-lab,
+.ops-grid .foot-r,
+.ops-grid .foot-ot {
     display: none;
 }
 
 .ops-grid.show-r .r-field,
-.ops-grid.show-r .r-lab {
+.ops-grid.show-r .r-lab,
+.ops-grid.show-r .foot-r {
     display: inline-block;
 }
 
 .ops-grid.show-ot .ot-field,
-.ops-grid.show-ot .ot-lab {
+.ops-grid.show-ot .ot-lab,
+.ops-grid.show-ot .foot-ot {
     display: inline-block;
+}
+
+.ops-grid .foot-totals {
+    font-size: 11px;
+    font-weight: 800;
+    color: #9a3412;
+    min-height: 18px;
+}
+
+.ops-grid .foot-q,
+.ops-grid .foot-r,
+.ops-grid .foot-ot {
+    min-width: 28px;
+    text-align: center;
 }
 
 .ops-grid.show-r .day-head,

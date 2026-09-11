@@ -103,8 +103,8 @@ $otJson = json_encode(contractorOtRepairOps());
             <div class="ops-toolbar">
                 <button type="button" class="btn-primary" id="btnAddProduct"><i class="fa-solid fa-plus"></i> Add Product Row</button>
                 <div class="ops-live-summary">
-                    <span class="ops-chip">Qty <b id="sum_qty">0</b></span>
-                    <span class="ops-chip">R <b id="sum_r">0</b></span>
+                    <span class="ops-chip"><span id="sum_qty_lab">Qty</span> <b id="sum_qty">0</b></span>
+                    <span class="ops-chip"><span id="sum_r_lab">R</span> <b id="sum_r">0</b></span>
                     <span class="ops-chip amt">Amount <b id="sum_amt">0.00</b></span>
                 </div>
             </div>
@@ -124,7 +124,7 @@ $otJson = json_encode(contractorOtRepairOps());
                                 <th class="day-head" data-day="<?php echo $d; ?>">
                                     <span class="day-no"><?php echo $d; ?></span>
                                     <span class="day-wd"><?php echo htmlspecialchars($wd); ?></span>
-                                    <div class="ops-subhead"><span>Q</span><span class="r-lab">R</span><span class="ot-lab">OT</span></div>
+                                    <div class="ops-subhead"><span class="q-lab">Q</span><span class="r-lab">R</span><span class="ot-lab">OT</span></div>
                                 </th>
                             <?php endfor; ?>
                             <th id="th_total_qty">TOTAL QTY</th>
@@ -192,7 +192,13 @@ $otJson = json_encode(contractorOtRepairOps());
                         <tr>
                             <td class="sticky-col sticky-action" colspan="<?php echo $showGrade ? 5 : 4; ?>" id="tf_grand_total_label">GRAND TOTAL</td>
                             <?php for ($d = 1; $d <= 31; $d++): ?>
-                                <td class="day-foot" data-day="<?php echo $d; ?>"></td>
+                                <td class="day-foot" data-day="<?php echo $d; ?>">
+                                    <div class="ops-day-triple foot-totals">
+                                        <span class="foot-q"></span>
+                                        <span class="foot-r"></span>
+                                        <span class="foot-ot"></span>
+                                    </div>
+                                </td>
                             <?php endfor; ?>
                             <td id="tf_total_qty">0</td>
                             <td id="tf_total_r">0</td>

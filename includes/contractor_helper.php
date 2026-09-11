@@ -397,7 +397,9 @@ function calculateContractorRow($operation, $rate, $otRate, $rejRate, array $day
     $totalQty = $normalQty + $otQty;
     $amount = 0.0;
     if ($operation === 'FOUNDRY') {
-        $amount = ($normalQty + $rQty) * $rate;
+        // Foundry uses D + N (stored as q + r); Qty = D + N
+        $totalQty = $normalQty + $rQty;
+        $amount = $totalQty * $rate;
     } elseif (in_array($operation, $repairOps, true)) {
         $amount = ($normalQty * $rate) + ($rQty * $rejRate) + ($otQty * $otRate);
     } else {
