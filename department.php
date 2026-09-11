@@ -116,7 +116,7 @@ $exitEmpCount = $department ? countExitEmployeesByDepartment($department['id']) 
                         <i class="fa-solid fa-gears"></i>
                     </div>
                     <div class="module-label">Jobwork Entry</div>
-                    <div class="module-meta">Qty × Rate</div>
+                    <div class="module-meta">Manual + Ops Rate List · Qty × Rate</div>
                 </a>
                 <a href="<?php echo app_url('payroll/generate.php?department_id=' . (int) $department['id']); ?>" class="module-card">
                     <div class="module-icon" style="background-color: #16A085;">

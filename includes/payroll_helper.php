@@ -290,6 +290,141 @@ function getJobworkEntryTotal($employeeId, $month, $year)
     return (float) ($row['total'] ?? 0);
 }
 
+/**
+ * Department Jobwork Entry list = manual jobwork_entries + Operations Rate List daily rows.
+ *
+ * @return array<int, array<string, mixed>>
+ */
+function getDepartmentJobworkList($departmentId, $month, $year)
+{
+    $departmentId = (int) $departmentId;
+    $month = (int) $month;
+    $year = (int) $year;
+    if ($departmentId <= 0 || $month < 1 || $month > 12 || $year < 2000) {
+        return [];
+    }
+
+    $from = sprintf('%04d-%02d-01', $year, $month);
+    $to = date('Y-m-t', strtotime($from));
+    $rows = [];
+
+    $conn = getDBConnection();
+    ensurePayrollTables($conn);
+
+    $lq = $conn->prepare(
+        "SELECT j.id, j.work_date, j.item_name, j.quantity, j.rate, j.amount, j.remarks,
+                e.employee_code, e.employee_name
+         FROM jobwork_entries j
+         INNER JOIN employees e ON e.id = j.employee_id
+         WHERE e.department_id = ? AND j.work_date BETWEEN ? AND ?
+         ORDER BY j.work_date DESC, j.id DESC"
+    );
+    $lq->bind_param('iss', $departmentId, $from, $to);
+    $lq->execute();
+    $manual = $lq->get_result()->fetch_all(MYSQLI_ASSOC);
+    $lq->close();
+
+    foreach ($manual as $row) {
+        $rows[] = [
+            'source' => 'manual',
+            'id' => (int) $row['id'],
+            'work_date' => $row['work_date'],
+            'employee_code' => $row['employee_code'],
+            'employee_name' => $row['employee_name'],
+            'item_name' => $row['item_name'] ?: '-',
+            'quantity' => (float) $row['quantity'],
+            'rate' => (float) $row['rate'],
+            'amount' => (float) $row['amount'],
+            'sheet_id' => 0,
+            'sort_ts' => strtotime((string) $row['work_date']) . '-' . str_pad((string) $row['id'], 8, '0', STR_PAD_LEFT),
+        ];
+    }
+
+    if (is_file(__DIR__ . '/contractor_helper.php')) {
+        require_once __DIR__ . '/contractor_helper.php';
+        ensureContractorTables($conn);
+
+        $oq = $conn->prepare(
+            "SELECT s.id AS sheet_id, s.employee_id, s.operation, s.month_no, s.year_no,
+                    i.product_id, i.rate, i.ot_rate, i.rejection_rate, i.days_json,
+                    e.employee_code, e.employee_name,
+                    COALESCE(NULLIF(TRIM(p.process), ''), NULLIF(TRIM(p.product_name), ''), CONCAT('Product #', i.product_id)) AS product_label
+             FROM contractor_operation_sheets s
+             INNER JOIN employees e ON e.id = s.employee_id
+             INNER JOIN contractor_operation_items i ON i.sheet_id = s.id
+             LEFT JOIN contractor_products p ON p.id = i.product_id
+             LEFT JOIN contractor_employment em ON em.employee_id = e.id AND em.status = 1
+             WHERE s.month_no = ? AND s.year_no = ? AND s.status = 1
+               AND (e.department_id = ? OR em.department_id = ?)
+             ORDER BY e.employee_code ASC, i.sort_order ASC, i.id ASC"
+        );
+        $oq->bind_param('iiii', $month, $year, $departmentId, $departmentId);
+        $oq->execute();
+        $orl = $oq->get_result()->fetch_all(MYSQLI_ASSOC);
+        $oq->close();
+
+        foreach ($orl as $item) {
+            $days = json_decode((string) ($item['days_json'] ?? '{}'), true);
+            if (!is_array($days)) {
+                $days = [];
+            }
+            $operation = (string) ($item['operation'] ?? '');
+            $rate = (float) ($item['rate'] ?? 0);
+            $otRate = (float) ($item['ot_rate'] ?? 0);
+            $rejRate = (float) ($item['rejection_rate'] ?? 0);
+            $label = trim((string) ($item['product_label'] ?? ''));
+            if ($label === '') {
+                $label = 'Product #' . (int) ($item['product_id'] ?? 0);
+            }
+            if ($operation !== '') {
+                $label .= ' · ' . $operation;
+            }
+
+            foreach ($days as $dayNo => $cell) {
+                if (!is_array($cell)) {
+                    continue;
+                }
+                $q = (float) ($cell['q'] ?? 0);
+                $rQty = (float) ($cell['r'] ?? 0);
+                $ot = (float) ($cell['ot'] ?? 0);
+                if (($q + $rQty + $ot) <= 0) {
+                    continue;
+                }
+                $d = (int) $dayNo;
+                if ($d < 1 || $d > 31) {
+                    continue;
+                }
+                $workDate = sprintf('%04d-%02d-%02d', $year, $month, $d);
+                if (!checkdate($month, $d, $year)) {
+                    continue;
+                }
+                $calc = calculateContractorRow($operation, $rate, $otRate, $rejRate, [(string) $d => $cell]);
+                $rows[] = [
+                    'source' => 'operations',
+                    'id' => 0,
+                    'work_date' => $workDate,
+                    'employee_code' => $item['employee_code'],
+                    'employee_name' => $item['employee_name'],
+                    'item_name' => $label,
+                    'quantity' => (float) ($calc['total_qty'] ?? ($q + $ot)),
+                    'rate' => $rate,
+                    'amount' => (float) ($calc['total_amount'] ?? 0),
+                    'sheet_id' => (int) ($item['sheet_id'] ?? 0),
+                    'sort_ts' => strtotime($workDate) . '-o' . str_pad((string) ($item['sheet_id'] ?? 0), 6, '0', STR_PAD_LEFT) . str_pad((string) $d, 2, '0', STR_PAD_LEFT),
+                ];
+            }
+        }
+    }
+
+    $conn->close();
+
+    usort($rows, static function ($a, $b) {
+        return strcmp((string) ($b['sort_ts'] ?? ''), (string) ($a['sort_ts'] ?? ''));
+    });
+
+    return $rows;
+}
+
 function getJobworkTotal($employeeId, $month, $year)
 {
     $cache = jobworkMonthCache($month, $year);
