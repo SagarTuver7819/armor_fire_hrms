@@ -1209,16 +1209,11 @@ function attendanceRenderExcelMonthTableHtml(array $grid, array $opts = [])
     $html .= '<tr>';
     $html .= '<th>Employee Code</th><th>Employee Name</th><th>Designation</th><th>Department</th><th>Date of Joining</th>';
     for ($d = 1; $d <= $monthDays; $d++) {
-        $html .= '<th style="text-align:center;">' . $d . '</th>';
+        $thStyle = $export ? 'text-align:center;font-weight:700;background:#1e3a5f;color:#fff;' : 'text-align:center;';
+        $html .= '<th style="' . $thStyle . '">' . $d . '<br><span style="font-weight:500;font-size:10px;opacity:0.9;">' . htmlspecialchars($dayNames[$d]) . '</span></th>';
     }
-    $html .= '<th>PL</th><th>SL</th><th>C-Off</th><th>DL</th><th>LWP</th><th>Total Days</th>';
-    $html .= '</tr>';
-    $html .= '<tr>';
-    $html .= '<th></th><th></th><th></th><th></th><th></th>';
-    for ($d = 1; $d <= $monthDays; $d++) {
-        $html .= '<th style="text-align:center;font-weight:500;">' . htmlspecialchars($dayNames[$d]) . '</th>';
-    }
-    $html .= '<th></th><th></th><th></th><th></th><th></th><th style="text-align:center;">' . $monthDays . '</th>';
+    $sumStyle = $export ? 'text-align:center;font-weight:700;background:#f58220;color:#fff;' : 'text-align:center;';
+    $html .= '<th style="' . $sumStyle . '">PL</th><th style="' . $sumStyle . '">SL</th><th style="' . $sumStyle . '">C-Off</th><th style="' . $sumStyle . '">DL</th><th style="' . $sumStyle . '">LWP</th><th style="' . $sumStyle . '">Total Days</th>';
     $html .= '</tr></thead><tbody>';
 
     if (!$employees) {
@@ -1246,24 +1241,7 @@ function attendanceRenderExcelMonthTableHtml(array $grid, array $opts = [])
         for ($d = 1; $d <= $monthDays; $d++) {
             $date = sprintf('%04d-%02d-%02d', $year, $month, $d);
             $day = $dayMap[$eid][$date] ?? null;
-            $text = $day ? attendanceDayToExcelText($day) : '';
-            $status = (string) ($day['day_status'] ?? '');
-            $bg = '';
-            if ($status === 'Present') {
-                $bg = 'background:#ecfdf5;';
-            } elseif ($status === 'Half Day') {
-                $bg = 'background:#fff7ed;';
-            } elseif ($status === 'Leave') {
-                $bg = 'background:#fef2f2;';
-            } elseif ($status === 'Week Off') {
-                $bg = 'background:#f1f5f9;';
-            } elseif ($status === 'Holiday') {
-                $bg = 'background:#eff6ff;';
-            } elseif ($status === 'Absent') {
-                $bg = 'background:#fef2f2;';
-            }
-            $cellInner = $text !== '' ? nl2br(htmlspecialchars($text)) : ($export ? '' : '');
-            $html .= '<td style="text-align:center;font-size:11px;white-space:pre-line;' . $bg . '">' . $cellInner . '</td>';
+            $html .= attendanceRenderDayCellTd($day, $export);
         }
 
         $html .= '<td style="text-align:center;">' . htmlspecialchars(attendanceFormatLeaveTotal($totals['PL'] ?? 0)) . '</td>';
@@ -1277,6 +1255,92 @@ function attendanceRenderExcelMonthTableHtml(array $grid, array $opts = [])
 
     $html .= '</tbody></table>';
     return $html;
+}
+
+/**
+ * One day cell for report / export — bold status labels, FHL/SHL + punch line
+ */
+function attendanceRenderDayCellTd($day, $export = false)
+{
+    $text = $day ? attendanceDayToExcelText($day) : '';
+    $status = (string) ($day['day_status'] ?? '');
+    $parsed = attendanceParseLeaveRemark($day['remarks'] ?? '');
+    $half = strtoupper((string) ($parsed['leave_half'] ?? ''));
+    if ($half === 'FHF') {
+        $half = 'FHL';
+    }
+    if ($half === 'SHF') {
+        $half = 'SHL';
+    }
+
+    $cssClass = 'att-day';
+    $bg = '';
+    $fg = '';
+    if ($status === 'Present') {
+        $cssClass .= ' is-present';
+        $bg = '#ecfdf5';
+        $fg = '#047857';
+    } elseif ($status === 'Half Day' || in_array($half, ['FHL', 'SHL'], true)) {
+        $cssClass .= ' is-half';
+        $bg = '#fff7ed';
+        $fg = '#c2410c';
+    } elseif ($status === 'Leave') {
+        $cssClass .= ' is-leave';
+        $bg = '#fef2f2';
+        $fg = '#b91c1c';
+    } elseif ($status === 'Week Off') {
+        $cssClass .= ' is-weekoff';
+        $bg = '#f1f5f9';
+        $fg = '#475569';
+    } elseif ($status === 'Holiday') {
+        $cssClass .= ' is-holiday';
+        $bg = '#eff6ff';
+        $fg = '#1d4ed8';
+    } elseif ($status === 'Absent') {
+        $cssClass .= ' is-absent';
+        $bg = '#fee2e2';
+        $fg = '#991b1b';
+    }
+
+    $lines = $text !== '' ? preg_split("/\r\n|\n|\r/", $text) : [];
+    $inner = '';
+    if ($lines) {
+        foreach ($lines as $i => $line) {
+            $line = trim((string) $line);
+            if ($line === '') {
+                continue;
+            }
+            $safe = htmlspecialchars($line);
+            if ($i === 0) {
+                $inner .= '<strong class="att-cell-status">' . $safe . '</strong>';
+            } else {
+                $inner .= '<span class="att-cell-time">' . $safe . '</span>';
+            }
+        }
+    }
+
+    if ($export) {
+        $style = 'text-align:center;font-size:11px;vertical-align:middle;padding:6px 4px;';
+        if ($bg !== '') {
+            $style .= 'background:' . $bg . ';color:' . $fg . ';';
+        }
+        $exportInner = '';
+        foreach ($lines as $i => $line) {
+            $line = trim((string) $line);
+            if ($line === '') {
+                continue;
+            }
+            $safe = htmlspecialchars($line);
+            if ($i === 0) {
+                $exportInner .= '<div style="font-weight:700;line-height:1.25;">' . $safe . '</div>';
+            } else {
+                $exportInner .= '<div style="font-weight:600;font-size:10px;opacity:0.9;margin-top:2px;">' . $safe . '</div>';
+            }
+        }
+        return '<td style="' . $style . '">' . $exportInner . '</td>';
+    }
+
+    return '<td class="' . htmlspecialchars($cssClass) . '">' . $inner . '</td>';
 }
 
 /**
@@ -1315,13 +1379,13 @@ function attendanceExcelCellPreview($status, $punchIn, $punchOut, $leaveType = '
     }
 
     if ($status === 'Week Off') {
-        return 'week off';
+        return 'Week Off';
     }
     if ($status === 'Holiday') {
-        return 'holiday';
+        return 'Holiday';
     }
     if ($status === 'Absent') {
-        return 'absent';
+        return 'Absent';
     }
     if ($status === 'Leave' && ($leaveHalf === '' || $leaveHalf === 'FULL')) {
         return $leaveType !== '' ? $leaveType : 'Leave';
@@ -1343,18 +1407,13 @@ function attendanceExcelCellPreview($status, $punchIn, $punchOut, $leaveType = '
         $timePart = trim($inDisp . ' | ' . $outDisp, ' |');
     }
 
-    // First / Second half leave — show label then punch times
+    // First / Second half leave — short FHL/SHL + punch times below
     if (in_array($leaveHalf, ['FHL', 'SHL'], true) || $status === 'Half Day') {
         $halfLabel = '';
-        if ($leaveHalf === 'FHL') {
-            $halfLabel = 'FHL (First Half Leave)';
-        } elseif ($leaveHalf === 'SHL') {
-            $halfLabel = 'SHL (Second Half Leave)';
+        if ($leaveHalf === 'FHL' || $leaveHalf === 'SHL') {
+            $halfLabel = $leaveType !== '' ? ($leaveType . ' · ' . $leaveHalf) : $leaveHalf;
         } elseif ($status === 'Half Day') {
-            $halfLabel = $leaveType !== '' ? ($leaveType . ' Half Day') : 'Half Day';
-        }
-        if ($leaveType !== '' && in_array($leaveHalf, ['FHL', 'SHL'], true)) {
-            $halfLabel = $leaveType . ' · ' . ($leaveHalf === 'FHL' ? 'FHL (First Half Leave)' : 'SHL (Second Half Leave)');
+            $halfLabel = $leaveType !== '' ? ($leaveType . ' · Half') : 'Half Day';
         }
         if ($halfLabel !== '' && $timePart !== '') {
             return $halfLabel . "\n" . $timePart;

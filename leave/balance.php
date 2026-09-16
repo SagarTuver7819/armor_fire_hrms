@@ -1,6 +1,6 @@
 <?php
 /**
- * Employee-wise Leave Balance
+ * Employee-wise Leave Balance + Leave History
  */
 
 require_once __DIR__ . '/../config/app.php';
@@ -16,15 +16,19 @@ ensureLeaveTables();
 $deptId = (int) ($_GET['department_id'] ?? 0);
 $year = (int) ($_GET['year'] ?? date('Y'));
 $employeeId = (int) ($_GET['employee_id'] ?? 0);
+$tab = strtolower(trim((string) ($_GET['tab'] ?? 'balance')));
+if (!in_array($tab, ['balance', 'history'], true)) {
+    $tab = 'balance';
+}
 if ($year < 2000 || $year > 2100) {
     $year = (int) date('Y');
 }
 
 $department = $deptId > 0 ? getDepartmentById($deptId) : null;
 $employees = leaveEmployeesForSelect($deptId);
+$historyRows = [];
 
 if ($employeeId > 0) {
-    // Ensure rows exist for viewing
     $conn = getDBConnection();
     foreach (getActiveLeaveTypes($conn) as $lt) {
         leaveEnsureBalanceRow($conn, $employeeId, (int) $lt['id'], $year);
@@ -32,9 +36,13 @@ if ($employeeId > 0) {
     $conn->close();
     $rows = getEmployeeLeaveBalances($employeeId, $year);
     $emp = getEmployeeById($employeeId);
+    $historyRows = fetchLeaveRequests($deptId, 'All', $year, null, $employeeId);
 } else {
     $rows = getDepartmentLeaveBalanceRows($deptId, $year);
     $emp = null;
+    if ($tab === 'history') {
+        $historyRows = fetchLeaveRequests($deptId, 'All', $year);
+    }
 }
 
 $pageTitle = 'Leave Balance';
@@ -55,6 +63,12 @@ if (isset($_GET['msg']) && $_GET['msg'] === 'allocated') {
 if (isset($_GET['msg']) && $_GET['msg'] === 'saved') {
     $toast = 'Leave balance updated.';
 }
+
+$qs = [
+    'department_id' => $deptId,
+    'year' => $year,
+    'employee_id' => $employeeId,
+];
 ?>
 
 <main class="dashboard-main">
@@ -71,7 +85,7 @@ if (isset($_GET['msg']) && $_GET['msg'] === 'saved') {
                     <i class="fa-solid fa-wand-magic-sparkles"></i> Allocate Year <?php echo $year; ?>
                 </button>
             </form>
-            <a href="<?php echo app_url('leave/apply.php?department_id=' . $deptId); ?>" class="btn-primary">
+            <a href="<?php echo app_url('leave/apply.php?department_id=' . $deptId . ($employeeId ? '&employee_id=' . $employeeId : '')); ?>" class="btn-primary">
                 <i class="fa-solid fa-plus"></i> Apply Leave
             </a>
         </div>
@@ -80,16 +94,17 @@ if (isset($_GET['msg']) && $_GET['msg'] === 'saved') {
     <div class="form-page-card">
         <div class="form-page-header">
             <div>
-                <h1>Leave Balance</h1>
+                <h1>Leave Balance &amp; History</h1>
                 <p>
-                    Employee-wise · Year <?php echo $year; ?>
+                    Year <?php echo $year; ?>
                     <?php if ($department): ?> · <?php echo htmlspecialchars($department['department_name']); ?><?php endif; ?>
-                    · Opening from Leave Master (CL/SL/EL…)
+                    · Opening · Used · Remaining · Request history
                 </p>
             </div>
         </div>
 
         <form method="GET" class="employee-form register-filters">
+            <input type="hidden" name="tab" value="<?php echo htmlspecialchars($tab); ?>">
             <div class="form-grid form-grid-3">
                 <div class="form-group">
                     <label>Department</label>
@@ -119,107 +134,207 @@ if (isset($_GET['msg']) && $_GET['msg'] === 'saved') {
                 </div>
             </div>
         </form>
+
+        <div class="emp-activity-tabs" style="margin-top:12px;">
+            <a class="emp-activity-tab <?php echo $tab === 'balance' ? 'active' : ''; ?>"
+               href="<?php echo app_url('leave/balance.php?' . http_build_query($qs + ['tab' => 'balance'])); ?>">
+                <i class="fa-solid fa-scale-balanced"></i> Leave Balance
+            </a>
+            <a class="emp-activity-tab <?php echo $tab === 'history' ? 'active' : ''; ?>"
+               href="<?php echo app_url('leave/balance.php?' . http_build_query($qs + ['tab' => 'history'])); ?>">
+                <i class="fa-solid fa-clock-rotate-left"></i> Leave History
+                <?php if ($historyRows || $tab === 'history'): ?>
+                    <span class="emp-tab-badge"><?php echo count($historyRows); ?></span>
+                <?php endif; ?>
+            </a>
+        </div>
     </div>
 
-    <div class="form-page-card" style="margin-top:14px;">
-        <?php if ($employeeId > 0 && $emp): ?>
-            <h3 style="margin:0 0 12px;">
-                <?php echo htmlspecialchars(($emp['employee_code'] ?? '') . ' — ' . ($emp['employee_name'] ?? '')); ?>
-            </h3>
-            <form method="POST" action="<?php echo app_url('leave/balance_save.php'); ?>">
-                <input type="hidden" name="department_id" value="<?php echo $deptId; ?>">
-                <input type="hidden" name="employee_id" value="<?php echo $employeeId; ?>">
-                <input type="hidden" name="year" value="<?php echo $year; ?>">
-                <div class="table-wrap">
-                    <table class="data-table">
-                        <thead>
-                            <tr>
-                                <th>Leave Type</th>
-                                <th>Paid</th>
-                                <th>Opening</th>
-                                <th>Credited</th>
-                                <th>Adjusted</th>
-                                <th>Used</th>
-                                <th>Remaining</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                        <?php foreach ($rows as $r): ?>
-                            <tr>
-                                <td>
-                                    <strong><?php echo htmlspecialchars(($r['code'] ? $r['code'] . ' · ' : '') . $r['leave_type']); ?></strong>
-                                    <input type="hidden" name="balance_id[]" value="<?php echo (int) $r['id']; ?>">
-                                </td>
-                                <td><?php echo htmlspecialchars($r['is_paid'] ?? 'Yes'); ?></td>
-                                <td><input type="number" step="0.5" min="0" name="opening_days[]" class="form-control" value="<?php echo htmlspecialchars((string) $r['opening_days']); ?>"></td>
-                                <td><input type="number" step="0.5" name="credited_days[]" class="form-control" value="<?php echo htmlspecialchars((string) $r['credited_days']); ?>"></td>
-                                <td><input type="number" step="0.5" name="adjusted_days[]" class="form-control" value="<?php echo htmlspecialchars((string) $r['adjusted_days']); ?>"></td>
-                                <td><?php echo number_format((float) $r['used_days'], 1); ?></td>
-                                <td><strong><?php echo number_format((float) $r['remaining_days'], 1); ?></strong></td>
-                            </tr>
-                        <?php endforeach; ?>
-                        </tbody>
-                    </table>
-                </div>
-                <div class="form-actions sticky-actions">
-                    <button type="submit" class="btn-primary"><i class="fa-solid fa-save"></i> Save Balance</button>
-                </div>
-            </form>
-        <?php else: ?>
+    <?php if ($tab === 'history'): ?>
+        <div class="form-page-card" style="margin-top:14px;">
+            <div class="form-page-header" style="margin-bottom:12px;">
+                <h3 style="margin:0;">Leave History <?php echo $emp ? '— ' . htmlspecialchars($emp['employee_name']) : ''; ?></h3>
+            </div>
             <div class="table-wrap">
                 <table class="data-table">
                     <thead>
                         <tr>
-                            <th>Employee</th>
-                            <th>Dept</th>
+                            <th>Sr</th>
+                            <?php if ($employeeId <= 0): ?><th>Employee</th><?php endif; ?>
                             <th>Leave</th>
-                            <th>Opening</th>
-                            <th>Used</th>
-                            <th>Remaining</th>
-                            <th></th>
+                            <th>Half</th>
+                            <th>From</th>
+                            <th>To</th>
+                            <th>Days</th>
+                            <th>Status</th>
+                            <th>Reason</th>
+                            <th>Applied</th>
                         </tr>
                     </thead>
                     <tbody>
-                    <?php if (!$rows): ?>
-                        <tr><td colspan="7" class="empty-cell">No employees / leave types. Use Allocate Year first.</td></tr>
+                    <?php if (!$historyRows): ?>
+                        <tr><td colspan="<?php echo $employeeId <= 0 ? 10 : 9; ?>" class="empty-cell">No leave history for this filter.</td></tr>
                     <?php endif; ?>
-                    <?php
-                    $lastEmp = 0;
-                    foreach ($rows as $r):
-                        $showEmp = ((int) $r['employee_id'] !== $lastEmp);
-                        $lastEmp = (int) $r['employee_id'];
-                    ?>
+                    <?php foreach ($historyRows as $i => $r): ?>
+                        <?php
+                        $half = leaveNormalizeHalf($r['leave_half'] ?? 'FULL');
+                        $st = $r['status'];
+                        $cls = $st === 'Approved' ? 'color:#047857' : ($st === 'Pending' ? 'color:#b45309' : ($st === 'Rejected' ? 'color:#b91c1c' : 'color:#64748b'));
+                        ?>
                         <tr>
-                            <td>
-                                <?php if ($showEmp): ?>
+                            <td><?php echo $i + 1; ?></td>
+                            <?php if ($employeeId <= 0): ?>
+                                <td>
                                     <strong><?php echo htmlspecialchars($r['employee_name']); ?></strong>
                                     <div class="sr-code"><?php echo htmlspecialchars($r['employee_code']); ?></div>
-                                <?php endif; ?>
-                            </td>
-                            <td><?php echo $showEmp ? htmlspecialchars($r['department_name'] ?? '-') : ''; ?></td>
-                            <td><?php echo htmlspecialchars(($r['code'] ? $r['code'] . ' · ' : '') . $r['leave_type']); ?></td>
-                            <td><?php echo number_format((float) $r['opening_days'], 1); ?></td>
-                            <td><?php echo number_format((float) $r['used_days'], 1); ?></td>
-                            <td><strong><?php echo number_format((float) $r['remaining_days'], 1); ?></strong></td>
-                            <td>
-                                <?php if ($showEmp): ?>
-                                    <a class="action-btn edit" title="Edit balance"
-                                       href="<?php echo app_url('leave/balance.php?' . http_build_query([
-                                           'department_id' => $deptId,
-                                           'year' => $year,
-                                           'employee_id' => (int) $r['employee_id'],
-                                       ])); ?>">
-                                        <i class="fa-solid fa-pen"></i>
-                                    </a>
-                                <?php endif; ?>
-                            </td>
+                                </td>
+                            <?php endif; ?>
+                            <td><strong><?php echo htmlspecialchars(($r['code'] ? $r['code'] . ' · ' : '') . $r['leave_type']); ?></strong></td>
+                            <td><strong><?php echo htmlspecialchars($half === 'FULL' ? 'Full' : $half); ?></strong></td>
+                            <td><?php echo htmlspecialchars(formatDateDisplay($r['from_date'])); ?></td>
+                            <td><?php echo htmlspecialchars(formatDateDisplay($r['to_date'])); ?></td>
+                            <td><strong><?php echo number_format((float) $r['days'], 1); ?></strong></td>
+                            <td><strong style="<?php echo $cls; ?>"><?php echo htmlspecialchars($st); ?></strong></td>
+                            <td><?php echo htmlspecialchars($r['reason'] ?: '-'); ?></td>
+                            <td><?php echo htmlspecialchars(!empty($r['created_at']) ? date('d-m-Y', strtotime($r['created_at'])) : '-'); ?></td>
                         </tr>
                     <?php endforeach; ?>
                     </tbody>
                 </table>
             </div>
-        <?php endif; ?>
-    </div>
+        </div>
+    <?php else: ?>
+        <div class="form-page-card" style="margin-top:14px;">
+            <?php if ($employeeId > 0 && $emp): ?>
+                <h3 style="margin:0 0 14px;">
+                    <?php echo htmlspecialchars(($emp['employee_code'] ?? '') . ' — ' . ($emp['employee_name'] ?? '')); ?>
+                    <a class="btn-secondary" style="margin-left:8px;font-size:12px;padding:6px 10px;"
+                       href="<?php echo app_url('employees/view.php?id=' . $employeeId . '&tab=leave'); ?>">
+                        <i class="fa-solid fa-user"></i> Employee Activity
+                    </a>
+                </h3>
+
+                <div class="leave-balance-cards">
+                    <?php foreach ($rows as $r): ?>
+                        <div class="leave-balance-card">
+                            <div class="lb-code"><?php echo htmlspecialchars($r['code'] ?: 'LEAVE'); ?></div>
+                            <div class="lb-name"><?php echo htmlspecialchars($r['leave_type']); ?></div>
+                            <div class="lb-remain"><?php echo number_format((float) $r['remaining_days'], 1); ?></div>
+                            <div class="lb-meta">
+                                Opening <?php echo number_format((float) $r['opening_days'], 1); ?>
+                                · Used <?php echo number_format((float) $r['used_days'], 1); ?>
+                            </div>
+                        </div>
+                    <?php endforeach; ?>
+                </div>
+
+                <form method="POST" action="<?php echo app_url('leave/balance_save.php'); ?>">
+                    <input type="hidden" name="department_id" value="<?php echo $deptId; ?>">
+                    <input type="hidden" name="employee_id" value="<?php echo $employeeId; ?>">
+                    <input type="hidden" name="year" value="<?php echo $year; ?>">
+                    <div class="table-wrap">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Leave Type</th>
+                                    <th>Paid</th>
+                                    <th>Opening</th>
+                                    <th>Credited</th>
+                                    <th>Adjusted</th>
+                                    <th>Used</th>
+                                    <th>Remaining</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                            <?php foreach ($rows as $r): ?>
+                                <tr>
+                                    <td>
+                                        <strong><?php echo htmlspecialchars(($r['code'] ? $r['code'] . ' · ' : '') . $r['leave_type']); ?></strong>
+                                        <input type="hidden" name="balance_id[]" value="<?php echo (int) $r['id']; ?>">
+                                    </td>
+                                    <td><?php echo htmlspecialchars($r['is_paid'] ?? 'Yes'); ?></td>
+                                    <td><input type="number" step="0.5" min="0" name="opening_days[]" class="form-control" value="<?php echo htmlspecialchars((string) $r['opening_days']); ?>"></td>
+                                    <td><input type="number" step="0.5" name="credited_days[]" class="form-control" value="<?php echo htmlspecialchars((string) $r['credited_days']); ?>"></td>
+                                    <td><input type="number" step="0.5" name="adjusted_days[]" class="form-control" value="<?php echo htmlspecialchars((string) $r['adjusted_days']); ?>"></td>
+                                    <td><strong><?php echo number_format((float) $r['used_days'], 1); ?></strong></td>
+                                    <td><strong><?php echo number_format((float) $r['remaining_days'], 1); ?></strong></td>
+                                </tr>
+                            <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="form-actions sticky-actions">
+                        <button type="submit" class="btn-primary"><i class="fa-solid fa-save"></i> Save Balance</button>
+                    </div>
+                </form>
+            <?php else: ?>
+                <div class="table-wrap">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Employee</th>
+                                <th>Dept</th>
+                                <th>Leave</th>
+                                <th>Opening</th>
+                                <th>Used</th>
+                                <th>Remaining</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                        <?php if (!$rows): ?>
+                            <tr><td colspan="7" class="empty-cell">No employees / leave types. Use Allocate Year first.</td></tr>
+                        <?php endif; ?>
+                        <?php
+                        $lastEmp = 0;
+                        foreach ($rows as $r):
+                            $showEmp = ((int) $r['employee_id'] !== $lastEmp);
+                            $lastEmp = (int) $r['employee_id'];
+                        ?>
+                            <tr>
+                                <td>
+                                    <?php if ($showEmp): ?>
+                                        <a class="emp-name-link" href="<?php echo app_url('employees/view.php?id=' . (int) $r['employee_id'] . '&tab=leave'); ?>">
+                                            <strong><?php echo htmlspecialchars($r['employee_name']); ?></strong>
+                                        </a>
+                                        <div class="sr-code"><?php echo htmlspecialchars($r['employee_code']); ?></div>
+                                    <?php endif; ?>
+                                </td>
+                                <td><?php echo $showEmp ? htmlspecialchars($r['department_name'] ?? '-') : ''; ?></td>
+                                <td><?php echo htmlspecialchars(($r['code'] ? $r['code'] . ' · ' : '') . $r['leave_type']); ?></td>
+                                <td><?php echo number_format((float) $r['opening_days'], 1); ?></td>
+                                <td><?php echo number_format((float) $r['used_days'], 1); ?></td>
+                                <td><strong><?php echo number_format((float) $r['remaining_days'], 1); ?></strong></td>
+                                <td>
+                                    <?php if ($showEmp): ?>
+                                        <a class="action-btn edit" title="Edit balance"
+                                           href="<?php echo app_url('leave/balance.php?' . http_build_query([
+                                               'department_id' => $deptId,
+                                               'year' => $year,
+                                               'employee_id' => (int) $r['employee_id'],
+                                               'tab' => 'balance',
+                                           ])); ?>">
+                                            <i class="fa-solid fa-pen"></i>
+                                        </a>
+                                        <a class="action-btn view" title="History"
+                                           href="<?php echo app_url('leave/balance.php?' . http_build_query([
+                                               'department_id' => $deptId,
+                                               'year' => $year,
+                                               'employee_id' => (int) $r['employee_id'],
+                                               'tab' => 'history',
+                                           ])); ?>">
+                                            <i class="fa-solid fa-clock-rotate-left"></i>
+                                        </a>
+                                    <?php endif; ?>
+                                </td>
+                            </tr>
+                        <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+            <?php endif; ?>
+        </div>
+    <?php endif; ?>
 </main>
 <?php if ($toast): ?>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>

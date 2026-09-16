@@ -1419,6 +1419,66 @@ input.js-date,
     background: #f1f5f9;
 }
 
+.excel-att-wrap {
+    border-radius: 12px;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 4px 18px rgba(15, 23, 42, 0.06);
+    background: #fff;
+}
+
+.excel-att-table {
+    font-size: 12px;
+}
+
+.excel-att-table thead th {
+    background: #1e3a5f !important;
+    color: #fff !important;
+    font-weight: 700;
+    white-space: nowrap;
+    vertical-align: middle;
+    padding: 8px 6px;
+    border-color: #16304f !important;
+}
+
+.excel-att-table thead th:nth-last-child(-n+6) {
+    background: #f58220 !important;
+    border-color: #e06f12 !important;
+}
+
+.excel-att-table td.att-day {
+    text-align: center;
+    vertical-align: middle;
+    min-width: 76px;
+    max-width: 92px;
+    padding: 6px 4px;
+    line-height: 1.25;
+    white-space: normal;
+    font-size: 11px;
+    border-color: #e8edf3;
+}
+
+.excel-att-table td.att-day .att-cell-status {
+    display: block;
+    font-weight: 800;
+    letter-spacing: 0.01em;
+    font-size: 11px;
+}
+
+.excel-att-table td.att-day .att-cell-time {
+    display: block;
+    margin-top: 3px;
+    font-weight: 600;
+    font-size: 10px;
+    opacity: 0.92;
+}
+
+.excel-att-table td.att-day.is-present { background: #ecfdf5; color: #047857; }
+.excel-att-table td.att-day.is-half { background: #fff7ed; color: #c2410c; }
+.excel-att-table td.att-day.is-leave { background: #fef2f2; color: #b91c1c; }
+.excel-att-table td.att-day.is-weekoff { background: #f1f5f9; color: #475569; }
+.excel-att-table td.att-day.is-holiday { background: #eff6ff; color: #1d4ed8; }
+.excel-att-table td.att-day.is-absent { background: #fee2e2; color: #991b1b; }
+
 .excel-att-table .day-col {
     min-width: 78px;
     max-width: 88px;
@@ -1434,7 +1494,7 @@ input.js-date,
     line-height: 1.25;
     white-space: normal;
     font-size: 10px;
-    font-weight: 600;
+    font-weight: 700;
     transition: background 0.12s ease;
     position: relative;
     z-index: 0;
@@ -1452,12 +1512,288 @@ input.js-date,
     font-size: 14px;
 }
 
+.excel-att-table td.day-cell .cell-text {
+    font-weight: 800;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    min-height: 36px;
+}
+
+.excel-att-table td.day-cell .att-mark {
+    display: block;
+    font-weight: 800;
+    font-size: 11px;
+    line-height: 1.2;
+    letter-spacing: 0.01em;
+}
+
+.excel-att-table td.day-cell .att-time {
+    display: block;
+    font-weight: 600;
+    font-size: 9px;
+    line-height: 1.2;
+    opacity: 0.9;
+    white-space: nowrap;
+}
+
 .excel-att-table td.day-cell.is-present { background: #ecfdf5; color: #047857; }
 .excel-att-table td.day-cell.is-half { background: #fff7ed; color: #c2410c; }
 .excel-att-table td.day-cell.is-leave { background: #fef2f2; color: #b91c1c; }
 .excel-att-table td.day-cell.is-weekoff { background: #f1f5f9; color: #475569; }
 .excel-att-table td.day-cell.is-holiday { background: #eff6ff; color: #1d4ed8; }
-.excel-att-table td.day-cell.is-absent { background: #fef2f2; color: #991b1b; }
+.excel-att-table td.day-cell.is-absent { background: #fee2e2; color: #991b1b; }
+
+.excel-att-table .day-col .day-num {
+    display: block;
+    font-weight: 800;
+    font-size: 12px;
+    line-height: 1.1;
+}
+.excel-att-table .day-col .day-name {
+    display: block;
+    font-weight: 600;
+    font-size: 9px;
+    opacity: 0.85;
+    margin-top: 1px;
+}
+.excel-att-table th.is-weekend-col,
+.excel-att-table td.is-weekend-col {
+    background-image: linear-gradient(180deg, rgba(148, 163, 184, 0.12), transparent);
+}
+.excel-att-table td.day-cell.is-weekend-col:not(.is-present):not(.is-half):not(.is-leave):not(.is-absent):not(.is-weekoff):not(.is-holiday) {
+    background: #f8fafc;
+}
+
+.att-sheet-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 12px;
+}
+.att-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+.att-leg {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 9px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 600;
+    border: 1px solid transparent;
+}
+.att-leg b { font-weight: 800; }
+.att-leg.is-present { background: #ecfdf5; color: #047857; border-color: #a7f3d0; }
+.att-leg.is-half { background: #fff7ed; color: #c2410c; border-color: #fed7aa; }
+.att-leg.is-leave { background: #fef2f2; color: #b91c1c; border-color: #fecaca; }
+.att-leg.is-absent { background: #fee2e2; color: #991b1b; border-color: #fecaca; }
+.att-leg.is-weekoff { background: #f1f5f9; color: #475569; border-color: #cbd5e1; }
+.att-leg.is-holiday { background: #eff6ff; color: #1d4ed8; border-color: #bfdbfe; }
+
+.att-quick-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 12px;
+    padding: 10px 12px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+}
+
+.emp-shift-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 3px;
+    font-size: 10px;
+    color: #64748b;
+    font-weight: 600;
+}
+.emp-shift-meta i { margin-right: 3px; opacity: 0.8; }
+
+.att-help-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14px;
+    margin-top: 12px;
+    padding: 10px 12px;
+    background: #fffbeb;
+    border: 1px solid #fde68a;
+    border-radius: 10px;
+    font-size: 12px;
+    color: #92400e;
+}
+.att-help-bar span { display: inline-flex; align-items: center; gap: 6px; }
+
+.att-facto-modal {
+    width: min(560px, 96vw);
+    padding: 20px;
+}
+.att-modal-head h3 { margin: 0 0 4px; font-size: 17px; }
+.att-modal-sub { margin: 0 0 12px; font-size: 12px; color: #64748b; }
+
+.att-status-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+.att-status-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    border: 1px solid #e2e8f0;
+    background: #fff;
+    border-radius: 10px;
+    padding: 8px 11px;
+    font-size: 12px;
+    font-weight: 700;
+    color: #334155;
+    cursor: pointer;
+    transition: transform 0.12s ease, box-shadow 0.12s ease, border-color 0.12s ease;
+}
+.att-status-chip b {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 22px;
+    height: 22px;
+    padding: 0 4px;
+    border-radius: 6px;
+    background: #f1f5f9;
+    font-size: 11px;
+}
+.att-status-chip:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08);
+}
+.att-status-chip.active {
+    border-color: #f58220;
+    box-shadow: 0 0 0 2px rgba(245, 130, 32, 0.2);
+}
+.att-status-chip.is-present.active,
+.att-status-chip.is-present:hover { background: #ecfdf5; color: #047857; }
+.att-status-chip.is-half.active,
+.att-status-chip.is-half:hover { background: #fff7ed; color: #c2410c; }
+.att-status-chip.is-leave.active,
+.att-status-chip.is-leave:hover { background: #fef2f2; color: #b91c1c; }
+.att-status-chip.is-absent.active,
+.att-status-chip.is-absent:hover { background: #fee2e2; color: #991b1b; }
+.att-status-chip.is-weekoff.active,
+.att-status-chip.is-weekoff:hover { background: #f1f5f9; color: #475569; }
+.att-status-chip.is-holiday.active,
+.att-status-chip.is-holiday:hover { background: #eff6ff; color: #1d4ed8; }
+
+.att-live-preview {
+    margin-top: 12px;
+    min-height: 52px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    border: 1px dashed #cbd5e1;
+    border-radius: 10px;
+    background: #f8fafc;
+    padding: 10px;
+}
+.att-live-preview .att-mark { font-weight: 800; font-size: 14px; color: #0f172a; }
+.att-live-preview .att-time { font-weight: 600; font-size: 12px; color: #475569; }
+.att-live-preview .cell-empty { color: #94a3b8; font-size: 18px; font-weight: 700; }
+
+.leave-box-inline {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+}
+
+.leave-balance-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.leave-balance-card {
+    background: linear-gradient(180deg, #fff 0%, #f8fafc 100%);
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 14px;
+}
+
+.leave-balance-card .lb-code {
+    font-size: 12px;
+    font-weight: 700;
+    color: #f58220;
+    text-transform: uppercase;
+}
+
+.leave-balance-card .lb-name {
+    font-size: 13px;
+    color: #64748b;
+    margin: 2px 0 10px;
+}
+
+.leave-balance-card .lb-remain {
+    font-size: 26px;
+    font-weight: 800;
+    color: #0f172a;
+    line-height: 1;
+}
+
+.leave-balance-card .lb-meta {
+    margin-top: 8px;
+    font-size: 11px;
+    color: #64748b;
+}
+
+.emp-activity-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin: 16px 0 14px;
+    padding: 6px;
+    background: #f1f5f9;
+    border-radius: 12px;
+}
+
+.emp-activity-tab {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 9px 14px;
+    border-radius: 9px;
+    font-size: 13px;
+    font-weight: 700;
+    color: #475569;
+    text-decoration: none;
+    border: 0;
+    background: transparent;
+    cursor: pointer;
+}
+
+.emp-activity-tab:hover {
+    background: #fff;
+    color: #f58220;
+}
+
+.emp-activity-tab.active {
+    background: #fff;
+    color: #f58220;
+    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.08);
+}
+
+.emp-activity-panel[hidden] {
+    display: none !important;
+}
 
 /* Keep save bar in flow — sticky overlay was covering last grid rows */
 .sticky-actions {

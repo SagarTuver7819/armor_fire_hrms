@@ -135,12 +135,13 @@ require_once __DIR__ . '/../includes/header.php';
                 <?php echo attendanceRenderExcelMonthTableHtml($grid, ['tableClass' => 'data-table excel-att-table']); ?>
             </div>
             <div class="form-hint" style="margin-top:10px;">
-                Format same as Excel:
+                Format:
                 <code>9:00 AM | 06:00 PM</code> ·
-                <code>PL · FHL (First Half Leave)</code> + punch ·
-                <code>PL · SHL (Second Half Leave)</code> + punch ·
+                <code>FHL</code> / <code>SHL</code> + punch ·
                 <code>PL</code>/<code>SL</code> ·
-                <code>week off</code>
+                <code>Absent</code> ·
+                <code>Week Off</code>
+                · Status labels are bold
             </div>
         <?php endif; ?>
     </div>

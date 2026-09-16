@@ -140,12 +140,12 @@ if (isset($_GET['msg']) && $_GET['msg'] === 'saved') {
         <div class="form-page-header">
             <div>
                 <h1>Manual Attendance</h1>
-                <p>All employees ek saath · Employee-wise shift + week-off · Fill Present one click · Cell click thi edit · Export Excel format</p>
+                <p>Mark attendance like HR software · Click any day cell · Present / Leave / FHL / SHL / Week Off</p>
             </div>
         </div>
 
-        <form method="GET" class="employee-form" style="margin-bottom:12px;">
-            <div class="form-grid form-grid-3">
+        <form method="GET" class="employee-form att-filter-bar">
+            <div class="form-grid form-grid-4">
                 <div class="form-group">
                     <label>Department</label>
                     <select name="department_id" class="form-control">
@@ -176,7 +176,7 @@ if (isset($_GET['msg']) && $_GET['msg'] === 'saved') {
                     </select>
                 </div>
                 <div class="form-group">
-                    <label>Fallback Shift (if employee shift missing)</label>
+                    <label>Default Shift</label>
                     <select name="shift_id" id="shiftSelect" class="form-control">
                         <?php foreach ($shifts as $s): ?>
                             <?php
@@ -197,7 +197,7 @@ if (isset($_GET['msg']) && $_GET['msg'] === 'saved') {
             </div>
             <input type="hidden" name="show" value="1">
             <div class="form-actions" style="margin-top:8px;">
-                <button type="submit" class="btn-primary"><i class="fa-solid fa-table"></i> Load Excel Grid</button>
+                <button type="submit" class="btn-primary"><i class="fa-solid fa-table"></i> Load Attendance Sheet</button>
             </div>
         </form>
 
@@ -206,11 +206,21 @@ if (isset($_GET['msg']) && $_GET['msg'] === 'saved') {
         <?php elseif ($show && $monthData && empty($monthData['employees'])): ?>
             <p class="form-hint">No active employees found.</p>
         <?php elseif ($show && $monthData): ?>
-            <div class="ops-live-summary" style="margin-bottom:12px;">
-                <span class="ops-chip"><?php echo htmlspecialchars($deptLabel); ?></span>
-                <span class="ops-chip"><?php echo htmlspecialchars(date('F Y', mktime(0, 0, 0, $month, 1, $year))); ?></span>
-                <span class="ops-chip"><?php echo htmlspecialchars($shiftName ?: 'Shift'); ?> · <?php echo htmlspecialchars($defaultInDisp . ' → ' . $defaultOutDisp); ?></span>
-                <span class="ops-chip"><?php echo count($monthData['employees']); ?> employees</span>
+            <div class="att-sheet-toolbar">
+                <div class="ops-live-summary" style="margin:0;">
+                    <span class="ops-chip"><?php echo htmlspecialchars($deptLabel); ?></span>
+                    <span class="ops-chip"><?php echo htmlspecialchars(date('F Y', mktime(0, 0, 0, $month, 1, $year))); ?></span>
+                    <span class="ops-chip"><?php echo htmlspecialchars($shiftName ?: 'Shift'); ?> · <?php echo htmlspecialchars($defaultInDisp . ' → ' . $defaultOutDisp); ?></span>
+                    <span class="ops-chip"><?php echo count($monthData['employees']); ?> employees</span>
+                </div>
+                <div class="att-legend">
+                    <span class="att-leg is-present"><b>P</b> Present</span>
+                    <span class="att-leg is-half"><b>FHL/SHL</b> Half</span>
+                    <span class="att-leg is-leave"><b>L</b> Leave</span>
+                    <span class="att-leg is-absent"><b>A</b> Absent</span>
+                    <span class="att-leg is-weekoff"><b>WO</b> Week Off</span>
+                    <span class="att-leg is-holiday"><b>H</b> Holiday</span>
+                </div>
             </div>
 
             <form method="POST" action="<?php echo app_url('attendance/manual_save.php'); ?>" id="manualAttForm">
@@ -221,48 +231,42 @@ if (isset($_GET['msg']) && $_GET['msg'] === 'saved') {
                 <input type="hidden" name="shift_name" value="<?php echo htmlspecialchars($shiftName); ?>">
                 <input type="hidden" name="cells_json" id="cellsJson" value="">
 
-                <div class="form-actions" style="margin-bottom:12px; gap:8px; flex-wrap:wrap;">
+                <div class="att-quick-actions">
                     <button type="button" class="btn-secondary" id="btnFillPresent">
-                        <i class="fa-solid fa-check"></i> Fill Empty = Present (employee shift)
+                        <i class="fa-solid fa-user-check"></i> Mark All Present
                     </button>
                     <button type="button" class="btn-secondary" id="btnFillWeekOff">
-                        <i class="fa-solid fa-calendar-week"></i> Mark Week Off (employee-wise)
+                        <i class="fa-solid fa-calendar-week"></i> Mark Week Offs
                     </button>
                     <button type="submit" class="btn-primary js-save-att" id="btnSaveAttendance">
                         <i class="fa-solid fa-floppy-disk"></i> Save Attendance
                     </button>
                 </div>
 
-                <div class="table-wrap excel-att-wrap">
+                <div class="table-wrap excel-att-wrap att-facto-sheet">
                     <table class="data-table excel-att-table" id="manualAttTable">
                         <thead>
                             <tr>
-                                <th class="sticky-col">Employee Code</th>
-                                <th class="sticky-col-2">Employee Name</th>
+                                <th class="sticky-col">Code</th>
+                                <th class="sticky-col-2">Employee</th>
                                 <th>Designation</th>
                                 <th>Department</th>
-                                <th>Date of Joining</th>
-                                <?php for ($d = 1; $d <= $monthDays; $d++): ?>
-                                    <th class="day-col"><?php echo $d; ?></th>
+                                <th>DOJ</th>
+                                <?php for ($d = 1; $d <= $monthDays; $d++):
+                                    $dow = $dayNames[$d];
+                                    $isWe = in_array($dow, ['Sat', 'Sun'], true);
+                                    ?>
+                                    <th class="day-col <?php echo $isWe ? 'is-weekend-col' : ''; ?>">
+                                        <span class="day-num"><?php echo $d; ?></span>
+                                        <span class="day-name"><?php echo htmlspecialchars($dow); ?></span>
+                                    </th>
                                 <?php endfor; ?>
                                 <th>PL</th>
                                 <th>SL</th>
                                 <th>C-Off</th>
                                 <th>DL</th>
                                 <th>LWP</th>
-                                <th>Total Days</th>
-                            </tr>
-                            <tr class="dayname-row">
-                                <th class="sticky-col"></th>
-                                <th class="sticky-col-2"></th>
-                                <th></th>
-                                <th></th>
-                                <th></th>
-                                <?php for ($d = 1; $d <= $monthDays; $d++): ?>
-                                    <th class="day-col day-name"><?php echo htmlspecialchars($dayNames[$d]); ?></th>
-                                <?php endfor; ?>
-                                <th></th><th></th><th></th><th></th><th></th>
-                                <th><?php echo $monthDays; ?></th>
+                                <th>Days</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -283,9 +287,9 @@ if (isset($_GET['msg']) && $_GET['msg'] === 'saved') {
                                 <td class="sticky-col"><span class="code-badge"><?php echo htmlspecialchars($emp['employee_code']); ?></span></td>
                                 <td class="sticky-col-2">
                                     <strong><?php echo htmlspecialchars($emp['employee_name']); ?></strong>
-                                    <div class="form-hint" style="margin:2px 0 0;font-size:11px;">
-                                        Off: <?php echo htmlspecialchars($empWeekOff); ?>
-                                        · <?php echo htmlspecialchars($empShift['in'] . ' → ' . $empShift['out']); ?>
+                                    <div class="emp-shift-meta">
+                                        <span><i class="fa-regular fa-calendar"></i> <?php echo htmlspecialchars($empWeekOff); ?></span>
+                                        <span><i class="fa-regular fa-clock"></i> <?php echo htmlspecialchars($empShift['in'] . ' – ' . $empShift['out']); ?></span>
                                     </div>
                                 </td>
                                 <td><?php echo htmlspecialchars($emp['designation'] ?: '-'); ?></td>
@@ -299,13 +303,14 @@ if (isset($_GET['msg']) && $_GET['msg'] === 'saved') {
                                     $status = $day['day_status'] ?? '';
                                     $inDisp = !empty($day['punch_in']) ? date('g:i A', strtotime($day['punch_in'])) : '';
                                     $outDisp = !empty($day['punch_out']) ? date('g:i A', strtotime($day['punch_out'])) : '';
+                                    $half = strtoupper((string) ($parsed['leave_half'] ?? ''));
                                     $css = '';
-                                    if ($status === 'Week Off') {
+                                    if (in_array($half, ['FHL', 'SHL', 'FHF', 'SHF'], true) || $status === 'Half Day') {
+                                        $css = 'is-half';
+                                    } elseif ($status === 'Week Off') {
                                         $css = 'is-weekoff';
                                     } elseif ($status === 'Leave') {
                                         $css = 'is-leave';
-                                    } elseif ($status === 'Half Day') {
-                                        $css = 'is-half';
                                     } elseif ($status === 'Present') {
                                         $css = 'is-present';
                                     } elseif ($status === 'Holiday') {
@@ -313,8 +318,22 @@ if (isset($_GET['msg']) && $_GET['msg'] === 'saved') {
                                     } elseif ($status === 'Absent') {
                                         $css = 'is-absent';
                                     }
+                                    $dow = $dayNames[$d];
+                                    if (in_array($dow, ['Sat', 'Sun'], true)) {
+                                        $css .= ' is-weekend-col';
+                                    }
+                                    $cellInner = '';
+                                    if ($text !== '') {
+                                        $lines = preg_split("/\r\n|\n|\r/", $text);
+                                        $cellInner = '<span class="att-mark">' . htmlspecialchars($lines[0]) . '</span>';
+                                        if (!empty($lines[1])) {
+                                            $cellInner .= '<span class="att-time">' . htmlspecialchars($lines[1]) . '</span>';
+                                        }
+                                    } else {
+                                        $cellInner = '<span class="cell-empty">+</span>';
+                                    }
                                     ?>
-                                    <td class="day-cell <?php echo $css; ?>"
+                                    <td class="day-cell <?php echo trim($css); ?>"
                                         data-emp="<?php echo $eid; ?>"
                                         data-date="<?php echo $date; ?>"
                                         data-day="<?php echo $d; ?>"
@@ -324,7 +343,7 @@ if (isset($_GET['msg']) && $_GET['msg'] === 'saved') {
                                         data-leave-type="<?php echo htmlspecialchars($parsed['leave_type']); ?>"
                                         data-leave-half="<?php echo htmlspecialchars($parsed['leave_half']); ?>"
                                         title="Click to edit">
-                                        <div class="cell-text"><?php echo $text !== '' ? nl2br(htmlspecialchars($text)) : '<span class="cell-empty">+</span>'; ?></div>
+                                        <div class="cell-text"><?php echo $cellInner; ?></div>
                                         <input type="hidden" class="cell-status" name="cells[<?php echo $eid; ?>][<?php echo $date; ?>][status]" value="<?php echo htmlspecialchars($status); ?>">
                                         <input type="hidden" class="cell-in" name="cells[<?php echo $eid; ?>][<?php echo $date; ?>][punch_in]" value="<?php echo htmlspecialchars($inDisp); ?>">
                                         <input type="hidden" class="cell-out" name="cells[<?php echo $eid; ?>][<?php echo $date; ?>][punch_out]" value="<?php echo htmlspecialchars($outDisp); ?>">
@@ -345,13 +364,11 @@ if (isset($_GET['msg']) && $_GET['msg'] === 'saved') {
                     </table>
                 </div>
 
-                <div class="form-hint" style="margin-top:10px;">
-                    Click day cell → set like Excel:
-                    <code>9:00 AM | 06:00 PM</code> ·
-                    <code>PL SHF</code> ·
-                    <code>PL FHF</code> ·
-                    <code>PL</code>/<code>SL</code> ·
-                    <code>week off</code>
+                <div class="att-help-bar">
+                    <span><i class="fa-solid fa-hand-pointer"></i> Click day cell to mark</span>
+                    <span><strong>FHL / SHL</strong> = half leave + punch time</span>
+                    <span><strong>PL / SL</strong> = full leave</span>
+                    <span>Empty <strong>+</strong> = not marked</span>
                 </div>
             </form>
         <?php endif; ?>
@@ -361,10 +378,24 @@ if (isset($_GET['msg']) && $_GET['msg'] === 'saved') {
 <!-- Cell editor modal -->
 <div id="attCellModal" class="att-cell-modal" hidden>
     <div class="att-cell-modal-backdrop"></div>
-    <div class="att-cell-modal-box">
-        <h3 id="attCellTitle">Edit Day</h3>
-        <div class="form-grid form-grid-2">
-            <div class="form-group">
+    <div class="att-cell-modal-box att-facto-modal">
+        <div class="att-modal-head">
+            <h3 id="attCellTitle">Mark Attendance</h3>
+            <p class="att-modal-sub">Select status · set leave / time · Apply</p>
+        </div>
+
+        <div class="att-status-chips" role="group" aria-label="Attendance status">
+            <button type="button" class="att-status-chip is-present" data-status="Present"><b>P</b> Present</button>
+            <button type="button" class="att-status-chip is-half" data-status="Half Day"><b>HD</b> Half</button>
+            <button type="button" class="att-status-chip is-leave" data-status="Leave"><b>L</b> Leave</button>
+            <button type="button" class="att-status-chip is-weekoff" data-status="Week Off"><b>WO</b> Week Off</button>
+            <button type="button" class="att-status-chip is-holiday" data-status="Holiday"><b>H</b> Holiday</button>
+            <button type="button" class="att-status-chip is-absent" data-status="Absent"><b>A</b> Absent</button>
+            <button type="button" class="att-status-chip is-clear" data-status=""><b>×</b> Clear</button>
+        </div>
+
+        <div class="form-grid form-grid-2" style="margin-top:12px;">
+            <div class="form-group" style="display:none;">
                 <label>Status</label>
                 <select id="mStatus" class="form-control no-select2">
                     <option value="Present">Present</option>
@@ -376,40 +407,40 @@ if (isset($_GET['msg']) && $_GET['msg'] === 'saved') {
                     <option value="">Clear</option>
                 </select>
             </div>
-            <div class="form-group" id="mLeaveWrap">
-                <label>Leave Box</label>
+            <div class="form-group" id="mLeaveWrap" style="grid-column: span 2;">
+                <label>Leave Type &amp; Duration</label>
                 <div class="leave-box-inline">
                     <select id="mLeaveType" class="form-control no-select2">
                         <option value="">Leave type</option>
-                        <option value="PL">PL</option>
-                        <option value="SL">SL</option>
+                        <option value="PL">PL — Privilege</option>
+                        <option value="SL">SL — Sick</option>
                         <option value="C-Off">C-Off</option>
                         <option value="DL">DL</option>
                         <option value="LWP">LWP</option>
                     </select>
                     <select id="mLeaveHalf" class="form-control no-select2">
                         <option value="FULL">Full Day</option>
-                        <option value="FHL">FHL (First Half Leave)</option>
-                        <option value="SHL">SHL (Second Half Leave)</option>
+                        <option value="FHL">FHL — First Half</option>
+                        <option value="SHL">SHL — Second Half</option>
                     </select>
                 </div>
             </div>
             <div class="form-group">
-                <label>In Time</label>
+                <label>Punch In</label>
                 <div class="att-time-wrap">
-                    <input type="text" id="mIn" class="form-control js-time-modal mdtimepicker-input" placeholder="Click for round clock" autocomplete="off" readonly>
+                    <input type="text" id="mIn" class="form-control js-time-modal mdtimepicker-input" placeholder="In time" autocomplete="off" readonly>
                 </div>
             </div>
             <div class="form-group">
-                <label>Out Time</label>
+                <label>Punch Out</label>
                 <div class="att-time-wrap">
-                    <input type="text" id="mOut" class="form-control js-time-modal mdtimepicker-input" placeholder="Click for round clock" autocomplete="off" readonly>
+                    <input type="text" id="mOut" class="form-control js-time-modal mdtimepicker-input" placeholder="Out time" autocomplete="off" readonly>
                 </div>
             </div>
         </div>
-        <div class="excel-cell-preview" id="mPreview" style="margin:10px 0;">-</div>
-        <div class="form-actions" style="gap:8px;">
-            <button type="button" class="btn-primary" id="mApply">Apply</button>
+        <div class="excel-cell-preview att-live-preview" id="mPreview">-</div>
+        <div class="form-actions" style="gap:8px;margin-top:12px;">
+            <button type="button" class="btn-primary" id="mApply"><i class="fa-solid fa-check"></i> Apply</button>
             <button type="button" class="btn-secondary" id="mCancel">Cancel</button>
         </div>
     </div>

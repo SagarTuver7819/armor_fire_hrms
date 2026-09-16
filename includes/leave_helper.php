@@ -98,10 +98,10 @@ function leaveHalfLabel($half)
 {
     $half = leaveNormalizeHalf($half);
     if ($half === 'FHL') {
-        return 'FHL (First Half Leave)';
+        return 'FHL';
     }
     if ($half === 'SHL') {
-        return 'SHL (Second Half Leave)';
+        return 'SHL';
     }
     return 'Full Day';
 }
@@ -921,7 +921,7 @@ function getLeaveRequestById($id, $conn = null)
     return $row ?: null;
 }
 
-function fetchLeaveRequests($departmentId = 0, $status = '', $year = 0, $conn = null)
+function fetchLeaveRequests($departmentId = 0, $status = '', $year = 0, $conn = null, $employeeId = 0)
 {
     $closeAfter = false;
     if ($conn === null) {
@@ -931,6 +931,7 @@ function fetchLeaveRequests($departmentId = 0, $status = '', $year = 0, $conn = 
     }
     $departmentId = (int) $departmentId;
     $year = (int) $year;
+    $employeeId = (int) $employeeId;
     $status = trim((string) $status);
 
     $sql = "SELECT lr.*, e.employee_code, e.employee_name, e.department_id,
@@ -942,6 +943,11 @@ function fetchLeaveRequests($departmentId = 0, $status = '', $year = 0, $conn = 
             WHERE 1=1";
     $types = '';
     $params = [];
+    if ($employeeId > 0) {
+        $sql .= ' AND lr.employee_id = ?';
+        $types .= 'i';
+        $params[] = $employeeId;
+    }
     if ($departmentId > 0) {
         $sql .= ' AND e.department_id = ?';
         $types .= 'i';

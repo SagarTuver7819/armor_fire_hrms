@@ -93,8 +93,8 @@ require_once __DIR__ . '/../includes/header.php';
                     <label>Leave Duration <span class="req">*</span></label>
                     <select name="leave_half" id="leaveHalf" class="form-control" required>
                         <option value="FULL">Full Day</option>
-                        <option value="FHL">First Half Leave (FHL)</option>
-                        <option value="SHL">Second Half Leave (SHL)</option>
+                        <option value="FHL">FHL (First Half)</option>
+                        <option value="SHL">SHL (Second Half)</option>
                     </select>
                     <small class="form-hint">Half leave = 0.5 day · single date only</small>
                 </div>

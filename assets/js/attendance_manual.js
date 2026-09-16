@@ -38,9 +38,9 @@
         leaveType = (leaveType || '').trim();
         leaveHalf = (leaveHalf || '').toUpperCase();
         if (!status) return '-';
-        if (status === 'Week Off') return 'week off';
-        if (status === 'Holiday') return 'holiday';
-        if (status === 'Absent') return 'absent';
+        if (status === 'Week Off') return 'Week Off';
+        if (status === 'Holiday') return 'Holiday';
+        if (status === 'Absent') return 'Absent';
         if (status === 'Leave' && (!leaveHalf || leaveHalf === 'FULL')) {
             return leaveType || 'Leave';
         }
@@ -51,8 +51,14 @@
         var leavePart = '';
         if (leaveType && (status === 'Leave' || status === 'Half Day')) {
             leavePart = leaveType;
-            if (leaveHalf === 'FHF' || leaveHalf === 'FHL') leavePart = leaveType + ' · FHL (First Half Leave)';
-            else if (leaveHalf === 'SHF' || leaveHalf === 'SHL') leavePart = leaveType + ' · SHL (Second Half Leave)';
+            if (leaveHalf === 'FHF' || leaveHalf === 'FHL') leavePart = leaveType + ' · FHL';
+            else if (leaveHalf === 'SHF' || leaveHalf === 'SHL') leavePart = leaveType + ' · SHL';
+        } else if (leaveHalf === 'FHF' || leaveHalf === 'FHL') {
+            leavePart = 'FHL';
+        } else if (leaveHalf === 'SHF' || leaveHalf === 'SHL') {
+            leavePart = 'SHL';
+        } else if (status === 'Half Day') {
+            leavePart = 'Half Day';
         }
         if (timePart && leavePart) {
             // Half leave: label on top, punch below
@@ -64,7 +70,31 @@
         return timePart || leavePart || status || '-';
     }
 
-    function cellCss(status) {
+    function escapeHtml(s) {
+        return String(s || '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;');
+    }
+
+    function cellHtmlFromText(text) {
+        if (!text || text === '-') {
+            return '<span class="cell-empty" title="Click to mark attendance">+</span>';
+        }
+        var lines = String(text).split(/\n/);
+        var html = '<span class="att-mark">' + escapeHtml(lines[0]) + '</span>';
+        if (lines.length > 1 && lines[1].trim()) {
+            html += '<span class="att-time">' + escapeHtml(lines[1]) + '</span>';
+        }
+        return html;
+    }
+
+    function cellCss(status, leaveHalf) {
+        leaveHalf = (leaveHalf || '').toUpperCase();
+        if (leaveHalf === 'FHF' || leaveHalf === 'FHL' || leaveHalf === 'SHF' || leaveHalf === 'SHL') {
+            return 'is-half';
+        }
         return {
             Present: 'is-present',
             'Half Day': 'is-half',
@@ -91,12 +121,9 @@
             'data-leave-half': leaveHalf
         });
         $td.removeClass('is-present is-half is-leave is-weekoff is-holiday is-absent')
-            .addClass(cellCss(status));
+            .addClass(cellCss(status, leaveHalf));
 
-        var html = text && text !== '-'
-            ? String(text).replace(/\n/g, '<br>')
-            : '<span class="cell-empty">+</span>';
-        $td.find('.cell-text').html(html);
+        $td.find('.cell-text').html(cellHtmlFromText(text));
         $td.find('.cell-status').val(status);
         $td.find('.cell-in').val(inn);
         $td.find('.cell-out').val(out);
@@ -225,15 +252,19 @@
         var lt = $('#mLeaveType').val() || '';
         var lh = $('#mLeaveHalf').val() || '';
         var text = buildPreview(status, inn, out, lt, lh);
-        $('#mPreview').html(String(text).replace(/\n/g, '<br>'));
+        $('#mPreview').html(cellHtmlFromText(text === '-' ? '' : text));
+        $('.att-status-chip').removeClass('active');
+        $('.att-status-chip[data-status="' + status + '"]').addClass('active');
         toggleLeaveFields();
     }
 
     function toggleLeaveFields() {
         var status = $('#mStatus').val() || '';
-        var show = status === 'Leave' || status === 'Half Day';
-        $('#mLeaveWrap').toggle(show);
-        var showTime = status === 'Present' || status === 'Half Day';
+        var lh = ($('#mLeaveHalf').val() || '').toUpperCase();
+        var showLeave = status === 'Leave' || status === 'Half Day';
+        $('#mLeaveWrap').toggle(showLeave);
+        var showTime = status === 'Present' || status === 'Half Day'
+            || (status === 'Leave' && (lh === 'FHL' || lh === 'SHL' || lh === 'FHF' || lh === 'SHF'));
         $('#mIn, #mOut').closest('.form-group').toggle(showTime || status === '');
     }
 
@@ -370,11 +401,11 @@
         $('#mStatus, #mLeaveType, #mLeaveHalf').on('change', function () {
             var status = $('#mStatus').val();
             var t = shiftTimes($activeCell);
-            var lh = $('#mLeaveHalf').val();
+            var lh = ($('#mLeaveHalf').val() || '').toUpperCase();
             if (status === 'Present') {
                 if (!$('#mIn').val()) setModalTime('#mIn', t.inn);
                 if (!$('#mOut').val()) setModalTime('#mOut', t.out);
-            } else if (status === 'Half Day') {
+            } else if (status === 'Half Day' || (status === 'Leave' && (lh === 'FHL' || lh === 'SHL' || lh === 'FHF' || lh === 'SHF'))) {
                 if (lh === 'FHF' || lh === 'FHL') {
                     setModalTime('#mIn', '1:00 PM');
                     setModalTime('#mOut', t.out);
@@ -387,6 +418,12 @@
                 setModalTime('#mOut', '');
             }
             syncModalPreview();
+        });
+
+        $(document).on('click', '.att-status-chip', function () {
+            var st = $(this).data('status');
+            if (typeof st === 'undefined') return;
+            $('#mStatus').val(String(st)).trigger('change');
         });
 
         $('#mApply').on('click', applyModal);

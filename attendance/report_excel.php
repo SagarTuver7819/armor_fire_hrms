@@ -41,6 +41,6 @@ if ($deptId > 0 && !empty($grid['employees'][0]['department_name'])) {
 echo '<html><head><meta charset="UTF-8"></head><body>';
 echo '<h3>' . htmlspecialchars($title) . '</h3>';
 echo attendanceRenderExcelMonthTableHtml($grid, ['export' => true]);
-echo '<p>Dates shown as day cells · Times like 9:00 AM | 6:00 PM · Leave: PL / SL / C-Off / DL / LWP</p>';
+echo '<p>Times: 9:00 AM | 6:00 PM · Half leave: FHL / SHL + punch · Leave: PL / SL · Bold status labels</p>';
 echo '</body></html>';
 exit;
