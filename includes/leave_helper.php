@@ -49,6 +49,7 @@ function ensureLeaveTables($conn = null)
             from_date DATE NOT NULL,
             to_date DATE NOT NULL,
             days DECIMAL(8,2) NOT NULL DEFAULT 0,
+            leave_half VARCHAR(10) NOT NULL DEFAULT 'FULL',
             reason TEXT,
             status ENUM('Pending','Approved','Rejected','Cancelled') NOT NULL DEFAULT 'Pending',
             applied_by INT DEFAULT NULL,
@@ -63,9 +64,46 @@ function ensureLeaveTables($conn = null)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
     );
 
+    // Older installs may miss leave_half
+    $col = $conn->query("SHOW COLUMNS FROM leave_requests LIKE 'leave_half'");
+    if ($col && $col->num_rows === 0) {
+        $conn->query("ALTER TABLE leave_requests ADD COLUMN leave_half VARCHAR(10) NOT NULL DEFAULT 'FULL' AFTER days");
+    }
+
     if ($closeAfter) {
         $conn->close();
     }
+}
+
+/**
+ * Normalize leave half codes used in leave + attendance
+ * FULL | FHL | SHL  (also accepts FHF/SHF)
+ */
+function leaveNormalizeHalf($half)
+{
+    $half = strtoupper(trim((string) $half));
+    if ($half === 'FHF' || $half === 'FIRST' || $half === 'FIRST_HALF') {
+        return 'FHL';
+    }
+    if ($half === 'SHF' || $half === 'SECOND' || $half === 'SECOND_HALF') {
+        return 'SHL';
+    }
+    if ($half === 'FHL' || $half === 'SHL') {
+        return $half;
+    }
+    return 'FULL';
+}
+
+function leaveHalfLabel($half)
+{
+    $half = leaveNormalizeHalf($half);
+    if ($half === 'FHL') {
+        return 'FHL (First Half Leave)';
+    }
+    if ($half === 'SHL') {
+        return 'SHL (Second Half Leave)';
+    }
+    return 'Full Day';
 }
 
 function leaveBalanceRemaining(array $row)
@@ -406,6 +444,7 @@ function leaveApplyRequest($conn, array $data)
     $toDate = (string) ($data['to_date'] ?? '');
     $reason = trim((string) ($data['reason'] ?? ''));
     $appliedBy = (int) ($data['applied_by'] ?? 0);
+    $leaveHalf = leaveNormalizeHalf($data['leave_half'] ?? 'FULL');
 
     if ($employeeId <= 0 || $leaveTypeId <= 0) {
         throw new RuntimeException('Employee and leave type are required.');
@@ -416,6 +455,9 @@ function leaveApplyRequest($conn, array $data)
     if (strtotime($toDate) < strtotime($fromDate)) {
         throw new RuntimeException('To date cannot be before from date.');
     }
+    if (in_array($leaveHalf, ['FHL', 'SHL'], true) && $fromDate !== $toDate) {
+        throw new RuntimeException('First / Second half leave is allowed for a single day only.');
+    }
 
     $lt = getLeaveTypeById($leaveTypeId, $conn);
     if (!$lt || (int) ($lt['status'] ?? 0) !== 1) {
@@ -425,6 +467,9 @@ function leaveApplyRequest($conn, array $data)
     $days = leaveCountWorkingDays($conn, $employeeId, $fromDate, $toDate);
     if ($days <= 0) {
         throw new RuntimeException('No working days in selected date range (week-off/holiday excluded).');
+    }
+    if (in_array($leaveHalf, ['FHL', 'SHL'], true)) {
+        $days = 0.5;
     }
 
     if (leaveHasOverlap($conn, $employeeId, $fromDate, $toDate)) {
@@ -446,10 +491,10 @@ function leaveApplyRequest($conn, array $data)
 
     $stmt = $conn->prepare(
         "INSERT INTO leave_requests
-            (employee_id, leave_type_id, from_date, to_date, days, reason, status, applied_by)
-         VALUES (?, ?, ?, ?, ?, ?, 'Pending', ?)"
+            (employee_id, leave_type_id, from_date, to_date, days, leave_half, reason, status, applied_by)
+         VALUES (?, ?, ?, ?, ?, ?, ?, 'Pending', ?)"
     );
-    $stmt->bind_param('iissdsi', $employeeId, $leaveTypeId, $fromDate, $toDate, $days, $reason, $appliedBy);
+    $stmt->bind_param('iissdssi', $employeeId, $leaveTypeId, $fromDate, $toDate, $days, $leaveHalf, $reason, $appliedBy);
     if (!$stmt->execute()) {
         $err = $stmt->error;
         $stmt->close();
@@ -460,7 +505,7 @@ function leaveApplyRequest($conn, array $data)
     return $id;
 }
 
-function leaveMarkAttendanceDays($conn, $employeeId, $fromDate, $toDate)
+function leaveMarkAttendanceDays($conn, $employeeId, $fromDate, $toDate, $leaveCode = '', $leaveHalf = 'FULL')
 {
     ensureAttendanceTables($conn);
     $employeeId = (int) $employeeId;
@@ -468,6 +513,20 @@ function leaveMarkAttendanceDays($conn, $employeeId, $fromDate, $toDate)
     $to = strtotime($toDate);
     $emp = getEmployeeById($employeeId);
     $weekOff = strtolower(trim((string) ($emp['week_off_day'] ?? 'Sunday')));
+    $leaveHalf = leaveNormalizeHalf($leaveHalf);
+    $isHalf = in_array($leaveHalf, ['FHL', 'SHL'], true);
+    $status = $isHalf ? 'Half Day' : 'Leave';
+    $code = strtoupper(trim((string) $leaveCode));
+    $remarks = '';
+    if ($code !== '') {
+        $remarks = $code;
+        if ($isHalf) {
+            $remarks .= ' ' . $leaveHalf;
+        }
+    } elseif ($isHalf) {
+        $remarks = $leaveHalf;
+    }
+    $source = 'leave';
 
     for ($ts = $from; $ts <= $to; $ts += 86400) {
         $date = date('Y-m-d', $ts);
@@ -481,21 +540,34 @@ function leaveMarkAttendanceDays($conn, $employeeId, $fromDate, $toDate)
         if (isset($holidays[$date])) {
             continue;
         }
-        $status = 'Leave';
-        $source = 'leave';
         $zero = 0;
-        $stmt = $conn->prepare(
-            "INSERT INTO attendance_day_status
-                (employee_id, attendance_date, day_status, punch_in, punch_out, working_minutes, source)
-             VALUES (?, ?, ?, NULL, NULL, ?, ?)
-             ON DUPLICATE KEY UPDATE
-                day_status = VALUES(day_status),
-                punch_in = NULL,
-                punch_out = NULL,
-                working_minutes = 0,
-                source = VALUES(source)"
-        );
-        $stmt->bind_param('issis', $employeeId, $date, $status, $zero, $source);
+        if ($isHalf) {
+            // Keep existing punch in/out (other half worked)
+            $stmt = $conn->prepare(
+                "INSERT INTO attendance_day_status
+                    (employee_id, attendance_date, day_status, punch_in, punch_out, working_minutes, source, remarks)
+                 VALUES (?, ?, ?, NULL, NULL, ?, ?, ?)
+                 ON DUPLICATE KEY UPDATE
+                    day_status = VALUES(day_status),
+                    remarks = VALUES(remarks),
+                    source = VALUES(source)"
+            );
+            $stmt->bind_param('ississ', $employeeId, $date, $status, $zero, $source, $remarks);
+        } else {
+            $stmt = $conn->prepare(
+                "INSERT INTO attendance_day_status
+                    (employee_id, attendance_date, day_status, punch_in, punch_out, working_minutes, source, remarks)
+                 VALUES (?, ?, ?, NULL, NULL, ?, ?, ?)
+                 ON DUPLICATE KEY UPDATE
+                    day_status = VALUES(day_status),
+                    punch_in = NULL,
+                    punch_out = NULL,
+                    working_minutes = 0,
+                    remarks = VALUES(remarks),
+                    source = VALUES(source)"
+            );
+            $stmt->bind_param('ississ', $employeeId, $date, $status, $zero, $source, $remarks);
+        }
         $stmt->execute();
         $stmt->close();
     }
@@ -691,7 +763,14 @@ function leaveApproveRequest($conn, $requestId, $userId, $remarks = '')
         $st->execute();
         $st->close();
 
-        leaveMarkAttendanceDays($conn, $employeeId, $req['from_date'], $req['to_date']);
+        leaveMarkAttendanceDays(
+            $conn,
+            $employeeId,
+            $req['from_date'],
+            $req['to_date'],
+            (string) ($req['code'] ?? ''),
+            leaveNormalizeHalf($req['leave_half'] ?? 'FULL')
+        );
         // Refresh present / WO / holiday from day-status after marking Leave
         $fromTs = strtotime($req['from_date']);
         $toTs = strtotime($req['to_date']);

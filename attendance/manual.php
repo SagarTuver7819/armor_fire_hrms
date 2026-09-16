@@ -389,8 +389,8 @@ if (isset($_GET['msg']) && $_GET['msg'] === 'saved') {
                     </select>
                     <select id="mLeaveHalf" class="form-control no-select2">
                         <option value="FULL">Full Day</option>
-                        <option value="FHF">FHF (1st half leave)</option>
-                        <option value="SHF">SHF (2nd half leave)</option>
+                        <option value="FHL">FHL (First Half Leave)</option>
+                        <option value="SHL">SHL (Second Half Leave)</option>
                     </select>
                 </div>
             </div>

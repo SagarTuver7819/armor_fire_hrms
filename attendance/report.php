@@ -137,8 +137,8 @@ require_once __DIR__ . '/../includes/header.php';
             <div class="form-hint" style="margin-top:10px;">
                 Format same as Excel:
                 <code>9:00 AM | 06:00 PM</code> ·
-                <code>PL SHF</code> ·
-                <code>PL FHF</code> ·
+                <code>PL · FHL (First Half Leave)</code> + punch ·
+                <code>PL · SHL (Second Half Leave)</code> + punch ·
                 <code>PL</code>/<code>SL</code> ·
                 <code>week off</code>
             </div>

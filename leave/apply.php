@@ -81,13 +81,22 @@ require_once __DIR__ . '/../includes/header.php';
                 </div>
                 <div class="form-group">
                     <label>From Date <span class="req">*</span> <small>(DD-MM-YYYY)</small></label>
-                    <input type="text" name="from_date" class="form-control js-date" required placeholder="DD-MM-YYYY"
+                    <input type="text" name="from_date" id="leaveFromDate" class="form-control js-date" required placeholder="DD-MM-YYYY"
                            value="<?php echo htmlspecialchars(dateInputValue(date('Y-m-d'))); ?>">
                 </div>
                 <div class="form-group">
                     <label>To Date <span class="req">*</span> <small>(DD-MM-YYYY)</small></label>
-                    <input type="text" name="to_date" class="form-control js-date" required placeholder="DD-MM-YYYY"
+                    <input type="text" name="to_date" id="leaveToDate" class="form-control js-date" required placeholder="DD-MM-YYYY"
                            value="<?php echo htmlspecialchars(dateInputValue(date('Y-m-d'))); ?>">
+                </div>
+                <div class="form-group">
+                    <label>Leave Duration <span class="req">*</span></label>
+                    <select name="leave_half" id="leaveHalf" class="form-control" required>
+                        <option value="FULL">Full Day</option>
+                        <option value="FHL">First Half Leave (FHL)</option>
+                        <option value="SHL">Second Half Leave (SHL)</option>
+                    </select>
+                    <small class="form-hint">Half leave = 0.5 day · single date only</small>
                 </div>
                 <div class="form-group" style="grid-column: span 3;">
                     <label>Reason</label>
@@ -101,4 +110,30 @@ require_once __DIR__ . '/../includes/header.php';
         </form>
     </div>
 </main>
+<script>
+(function () {
+    var half = document.getElementById('leaveHalf');
+    var from = document.getElementById('leaveFromDate');
+    var to = document.getElementById('leaveToDate');
+    if (!half || !from || !to) return;
+    function syncHalf() {
+        var v = half.value;
+        if (v === 'FHL' || v === 'SHL') {
+            to.value = from.value;
+            to.readOnly = true;
+            to.classList.add('is-readonly');
+        } else {
+            to.readOnly = false;
+            to.classList.remove('is-readonly');
+        }
+    }
+    half.addEventListener('change', syncHalf);
+    from.addEventListener('change', function () {
+        if (half.value === 'FHL' || half.value === 'SHL') {
+            to.value = from.value;
+        }
+    });
+    syncHalf();
+})();
+</script>
 <?php require_once __DIR__ . '/../includes/footer.php'; ?>

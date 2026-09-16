@@ -51,9 +51,16 @@
         var leavePart = '';
         if (leaveType && (status === 'Leave' || status === 'Half Day')) {
             leavePart = leaveType;
-            if (leaveHalf === 'FHF' || leaveHalf === 'SHF') leavePart += ' ' + leaveHalf;
+            if (leaveHalf === 'FHF' || leaveHalf === 'FHL') leavePart = leaveType + ' · FHL (First Half Leave)';
+            else if (leaveHalf === 'SHF' || leaveHalf === 'SHL') leavePart = leaveType + ' · SHL (Second Half Leave)';
         }
-        if (timePart && leavePart) return timePart + '\n' + leavePart;
+        if (timePart && leavePart) {
+            // Half leave: label on top, punch below
+            if (leaveHalf === 'FHF' || leaveHalf === 'FHL' || leaveHalf === 'SHF' || leaveHalf === 'SHL' || status === 'Half Day') {
+                return leavePart + '\n' + timePart;
+            }
+            return timePart + '\n' + leavePart;
+        }
         return timePart || leavePart || status || '-';
     }
 
@@ -107,7 +114,7 @@
             var half = ($(this).attr('data-leave-half') || '').toUpperCase();
             if (!type && status === 'Leave') type = 'PL';
             if (!type || !totals.hasOwnProperty(type)) return;
-            var inc = (status === 'Half Day' || half === 'FHF' || half === 'SHF') ? 0.5 : 1;
+            var inc = (status === 'Half Day' || half === 'FHF' || half === 'SHF' || half === 'FHL' || half === 'SHL') ? 0.5 : 1;
             if (status === 'Leave' || status === 'Half Day') {
                 totals[type] += inc;
             }
@@ -261,7 +268,9 @@
 
             $('#mStatus').val(status);
             $('#mLeaveType').val(lt);
-            $('#mLeaveHalf').val(lh || (status === 'Leave' ? 'FULL' : 'SHF'));
+            $('#mLeaveHalf').val(lh || (status === 'Leave' ? 'FULL' : 'SHL'));
+            if ($('#mLeaveHalf').val() === 'FHF') $('#mLeaveHalf').val('FHL');
+            if ($('#mLeaveHalf').val() === 'SHF') $('#mLeaveHalf').val('SHL');
             syncModalPreview();
 
             $('#attCellModal').prop('hidden', false);
@@ -294,8 +303,10 @@
             lh = '';
         } else if (status === 'Half Day') {
             if (!lt) lt = 'PL';
-            if (!lh || lh === 'FULL') lh = 'SHF';
-            if (lh === 'FHF') {
+            if (!lh || lh === 'FULL') lh = 'SHL';
+            if (lh === 'FHF') lh = 'FHL';
+            if (lh === 'SHF') lh = 'SHL';
+            if (lh === 'FHL') {
                 if (!inn) inn = '1:00 PM';
                 if (!out) out = t.out;
             } else {
@@ -305,9 +316,11 @@
         } else if (status === 'Leave') {
             if (!lt) lt = 'PL';
             lh = lh || 'FULL';
-            if (lh === 'FHF' || lh === 'SHF') {
+            if (lh === 'FHF') lh = 'FHL';
+            if (lh === 'SHF') lh = 'SHL';
+            if (lh === 'FHL' || lh === 'SHL') {
                 status = 'Half Day';
-                if (lh === 'FHF') {
+                if (lh === 'FHL') {
                     inn = inn || '1:00 PM';
                     out = out || t.out;
                 } else {
@@ -362,7 +375,7 @@
                 if (!$('#mIn').val()) setModalTime('#mIn', t.inn);
                 if (!$('#mOut').val()) setModalTime('#mOut', t.out);
             } else if (status === 'Half Day') {
-                if (lh === 'FHF') {
+                if (lh === 'FHF' || lh === 'FHL') {
                     setModalTime('#mIn', '1:00 PM');
                     setModalTime('#mOut', t.out);
                 } else {

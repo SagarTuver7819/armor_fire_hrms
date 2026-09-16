@@ -27,6 +27,7 @@ try {
         'leave_type_id' => (int) ($_POST['leave_type_id'] ?? 0),
         'from_date' => (string) (parseDateInput($_POST['from_date'] ?? '') ?? ''),
         'to_date' => (string) (parseDateInput($_POST['to_date'] ?? '') ?? ''),
+        'leave_half' => (string) ($_POST['leave_half'] ?? 'FULL'),
         'reason' => (string) ($_POST['reason'] ?? ''),
         'applied_by' => (int) ($_SESSION['user_id'] ?? 0),
     ]);

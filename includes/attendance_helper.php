@@ -1136,7 +1136,7 @@ function getAttendanceExcelMonthGrid($month, $year, $deptId = 0, $employeeId = 0
             if (!isset($totals[$key])) {
                 continue;
             }
-            $inc = ($status === 'Half Day' || in_array($half, ['FHF', 'SHF'], true)) ? 0.5 : 1.0;
+            $inc = ($status === 'Half Day' || in_array($half, ['FHF', 'SHF', 'FHL', 'SHL'], true)) ? 0.5 : 1.0;
             $totals[$key] += $inc;
         }
         $leaveTotals[$eid] = $totals;
@@ -1300,12 +1300,19 @@ function attendanceDayToExcelText(array $day = null)
 
 /**
  * Build Excel-style day cell text: "9:00 AM | 06:00 PM" / "PL" / "week off"
+ * Half leave: FHL/SHL label on top, punch in/out below
  */
 function attendanceExcelCellPreview($status, $punchIn, $punchOut, $leaveType = '', $leaveHalf = '')
 {
     $status = (string) $status;
     $leaveType = strtoupper(trim((string) $leaveType));
     $leaveHalf = strtoupper(trim((string) $leaveHalf));
+    if ($leaveHalf === 'FHF') {
+        $leaveHalf = 'FHL';
+    }
+    if ($leaveHalf === 'SHF') {
+        $leaveHalf = 'SHL';
+    }
 
     if ($status === 'Week Off') {
         return 'week off';
@@ -1336,10 +1343,34 @@ function attendanceExcelCellPreview($status, $punchIn, $punchOut, $leaveType = '
         $timePart = trim($inDisp . ' | ' . $outDisp, ' |');
     }
 
+    // First / Second half leave — show label then punch times
+    if (in_array($leaveHalf, ['FHL', 'SHL'], true) || $status === 'Half Day') {
+        $halfLabel = '';
+        if ($leaveHalf === 'FHL') {
+            $halfLabel = 'FHL (First Half Leave)';
+        } elseif ($leaveHalf === 'SHL') {
+            $halfLabel = 'SHL (Second Half Leave)';
+        } elseif ($status === 'Half Day') {
+            $halfLabel = $leaveType !== '' ? ($leaveType . ' Half Day') : 'Half Day';
+        }
+        if ($leaveType !== '' && in_array($leaveHalf, ['FHL', 'SHL'], true)) {
+            $halfLabel = $leaveType . ' · ' . ($leaveHalf === 'FHL' ? 'FHL (First Half Leave)' : 'SHL (Second Half Leave)');
+        }
+        if ($halfLabel !== '' && $timePart !== '') {
+            return $halfLabel . "\n" . $timePart;
+        }
+        if ($halfLabel !== '') {
+            return $halfLabel;
+        }
+        if ($timePart !== '') {
+            return $timePart;
+        }
+    }
+
     $leavePart = '';
     if ($leaveType !== '') {
         $leavePart = $leaveType;
-        if (in_array($leaveHalf, ['FHF', 'SHF'], true)) {
+        if (in_array($leaveHalf, ['FHL', 'SHL'], true)) {
             $leavePart .= ' ' . $leaveHalf;
         }
     }
@@ -1373,8 +1404,15 @@ function attendanceParseLeaveRemark($remarks)
         }
         $out['leave_type'] = $code;
     }
-    if (preg_match('/\b(FHF|SHF|FULL)\b/', $remarks, $m)) {
-        $out['leave_half'] = strtoupper($m[1]);
+    if (preg_match('/\b(FHL|SHL|FHF|SHF|FULL)\b/', $remarks, $m)) {
+        $h = strtoupper($m[1]);
+        if ($h === 'FHF') {
+            $h = 'FHL';
+        }
+        if ($h === 'SHF') {
+            $h = 'SHL';
+        }
+        $out['leave_half'] = $h;
     }
     return $out;
 }
@@ -1401,19 +1439,25 @@ function attendanceSaveManualDay($conn, $employeeId, $date, $status, $punchIn, $
         $leaveType = 'C-OFF';
     }
     $leaveHalf = strtoupper(trim((string) $leaveHalf));
-    if (!in_array($leaveHalf, ['FULL', 'FHF', 'SHF'], true)) {
+    if ($leaveHalf === 'FHF') {
+        $leaveHalf = 'FHL';
+    }
+    if ($leaveHalf === 'SHF') {
+        $leaveHalf = 'SHL';
+    }
+    if (!in_array($leaveHalf, ['FULL', 'FHL', 'SHL'], true)) {
         $leaveHalf = '';
     }
 
-    // Build remarks like Excel: "PL SHF" / "SL" / free text
+    // Build remarks like Excel: "PL SHL" / "SL" / free text
     $remarkParts = [];
     if (in_array($status, ['Leave', 'Half Day'], true) && $leaveType !== '') {
         $tag = $leaveType === 'C-OFF' ? 'C-Off' : $leaveType;
-        if ($status === 'Half Day' && in_array($leaveHalf, ['FHF', 'SHF'], true)) {
+        if ($status === 'Half Day' && in_array($leaveHalf, ['FHL', 'SHL'], true)) {
             $tag .= ' ' . $leaveHalf;
         } elseif ($status === 'Leave' && $leaveHalf === 'FULL') {
             // full day leave — type only
-        } elseif ($status === 'Leave' && in_array($leaveHalf, ['FHF', 'SHF'], true)) {
+        } elseif ($status === 'Leave' && in_array($leaveHalf, ['FHL', 'SHL'], true)) {
             $tag .= ' ' . $leaveHalf;
             $status = 'Half Day';
         }
@@ -1422,7 +1466,7 @@ function attendanceSaveManualDay($conn, $employeeId, $date, $status, $punchIn, $
     $extraRemark = trim((string) $remarks);
     // Strip old leave tags from free remark to avoid duplication
     if ($extraRemark !== '') {
-        $extraRemark = trim(preg_replace('/\b(PL|SL|C-?Off|COFF|DL|LWP|CL|EL)(\s+(FHF|SHF|FULL))?\b/i', '', $extraRemark));
+        $extraRemark = trim(preg_replace('/\b(PL|SL|C-?Off|COFF|DL|LWP|CL|EL)(\s+(FHF|SHF|FHL|SHL|FULL))?\b/i', '', $extraRemark));
         if ($extraRemark !== '') {
             $remarkParts[] = $extraRemark;
         }

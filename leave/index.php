@@ -146,7 +146,15 @@ $qsBase = http_build_query([
                         <td><?php echo htmlspecialchars($r['department_name'] ?? '-'); ?></td>
                         <td>
                             <?php echo htmlspecialchars(($r['code'] ? $r['code'] . ' · ' : '') . $r['leave_type']); ?>
-                            <div class="sr-code"><?php echo htmlspecialchars($r['is_paid'] === 'Yes' ? 'Paid' : 'Unpaid'); ?></div>
+                            <div class="sr-code">
+                                <?php echo htmlspecialchars($r['is_paid'] === 'Yes' ? 'Paid' : 'Unpaid'); ?>
+                                <?php
+                                $half = leaveNormalizeHalf($r['leave_half'] ?? 'FULL');
+                                if ($half === 'FHL' || $half === 'SHL') {
+                                    echo ' · ' . htmlspecialchars(leaveHalfLabel($half));
+                                }
+                                ?>
+                            </div>
                         </td>
                         <td><?php echo htmlspecialchars(formatDateDisplay($r['from_date'])); ?></td>
                         <td><?php echo htmlspecialchars(formatDateDisplay($r['to_date'])); ?></td>
