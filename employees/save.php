@@ -37,6 +37,13 @@ $permanentAddr = trim($_POST['permanent_address'] ?? '');
 $presentAddr   = trim($_POST['present_address'] ?? '');
 $mobile        = trim($_POST['mobile_number'] ?? '');
 $emergency     = trim($_POST['emergency_mobile'] ?? '');
+$officeEmail   = trim($_POST['office_email'] ?? '');
+$officeMobile  = trim($_POST['office_mobile'] ?? '');
+$maritalStatus = trim($_POST['marital_status'] ?? '');
+if (!in_array($maritalStatus, ['Married', 'Unmarried', 'Other'], true)) {
+    $maritalStatus = '';
+}
+$maritalRemark = ($maritalStatus === 'Other') ? trim($_POST['marital_remark'] ?? '') : '';
 $aadhar        = trim($_POST['aadhar_number'] ?? '');
 $pan           = trim($_POST['pan_number'] ?? '');
 $dob           = normalizeDatePost($_POST['date_of_birth'] ?? '', false);
@@ -125,9 +132,10 @@ if (!isEmployeeCodeUnique($conn, $empCode, $id)) {
 $createdBy = (int) ($_SESSION['user_id'] ?? 0);
 $oldAadharFile = '';
 $oldPanFile = '';
+$oldPhotoFile = '';
 
 if ($id > 0) {
-    $oldStmt = $conn->prepare('SELECT aadhar_file, pan_file FROM employees WHERE id = ? LIMIT 1');
+    $oldStmt = $conn->prepare('SELECT aadhar_file, pan_file, photo_file FROM employees WHERE id = ? LIMIT 1');
     $oldStmt->bind_param('i', $id);
     $oldStmt->execute();
     $oldRow = $oldStmt->get_result()->fetch_assoc();
@@ -135,6 +143,7 @@ if ($id > 0) {
     if ($oldRow) {
         $oldAadharFile = (string) ($oldRow['aadhar_file'] ?? '');
         $oldPanFile = (string) ($oldRow['pan_file'] ?? '');
+        $oldPhotoFile = (string) ($oldRow['photo_file'] ?? '');
     }
 }
 
@@ -252,16 +261,24 @@ if (!$ok) {
 }
 
 if ($savedId > 0) {
+    $extraStmt = $conn->prepare(
+        'UPDATE employees SET office_email = ?, office_mobile = ?, marital_status = ?, marital_remark = ? WHERE id = ?'
+    );
+    $extraStmt->bind_param('ssssi', $officeEmail, $officeMobile, $maritalStatus, $maritalRemark, $savedId);
+    $extraStmt->execute();
+    $extraStmt->close();
+
     try {
         $aadharFile = applyEmployeeDocumentUpload('aadhar_file', $savedId, 'aadhar', $oldAadharFile);
         $panFile = applyEmployeeDocumentUpload('pan_file', $savedId, 'pan', $oldPanFile);
+        $photoFile = applyEmployeeDocumentUpload('photo_file', $savedId, 'photo', $oldPhotoFile);
     } catch (RuntimeException $ex) {
         $conn->close();
         die('Employee saved, but attachment failed: ' . htmlspecialchars($ex->getMessage()) . ' <a href="javascript:history.back()">Go Back</a>');
     }
-    if ($aadharFile !== $oldAadharFile || $panFile !== $oldPanFile) {
-        $fileStmt = $conn->prepare('UPDATE employees SET aadhar_file = ?, pan_file = ? WHERE id = ?');
-        $fileStmt->bind_param('ssi', $aadharFile, $panFile, $savedId);
+    if ($aadharFile !== $oldAadharFile || $panFile !== $oldPanFile || $photoFile !== $oldPhotoFile) {
+        $fileStmt = $conn->prepare('UPDATE employees SET aadhar_file = ?, pan_file = ?, photo_file = ? WHERE id = ?');
+        $fileStmt->bind_param('sssi', $aadharFile, $panFile, $photoFile, $savedId);
         $fileStmt->execute();
         $fileStmt->close();
     }

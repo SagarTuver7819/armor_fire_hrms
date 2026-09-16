@@ -62,6 +62,11 @@ function ensureEmployeesTable($conn = null)
     ensureEmployeeColumn($conn, 'sub_department_id', "sub_department_id INT DEFAULT NULL AFTER department_id");
     ensureEmployeeColumn($conn, 'main_contractor_id', "main_contractor_id INT DEFAULT NULL AFTER pay_type");
     ensureEmployeeColumn($conn, 'date_of_exit', "date_of_exit DATE DEFAULT NULL AFTER date_of_joining");
+    ensureEmployeeColumn($conn, 'office_email', "office_email VARCHAR(150) DEFAULT NULL AFTER emergency_mobile");
+    ensureEmployeeColumn($conn, 'office_mobile', "office_mobile VARCHAR(15) DEFAULT NULL AFTER office_email");
+    ensureEmployeeColumn($conn, 'marital_status', "marital_status VARCHAR(20) DEFAULT NULL AFTER date_of_birth");
+    ensureEmployeeColumn($conn, 'marital_remark', "marital_remark VARCHAR(255) DEFAULT NULL AFTER marital_status");
+    ensureEmployeeColumn($conn, 'photo_file', "photo_file VARCHAR(255) DEFAULT NULL AFTER pan_file");
 
     // Auto-sync: Employees with an exit date are marked Deactive (status = 0)
     $conn->query("UPDATE employees SET status = 0 WHERE (date_of_exit IS NOT NULL AND date_of_exit != '' AND date_of_exit != '0000-00-00') AND status = 1");
@@ -595,18 +600,28 @@ function saveEmployeeDocument(array $file, $employeeId, $kind)
         throw new RuntimeException('Aadhar/PAN attachment could not be uploaded. Please try again.');
     }
     $ext = strtolower(pathinfo((string) ($file['name'] ?? ''), PATHINFO_EXTENSION));
-    $allowed = ['jpg', 'jpeg', 'png', 'pdf', 'webp'];
+    $kind = preg_replace('/[^a-z]/', '', strtolower((string) $kind));
+    $allowed = ($kind === 'photo')
+        ? ['jpg', 'jpeg', 'png', 'webp']
+        : ['jpg', 'jpeg', 'png', 'pdf', 'webp'];
     if (!in_array($ext, $allowed, true)) {
-        throw new RuntimeException('Aadhar/PAN file must be JPG, PNG, PDF, or WEBP.');
+        throw new RuntimeException(
+            $kind === 'photo'
+                ? 'Photo must be JPG, PNG, or WEBP.'
+                : 'Aadhar/PAN file must be JPG, PNG, PDF, or WEBP.'
+        );
     }
     if (($file['size'] ?? 0) > 5 * 1024 * 1024) {
-        throw new RuntimeException('Aadhar/PAN file must be 5MB or smaller.');
+        throw new RuntimeException(
+            $kind === 'photo'
+                ? 'Photo must be 5MB or smaller.'
+                : 'Aadhar/PAN file must be 5MB or smaller.'
+        );
     }
     $dir = dirname(__DIR__) . '/assets/uploads/docs';
     if (!is_dir($dir) && !mkdir($dir, 0755, true) && !is_dir($dir)) {
         throw new RuntimeException('Could not create document upload folder.');
     }
-    $kind = preg_replace('/[^a-z]/', '', strtolower((string) $kind));
     $name = 'emp_' . (int) $employeeId . '_' . ($kind !== '' ? $kind : 'doc') . '_' . time() . '.' . $ext;
     $dest = $dir . '/' . $name;
     if (!move_uploaded_file($file['tmp_name'], $dest)) {

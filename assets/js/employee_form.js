@@ -149,6 +149,50 @@
         });
     }
 
+    function toggleMaritalRemark() {
+        var status = document.getElementById('maritalStatus');
+        var wrap = document.getElementById('maritalRemarkWrap');
+        var remark = document.getElementById('maritalRemark');
+        if (!status || !wrap) {
+            return;
+        }
+        var isOther = status.value === 'Other';
+        wrap.style.display = isOther ? '' : 'none';
+        if (!isOther && remark) {
+            remark.value = '';
+        }
+    }
+
+    function bindMaritalStatus() {
+        var status = document.getElementById('maritalStatus');
+        if (!status) {
+            return;
+        }
+        status.addEventListener('change', toggleMaritalRemark);
+        toggleMaritalRemark();
+    }
+
+    function bindPhotoPreview() {
+        var input = document.getElementById('photoFile');
+        var preview = document.getElementById('photoPreview');
+        if (!input || !preview) {
+            return;
+        }
+        input.addEventListener('change', function () {
+            var file = input.files && input.files[0] ? input.files[0] : null;
+            if (!file) {
+                return;
+            }
+            if (!/^image\/(jpeg|png|webp)$/i.test(file.type) && !/\.(jpe?g|png|webp)$/i.test(file.name)) {
+                toastWarn('Photo must be JPG, PNG, or WEBP.');
+                input.value = '';
+                return;
+            }
+            var url = URL.createObjectURL(file);
+            preview.innerHTML = '<img src="' + url + '" alt="Photo preview">';
+        });
+    }
+
     $(function () {
         // Run after global Select2 init (employee_form.js loads before select2_init.js).
         setTimeout(bindShiftSelect, 0);
@@ -167,5 +211,7 @@
         }
 
         bindCodeDuplicateCheck();
+        bindMaritalStatus();
+        bindPhotoPreview();
     });
 })(window.jQuery);

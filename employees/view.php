@@ -10,6 +10,8 @@ require_once __DIR__ . '/../includes/employee_helper.php';
 require_once __DIR__ . '/../includes/leave_helper.php';
 require_once __DIR__ . '/../includes/attendance_helper.php';
 
+ensureEmployeesTable();
+
 $id = isset($_GET['id']) ? (int) $_GET['id'] : 0;
 $emp = $id > 0 ? getEmployeeById($id) : null;
 
@@ -90,6 +92,7 @@ $salaryShow = ($emp['decided_salary'] !== null && $emp['decided_salary'] !== '')
     : '-';
 
 $shiftClass = (strtolower((string) $emp['shift_type']) === 'night') ? 'is-night' : 'is-day';
+$photoUrl = employeeDocumentPublicUrl($emp['photo_file'] ?? '');
 
 $from = (string) ($_GET['from'] ?? '');
 if ($from === 'exit') {
@@ -138,7 +141,11 @@ $tabUrl = function ($t) use ($baseQs, $year, $month) {
         <div class="emp-id-top">
             <div class="emp-id-identity">
                 <div class="emp-avatar" aria-hidden="true">
-                    <span><?php echo htmlspecialchars(empInitials($emp['employee_name'])); ?></span>
+                    <?php if ($photoUrl !== ''): ?>
+                        <img src="<?php echo htmlspecialchars($photoUrl); ?>" alt="">
+                    <?php else: ?>
+                        <span><?php echo htmlspecialchars(empInitials($emp['employee_name'])); ?></span>
+                    <?php endif; ?>
                 </div>
                 <div class="emp-id-copy">
                     <div class="emp-id-tags">
@@ -443,6 +450,32 @@ $tabUrl = function ($t) use ($baseQs, $year, $month) {
                     <div class="info-row"><dt>Date of Birth</dt><dd><?php echo showVal(formatDateDisplay($emp['date_of_birth'])); ?></dd></div>
                     <div class="info-row"><dt>Mobile Number</dt><dd><?php echo showVal($emp['mobile_number']); ?></dd></div>
                     <div class="info-row"><dt>Emergency Mobile</dt><dd><?php echo showVal($emp['emergency_mobile']); ?></dd></div>
+                    <div class="info-row"><dt>Office Mail ID</dt><dd><?php echo showVal($emp['office_email'] ?? ''); ?></dd></div>
+                    <div class="info-row"><dt>Office Mobile</dt><dd><?php echo showVal($emp['office_mobile'] ?? ''); ?></dd></div>
+                    <div class="info-row">
+                        <dt>Marital Status</dt>
+                        <dd>
+                            <?php
+                            $ms = (string) ($emp['marital_status'] ?? '');
+                            echo showVal($ms);
+                            if ($ms === 'Other' && !empty($emp['marital_remark'])) {
+                                echo ' — ' . showVal($emp['marital_remark']);
+                            }
+                            ?>
+                        </dd>
+                    </div>
+                    <div class="info-row">
+                        <dt>Photo</dt>
+                        <dd>
+                            <?php if ($photoUrl !== ''): ?>
+                                <a href="<?php echo htmlspecialchars($photoUrl); ?>" target="_blank" rel="noopener" class="doc-view-link">
+                                    <i class="fa-solid fa-image"></i> View Photo
+                                </a>
+                            <?php else: ?>
+                                -
+                            <?php endif; ?>
+                        </dd>
+                    </div>
                     <div class="info-row">
                         <dt>Aadhar Number</dt>
                         <dd>

@@ -9,6 +9,8 @@ require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/employee_helper.php';
 require_once __DIR__ . '/../includes/master_helper.php';
 
+ensureEmployeesTable();
+
 $deptId = isset($_GET['department_id']) ? (int) $_GET['department_id'] : 0;
 $empId  = isset($_GET['id']) ? (int) $_GET['id'] : 0;
 $fromContractor = (($_GET['from'] ?? '') === 'contractor');
@@ -151,6 +153,57 @@ function empField($employee, $key, $default = '')
                         <label>6. Emergency Mobile</label>
                         <input type="text" name="emergency_mobile" class="form-control" maxlength="15"
                                value="<?php echo htmlspecialchars(empField($employee, 'emergency_mobile')); ?>">
+                    </div>
+                    <div class="form-group">
+                        <label>Office Mail ID</label>
+                        <input type="email" name="office_email" class="form-control" maxlength="150"
+                               placeholder="name@company.com"
+                               value="<?php echo htmlspecialchars(empField($employee, 'office_email')); ?>">
+                    </div>
+                    <div class="form-group">
+                        <label>Office Mobile Number</label>
+                        <input type="text" name="office_mobile" class="form-control" maxlength="15"
+                               value="<?php echo htmlspecialchars(empField($employee, 'office_mobile')); ?>">
+                    </div>
+                    <?php
+                    $maritalStatus = empField($employee, 'marital_status');
+                    $photoFileUrl = employeeDocumentPublicUrl(empField($employee, 'photo_file'));
+                    ?>
+                    <div class="form-group">
+                        <label>Marital Status</label>
+                        <select name="marital_status" id="maritalStatus" class="form-control">
+                            <option value="">— Select —</option>
+                            <option value="Married" <?php echo $maritalStatus === 'Married' ? 'selected' : ''; ?>>Married</option>
+                            <option value="Unmarried" <?php echo $maritalStatus === 'Unmarried' ? 'selected' : ''; ?>>Unmarried</option>
+                            <option value="Other" <?php echo $maritalStatus === 'Other' ? 'selected' : ''; ?>>Other</option>
+                        </select>
+                    </div>
+                    <div class="form-group" id="maritalRemarkWrap" style="<?php echo $maritalStatus === 'Other' ? '' : 'display:none;'; ?>">
+                        <label>Marital Remark <small>(for Other)</small></label>
+                        <input type="text" name="marital_remark" id="maritalRemark" class="form-control" maxlength="255"
+                               placeholder="Specify marital status"
+                               value="<?php echo htmlspecialchars(empField($employee, 'marital_remark')); ?>">
+                    </div>
+                    <div class="form-group">
+                        <label>Photo Upload</label>
+                        <div class="emp-photo-upload">
+                            <div class="emp-photo-preview" id="photoPreview">
+                                <?php if ($photoFileUrl !== ''): ?>
+                                    <img src="<?php echo htmlspecialchars($photoFileUrl); ?>" alt="Employee photo">
+                                <?php else: ?>
+                                    <span class="emp-photo-placeholder"><i class="fa-solid fa-camera"></i></span>
+                                <?php endif; ?>
+                            </div>
+                            <div class="emp-photo-controls">
+                                <input type="file" name="photo_file" id="photoFile" class="doc-file-input" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp">
+                                <small class="form-hint">JPG / PNG / WEBP · max 5MB</small>
+                                <?php if ($photoFileUrl !== ''): ?>
+                                    <a href="<?php echo htmlspecialchars($photoFileUrl); ?>" class="doc-view-link" target="_blank" rel="noopener">
+                                        <i class="fa-solid fa-eye"></i> View Photo
+                                    </a>
+                                <?php endif; ?>
+                            </div>
+                        </div>
                     </div>
                     <?php
                     $aadharFileUrl = employeeDocumentPublicUrl(empField($employee, 'aadhar_file'));
