@@ -80,11 +80,18 @@ require_once __DIR__ . '/../includes/header.php';
 
     <div class="form-page-card">
         <div class="form-page-header">
-            <h1>Import Employees — Excel Upload</h1>
+            <h1>
+                <?php if ($department): ?>
+                    Import Employees — <?php echo htmlspecialchars($department['department_name']); ?>
+                <?php else: ?>
+                    Import Employees — Excel Upload
+                <?php endif; ?>
+            </h1>
             <p>
                 <?php if ($department): ?>
-                    Department: <strong><?php echo htmlspecialchars($department['department_name']); ?></strong>
-                    · Rows without department use this department
+                    All imported rows will be saved in
+                    <strong><?php echo htmlspecialchars($department['department_name']); ?></strong>
+                    (department is locked for this import)
                 <?php else: ?>
                     All departments · Fill <code>department</code> column (exact master name)
                 <?php endif; ?>
@@ -125,6 +132,11 @@ require_once __DIR__ . '/../includes/header.php';
                 <li>Download the <strong>Example Excel Template</strong></li>
                 <li>Keep the header row as-is (do not rename columns)</li>
                 <li>Fill employee rows — <code>employee_name</code> is required</li>
+                <?php if ($department): ?>
+                    <li>Department is fixed to <strong><?php echo htmlspecialchars($department['department_name']); ?></strong> — no department column needed</li>
+                <?php else: ?>
+                    <li>Fill <code>department</code> with exact master name</li>
+                <?php endif; ?>
                 <li>Dates must be <strong>DD-MM-YYYY</strong> (example: 08-09-2026)</li>
                 <li>Leave <code>employee_code</code> blank to auto-generate (AS… / JW…)</li>
                 <li>Upload .xlsx / .xls / .csv and submit</li>
@@ -151,7 +163,11 @@ require_once __DIR__ . '/../includes/header.php';
                         <li><code>employee_name</code> — required</li>
                         <li><code>employee_code</code> — optional (auto if blank)</li>
                         <li><code>pay_type</code> — Salary / Jobwork / ContractorMain</li>
-                        <li><code>department</code> — required if not importing inside a department</li>
+                        <?php if ($department): ?>
+                            <li><code>department</code> — not required (locked to <?php echo htmlspecialchars($department['department_name']); ?>)</li>
+                        <?php else: ?>
+                            <li><code>department</code> — required (exact master name)</li>
+                        <?php endif; ?>
                         <li><code>date_of_joining</code> / <code>date_of_birth</code> — DD-MM-YYYY</li>
                         <li><code>shift_type</code> — Day / Night</li>
                     </ul>
@@ -161,7 +177,11 @@ require_once __DIR__ . '/../includes/header.php';
                     <ul style="margin:0;padding-left:18px;line-height:1.7;">
                         <li>Duplicate employee code → skipped</li>
                         <li>Blank code → next AS / JW code generated</li>
-                        <li>Invalid department name → error for that row</li>
+                        <?php if ($department): ?>
+                            <li>Every row is saved under <strong><?php echo htmlspecialchars($department['department_name']); ?></strong></li>
+                        <?php else: ?>
+                            <li>Invalid department name → error for that row</li>
+                        <?php endif; ?>
                         <li>Other filled form fields (bank, PF, address…) are optional</li>
                     </ul>
                 </div>

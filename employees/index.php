@@ -88,8 +88,14 @@ $excelUrl = app_url('employees/export_excel.php?view=' . $view . ($deptId > 0 ? 
                 <i class="fa-solid fa-file-excel"></i> Excel
             </a>
             <?php if (!$isExit): ?>
-            <a href="<?php echo htmlspecialchars(app_url('employees/import.php') . ($deptId > 0 ? ('?department_id=' . $deptId) : '')); ?>" class="btn-secondary">
-                <i class="fa-solid fa-file-import"></i> Import Employee
+            <a href="<?php echo htmlspecialchars(app_url('employees/import.php') . ($deptId > 0 ? ('?department_id=' . $deptId) : '')); ?>"
+               class="btn-secondary"
+               title="<?php echo $deptId > 0 ? ('Import into ' . htmlspecialchars($department['department_name'])) : 'Import employees (all departments)'; ?>">
+                <i class="fa-solid fa-file-import"></i>
+                <?php echo $deptId > 0 ? 'Import Employee' : 'Import Employee'; ?>
+                <?php if ($deptId > 0): ?>
+                    <span class="btn-dept-tag"><?php echo htmlspecialchars($department['department_name']); ?></span>
+                <?php endif; ?>
             </a>
             <?php endif; ?>
             <?php if ($isAllReport && function_exists('isAdmin') && isAdmin() && !$isExit): ?>

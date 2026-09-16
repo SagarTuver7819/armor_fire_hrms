@@ -1887,6 +1887,22 @@ body > .select2-container--open {
     gap: 8px;
 }
 
+.btn-dept-tag {
+    display: inline-block;
+    margin-left: 6px;
+    padding: 1px 8px;
+    border-radius: 999px;
+    background: rgba(245, 130, 32, 0.15);
+    color: #c2410c;
+    font-size: 11px;
+    font-weight: 700;
+    max-width: 140px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    vertical-align: middle;
+}
+
 .emp-id-card {
     position: relative;
     background: var(--surface);

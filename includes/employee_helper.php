@@ -633,10 +633,11 @@ function applyEmployeeDocumentUpload($fileKey, $employeeId, $kind, $currentPath)
 
 /**
  * Column headers for employee Excel import / sample template
+ * @param bool $omitDepartment when importing inside a fixed department page
  */
-function employeeImportHeaders()
+function employeeImportHeaders($omitDepartment = false)
 {
-    return [
+    $headers = [
         'employee_code',
         'biometric_user_id',
         'pay_type',
@@ -669,6 +670,12 @@ function employeeImportHeaders()
         'overtime_benefits',
         'extra_note',
     ];
+    if ($omitDepartment) {
+        $headers = array_values(array_filter($headers, static function ($h) {
+            return $h !== 'department';
+        }));
+    }
+    return $headers;
 }
 
 function employeeImportYesNo($value, $default = 'No')
@@ -768,7 +775,12 @@ function employeeImportFile($conn, $filePath, $originalName, $defaultDeptId = 0,
         }
 
         $deptName = employeeImportGet($row, ['department', 'department_name']);
-        $departmentId = employeeImportFindDepartmentId($conn, $deptName, $defaultDeptId);
+        // Department Join Employee import → always lock to that department
+        if ($defaultDeptId > 0) {
+            $departmentId = (int) $defaultDeptId;
+        } else {
+            $departmentId = employeeImportFindDepartmentId($conn, $deptName, 0);
+        }
         if ($departmentId <= 0) {
             $errors++;
             $errorLog[] = "Row {$lineNo}: Department missing/invalid for \"{$name}\".";
