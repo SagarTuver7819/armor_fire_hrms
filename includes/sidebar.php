@@ -88,6 +88,11 @@ $openAttendance = ($sidebarMode === 'attendance' || strpos((string) $sidebarActi
                     <i class="fa-solid fa-house"></i>
                     <span>Dashboard</span>
                 </a>
+                <a href="<?php echo app_url('hr/dashboard.php'); ?>"
+                   class="sidebar-link <?php echo $sidebarActive === 'hr_dashboard' ? 'active' : ''; ?>">
+                    <i class="fa-solid fa-user-tie"></i>
+                    <span>HR Dashboard</span>
+                </a>
                 <a href="<?php echo app_url('employees/index.php'); ?>"
                    class="sidebar-link <?php echo $sidebarActive === 'all_employees' ? 'active' : ''; ?>">
                     <i class="fa-solid fa-users"></i>

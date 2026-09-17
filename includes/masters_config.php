@@ -133,7 +133,9 @@ function getMastersConfig()
             'icon'        => 'fa-calendar-days',
             'color'       => '#E85D75',
             'name_field'  => 'title',
+            'fill_department_options' => true,
             'list_columns'=> [
+                ['key' => 'department_name', 'label' => 'Department'],
                 ['key' => 'title', 'label' => 'Title'],
                 ['key' => 'holiday_type', 'label' => 'Type'],
                 ['key' => 'holiday_date', 'label' => 'Date'],
@@ -141,6 +143,9 @@ function getMastersConfig()
                 ['key' => 'week_day', 'label' => 'Week Day'],
             ],
             'fields' => [
+                ['name' => 'department_id', 'label' => 'Department', 'type' => 'select', 'required' => true, 'span' => 2,
+                    'options' => ['0' => 'All Departments'],
+                    'help' => 'All Departments = applies to every department · Or pick one department'],
                 ['name' => 'title', 'label' => 'Holiday Title', 'type' => 'text', 'required' => true, 'span' => 2],
                 ['name' => 'holiday_type', 'label' => 'Type', 'type' => 'select', 'required' => true, 'span' => 1,
                     'options' => ['Holiday' => 'Holiday', 'Week-Off' => 'Week-Off']],

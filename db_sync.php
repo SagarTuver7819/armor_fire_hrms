@@ -56,10 +56,10 @@ $conn = getDBConnection();
 
 try {
     ensureEmployeesTable($conn);
-    $log[] = 'Employees table + extra columns ready (pay_type, aadhar_file, pan_file, sub_department_id).';
+    $log[] = 'Employees table + extra columns ready (pay_type, office fields, gender, marital, photo, pf_start_date, family).';
 
     ensureMasterTables($conn);
-    $log[] = 'Masters tables ready. Sub Department seeded from Department names where missing.';
+    $log[] = 'Masters tables ready (incl. holidays.department_id). Sub Department seeded from Department names where missing.';
 
     ensureContractorTables($conn);
     $log[] = 'Contractor tables ready (grades, products, employment, operations rate list).';
@@ -99,6 +99,11 @@ try {
     $checks = [
         'sub_departments table' => dbSyncHasTable($conn, 'sub_departments'),
         'employees.sub_department_id' => dbSyncHasColumn($conn, 'employees', 'sub_department_id'),
+        'employees.pf_start_date' => dbSyncHasColumn($conn, 'employees', 'pf_start_date'),
+        'employees.office_email' => dbSyncHasColumn($conn, 'employees', 'office_email'),
+        'employees.photo_file' => dbSyncHasColumn($conn, 'employees', 'photo_file'),
+        'employee_family_members table' => dbSyncHasTable($conn, 'employee_family_members'),
+        'holidays.department_id' => dbSyncHasColumn($conn, 'holidays', 'department_id'),
         'contractor_employment.sub_department_id' => dbSyncHasColumn($conn, 'contractor_employment', 'sub_department_id'),
         'contractor_operation_items.grade_id' => dbSyncHasColumn($conn, 'contractor_operation_items', 'grade_id'),
         'contractor_products table' => dbSyncHasTable($conn, 'contractor_products'),

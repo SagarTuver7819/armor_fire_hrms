@@ -64,16 +64,111 @@ function ensureEmployeesTable($conn = null)
     ensureEmployeeColumn($conn, 'date_of_exit', "date_of_exit DATE DEFAULT NULL AFTER date_of_joining");
     ensureEmployeeColumn($conn, 'office_email', "office_email VARCHAR(150) DEFAULT NULL AFTER emergency_mobile");
     ensureEmployeeColumn($conn, 'office_mobile', "office_mobile VARCHAR(15) DEFAULT NULL AFTER office_email");
+    ensureEmployeeColumn($conn, 'gender', "gender VARCHAR(20) DEFAULT NULL AFTER office_mobile");
     ensureEmployeeColumn($conn, 'marital_status', "marital_status VARCHAR(20) DEFAULT NULL AFTER date_of_birth");
     ensureEmployeeColumn($conn, 'marital_remark', "marital_remark VARCHAR(255) DEFAULT NULL AFTER marital_status");
     ensureEmployeeColumn($conn, 'photo_file', "photo_file VARCHAR(255) DEFAULT NULL AFTER pan_file");
+    ensureEmployeeColumn($conn, 'pf_start_date', "pf_start_date DATE DEFAULT NULL AFTER pf_deduction");
 
     // Auto-sync: Employees with an exit date are marked Deactive (status = 0)
     $conn->query("UPDATE employees SET status = 0 WHERE (date_of_exit IS NOT NULL AND date_of_exit != '' AND date_of_exit != '0000-00-00') AND status = 1");
 
+    ensureEmployeeFamilyTable($conn);
+
     if ($closeAfter) {
         $conn->close();
     }
+}
+
+function ensureEmployeeFamilyTable($conn)
+{
+    $conn->query(
+        "CREATE TABLE IF NOT EXISTS employee_family_members (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            employee_id INT NOT NULL,
+            member_name VARCHAR(150) NOT NULL DEFAULT '',
+            relation_name VARCHAR(100) NOT NULL DEFAULT '',
+            occupation VARCHAR(150) NOT NULL DEFAULT '',
+            sort_order INT NOT NULL DEFAULT 0,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            INDEX idx_emp_family_employee (employee_id)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+    );
+}
+
+/**
+ * @return array<int, array{id?:int, member_name:string, relation_name:string, occupation:string}>
+ */
+function getEmployeeFamilyMembers($employeeId, $conn = null)
+{
+    $closeAfter = false;
+    if ($conn === null) {
+        $conn = getDBConnection();
+        $closeAfter = true;
+        ensureEmployeesTable($conn);
+    }
+    $employeeId = (int) $employeeId;
+    $rows = [];
+    if ($employeeId > 0) {
+        $stmt = $conn->prepare(
+            'SELECT id, member_name, relation_name, occupation, sort_order
+             FROM employee_family_members
+             WHERE employee_id = ?
+             ORDER BY sort_order ASC, id ASC'
+        );
+        $stmt->bind_param('i', $employeeId);
+        $stmt->execute();
+        $res = $stmt->get_result();
+        while ($row = $res->fetch_assoc()) {
+            $rows[] = $row;
+        }
+        $stmt->close();
+    }
+    if ($closeAfter) {
+        $conn->close();
+    }
+    return $rows;
+}
+
+/**
+ * Replace family members for an employee from POST-style arrays.
+ *
+ * @param array $names
+ * @param array $relations
+ * @param array $occupations
+ */
+function saveEmployeeFamilyMembers($conn, $employeeId, array $names, array $relations, array $occupations)
+{
+    $employeeId = (int) $employeeId;
+    if ($employeeId <= 0) {
+        return;
+    }
+    ensureEmployeeFamilyTable($conn);
+
+    $del = $conn->prepare('DELETE FROM employee_family_members WHERE employee_id = ?');
+    $del->bind_param('i', $employeeId);
+    $del->execute();
+    $del->close();
+
+    $ins = $conn->prepare(
+        'INSERT INTO employee_family_members (employee_id, member_name, relation_name, occupation, sort_order)
+         VALUES (?, ?, ?, ?, ?)'
+    );
+    $count = max(count($names), count($relations), count($occupations));
+    $sort = 0;
+    for ($i = 0; $i < $count; $i++) {
+        $name = trim((string) ($names[$i] ?? ''));
+        $relation = trim((string) ($relations[$i] ?? ''));
+        $occupation = trim((string) ($occupations[$i] ?? ''));
+        if ($name === '' && $relation === '' && $occupation === '') {
+            continue;
+        }
+        $sort++;
+        $ins->bind_param('isssi', $employeeId, $name, $relation, $occupation, $sort);
+        $ins->execute();
+    }
+    $ins->close();
 }
 
 function ensureEmployeeColumn($conn, $column, $definition)

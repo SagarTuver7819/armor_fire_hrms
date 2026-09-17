@@ -149,17 +149,19 @@
         });
     }
 
-    function toggleMaritalRemark() {
+    function toggleMaritalRemark(fromUser) {
         var status = document.getElementById('maritalStatus');
         var wrap = document.getElementById('maritalRemarkWrap');
         var remark = document.getElementById('maritalRemark');
-        if (!status || !wrap) {
+        if (!status || !wrap || !remark) {
             return;
         }
-        var isOther = status.value === 'Other';
-        wrap.style.display = isOther ? '' : 'none';
-        if (!isOther && remark) {
+        var isOther = String(status.value || '') === 'Other';
+        wrap.classList.toggle('is-open', isOther);
+        if (!isOther) {
             remark.value = '';
+        } else if (fromUser) {
+            setTimeout(function () { remark.focus(); }, 0);
         }
     }
 
@@ -168,8 +170,21 @@
         if (!status) {
             return;
         }
-        status.addEventListener('change', toggleMaritalRemark);
-        toggleMaritalRemark();
+        // Avoid Select2 so Other → Remark works reliably (same on Add + Edit)
+        if (window.jQuery && jQuery.fn.select2 && jQuery(status).hasClass('select2-hidden-accessible')) {
+            try {
+                jQuery(status).select2('destroy');
+            } catch (e) { /* ignore */ }
+        }
+        status.classList.add('no-select2');
+        status.onchange = function () { toggleMaritalRemark(true); };
+        if (window.jQuery) {
+            jQuery(status).off('change.marital select2:select.marital select2:clear.marital')
+                .on('change.marital select2:select.marital select2:clear.marital', function () {
+                    toggleMaritalRemark(true);
+                });
+        }
+        toggleMaritalRemark(false);
     }
 
     function bindPhotoPreview() {
@@ -193,6 +208,61 @@
         });
     }
 
+    function bindFamilyMembers() {
+        var countInput = document.getElementById('familyMemberCount');
+        var list = document.getElementById('familyMembersList');
+        var tpl = document.getElementById('familyMemberTpl');
+        if (!countInput || !list || !tpl) {
+            return;
+        }
+
+        function readRows() {
+            var data = [];
+            list.querySelectorAll('.family-member-card').forEach(function (card) {
+                data.push({
+                    name: (card.querySelector('input[name="family_name[]"]') || {}).value || '',
+                    relation: (card.querySelector('input[name="family_relation[]"]') || {}).value || '',
+                    occupation: (card.querySelector('input[name="family_occupation[]"]') || {}).value || ''
+                });
+            });
+            return data;
+        }
+
+        function render(count) {
+            count = parseInt(count, 10);
+            if (isNaN(count) || count < 0) count = 0;
+            if (count > 10) count = 10;
+            countInput.value = String(count);
+
+            var prev = readRows();
+            list.innerHTML = '';
+            for (var i = 0; i < count; i++) {
+                var html = tpl.innerHTML
+                    .replace(/__INDEX__/g, String(i))
+                    .replace(/__NUM__/g, String(i + 1));
+                var wrap = document.createElement('div');
+                wrap.innerHTML = html.trim();
+                var card = wrap.firstElementChild;
+                if (prev[i]) {
+                    var n = card.querySelector('input[name="family_name[]"]');
+                    var r = card.querySelector('input[name="family_relation[]"]');
+                    var o = card.querySelector('input[name="family_occupation[]"]');
+                    if (n) n.value = prev[i].name;
+                    if (r) r.value = prev[i].relation;
+                    if (o) o.value = prev[i].occupation;
+                }
+                list.appendChild(card);
+            }
+        }
+
+        countInput.addEventListener('input', function () {
+            render(countInput.value);
+        });
+        countInput.addEventListener('change', function () {
+            render(countInput.value);
+        });
+    }
+
     $(function () {
         // Run after global Select2 init (employee_form.js loads before select2_init.js).
         setTimeout(bindShiftSelect, 0);
@@ -212,6 +282,10 @@
 
         bindCodeDuplicateCheck();
         bindMaritalStatus();
+        // Select2 may init after this file — re-apply so Other → Remark works on Add + Edit
+        setTimeout(bindMaritalStatus, 100);
+        setTimeout(bindMaritalStatus, 400);
         bindPhotoPreview();
+        bindFamilyMembers();
     });
 })(window.jQuery);

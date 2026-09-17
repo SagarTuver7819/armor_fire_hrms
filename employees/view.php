@@ -23,7 +23,7 @@ if (!$emp) {
 $deptId = (int) $emp['department_id'];
 $isDeactive = isEmployeeDeactive($emp);
 $tab = strtolower(trim((string) ($_GET['tab'] ?? 'profile')));
-if (!in_array($tab, ['profile', 'leave', 'history', 'attendance', 'salary'], true)) {
+if (!in_array($tab, ['profile', 'family', 'leave', 'history', 'attendance', 'salary'], true)) {
     $tab = 'profile';
 }
 
@@ -47,6 +47,7 @@ $sidebarDeptId = $deptId;
 $sidebarActive = $isDeactive ? 'exit_employee' : 'join_employee';
 
 ensureLeaveTables();
+$familyMembers = getEmployeeFamilyMembers($id);
 $conn = getDBConnection();
 ensureAttendanceTables($conn);
 foreach (getActiveLeaveTypes($conn) as $lt) {
@@ -227,26 +228,75 @@ $tabUrl = function ($t) use ($baseQs, $year, $month) {
         </div>
     </section>
 
-    <div class="emp-activity-tabs">
+    <nav class="emp-activity-tabs" aria-label="Employee sections">
         <a class="emp-activity-tab <?php echo $tab === 'profile' ? 'active' : ''; ?>" href="<?php echo htmlspecialchars($tabUrl('profile')); ?>">
-            <i class="fa-solid fa-id-card"></i> Profile
+            <span class="emp-tab-ico"><i class="fa-solid fa-id-card"></i></span>
+            <span class="emp-tab-label">Profile</span>
+        </a>
+        <a class="emp-activity-tab <?php echo $tab === 'family' ? 'active' : ''; ?>" href="<?php echo htmlspecialchars($tabUrl('family')); ?>">
+            <span class="emp-tab-ico"><i class="fa-solid fa-people-roof"></i></span>
+            <span class="emp-tab-label">Family</span>
+            <span class="emp-tab-badge"><?php echo count($familyMembers); ?></span>
         </a>
         <a class="emp-activity-tab <?php echo $tab === 'leave' ? 'active' : ''; ?>" href="<?php echo htmlspecialchars($tabUrl('leave')); ?>">
-            <i class="fa-solid fa-scale-balanced"></i> Leave Balance
+            <span class="emp-tab-ico"><i class="fa-solid fa-scale-balanced"></i></span>
+            <span class="emp-tab-label">Leave Balance</span>
         </a>
         <a class="emp-activity-tab <?php echo $tab === 'history' ? 'active' : ''; ?>" href="<?php echo htmlspecialchars($tabUrl('history')); ?>">
-            <i class="fa-solid fa-clock-rotate-left"></i> Leave History
+            <span class="emp-tab-ico"><i class="fa-solid fa-clock-rotate-left"></i></span>
+            <span class="emp-tab-label">Leave History</span>
             <span class="emp-tab-badge"><?php echo count($leaveHistory); ?></span>
         </a>
         <a class="emp-activity-tab <?php echo $tab === 'attendance' ? 'active' : ''; ?>" href="<?php echo htmlspecialchars($tabUrl('attendance')); ?>">
-            <i class="fa-solid fa-user-check"></i> Attendance
+            <span class="emp-tab-ico"><i class="fa-solid fa-user-check"></i></span>
+            <span class="emp-tab-label">Attendance</span>
         </a>
         <a class="emp-activity-tab <?php echo $tab === 'salary' ? 'active' : ''; ?>" href="<?php echo htmlspecialchars($tabUrl('salary')); ?>">
-            <i class="fa-solid fa-indian-rupee-sign"></i> Salary
+            <span class="emp-tab-ico"><i class="fa-solid fa-indian-rupee-sign"></i></span>
+            <span class="emp-tab-label">Salary</span>
         </a>
-    </div>
+    </nav>
 
-    <?php if ($tab === 'leave'): ?>
+    <?php if ($tab === 'family'): ?>
+        <div class="view-card view-card-wide family-view-panel">
+            <div class="view-card-head">
+                <i class="fa-solid fa-people-roof"></i>
+                <div>
+                    <h3>Family Details</h3>
+                    <p><?php echo count($familyMembers); ?> member<?php echo count($familyMembers) === 1 ? '' : 's'; ?> linked to this employee</p>
+                </div>
+                <a class="btn-ghost view-card-action" href="<?php echo app_url('employees/edit.php?id=' . (int) $emp['id'] . '&department_id=' . $deptId); ?>">
+                    <i class="fa-solid fa-pen"></i> Edit
+                </a>
+            </div>
+            <?php if (!$familyMembers): ?>
+                <div class="family-empty-state">
+                    <div class="family-empty-icon"><i class="fa-solid fa-people-roof"></i></div>
+                    <h4>No family members added</h4>
+                    <p>Add family details from Edit Employee → Family Details section.</p>
+                    <a class="btn-primary" href="<?php echo app_url('employees/edit.php?id=' . (int) $emp['id'] . '&department_id=' . $deptId); ?>">
+                        <i class="fa-solid fa-plus"></i> Add Family Members
+                    </a>
+                </div>
+            <?php else: ?>
+                <div class="family-view-grid">
+                    <?php foreach ($familyMembers as $i => $fm): ?>
+                        <article class="family-view-card">
+                            <div class="family-view-rank"><?php echo $i + 1; ?></div>
+                            <div class="family-view-body">
+                                <h4><?php echo showVal($fm['member_name'] ?? ''); ?></h4>
+                                <div class="family-view-meta">
+                                    <span><i class="fa-solid fa-link"></i> <?php echo showVal($fm['relation_name'] ?? ''); ?></span>
+                                    <span><i class="fa-solid fa-briefcase"></i> <?php echo showVal($fm['occupation'] ?? ''); ?></span>
+                                </div>
+                            </div>
+                        </article>
+                    <?php endforeach; ?>
+                </div>
+            <?php endif; ?>
+        </div>
+
+    <?php elseif ($tab === 'leave'): ?>
         <div class="form-page-card">
             <div class="form-page-header flex-between" style="align-items:center;">
                 <div>
@@ -428,6 +478,7 @@ $tabUrl = function ($t) use ($baseQs, $year, $month) {
                 <div class="info-row"><dt>Pay Type</dt><dd><?php echo showVal(payTypeLabel($emp['pay_type'] ?? 'Salary')); ?></dd></div>
                 <div class="info-row"><dt>Decided Salary</dt><dd><strong><?php echo $salaryShow; ?></strong></dd></div>
                 <div class="info-row"><dt>PF Deduction</dt><dd><?php echo showVal($emp['pf_deduction']); ?></dd></div>
+                <div class="info-row"><dt>PF Start Date</dt><dd><?php echo showVal(formatDateDisplay($emp['pf_start_date'] ?? '')); ?></dd></div>
                 <div class="info-row"><dt>UAN Number</dt><dd><?php echo showVal($emp['uan_number']); ?></dd></div>
                 <div class="info-row"><dt>Bank Name</dt><dd><?php echo showVal($emp['bank_name']); ?></dd></div>
                 <div class="info-row"><dt>Account Number</dt><dd><?php echo showVal($emp['bank_account_number']); ?></dd></div>
@@ -446,12 +497,13 @@ $tabUrl = function ($t) use ($baseQs, $year, $month) {
                     </div>
                 </div>
                 <dl class="info-list">
+                    <div class="info-row is-highlight">
+                        <dt>Employee Full Name</dt>
+                        <dd><?php echo showVal($emp['employee_name']); ?></dd>
+                    </div>
                     <div class="info-row"><dt>Father / Husband Name</dt><dd><?php echo showVal($emp['father_husband_name']); ?></dd></div>
                     <div class="info-row"><dt>Date of Birth</dt><dd><?php echo showVal(formatDateDisplay($emp['date_of_birth'])); ?></dd></div>
-                    <div class="info-row"><dt>Mobile Number</dt><dd><?php echo showVal($emp['mobile_number']); ?></dd></div>
-                    <div class="info-row"><dt>Emergency Mobile</dt><dd><?php echo showVal($emp['emergency_mobile']); ?></dd></div>
-                    <div class="info-row"><dt>Office Mail ID</dt><dd><?php echo showVal($emp['office_email'] ?? ''); ?></dd></div>
-                    <div class="info-row"><dt>Office Mobile</dt><dd><?php echo showVal($emp['office_mobile'] ?? ''); ?></dd></div>
+                    <div class="info-row"><dt>Gender</dt><dd><?php echo showVal($emp['gender'] ?? ''); ?></dd></div>
                     <div class="info-row">
                         <dt>Marital Status</dt>
                         <dd>
@@ -464,6 +516,16 @@ $tabUrl = function ($t) use ($baseQs, $year, $month) {
                             ?>
                         </dd>
                     </div>
+                </dl>
+                <div class="view-subhead">Contact</div>
+                <dl class="info-list">
+                    <div class="info-row"><dt>Mobile Number</dt><dd><?php echo showVal($emp['mobile_number']); ?></dd></div>
+                    <div class="info-row"><dt>Emergency Mobile</dt><dd><?php echo showVal($emp['emergency_mobile']); ?></dd></div>
+                    <div class="info-row"><dt>Office Mail ID</dt><dd><?php echo showVal($emp['office_email'] ?? ''); ?></dd></div>
+                    <div class="info-row"><dt>Office Mobile</dt><dd><?php echo showVal($emp['office_mobile'] ?? ''); ?></dd></div>
+                </dl>
+                <div class="view-subhead">Documents</div>
+                <dl class="info-list">
                     <div class="info-row">
                         <dt>Photo</dt>
                         <dd>
@@ -490,6 +552,9 @@ $tabUrl = function ($t) use ($baseQs, $year, $month) {
                             <?php echo employeeDocumentViewHtml($emp['pan_file'] ?? ''); ?>
                         </dd>
                     </div>
+                </dl>
+                <div class="view-subhead">Address</div>
+                <dl class="info-list">
                     <div class="info-row"><dt>Permanent Address</dt><dd><?php echo nl2br(showVal($emp['permanent_address'])); ?></dd></div>
                     <div class="info-row"><dt>Present Address</dt><dd><?php echo nl2br(showVal($emp['present_address'])); ?></dd></div>
                 </dl>
@@ -507,11 +572,21 @@ $tabUrl = function ($t) use ($baseQs, $year, $month) {
                     <div class="info-row"><dt>Department</dt><dd><?php echo showVal($emp['department_name']); ?></dd></div>
                     <div class="info-row"><dt>Pay Type</dt><dd><?php echo showVal(payTypeLabel($emp['pay_type'] ?? 'Salary')); ?></dd></div>
                     <div class="info-row"><dt>Designation</dt><dd><?php echo showVal($emp['designation']); ?></dd></div>
+                </dl>
+                <div class="view-subhead">Joining &amp; status</div>
+                <dl class="info-list">
                     <div class="info-row"><dt>Date of Joining</dt><dd><?php echo showVal(formatDateDisplay($emp['date_of_joining'])); ?></dd></div>
                     <div class="info-row"><dt>Exit Date</dt><dd><?php echo showVal(formatDateDisplay($emp['date_of_exit'] ?? '')); ?></dd></div>
+                </dl>
+                <div class="view-subhead">Shift</div>
+                <dl class="info-list">
                     <div class="info-row"><dt>Shift Type</dt><dd><span class="shift-pill <?php echo $shiftClass; ?>"><?php echo showVal($emp['shift_type']); ?></span></dd></div>
                     <div class="info-row"><dt>Shift Time</dt><dd><?php echo showVal($emp['shift_time']); ?></dd></div>
+                </dl>
+                <div class="view-subhead">PF &amp; salary</div>
+                <dl class="info-list">
                     <div class="info-row"><dt>PF Deduction</dt><dd><?php echo showVal($emp['pf_deduction']); ?></dd></div>
+                    <div class="info-row"><dt>PF Start Date</dt><dd><?php echo showVal(formatDateDisplay($emp['pf_start_date'] ?? '')); ?></dd></div>
                     <div class="info-row"><dt>UAN Number</dt><dd><?php echo showVal($emp['uan_number']); ?></dd></div>
                     <div class="info-row"><dt>Reporting Head</dt><dd><?php echo showVal($emp['reporting_head']); ?></dd></div>
                     <div class="info-row"><dt>Decided Salary</dt><dd><?php echo $salaryShow; ?></dd></div>

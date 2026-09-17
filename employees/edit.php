@@ -1,7 +1,6 @@
 <?php
 /**
- * Add / Edit Employee Form
- * Fields match English Employee Information Form document.
+ * Add / Edit Employee Form — same layout for both (hierarchy-wise sections)
  */
 
 require_once __DIR__ . '/../config/app.php';
@@ -14,6 +13,14 @@ ensureEmployeesTable();
 $deptId = isset($_GET['department_id']) ? (int) $_GET['department_id'] : 0;
 $empId  = isset($_GET['id']) ? (int) $_GET['id'] : 0;
 $fromContractor = (($_GET['from'] ?? '') === 'contractor');
+
+function empField($employee, $key, $default = '')
+{
+    if (!$employee || !isset($employee[$key]) || $employee[$key] === null) {
+        return $default;
+    }
+    return $employee[$key];
+}
 
 $employee = null;
 if ($empId > 0) {
@@ -77,15 +84,18 @@ $selectedWeekOff    = empField($employee, 'week_off_day');
 if ($selectedWeekOff === '' && !$employee) {
     $selectedWeekOff = 'Sunday';
 }
-
-// Helper to get old value from employee row
-function empField($employee, $key, $default = '')
-{
-    if (!$employee || !isset($employee[$key]) || $employee[$key] === null) {
-        return $default;
-    }
-    return $employee[$key];
-}
+$familyMembers = $empId > 0 ? getEmployeeFamilyMembers($empId) : [];
+$familyCount = count($familyMembers);
+$gender = empField($employee, 'gender');
+$maritalStatus = empField($employee, 'marital_status');
+$photoFileUrl = employeeDocumentPublicUrl(empField($employee, 'photo_file'));
+$aadharFileUrl = employeeDocumentPublicUrl(empField($employee, 'aadhar_file'));
+$panFileUrl = employeeDocumentPublicUrl(empField($employee, 'pan_file'));
+$isExited = !empty(empField($employee, 'date_of_exit')) || (int) empField($employee, 'status', 1) === 0;
+$pf = empField($employee, 'pf_deduction', 'No');
+$wob = empField($employee, 'week_off_benefits', 'No');
+$hb = empField($employee, 'holiday_benefits', 'No');
+$ob = empField($employee, 'overtime_benefits', 'No');
 ?>
 
 <main class="dashboard-main">
@@ -101,11 +111,12 @@ function empField($employee, $key, $default = '')
         </a>
     </div>
 
-    <div class="form-page-card">
+    <div class="form-page-card emp-join-card">
         <div class="form-page-header">
             <div>
                 <h1><?php echo $employee ? 'Edit Employee' : 'Add Employee'; ?></h1>
                 <p>
+                    Same form for Add &amp; Edit · Hierarchy-wise sections ·
                     Department: <strong><?php echo htmlspecialchars($department['department_name']); ?></strong>
                 </p>
             </div>
@@ -117,9 +128,10 @@ function empField($employee, $key, $default = '')
                 <input type="hidden" name="from" value="contractor">
             <?php endif; ?>
 
-            <!-- Section 1 -->
+            <!-- 1. Personal -->
             <div class="form-section">
-                <h3><i class="fa-solid fa-user"></i> Personal Information</h3>
+                <h3><span class="emp-sec-no">1</span><i class="fa-solid fa-user"></i> Personal Information</h3>
+                <div class="emp-subhead">Identity &amp; contact</div>
                 <div class="form-grid form-grid-3">
                     <div class="form-group span-2">
                         <label>1. Employee Name <small>(As per Aadhar)</small></label>
@@ -131,61 +143,83 @@ function empField($employee, $key, $default = '')
                         <input type="text" name="father_husband_name" class="form-control"
                                value="<?php echo htmlspecialchars(empField($employee, 'father_husband_name')); ?>">
                     </div>
-                    <div class="form-group span-2">
-                        <label>3. Permanent Address <small>(As per Aadhar)</small></label>
-                        <textarea name="permanent_address" class="form-control" rows="1"><?php echo htmlspecialchars(empField($employee, 'permanent_address')); ?></textarea>
-                    </div>
                     <div class="form-group">
-                        <label>9. Date of Birth <small>(DD-MM-YYYY)</small></label>
+                        <label>3. Date of Birth <small>(DD-MM-YYYY)</small></label>
                         <input type="text" name="date_of_birth" class="form-control js-date" placeholder="DD-MM-YYYY"
                                value="<?php echo htmlspecialchars(dateInputValue(empField($employee, 'date_of_birth'))); ?>">
                     </div>
-                    <div class="form-group span-2">
-                        <label>4. Present Address <small>(Current)</small></label>
-                        <textarea name="present_address" class="form-control" rows="1"><?php echo htmlspecialchars(empField($employee, 'present_address')); ?></textarea>
-                    </div>
                     <div class="form-group">
-                        <label>5. Mobile Number</label>
+                        <label>4. Gender</label>
+                        <div class="emp-radio-row">
+                            <label class="emp-radio-option">
+                                <input type="radio" name="gender" value="Male" <?php echo $gender === 'Male' ? 'checked' : ''; ?>>
+                                <span>Male</span>
+                            </label>
+                            <label class="emp-radio-option">
+                                <input type="radio" name="gender" value="Female" <?php echo $gender === 'Female' ? 'checked' : ''; ?>>
+                                <span>Female</span>
+                            </label>
+                        </div>
+                    </div>
+                    <div class="form-group marital-status-row">
+                        <label>5. Marital Status</label>
+                        <div class="marital-inline">
+                            <select name="marital_status" id="maritalStatus" class="form-control no-select2">
+                                <option value="">— Select —</option>
+                                <option value="Married" <?php echo $maritalStatus === 'Married' ? 'selected' : ''; ?>>Married</option>
+                                <option value="Unmarried" <?php echo $maritalStatus === 'Unmarried' ? 'selected' : ''; ?>>Unmarried</option>
+                                <option value="Other" <?php echo $maritalStatus === 'Other' ? 'selected' : ''; ?>>Other</option>
+                            </select>
+                            <div class="marital-remark-wrap <?php echo $maritalStatus === 'Other' ? 'is-open' : ''; ?>" id="maritalRemarkWrap">
+                                <input type="text" name="marital_remark" id="maritalRemark" class="form-control"
+                                       maxlength="255" placeholder="Remark"
+                                       value="<?php echo htmlspecialchars(empField($employee, 'marital_remark')); ?>">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="emp-subhead">Address</div>
+                <div class="form-grid form-grid-3">
+                    <div class="form-group span-2">
+                        <label>6. Permanent Address <small>(As per Aadhar)</small></label>
+                        <textarea name="permanent_address" class="form-control" rows="2"><?php echo htmlspecialchars(empField($employee, 'permanent_address')); ?></textarea>
+                    </div>
+                    <div class="form-group span-2">
+                        <label>7. Present Address <small>(Current)</small></label>
+                        <textarea name="present_address" class="form-control" rows="2"><?php echo htmlspecialchars(empField($employee, 'present_address')); ?></textarea>
+                    </div>
+                </div>
+
+                <div class="emp-subhead">Contact</div>
+                <div class="form-grid form-grid-3">
+                    <div class="form-group">
+                        <label>8. Mobile Number</label>
                         <input type="text" name="mobile_number" class="form-control" maxlength="15"
                                value="<?php echo htmlspecialchars(empField($employee, 'mobile_number')); ?>">
                     </div>
                     <div class="form-group">
-                        <label>6. Emergency Mobile</label>
+                        <label>9. Emergency Mobile</label>
                         <input type="text" name="emergency_mobile" class="form-control" maxlength="15"
                                value="<?php echo htmlspecialchars(empField($employee, 'emergency_mobile')); ?>">
                     </div>
                     <div class="form-group">
-                        <label>Office Mail ID</label>
+                        <label>10. Office Mail ID</label>
                         <input type="email" name="office_email" class="form-control" maxlength="150"
                                placeholder="name@company.com"
                                value="<?php echo htmlspecialchars(empField($employee, 'office_email')); ?>">
                     </div>
                     <div class="form-group">
-                        <label>Office Mobile Number</label>
+                        <label>11. Office Mobile Number</label>
                         <input type="text" name="office_mobile" class="form-control" maxlength="15"
                                value="<?php echo htmlspecialchars(empField($employee, 'office_mobile')); ?>">
                     </div>
-                    <?php
-                    $maritalStatus = empField($employee, 'marital_status');
-                    $photoFileUrl = employeeDocumentPublicUrl(empField($employee, 'photo_file'));
-                    ?>
+                </div>
+
+                <div class="emp-subhead">Photo &amp; documents</div>
+                <div class="form-grid form-grid-3">
                     <div class="form-group">
-                        <label>Marital Status</label>
-                        <select name="marital_status" id="maritalStatus" class="form-control">
-                            <option value="">— Select —</option>
-                            <option value="Married" <?php echo $maritalStatus === 'Married' ? 'selected' : ''; ?>>Married</option>
-                            <option value="Unmarried" <?php echo $maritalStatus === 'Unmarried' ? 'selected' : ''; ?>>Unmarried</option>
-                            <option value="Other" <?php echo $maritalStatus === 'Other' ? 'selected' : ''; ?>>Other</option>
-                        </select>
-                    </div>
-                    <div class="form-group" id="maritalRemarkWrap" style="<?php echo $maritalStatus === 'Other' ? '' : 'display:none;'; ?>">
-                        <label>Marital Remark <small>(for Other)</small></label>
-                        <input type="text" name="marital_remark" id="maritalRemark" class="form-control" maxlength="255"
-                               placeholder="Specify marital status"
-                               value="<?php echo htmlspecialchars(empField($employee, 'marital_remark')); ?>">
-                    </div>
-                    <div class="form-group">
-                        <label>Photo Upload</label>
+                        <label>12. Photo Upload</label>
                         <div class="emp-photo-upload">
                             <div class="emp-photo-preview" id="photoPreview">
                                 <?php if ($photoFileUrl !== ''): ?>
@@ -205,12 +239,8 @@ function empField($employee, $key, $default = '')
                             </div>
                         </div>
                     </div>
-                    <?php
-                    $aadharFileUrl = employeeDocumentPublicUrl(empField($employee, 'aadhar_file'));
-                    $panFileUrl    = employeeDocumentPublicUrl(empField($employee, 'pan_file'));
-                    ?>
                     <div class="form-group">
-                        <label>7. Aadhar Card Number</label>
+                        <label>13. Aadhar Card Number</label>
                         <input type="text" name="aadhar_number" class="form-control" maxlength="20"
                                value="<?php echo htmlspecialchars(empField($employee, 'aadhar_number')); ?>">
                         <div class="doc-attach-row">
@@ -224,7 +254,7 @@ function empField($employee, $key, $default = '')
                         </div>
                     </div>
                     <div class="form-group">
-                        <label>8. PAN Card Number</label>
+                        <label>14. PAN Card Number</label>
                         <input type="text" name="pan_number" class="form-control" maxlength="20"
                                value="<?php echo htmlspecialchars(empField($employee, 'pan_number')); ?>">
                         <div class="doc-attach-row">
@@ -240,25 +270,26 @@ function empField($employee, $key, $default = '')
                 </div>
             </div>
 
-            <!-- Section 2 -->
+            <!-- 2. Job -->
             <div class="form-section">
-                <h3><i class="fa-solid fa-briefcase"></i> Job Information</h3>
+                <h3><span class="emp-sec-no">2</span><i class="fa-solid fa-briefcase"></i> Job Information</h3>
+                <div class="emp-subhead">Employment type &amp; codes</div>
                 <div class="form-grid form-grid-3">
                     <div class="form-group">
-                        <label>Pay Type <small>(Salary / Jobwork / Contractor Main)</small></label>
+                        <label>15. Pay Type</label>
                         <?php if ($fromContractor): ?>
                             <input type="hidden" name="pay_type" id="payType" value="Jobwork">
                             <input type="text" class="form-control" value="Jobwork" readonly>
                         <?php else: ?>
                         <select name="pay_type" id="payType" class="form-control" required>
-                            <option value="Salary" <?php echo $currentPayType === 'Salary' ? 'selected' : ''; ?>>1 · Normal Salary</option>
-                            <option value="Jobwork" <?php echo $currentPayType === 'Jobwork' ? 'selected' : ''; ?>>2 · Contractor Jobwork</option>
-                            <option value="ContractorMain" <?php echo $currentPayType === 'ContractorMain' ? 'selected' : ''; ?>>3 · Contractor Main</option>
+                            <option value="Salary" <?php echo $currentPayType === 'Salary' ? 'selected' : ''; ?>>Normal Salary</option>
+                            <option value="Jobwork" <?php echo $currentPayType === 'Jobwork' ? 'selected' : ''; ?>>Contractor Jobwork</option>
+                            <option value="ContractorMain" <?php echo $currentPayType === 'ContractorMain' ? 'selected' : ''; ?>>Contractor Main</option>
                         </select>
                         <?php endif; ?>
                     </div>
                     <div class="form-group" id="mainContractorWrap" style="<?php echo $currentPayType === 'Jobwork' ? '' : 'display:none;'; ?>">
-                        <label>Contractor Main <small>(this jobwork employee is under)</small></label>
+                        <label>16. Contractor Main</label>
                         <select name="main_contractor_id" id="mainContractorId" class="form-control">
                             <option value="0">— None —</option>
                             <?php foreach ($contractorMains as $cm): ?>
@@ -269,7 +300,7 @@ function empField($employee, $key, $default = '')
                         </select>
                     </div>
                     <div class="form-group">
-                        <label>Employee Code <small>(editable · auto by pay type)</small></label>
+                        <label>17. Employee Code <small>(auto by pay type)</small></label>
                         <div class="code-input-row">
                             <input type="text" name="employee_code" id="employeeCode" class="form-control" required
                                    maxlength="30" value="<?php echo htmlspecialchars($currentEmpCode); ?>">
@@ -279,12 +310,16 @@ function empField($employee, $key, $default = '')
                         </div>
                     </div>
                     <div class="form-group">
-                        <label>Biometric User ID <small>(for attendance import match)</small></label>
+                        <label>18. Biometric User ID</label>
                         <input type="text" name="biometric_user_id" class="form-control" maxlength="50"
                                value="<?php echo htmlspecialchars(empField($employee, 'biometric_user_id')); ?>">
                     </div>
+                </div>
+
+                <div class="emp-subhead">Department &amp; role</div>
+                <div class="form-grid form-grid-3">
                     <div class="form-group">
-                        <label>10. Department <small>(Department Master)</small></label>
+                        <label>19. Department</label>
                         <select name="department_id" class="form-control" required>
                             <?php foreach ($departments as $dept): ?>
                                 <option value="<?php echo (int) $dept['id']; ?>" <?php echo ((int) $dept['id'] === $deptId) ? 'selected' : ''; ?>>
@@ -294,16 +329,16 @@ function empField($employee, $key, $default = '')
                         </select>
                     </div>
                     <div class="form-group">
-                        <label>10b. Sub Department <small>(Sub Department Master)</small></label>
+                        <label>20. Sub Department</label>
                         <select name="sub_department_id" class="form-control"
                                 data-selected="<?php echo (int) empField($employee, 'sub_department_id', 0); ?>">
                             <option value="">Select Sub Department</option>
                         </select>
                     </div>
                     <div class="form-group">
-                        <label>11. Designation <small>(Designation Master)</small></label>
+                        <label>21. Designation</label>
                         <select name="designation" class="form-control">
-                            <option value="">-- Select designation --</option>
+                            <option value="">— Select designation —</option>
                             <?php foreach ($designations as $des): ?>
                                 <?php $desName = (string) ($des['name'] ?? ''); ?>
                                 <option value="<?php echo htmlspecialchars($desName); ?>" <?php echo ($currentDesignation === $desName) ? 'selected' : ''; ?>>
@@ -319,36 +354,37 @@ function empField($employee, $key, $default = '')
                                 </option>
                             <?php endif; ?>
                         </select>
-                        <?php if (!$designations): ?>
-                            <small class="form-hint">No designations found. Add them in Masters.</small>
-                        <?php endif; ?>
                     </div>
+                </div>
+
+                <div class="emp-subhead">Joining &amp; status</div>
+                <div class="form-grid form-grid-3">
                     <div class="form-group">
-                        <label>12. Date of Joining <small>(DD-MM-YYYY)</small></label>
+                        <label>22. Date of Joining <small>(DD-MM-YYYY)</small></label>
                         <input type="text" name="date_of_joining" class="form-control js-date" placeholder="DD-MM-YYYY"
                                value="<?php echo htmlspecialchars(dateInputValue(empField($employee, 'date_of_joining'))); ?>">
                     </div>
                     <div class="form-group">
-                        <label>12b. Exit Date <small>(DD-MM-YYYY)</small></label>
+                        <label>23. Exit Date <small>(DD-MM-YYYY)</small></label>
                         <input type="text" name="date_of_exit" id="dateOfExitInput" class="form-control js-date" placeholder="DD-MM-YYYY"
                                value="<?php echo htmlspecialchars(dateInputValue(empField($employee, 'date_of_exit'))); ?>">
-                        <small class="form-hint">Salary &amp; attendance counted till this date. Entering exit date marks employee as <strong>Deactive</strong> (Exit Employee List).</small>
+                        <small class="form-hint">Exit date → employee becomes Deactive</small>
                     </div>
                     <div class="form-group">
-                        <label>12c. Employee Status</label>
-                        <?php
-                        $isExited = !empty(empField($employee, 'date_of_exit')) || (int) empField($employee, 'status', 1) === 0;
-                        ?>
+                        <label>24. Employee Status</label>
                         <select name="status" id="empStatusSelect" class="form-control">
                             <option value="1" <?php echo !$isExited ? 'selected' : ''; ?>>Active</option>
                             <option value="0" <?php echo $isExited ? 'selected' : ''; ?>>Deactive (Exit / Inactive)</option>
                         </select>
-                        <small class="form-hint">Exit employees appear in the Exit Employee List.</small>
                     </div>
+                </div>
+
+                <div class="emp-subhead">Shift</div>
+                <div class="form-grid form-grid-3">
                     <div class="form-group">
-                        <label>13. Shift <small>(Shift Master)</small></label>
+                        <label>25. Shift</label>
                         <select name="shift_id" id="shiftSelect" class="form-control">
-                            <option value="">-- Select shift --</option>
+                            <option value="">— Select shift —</option>
                             <?php foreach ($shifts as $shift): ?>
                                 <?php
                                 $sid = (int) $shift['id'];
@@ -363,44 +399,49 @@ function empField($employee, $key, $default = '')
                                 </option>
                             <?php endforeach; ?>
                         </select>
-                        <?php if (!$shifts): ?>
-                            <small class="form-hint">No shifts found. Add them in Masters.</small>
-                        <?php endif; ?>
                     </div>
                     <div class="form-group">
-                        <label>13. Shift Type</label>
+                        <label>26. Shift Type</label>
                         <input type="text" id="shiftTypeDisplay" class="form-control" readonly
                                value="<?php echo htmlspecialchars($currentShiftType); ?>">
                         <input type="hidden" name="shift_type" id="shiftType" value="<?php echo htmlspecialchars($currentShiftType); ?>">
                     </div>
                     <div class="form-group">
-                        <label>13. Shift Time</label>
+                        <label>27. Shift Time</label>
                         <input type="text" name="shift_time" id="shiftTime" class="form-control" readonly
                                placeholder="Select shift to auto-fill"
                                value="<?php echo htmlspecialchars($currentShiftTime); ?>">
                     </div>
+                </div>
+
+                <div class="emp-subhead">Salary &amp; reporting</div>
+                <div class="form-grid form-grid-3">
                     <div class="form-group">
-                        <label>14. PF Deduction</label>
+                        <label>28. PF Deduction</label>
                         <div class="radio-row">
-                            <?php $pf = empField($employee, 'pf_deduction', 'No'); ?>
                             <label><input type="radio" name="pf_deduction" value="Yes" <?php echo $pf === 'Yes' ? 'checked' : ''; ?>> Yes</label>
                             <label><input type="radio" name="pf_deduction" value="No" <?php echo $pf === 'No' ? 'checked' : ''; ?>> No</label>
                         </div>
                     </div>
                     <div class="form-group">
-                        <label>15. UAN Number</label>
+                        <label>29. PF Start Date <small>(DD-MM-YYYY)</small></label>
+                        <input type="text" name="pf_start_date" class="form-control js-date" placeholder="DD-MM-YYYY"
+                               value="<?php echo htmlspecialchars(dateInputValue(empField($employee, 'pf_start_date'))); ?>">
+                    </div>
+                    <div class="form-group">
+                        <label>30. UAN Number</label>
                         <input type="text" name="uan_number" class="form-control"
                                value="<?php echo htmlspecialchars(empField($employee, 'uan_number')); ?>">
                     </div>
                     <div class="form-group">
-                        <label>20. Decided Salary</label>
+                        <label>31. Decided Salary</label>
                         <input type="number" step="0.01" name="decided_salary" class="form-control"
                                value="<?php echo htmlspecialchars(empField($employee, 'decided_salary')); ?>">
                     </div>
                     <div class="form-group">
-                        <label>Reporting Person <small>(from Employees · with employee code)</small></label>
+                        <label>32. Reporting Person</label>
                         <select name="reporting_employee_id" class="form-control">
-                            <option value="">-- Select reporting person --</option>
+                            <option value="">— Select reporting person —</option>
                             <?php foreach ($reporters as $rep): ?>
                                 <?php $rid = (int) $rep['id']; ?>
                                 <option value="<?php echo $rid; ?>" <?php echo ($selectedReporterId === $rid) ? 'selected' : ''; ?>>
@@ -408,47 +449,104 @@ function empField($employee, $key, $default = '')
                                 </option>
                             <?php endforeach; ?>
                         </select>
-                        <?php if (!$reporters): ?>
-                            <small class="form-hint">Add employees first — reporting person loads from existing staff.</small>
-                        <?php endif; ?>
                     </div>
                 </div>
             </div>
 
-            <!-- Section 3 -->
+            <!-- 3. Family -->
             <div class="form-section">
-                <h3><i class="fa-solid fa-building-columns"></i> Bank Information</h3>
+                <h3><span class="emp-sec-no">3</span><i class="fa-solid fa-people-roof"></i> Family Details</h3>
+                <div class="emp-subhead">Enter member count — rows open below</div>
                 <div class="form-grid form-grid-3">
                     <div class="form-group">
-                        <label>16. Bank Name</label>
+                        <label>33. Family Members</label>
+                        <input type="number" id="familyMemberCount" class="form-control" min="0" max="10" step="1"
+                               value="<?php echo (int) $familyCount; ?>" placeholder="e.g. 3 or 4">
+                        <small class="form-hint">0–10 members</small>
+                    </div>
+                </div>
+                <div id="familyMembersList" class="family-members-list">
+                    <?php for ($i = 0; $i < max($familyCount, 0); $i++):
+                        $fm = $familyMembers[$i] ?? ['member_name' => '', 'relation_name' => '', 'occupation' => ''];
+                        ?>
+                        <div class="family-member-card" data-index="<?php echo $i; ?>">
+                            <div class="family-member-head">Family Member <?php echo $i + 1; ?></div>
+                            <div class="form-grid form-grid-3">
+                                <div class="form-group">
+                                    <label>Name of Family Member</label>
+                                    <input type="text" name="family_name[]" class="form-control"
+                                           value="<?php echo htmlspecialchars((string) ($fm['member_name'] ?? '')); ?>">
+                                </div>
+                                <div class="form-group">
+                                    <label>Relation</label>
+                                    <input type="text" name="family_relation[]" class="form-control"
+                                           placeholder="Father / Mother / Spouse / Son…"
+                                           value="<?php echo htmlspecialchars((string) ($fm['relation_name'] ?? '')); ?>">
+                                </div>
+                                <div class="form-group">
+                                    <label>Occupation</label>
+                                    <input type="text" name="family_occupation[]" class="form-control"
+                                           value="<?php echo htmlspecialchars((string) ($fm['occupation'] ?? '')); ?>">
+                                </div>
+                            </div>
+                        </div>
+                    <?php endfor; ?>
+                </div>
+                <template id="familyMemberTpl">
+                    <div class="family-member-card" data-index="__INDEX__">
+                        <div class="family-member-head">Family Member __NUM__</div>
+                        <div class="form-grid form-grid-3">
+                            <div class="form-group">
+                                <label>Name of Family Member</label>
+                                <input type="text" name="family_name[]" class="form-control" value="">
+                            </div>
+                            <div class="form-group">
+                                <label>Relation</label>
+                                <input type="text" name="family_relation[]" class="form-control" placeholder="Father / Mother / Spouse / Son…" value="">
+                            </div>
+                            <div class="form-group">
+                                <label>Occupation</label>
+                                <input type="text" name="family_occupation[]" class="form-control" value="">
+                            </div>
+                        </div>
+                    </div>
+                </template>
+            </div>
+
+            <!-- 4. Bank -->
+            <div class="form-section">
+                <h3><span class="emp-sec-no">4</span><i class="fa-solid fa-building-columns"></i> Bank Information</h3>
+                <div class="form-grid form-grid-3">
+                    <div class="form-group">
+                        <label>34. Bank Name</label>
                         <input type="text" name="bank_name" class="form-control"
                                value="<?php echo htmlspecialchars(empField($employee, 'bank_name')); ?>">
                     </div>
                     <div class="form-group">
-                        <label>17. Bank Account Number</label>
+                        <label>35. Bank Account Number</label>
                         <input type="text" name="bank_account_number" class="form-control"
                                value="<?php echo htmlspecialchars(empField($employee, 'bank_account_number')); ?>">
                     </div>
                     <div class="form-group">
-                        <label>18. IFSC Code</label>
+                        <label>36. IFSC Code</label>
                         <input type="text" name="ifsc_code" class="form-control"
                                value="<?php echo htmlspecialchars(empField($employee, 'ifsc_code')); ?>">
                     </div>
                     <div class="form-group full">
-                        <label>19. Bank Branch Address</label>
-                        <textarea name="bank_branch_address" class="form-control" rows="1"><?php echo htmlspecialchars(empField($employee, 'bank_branch_address')); ?></textarea>
+                        <label>37. Bank Branch Address</label>
+                        <textarea name="bank_branch_address" class="form-control" rows="2"><?php echo htmlspecialchars(empField($employee, 'bank_branch_address')); ?></textarea>
                     </div>
                 </div>
             </div>
 
-            <!-- Section 4 -->
+            <!-- 5. Other -->
             <div class="form-section">
-                <h3><i class="fa-solid fa-clipboard-list"></i> Other Details</h3>
+                <h3><span class="emp-sec-no">5</span><i class="fa-solid fa-clipboard-list"></i> Other Details</h3>
                 <div class="form-grid form-grid-3">
                     <div class="form-group">
-                        <label>22. Week-off Day <span class="req">*</span> <small>(employee-wise · used in Manual Attendance)</small></label>
+                        <label>38. Week-off Day <span class="req">*</span></label>
                         <select name="week_off_day" class="form-control" required>
-                            <option value="">-- Select --</option>
+                            <option value="">— Select —</option>
                             <?php foreach ($weekOffDays as $day): ?>
                                 <option value="<?php echo htmlspecialchars($day); ?>" <?php echo ($selectedWeekOff === $day) ? 'selected' : ''; ?>>
                                     <?php echo htmlspecialchars($day); ?>
@@ -462,32 +560,29 @@ function empField($employee, $key, $default = '')
                         </select>
                     </div>
                     <div class="form-group">
-                        <label>23. Week-off Benefits</label>
+                        <label>39. Week-off Benefits</label>
                         <div class="radio-row">
-                            <?php $wob = empField($employee, 'week_off_benefits', 'No'); ?>
                             <label><input type="radio" name="week_off_benefits" value="Yes" <?php echo $wob === 'Yes' ? 'checked' : ''; ?>> Yes</label>
                             <label><input type="radio" name="week_off_benefits" value="No" <?php echo $wob === 'No' ? 'checked' : ''; ?>> No</label>
                         </div>
                     </div>
                     <div class="form-group">
-                        <label>24. Holiday Benefits</label>
+                        <label>40. Holiday Benefits</label>
                         <div class="radio-row">
-                            <?php $hb = empField($employee, 'holiday_benefits', 'No'); ?>
                             <label><input type="radio" name="holiday_benefits" value="Yes" <?php echo $hb === 'Yes' ? 'checked' : ''; ?>> Yes</label>
                             <label><input type="radio" name="holiday_benefits" value="No" <?php echo $hb === 'No' ? 'checked' : ''; ?>> No</label>
                         </div>
                     </div>
                     <div class="form-group">
-                        <label>Overtime Benefits</label>
+                        <label>41. Overtime Benefits</label>
                         <div class="radio-row">
-                            <?php $ob = empField($employee, 'overtime_benefits', 'No'); ?>
                             <label><input type="radio" name="overtime_benefits" value="Yes" <?php echo $ob === 'Yes' ? 'checked' : ''; ?>> Yes</label>
                             <label><input type="radio" name="overtime_benefits" value="No" <?php echo $ob === 'No' ? 'checked' : ''; ?>> No</label>
                         </div>
                     </div>
                     <div class="form-group span-2">
-                        <label>21. Extra Note</label>
-                        <textarea name="extra_note" class="form-control" rows="1"><?php echo htmlspecialchars(empField($employee, 'extra_note')); ?></textarea>
+                        <label>42. Extra Note</label>
+                        <textarea name="extra_note" class="form-control" rows="2"><?php echo htmlspecialchars(empField($employee, 'extra_note')); ?></textarea>
                     </div>
                 </div>
             </div>
@@ -504,12 +599,12 @@ function empField($employee, $key, $default = '')
     </div>
 </main>
 
-        <script>
-            window.EMP_NEXT_CODE_URL = <?php echo json_encode(app_url('employees/next_code.php')); ?>;
-            window.EMP_CHECK_CODE_URL = <?php echo json_encode(app_url('employees/check_code.php')); ?>;
-            window.EMP_IS_NEW = <?php echo $empId > 0 ? 'false' : 'true'; ?>;
-            window.EMP_ID = <?php echo (int) $empId; ?>;
-            window.SUBDEPT_URL = <?php echo json_encode(app_url('masters/sub_departments/by_department.php')); ?>;
-            window.SUBDEPT_SELECTED = <?php echo json_encode((string) empField($employee, 'sub_department_id', '0')); ?>;
-        </script>
+<script>
+    window.EMP_NEXT_CODE_URL = <?php echo json_encode(app_url('employees/next_code.php')); ?>;
+    window.EMP_CHECK_CODE_URL = <?php echo json_encode(app_url('employees/check_code.php')); ?>;
+    window.EMP_IS_NEW = <?php echo $empId > 0 ? 'false' : 'true'; ?>;
+    window.EMP_ID = <?php echo (int) $empId; ?>;
+    window.SUBDEPT_URL = <?php echo json_encode(app_url('masters/sub_departments/by_department.php')); ?>;
+    window.SUBDEPT_SELECTED = <?php echo json_encode((string) empField($employee, 'sub_department_id', '0')); ?>;
+</script>
 <?php require_once __DIR__ . '/../includes/footer.php'; ?>

@@ -38,6 +38,23 @@ $conn->close();
         <p>WORKSPACE DASHBOARD · MANUFACTURING HRMS</p>
     </div>
 
+    <!-- HR Dashboard entry -->
+    <section class="module-section">
+        <div class="section-heading">
+            <i class="fa-solid fa-user-tie"></i>
+            <span>HR WORKSPACE</span>
+        </div>
+        <div class="module-grid module-grid-sm">
+            <a href="<?php echo app_url('hr/dashboard.php'); ?>" class="module-card masters-entry-card" title="HR Dashboard">
+                <div class="module-icon" style="background-color: #0F766E;">
+                    <i class="fa-solid fa-chart-pie"></i>
+                </div>
+                <div class="module-label">HR Dashboard</div>
+                <div class="module-meta">Birthdays · Attendance · Leaves</div>
+            </a>
+        </div>
+    </section>
+
     <!-- Masters Hub entry -->
     <section class="module-section">
         <div class="section-heading">

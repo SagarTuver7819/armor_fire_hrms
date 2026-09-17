@@ -56,7 +56,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $_SESSION['full_name']     = $user['full_name'];
             $_SESSION['role']          = $user['role'];
             $_SESSION['department_id'] = $user['department_id'];
-            header('Location: dashboard.php');
+            if ($user['role'] === 'hr') {
+                header('Location: hr/dashboard.php');
+            } else {
+                header('Location: dashboard.php');
+            }
             exit;
         }
     }

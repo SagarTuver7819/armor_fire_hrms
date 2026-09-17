@@ -39,6 +39,10 @@ $mobile        = trim($_POST['mobile_number'] ?? '');
 $emergency     = trim($_POST['emergency_mobile'] ?? '');
 $officeEmail   = trim($_POST['office_email'] ?? '');
 $officeMobile  = trim($_POST['office_mobile'] ?? '');
+$gender        = trim($_POST['gender'] ?? '');
+if (!in_array($gender, ['Male', 'Female'], true)) {
+    $gender = '';
+}
 $maritalStatus = trim($_POST['marital_status'] ?? '');
 if (!in_array($maritalStatus, ['Married', 'Unmarried', 'Other'], true)) {
     $maritalStatus = '';
@@ -61,6 +65,7 @@ $shiftTime     = trim($_POST['shift_time'] ?? '');
 $shiftId       = (int) ($_POST['shift_id'] ?? 0);
 $reportingId   = (int) ($_POST['reporting_employee_id'] ?? 0);
 $pfDeduction   = ($_POST['pf_deduction'] ?? 'No') === 'Yes' ? 'Yes' : 'No';
+$pfStartDate   = normalizeDatePost($_POST['pf_start_date'] ?? '', false);
 $uan           = trim($_POST['uan_number'] ?? '');
 $bankName      = trim($_POST['bank_name'] ?? '');
 $bankAccount   = trim($_POST['bank_account_number'] ?? '');
@@ -262,9 +267,9 @@ if (!$ok) {
 
 if ($savedId > 0) {
     $extraStmt = $conn->prepare(
-        'UPDATE employees SET office_email = ?, office_mobile = ?, marital_status = ?, marital_remark = ? WHERE id = ?'
+        'UPDATE employees SET office_email = ?, office_mobile = ?, gender = ?, marital_status = ?, marital_remark = ?, pf_start_date = ? WHERE id = ?'
     );
-    $extraStmt->bind_param('ssssi', $officeEmail, $officeMobile, $maritalStatus, $maritalRemark, $savedId);
+    $extraStmt->bind_param('ssssssi', $officeEmail, $officeMobile, $gender, $maritalStatus, $maritalRemark, $pfStartDate, $savedId);
     $extraStmt->execute();
     $extraStmt->close();
 
@@ -282,6 +287,20 @@ if ($savedId > 0) {
         $fileStmt->execute();
         $fileStmt->close();
     }
+
+    $familyNames = $_POST['family_name'] ?? [];
+    $familyRelations = $_POST['family_relation'] ?? [];
+    $familyOccupations = $_POST['family_occupation'] ?? [];
+    if (!is_array($familyNames)) {
+        $familyNames = [];
+    }
+    if (!is_array($familyRelations)) {
+        $familyRelations = [];
+    }
+    if (!is_array($familyOccupations)) {
+        $familyOccupations = [];
+    }
+    saveEmployeeFamilyMembers($conn, $savedId, $familyNames, $familyRelations, $familyOccupations);
 }
 
 $conn->close();

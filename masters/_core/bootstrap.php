@@ -25,7 +25,12 @@ if (!$master) {
 ensureMasterTables();
 
 if (!empty($master['fill_department_options'])) {
-    $deptOpts = ['' => 'Select Department'];
+    $deptOpts = [];
+    if (($master['key'] ?? '') === 'holidays') {
+        $deptOpts['0'] = 'All Departments';
+    } else {
+        $deptOpts[''] = 'Select Department';
+    }
     foreach (getActiveMasterRows('departments', 'sort_order ASC, department_name ASC') as $d) {
         $deptOpts[(string) $d['id']] = (string) $d['department_name'];
     }

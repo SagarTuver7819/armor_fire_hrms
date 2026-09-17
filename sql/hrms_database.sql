@@ -35,7 +35,7 @@ CREATE TABLE IF NOT EXISTS users (
 ) ENGINE=InnoDB;
 
 -- -----------------------------------------------------
--- Insert Department Master (34 departments)
+-- Insert Department Master
 -- -----------------------------------------------------
 INSERT INTO departments (department_name, icon_class, icon_color, sort_order) VALUES
 ('ADMINISTRATION', 'fa-landmark', '#5B6CFF', 1),
@@ -47,33 +47,34 @@ INSERT INTO departments (department_name, icon_class, icon_color, sort_order) VA
 ('IT AND NETWORKING', 'fa-network-wired', '#3498DB', 7),
 ('TENDER', 'fa-file-contract', '#E67E22', 8),
 ('QA AND QC', 'fa-clipboard-check', '#16A085', 9),
-('NPD', 'fa-lightbulb', '#F1C40F', 10),
-('DESIGN', 'fa-ruler-combined', '#8E44AD', 11),
-('PRODUCTION', 'fa-industry', '#E74C3C', 12),
-('PURCHASE', 'fa-cart-shopping', '#2980B9', 13),
-('STORE', 'fa-warehouse', '#D35400', 14),
-('LABORATORY', 'fa-flask', '#27AE60', 15),
-('CORE', 'fa-cubes', '#7F8C8D', 16),
-('MELTING 1', 'fa-fire', '#C0392B', 17),
-('MELTING 2', 'fa-fire-flame-curved', '#E74C3C', 18),
-('CUTTING', 'fa-scissors', '#34495E', 19),
-('GRINDING', 'fa-gear', '#95A5A6', 20),
-('LATHE', 'fa-gears', '#2C3E50', 21),
-('CNC', 'fa-microchip', '#1ABC9C', 22),
-('BUFF', 'fa-sparkles', '#F39C12', 23),
-('CLEANING', 'fa-broom', '#3498DB', 24),
-('ASSEMBLY 1 & COATING', 'fa-layer-group', '#9B59B6', 25),
-('ASSEMBLY 2', 'fa-object-group', '#8E44AD', 26),
-('ASSEMBLY 3 RRL & FLEXIBLE', 'fa-diagram-project', '#6C5CE7', 27),
-('ASSEMBLY 4 ALARM & DELUGE VALVE', 'fa-bell', '#E17055', 28),
-('SPRINKLER', 'fa-shower', '#00CEC9', 29),
-('ARGON', 'fa-atom', '#0984E3', 30),
-('MAINTENANCE', 'fa-wrench', '#FD79A8', 31),
-('CANTEEN', 'fa-utensils', '#FDCB6E', 32),
-('DISPATCH', 'fa-truck', '#00B894', 33),
-('TRANSPORT', 'fa-truck-fast', '#636E72', 34),
-('BUTTERFLY VALVE', 'fa-circle-dot', '#00B894', 35),
-('DRUM', 'fa-drum', '#6C5CE7', 36);
+('QMS', 'fa-certificate', '#0D9488', 10),
+('NPD', 'fa-lightbulb', '#F1C40F', 11),
+('DESIGN', 'fa-ruler-combined', '#8E44AD', 12),
+('PRODUCTION', 'fa-industry', '#E74C3C', 13),
+('PURCHASE', 'fa-cart-shopping', '#2980B9', 14),
+('STORE', 'fa-warehouse', '#D35400', 15),
+('LABORATORY', 'fa-flask', '#27AE60', 16),
+('CORE', 'fa-cubes', '#7F8C8D', 17),
+('MELTING 1', 'fa-fire', '#C0392B', 18),
+('MELTING 2', 'fa-fire-flame-curved', '#E74C3C', 19),
+('CUTTING', 'fa-scissors', '#34495E', 20),
+('GRINDING', 'fa-gear', '#95A5A6', 21),
+('LATHE', 'fa-gears', '#2C3E50', 22),
+('CNC', 'fa-microchip', '#1ABC9C', 23),
+('BUFF', 'fa-star', '#F39C12', 24),
+('CLEANING', 'fa-broom', '#3498DB', 25),
+('ASSEMBLY 1 & COATING', 'fa-layer-group', '#9B59B6', 26),
+('ASSEMBLY 2', 'fa-object-group', '#8E44AD', 27),
+('ASSEMBLY 3 RRL & FLEXIBLE', 'fa-diagram-project', '#6C5CE7', 28),
+('ASSEMBLY 4 ALARM & DELUGE VALVE', 'fa-bell', '#E17055', 29),
+('SPRINKLER', 'fa-shower', '#00CEC9', 30),
+('ARGON', 'fa-atom', '#0984E3', 31),
+('MAINTENANCE', 'fa-wrench', '#FD79A8', 32),
+('CANTEEN', 'fa-utensils', '#FDCB6E', 33),
+('DISPATCH', 'fa-truck', '#00B894', 34),
+('TRANSPORT', 'fa-truck-fast', '#636E72', 35),
+('BUTTERFLY VALVE', 'fa-circle-dot', '#00B894', 36),
+('DRUM', 'fa-drum', '#6C5CE7', 37);
 
 -- -----------------------------------------------------
 -- Table: company_settings (Logo + Company Name)
