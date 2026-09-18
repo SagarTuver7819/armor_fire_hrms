@@ -379,7 +379,7 @@ function attendanceInsertPunch($conn, $employeeId, $date, $time, $type, $source,
     return $ok ? $affected : 0;
 }
 
-function attendanceHolidaySet($conn, $year, $month)
+function attendanceHolidaySet($conn, $year, $month, $departmentId = 0)
 {
     $set = [];
     $from = sprintf('%04d-%02d-01', $year, $month);
@@ -400,10 +400,15 @@ function attendanceHolidaySet($conn, $year, $month)
     $typeSql = in_array('holiday_type', $cols, true) ? " AND (holiday_type = 'Holiday' OR holiday_type IS NULL OR holiday_type = '')" : '';
     $hasPaid = in_array('is_paid', $cols, true);
     $paidSelect = $hasPaid ? ', is_paid' : ", 'Yes' AS is_paid";
+    $deptSql = '';
+    $departmentId = (int) $departmentId;
+    if ($departmentId > 0 && in_array('department_id', $cols, true)) {
+        $deptSql = ' AND (department_id IS NULL OR department_id = 0 OR department_id = ' . $departmentId . ')';
+    }
     $q = $conn->query(
         "SELECT `{$dateCol}` AS d{$paidSelect}
          FROM holidays
-         WHERE `{$dateCol}` BETWEEN '{$from}' AND '{$to}'{$statusSql}{$typeSql}"
+         WHERE `{$dateCol}` BETWEEN '{$from}' AND '{$to}'{$statusSql}{$typeSql}{$deptSql}"
     );
     if ($q) {
         while ($r = $q->fetch_assoc()) {
@@ -421,14 +426,14 @@ function attendanceHolidaySet($conn, $year, $month)
 /**
  * Count master holidays in month (all / paid-only)
  */
-function countHolidaysInMonth($year, $month, $paidOnly = false, $conn = null)
+function countHolidaysInMonth($year, $month, $paidOnly = false, $conn = null, $departmentId = 0)
 {
     $closeAfter = false;
     if ($conn === null) {
         $conn = getDBConnection();
         $closeAfter = true;
     }
-    $set = attendanceHolidaySet($conn, $year, $month);
+    $set = attendanceHolidaySet($conn, $year, $month, $departmentId);
     $n = 0;
     foreach ($set as $info) {
         if ($paidOnly && empty($info['paid'])) {
@@ -452,7 +457,7 @@ function attendanceRebuildDayStatus($conn, $employeeId, $month, $year)
     $to = sprintf('%04d-%02d-%02d', $year, $month, $monthDays);
 
     $emp = null;
-    $st = $conn->prepare('SELECT id, week_off_day, date_of_joining, date_of_exit FROM employees WHERE id = ? LIMIT 1');
+    $st = $conn->prepare('SELECT id, week_off_day, date_of_joining, date_of_exit, department_id FROM employees WHERE id = ? LIMIT 1');
     $st->bind_param('i', $employeeId);
     $st->execute();
     $emp = $st->get_result()->fetch_assoc();
@@ -461,7 +466,7 @@ function attendanceRebuildDayStatus($conn, $employeeId, $month, $year)
         return null;
     }
 
-    $holidays = attendanceHolidaySet($conn, $year, $month);
+    $holidays = attendanceHolidaySet($conn, $year, $month, (int) ($emp['department_id'] ?? 0));
     $weekOffName = trim((string) ($emp['week_off_day'] ?? 'Sunday'));
     $joinDate = '';
     if (!empty($emp['date_of_joining']) && $emp['date_of_joining'] !== '0000-00-00') {

@@ -7,6 +7,7 @@
 require_once __DIR__ . '/config/app.php';
 require_once __DIR__ . '/config/database.php';
 require_once __DIR__ . '/includes/employee_helper.php';
+require_once __DIR__ . '/includes/master_helper.php';
 
 $deptId = isset($_GET['id']) ? (int) $_GET['id'] : 0;
 $department = $deptId > 0 ? getDepartmentById($deptId) : null;
@@ -22,6 +23,22 @@ require_once __DIR__ . '/includes/header.php';
 
 $empCount = $department ? countEmployeesByDepartment($department['id']) : 0;
 $exitEmpCount = $department ? countExitEmployeesByDepartment($department['id']) : 0;
+$holidayCount = 0;
+if ($department) {
+    ensureMasterTables();
+    $conn = getDBConnection();
+    $did = (int) $department['id'];
+    $st = $conn->prepare(
+        "SELECT COUNT(*) AS c FROM holidays
+         WHERE status = 1 AND holiday_type = 'Holiday'
+           AND (department_id IS NULL OR department_id = 0 OR department_id = ?)"
+    );
+    $st->bind_param('i', $did);
+    $st->execute();
+    $holidayCount = (int) ($st->get_result()->fetch_assoc()['c'] ?? 0);
+    $st->close();
+    $conn->close();
+}
 ?>
 
 <main class="dashboard-main">
@@ -131,6 +148,13 @@ $exitEmpCount = $department ? countExitEmployeesByDepartment($department['id']) 
                     </div>
                     <div class="module-label">Salary Register</div>
                     <div class="module-meta">Salary · Jobwork Govt / Actual · Contractor Main</div>
+                </a>
+                <a href="<?php echo app_url('masters/holidays/index.php?department_id=' . (int) $department['id']); ?>" class="module-card">
+                    <div class="module-icon" style="background-color: #E85D75;">
+                        <i class="fa-solid fa-calendar-days"></i>
+                    </div>
+                    <div class="module-label">Holiday Master</div>
+                    <div class="module-meta"><?php echo (int) $holidayCount; ?> Holidays · Department wise</div>
                 </a>
             </div>
         </section>

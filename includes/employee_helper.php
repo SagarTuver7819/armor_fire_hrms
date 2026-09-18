@@ -69,6 +69,8 @@ function ensureEmployeesTable($conn = null)
     ensureEmployeeColumn($conn, 'marital_remark', "marital_remark VARCHAR(255) DEFAULT NULL AFTER marital_status");
     ensureEmployeeColumn($conn, 'photo_file', "photo_file VARCHAR(255) DEFAULT NULL AFTER pan_file");
     ensureEmployeeColumn($conn, 'pf_start_date', "pf_start_date DATE DEFAULT NULL AFTER pf_deduction");
+    ensureEmployeeColumn($conn, 'pf_employee_contribution', "pf_employee_contribution DECIMAL(12,2) DEFAULT NULL AFTER pf_start_date");
+    ensureEmployeeColumn($conn, 'pf_employer_contribution', "pf_employer_contribution DECIMAL(12,2) DEFAULT NULL AFTER pf_employee_contribution");
 
     // Auto-sync: Employees with an exit date are marked Deactive (status = 0)
     $conn->query("UPDATE employees SET status = 0 WHERE (date_of_exit IS NOT NULL AND date_of_exit != '' AND date_of_exit != '0000-00-00') AND status = 1");

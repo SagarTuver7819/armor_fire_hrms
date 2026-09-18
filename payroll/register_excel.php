@@ -40,7 +40,7 @@ $headers = $isActual
     ? ['Department', 'Designation', 'D.O.J.', 'UAN Number', 'Employee Name', 'Qty', 'Actual Amount', 'Gross Salary']
     : ['Department', 'Designation', 'D.O.J.', 'UAN Number', 'Employee Name', 'Salary', 'Present Days', 'Week Off', 'P.L.', 'S.L.', 'D.L.', 'Total Days', 'Gross Salary'];
 $headers = array_merge($headers, [
-    'P.F.', 'P.T.', 'Loan', 'Advance', 'Total Deduction', 'Salary Arrears', 'Net Salary',
+    'Employee PF', 'Employer PF', 'P.T.', 'Loan', 'Advance', 'Total Deduction', 'Salary Arrears', 'Net Salary',
     'Account Number', 'IFSC Code', 'Remarks',
 ]);
 
@@ -59,7 +59,7 @@ foreach ($groups as $g) {
     if (!$isActual) {
         echo '<th colspan="2" style="background:#bbf7d0;">Gross</th>';
     }
-    echo '<th colspan="4" style="background:#fde047;">Deduction</th>';
+    echo '<th colspan="5" style="background:#fde047;">Deduction</th>';
     echo '<th colspan="3" style="background:#facc15;">NET</th>';
     echo '<th colspan="3"></th>';
     echo '</tr><tr>';
@@ -85,7 +85,7 @@ foreach ($groups as $g) {
             ]);
         }
         $cells = array_merge($cells, [
-            $r['pf'], $r['pt'], $r['loan'], $r['advance'], $r['total_deduction'], $r['arrears'], $r['net'],
+            $r['pf'], $r['pf_employer'] ?? 0, $r['pt'], $r['loan'], $r['advance'], $r['total_deduction'], $r['arrears'], $r['net'],
             $r['account'], $r['ifsc'], $r['remarks'],
         ]);
         echo '<tr>';

@@ -1,19 +1,41 @@
 <?php
 /**
- * Holiday Master list with Monthly Set shortcut
+ * Holiday Master list — global or department-scoped
  */
 $masterKey = 'holidays';
 require_once __DIR__ . '/../_core/bootstrap.php';
+require_once __DIR__ . '/../../includes/employee_helper.php';
 
-$pageTitle = $master['title'];
+$scopeDeptId = (int) ($_GET['department_id'] ?? 0);
+$scopeDept = $scopeDeptId > 0 ? getDepartmentById($scopeDeptId) : null;
+if ($scopeDeptId > 0 && !$scopeDept) {
+    $scopeDeptId = 0;
+}
+
+$pageTitle = $master['title'] . ($scopeDept ? (' · ' . $scopeDept['department_name']) : '');
 $extraCss = [
     'https://cdn.datatables.net/1.13.8/css/jquery.dataTables.min.css',
     'https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.css',
 ];
 
 $useSidebar = true;
-$sidebarMode = 'masters';
+if ($scopeDeptId > 0) {
+    $sidebarMode = 'department';
+    $sidebarDeptId = $scopeDeptId;
+} else {
+    $sidebarMode = 'masters';
+}
 $sidebarActive = $master['key'];
+
+$deptQs = $scopeDeptId > 0 ? ('?department_id=' . $scopeDeptId) : '';
+$masterListUrl = app_url('masters/holidays/index.php' . $deptQs);
+$masterAddUrl = app_url('masters/holidays/edit.php' . ($scopeDeptId > 0 ? ('?department_id=' . $scopeDeptId) : ''));
+$masterAjaxUrl = app_url('masters/holidays/ajax_list.php');
+$monthlyUrl = app_url('masters/holidays/monthly.php' . $deptQs);
+$backUrl = $scopeDeptId > 0
+    ? app_url('department.php?id=' . $scopeDeptId)
+    : $mastersHubUrl;
+$backText = $scopeDeptId > 0 ? 'Back to Modules' : 'Back to Masters';
 
 require_once __DIR__ . '/../../includes/header.php';
 
@@ -29,13 +51,12 @@ if (isset($_GET['msg'])) {
 
 $colCount = 1 + count($master['list_columns']) + 1;
 $actionColIndex = $colCount - 1;
-$monthlyUrl = app_url('masters/holidays/monthly.php');
 ?>
 
 <main class="dashboard-main">
     <div class="page-toolbar flex-between">
-        <a href="<?php echo htmlspecialchars($mastersHubUrl); ?>" class="back-link">
-            <i class="fa-solid fa-arrow-left"></i> Back to Masters
+        <a href="<?php echo htmlspecialchars($backUrl); ?>" class="back-link">
+            <i class="fa-solid fa-arrow-left"></i> <?php echo htmlspecialchars($backText); ?>
         </a>
         <div class="toolbar-actions" style="display:flex;gap:8px;flex-wrap:wrap;">
             <a href="<?php echo htmlspecialchars($monthlyUrl); ?>" class="btn-secondary">
@@ -54,7 +75,14 @@ $monthlyUrl = app_url('masters/holidays/monthly.php');
             </div>
             <div>
                 <h1><?php echo htmlspecialchars($master['title']); ?></h1>
-                <p>Set holidays · Monthly set · Paid holidays apply in salary when employee Holiday Benefits = Yes</p>
+                <p>
+                    <?php if ($scopeDept): ?>
+                        Department: <strong><?php echo htmlspecialchars($scopeDept['department_name']); ?></strong>
+                        · Shows this department + All-Departments holidays
+                    <?php else: ?>
+                        Set holidays · Monthly set · Department wise or All Departments
+                    <?php endif; ?>
+                </p>
             </div>
         </div>
     </div>
@@ -82,6 +110,7 @@ $monthlyUrl = app_url('masters/holidays/monthly.php');
     window.MASTER_AJAX_URL  = <?php echo json_encode($masterAjaxUrl); ?>;
     window.MASTER_ACTION_COL = <?php echo (int) $actionColIndex; ?>;
     window.MASTER_LABEL = <?php echo json_encode($master['singular']); ?>;
+    window.MASTER_DEPT_ID = <?php echo (int) $scopeDeptId; ?>;
 </script>
 
 <?php

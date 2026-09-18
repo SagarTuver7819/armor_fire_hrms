@@ -54,10 +54,11 @@ function buildSalaryRegisterRow(array $emp, $month, $year, $mode)
     }
 
     $pf = $att['pf'];
+    $pfEmployer = (float) ($att['pf_employer'] ?? 0);
     $pt = $att['pt'];
     $loan = $att['loan'];
     $advance = $att['advance'];
-    $totalDed = round($pf + $pt + $loan + $advance, 2);
+    $totalDed = round($pf + $pfEmployer + $pt + $loan + $advance, 2);
     $net = round($gross - $totalDed + $att['arrears'], 2);
     if ($net < 0) {
         $net = 0;
@@ -95,6 +96,7 @@ function buildSalaryRegisterRow(array $emp, $month, $year, $mode)
         'actual' => round($actual, 2),
         'gross' => $gross,
         'pf' => $pf,
+        'pf_employer' => $pfEmployer,
         'pt' => $pt,
         'loan' => $loan,
         'advance' => $advance,

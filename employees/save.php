@@ -66,6 +66,10 @@ $shiftId       = (int) ($_POST['shift_id'] ?? 0);
 $reportingId   = (int) ($_POST['reporting_employee_id'] ?? 0);
 $pfDeduction   = ($_POST['pf_deduction'] ?? 'No') === 'Yes' ? 'Yes' : 'No';
 $pfStartDate   = normalizeDatePost($_POST['pf_start_date'] ?? '', false);
+$pfEmpContrib  = trim((string) ($_POST['pf_employee_contribution'] ?? ''));
+$pfErContrib   = trim((string) ($_POST['pf_employer_contribution'] ?? ''));
+$pfEmpContrib  = ($pfEmpContrib === '') ? null : (float) $pfEmpContrib;
+$pfErContrib   = ($pfErContrib === '') ? null : (float) $pfErContrib;
 $uan           = trim($_POST['uan_number'] ?? '');
 $bankName      = trim($_POST['bank_name'] ?? '');
 $bankAccount   = trim($_POST['bank_account_number'] ?? '');
@@ -266,10 +270,24 @@ if (!$ok) {
 }
 
 if ($savedId > 0) {
+    $pfEmpBind = $pfEmpContrib === null ? '' : (string) $pfEmpContrib;
+    $pfErBind = $pfErContrib === null ? '' : (string) $pfErContrib;
     $extraStmt = $conn->prepare(
-        'UPDATE employees SET office_email = ?, office_mobile = ?, gender = ?, marital_status = ?, marital_remark = ?, pf_start_date = ? WHERE id = ?'
+        'UPDATE employees SET office_email = ?, office_mobile = ?, gender = ?, marital_status = ?, marital_remark = ?,
+         pf_start_date = ?, pf_employee_contribution = NULLIF(?, \'\'), pf_employer_contribution = NULLIF(?, \'\') WHERE id = ?'
     );
-    $extraStmt->bind_param('ssssssi', $officeEmail, $officeMobile, $gender, $maritalStatus, $maritalRemark, $pfStartDate, $savedId);
+    $extraStmt->bind_param(
+        'ssssssssi',
+        $officeEmail,
+        $officeMobile,
+        $gender,
+        $maritalStatus,
+        $maritalRemark,
+        $pfStartDate,
+        $pfEmpBind,
+        $pfErBind,
+        $savedId
+    );
     $extraStmt->execute();
     $extraStmt->close();
 

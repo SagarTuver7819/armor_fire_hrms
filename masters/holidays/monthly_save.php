@@ -1,6 +1,6 @@
 <?php
 /**
- * Save monthly holiday set for one month/year
+ * Save monthly holiday set for one month/year (+ optional department)
  */
 
 require_once __DIR__ . '/../../config/app.php';
@@ -17,6 +17,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 
 $month = (int) ($_POST['month'] ?? date('n'));
 $year = (int) ($_POST['year'] ?? date('Y'));
+$scopeDeptId = (int) ($_POST['department_id'] ?? 0);
 if ($month < 1 || $month > 12) {
     $month = (int) date('n');
 }
@@ -28,16 +29,29 @@ $days = $_POST['days'] ?? [];
 ensureMasterTables();
 $conn = getDBConnection();
 
-// Soft-remove existing Holiday-type rows for this month (keep Week-Off master rows)
-$conn->query(
-    "UPDATE holidays SET status = 0
-     WHERE holiday_type = 'Holiday'
-       AND holiday_date BETWEEN '{$conn->real_escape_string($from)}' AND '{$conn->real_escape_string($to)}'"
-);
+$fromEsc = $conn->real_escape_string($from);
+$toEsc = $conn->real_escape_string($to);
+
+// Soft-remove only holidays in this scope for the month
+if ($scopeDeptId > 0) {
+    $conn->query(
+        "UPDATE holidays SET status = 0
+         WHERE holiday_type = 'Holiday'
+           AND holiday_date BETWEEN '{$fromEsc}' AND '{$toEsc}'
+           AND department_id = " . (int) $scopeDeptId
+    );
+} else {
+    $conn->query(
+        "UPDATE holidays SET status = 0
+         WHERE holiday_type = 'Holiday'
+           AND holiday_date BETWEEN '{$fromEsc}' AND '{$toEsc}'
+           AND (department_id IS NULL OR department_id = 0)"
+    );
+}
 
 $ins = $conn->prepare(
-    "INSERT INTO holidays (title, holiday_type, holiday_date, week_day, is_paid, remarks, status)
-     VALUES (?, 'Holiday', ?, NULL, ?, '', 1)"
+    "INSERT INTO holidays (title, holiday_type, holiday_date, week_day, is_paid, department_id, remarks, status)
+     VALUES (?, 'Holiday', ?, NULL, ?, ?, '', 1)"
 );
 
 for ($d = 1; $d <= $monthDays; $d++) {
@@ -51,11 +65,27 @@ for ($d = 1; $d <= $monthDays; $d++) {
         $title = 'Holiday ' . date('d M Y', strtotime($date));
     }
     $isPaid = (($days[$d]['is_paid'] ?? 'Yes') === 'No') ? 'No' : 'Yes';
-    $ins->bind_param('sss', $title, $date, $isPaid);
-    $ins->execute();
+    $deptBind = $scopeDeptId > 0 ? $scopeDeptId : null;
+    if ($deptBind === null) {
+        // bind as 0 then null-out after, or use separate SQL
+        $zero = 0;
+        $ins->bind_param('sssi', $title, $date, $isPaid, $zero);
+        $ins->execute();
+        $newId = (int) $conn->insert_id;
+        if ($newId > 0) {
+            $conn->query('UPDATE holidays SET department_id = NULL WHERE id = ' . $newId);
+        }
+    } else {
+        $ins->bind_param('sssi', $title, $date, $isPaid, $deptBind);
+        $ins->execute();
+    }
 }
 $ins->close();
 $conn->close();
 
-header('Location: ' . app_url('masters/holidays/monthly.php?month=' . $month . '&year=' . $year . '&msg=saved'));
+$redir = app_url(
+    'masters/holidays/monthly.php?month=' . $month . '&year=' . $year . '&msg=saved'
+    . ($scopeDeptId > 0 ? '&department_id=' . $scopeDeptId : '')
+);
+header('Location: ' . $redir);
 exit;

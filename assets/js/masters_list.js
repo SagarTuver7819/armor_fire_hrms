@@ -24,6 +24,7 @@
 
     var actionCol = typeof window.MASTER_ACTION_COL === 'number' ? window.MASTER_ACTION_COL : 0;
     var label = window.MASTER_LABEL || 'record';
+    var deptId = typeof window.MASTER_DEPT_ID === 'number' ? window.MASTER_DEPT_ID : 0;
 
     jQuery('#mastersTable').DataTable({
         processing: true,
@@ -33,7 +34,12 @@
         order: [[1, 'asc']],
         ajax: {
             url: window.MASTER_AJAX_URL,
-            type: 'POST'
+            type: 'POST',
+            data: function (d) {
+                if (deptId > 0) {
+                    d.department_id = deptId;
+                }
+            }
         },
         columnDefs: [
             { orderable: false, targets: [0, actionCol] },

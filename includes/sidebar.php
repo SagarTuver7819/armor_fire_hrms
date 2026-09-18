@@ -335,6 +335,11 @@ $openAttendance = ($sidebarMode === 'attendance' || strpos((string) $sidebarActi
                         <i class="fa-solid fa-scale-balanced"></i>
                         <span>Leave Balance</span>
                     </a>
+                    <a href="<?php echo app_url('masters/holidays/index.php?department_id=' . $sidebarDeptId); ?>"
+                       class="sidebar-link <?php echo $sidebarActive === 'holidays' ? 'active' : ''; ?>">
+                        <i class="fa-solid fa-calendar-days"></i>
+                        <span>Holiday Master</span>
+                    </a>
                 </nav>
             </div>
         <?php endif; ?>

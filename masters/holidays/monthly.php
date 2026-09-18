@@ -1,13 +1,20 @@
 <?php
 /**
- * Holiday Master — Monthly Holiday Set
+ * Holiday Master — Monthly Holiday Set (optional department scope)
  */
 
 $masterKey = 'holidays';
 require_once __DIR__ . '/../_core/bootstrap.php';
 require_once __DIR__ . '/../../includes/master_helper.php';
+require_once __DIR__ . '/../../includes/employee_helper.php';
 
 ensureMasterTables();
+
+$scopeDeptId = (int) ($_GET['department_id'] ?? 0);
+$scopeDept = $scopeDeptId > 0 ? getDepartmentById($scopeDeptId) : null;
+if ($scopeDeptId > 0 && !$scopeDept) {
+    $scopeDeptId = 0;
+}
 
 $month = (int) ($_GET['month'] ?? date('n'));
 $year = (int) ($_GET['year'] ?? date('Y'));
@@ -23,13 +30,25 @@ $from = sprintf('%04d-%02d-01', $year, $month);
 $to = sprintf('%04d-%02d-%02d', $year, $month, $monthDays);
 
 $conn = getDBConnection();
-$stmt = $conn->prepare(
-    "SELECT id, title, holiday_date, is_paid, remarks
-     FROM holidays
-     WHERE status = 1 AND holiday_type = 'Holiday' AND holiday_date BETWEEN ? AND ?
-     ORDER BY holiday_date ASC"
-);
-$stmt->bind_param('ss', $from, $to);
+if ($scopeDeptId > 0) {
+    $stmt = $conn->prepare(
+        "SELECT id, title, holiday_date, is_paid, remarks, department_id
+         FROM holidays
+         WHERE status = 1 AND holiday_type = 'Holiday' AND holiday_date BETWEEN ? AND ?
+           AND department_id = ?
+         ORDER BY holiday_date ASC"
+    );
+    $stmt->bind_param('ssi', $from, $to, $scopeDeptId);
+} else {
+    $stmt = $conn->prepare(
+        "SELECT id, title, holiday_date, is_paid, remarks, department_id
+         FROM holidays
+         WHERE status = 1 AND holiday_type = 'Holiday' AND holiday_date BETWEEN ? AND ?
+           AND (department_id IS NULL OR department_id = 0)
+         ORDER BY holiday_date ASC"
+    );
+    $stmt->bind_param('ss', $from, $to);
+}
 $stmt->execute();
 $existing = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
 $stmt->close();
@@ -43,16 +62,23 @@ foreach ($existing as $r) {
 
 $pageTitle = 'Monthly Holiday Set';
 $useSidebar = true;
-$sidebarMode = 'masters';
+if ($scopeDeptId > 0) {
+    $sidebarMode = 'department';
+    $sidebarDeptId = $scopeDeptId;
+} else {
+    $sidebarMode = 'masters';
+}
 $sidebarActive = 'holidays';
 $msg = (string) ($_GET['msg'] ?? '');
+$deptQs = $scopeDeptId > 0 ? ('&department_id=' . $scopeDeptId) : '';
+$listUrl = app_url('masters/holidays/index.php' . ($scopeDeptId > 0 ? ('?department_id=' . $scopeDeptId) : ''));
 
 require_once __DIR__ . '/../../includes/header.php';
 ?>
 
 <main class="dashboard-main">
     <div class="page-toolbar flex-between">
-        <a href="<?php echo app_url('masters/holidays/index.php'); ?>" class="back-link">
+        <a href="<?php echo htmlspecialchars($listUrl); ?>" class="back-link">
             <i class="fa-solid fa-arrow-left"></i> Back to Holiday Master
         </a>
     </div>
@@ -61,7 +87,14 @@ require_once __DIR__ . '/../../includes/header.php';
         <div class="form-page-header">
             <div>
                 <h1>Monthly Holiday Set</h1>
-                <p>Mark holidays for the month. Paid holidays count in salary only when employee <strong>Holiday Benefits = Yes</strong>.</p>
+                <p>
+                    <?php if ($scopeDept): ?>
+                        Department: <strong><?php echo htmlspecialchars($scopeDept['department_name']); ?></strong> ·
+                    <?php else: ?>
+                        Scope: <strong>All Departments</strong> ·
+                    <?php endif; ?>
+                    Paid holidays count in salary when employee Holiday Benefits = Yes.
+                </p>
             </div>
         </div>
 
@@ -72,6 +105,9 @@ require_once __DIR__ . '/../../includes/header.php';
         <?php endif; ?>
 
         <form method="GET" class="employee-form" style="margin-bottom:16px;">
+            <?php if ($scopeDeptId > 0): ?>
+                <input type="hidden" name="department_id" value="<?php echo (int) $scopeDeptId; ?>">
+            <?php endif; ?>
             <div class="form-grid form-grid-3">
                 <div class="form-group">
                     <label>Month</label>
@@ -93,6 +129,7 @@ require_once __DIR__ . '/../../includes/header.php';
         <form method="POST" action="<?php echo app_url('masters/holidays/monthly_save.php'); ?>" class="employee-form">
             <input type="hidden" name="month" value="<?php echo $month; ?>">
             <input type="hidden" name="year" value="<?php echo $year; ?>">
+            <input type="hidden" name="department_id" value="<?php echo (int) $scopeDeptId; ?>">
 
             <div class="table-wrap">
                 <table class="data-table" style="width:100%">
@@ -141,7 +178,7 @@ require_once __DIR__ . '/../../includes/header.php';
                 <button type="submit" class="btn-primary">
                     <i class="fa-solid fa-floppy-disk"></i> Save Monthly Holidays
                 </button>
-                <a href="<?php echo app_url('masters/holidays/index.php'); ?>" class="btn-secondary">Cancel</a>
+                <a href="<?php echo htmlspecialchars($listUrl); ?>" class="btn-secondary">Cancel</a>
             </div>
         </form>
     </div>

@@ -204,7 +204,7 @@ require_once __DIR__ . '/../includes/header.php';
                                 <th colspan="6" class="sr-earn">Earning</th>
                                 <th colspan="2" class="sr-gross">Gross</th>
                             <?php endif; ?>
-                            <th colspan="4" class="sr-ded">Deduction</th>
+                            <th colspan="5" class="sr-ded">Deduction</th>
                             <th colspan="3" class="sr-net">NET</th>
                             <th colspan="3"></th>
                         </tr>
@@ -228,7 +228,8 @@ require_once __DIR__ . '/../includes/header.php';
                                 <th>Total Days</th>
                                 <th>Gross</th>
                             <?php endif; ?>
-                            <th>P.F.</th>
+                            <th>Emp PF</th>
+                            <th>Er PF</th>
                             <th>P.T.</th>
                             <th>Loan</th>
                             <th>Adv.</th>
@@ -242,7 +243,7 @@ require_once __DIR__ . '/../includes/header.php';
                     </thead>
                     <tbody>
                     <?php if (!$rows): ?>
-                        <tr><td colspan="23" class="empty-cell">No employees for this register.</td></tr>
+                        <tr><td colspan="24" class="empty-cell">No employees for this register.</td></tr>
                     <?php endif; ?>
                     <?php foreach ($rows as $r): ?>
                         <tr>
@@ -272,6 +273,7 @@ require_once __DIR__ . '/../includes/header.php';
                                 <td class="num"><?php echo registerNum($r['gross']); ?></td>
                             <?php endif; ?>
                             <td class="num"><?php echo registerNum($r['pf']); ?></td>
+                            <td class="num"><?php echo registerNum($r['pf_employer'] ?? 0); ?></td>
                             <td class="num"><?php echo registerNum($r['pt']); ?></td>
                             <td class="num"><?php echo registerNum($r['loan']); ?></td>
                             <td class="num"><?php echo registerNum($r['advance']); ?></td>
@@ -289,7 +291,7 @@ require_once __DIR__ . '/../includes/header.php';
                         <tr>
                             <td colspan="<?php echo $isActual ? 7 : 12; ?>"><strong>Total</strong></td>
                             <td class="num"><strong><?php echo registerNum($sumGross); ?></strong></td>
-                            <td colspan="4"></td>
+                            <td colspan="5"></td>
                             <td></td>
                             <td></td>
                             <td class="num"><strong><?php echo registerNum($sumNet); ?></strong></td>

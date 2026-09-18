@@ -552,12 +552,40 @@ function getContractorUnderEmployees($mainContractorId)
     return $rows;
 }
 
-function statutoryPf($gross, array $emp)
+function statutoryPf($gross, array $emp, $dayFactor = 1.0)
 {
     if (($emp['pf_deduction'] ?? 'No') !== 'Yes') {
         return 0.0;
     }
-    // PF wage ceiling ₹15,000 × 12% = ₹1,800 max
+    // Employee master fixed monthly contribution (prorated by paid days)
+    $fixed = isset($emp['pf_employee_contribution']) && $emp['pf_employee_contribution'] !== '' && $emp['pf_employee_contribution'] !== null
+        ? (float) $emp['pf_employee_contribution']
+        : 0.0;
+    if ($fixed > 0) {
+        $factor = max(0.0, min(1.0, (float) $dayFactor));
+        return round($fixed * $factor, 2);
+    }
+    // Fallback: PF wage ceiling ₹15,000 × 12% = ₹1,800 max
+    $pfWage = min(15000.0, (float) $gross);
+    return round($pfWage * 0.12, 2);
+}
+
+/**
+ * Employer PF — same 12% of PF wage rule (basic ceiling ₹15,000).
+ * Deducted from salary along with employee PF (company rule).
+ */
+function statutoryEmployerPf($gross, array $emp, $dayFactor = 1.0)
+{
+    if (($emp['pf_deduction'] ?? 'No') !== 'Yes') {
+        return 0.0;
+    }
+    $fixed = isset($emp['pf_employer_contribution']) && $emp['pf_employer_contribution'] !== '' && $emp['pf_employer_contribution'] !== null
+        ? (float) $emp['pf_employer_contribution']
+        : 0.0;
+    if ($fixed > 0) {
+        $factor = max(0.0, min(1.0, (float) $dayFactor));
+        return round($fixed * $factor, 2);
+    }
     $pfWage = min(15000.0, (float) $gross);
     return round($pfWage * 0.12, 2);
 }
@@ -571,7 +599,7 @@ function statutoryPt($gross)
 /**
  * Count Holiday Master dates in a month (optionally only Paid=Yes)
  */
-function payrollCountHolidaysInMonth($year, $month, $paidOnly = false, $fromDate = null, $toDate = null)
+function payrollCountHolidaysInMonth($year, $month, $paidOnly = false, $fromDate = null, $toDate = null, $departmentId = 0)
 {
     $monthStart = sprintf('%04d-%02d-01', $year, $month);
     $monthEnd = date('Y-m-t', strtotime($monthStart));
@@ -593,16 +621,21 @@ function payrollCountHolidaysInMonth($year, $month, $paidOnly = false, $fromDate
         return 0.0;
     }
 
+    $departmentId = (int) $departmentId;
     if (function_exists('countHolidaysInMonth') && $from === $monthStart && $to === $monthEnd) {
-        return (float) countHolidaysInMonth($year, $month, $paidOnly);
+        return (float) countHolidaysInMonth($year, $month, $paidOnly, null, $departmentId);
     }
 
     $conn = getDBConnection();
     $n = 0;
+    $deptSql = '';
+    if ($departmentId > 0) {
+        $deptSql = ' AND (department_id IS NULL OR department_id = 0 OR department_id = ' . $departmentId . ')';
+    }
     $res = @$conn->query(
         "SELECT holiday_date, is_paid FROM holidays
          WHERE status = 1 AND holiday_type = 'Holiday'
-           AND holiday_date BETWEEN '{$from}' AND '{$to}'"
+           AND holiday_date BETWEEN '{$from}' AND '{$to}'{$deptSql}"
     );
     if ($res) {
         while ($r = $res->fetch_assoc()) {
@@ -652,6 +685,7 @@ function getPayrollAttendanceBundle(array $emp, $month, $year, $actualAmount)
             'salary' => round((float) ($emp['decided_salary'] ?? 0), 2),
             'govt_gross' => 0.0,
             'pf' => 0.0,
+            'pf_employer' => 0.0,
             'pt' => 0.0,
             'working' => 0.0,
             'emp_from' => null,
@@ -671,8 +705,8 @@ function getPayrollAttendanceBundle(array $emp, $month, $year, $actualAmount)
         $empFrom,
         $empTo
     );
-    $autoHoliday = (float) payrollCountHolidaysInMonth($year, $month, false, $empFrom, $empTo);
-    $autoPaidHoliday = (float) payrollCountHolidaysInMonth($year, $month, true, $empFrom, $empTo);
+    $autoHoliday = (float) payrollCountHolidaysInMonth($year, $month, false, $empFrom, $empTo, (int) ($emp['department_id'] ?? 0));
+    $autoPaidHoliday = (float) payrollCountHolidaysInMonth($year, $month, true, $empFrom, $empTo, (int) ($emp['department_id'] ?? 0));
 
     $workedJw = (float) getJobworkWorkedDays($employeeId, $month, $year);
     $fullPresent = max(0, $eligibleDays - $autoWeekOff - $autoHoliday);
@@ -738,7 +772,8 @@ function getPayrollAttendanceBundle(array $emp, $month, $year, $actualAmount)
     $factor = $monthDays > 0 ? ($totalDays / $monthDays) : 1;
     $govtGross = round($salary * $factor, 2);
 
-    $pf = statutoryPf($govtGross, $emp);
+    $pf = statutoryPf($govtGross, $emp, $factor);
+    $pfEmployer = statutoryEmployerPf($govtGross, $emp, $factor);
     $pt = statutoryPt($govtGross);
 
     return [
@@ -758,6 +793,7 @@ function getPayrollAttendanceBundle(array $emp, $month, $year, $actualAmount)
         'salary' => round($salary, 2),
         'govt_gross' => $govtGross,
         'pf' => $pf,
+        'pf_employer' => $pfEmployer,
         'pt' => $pt,
         'working' => $eligibleDays,
         'emp_from' => $empFrom,
@@ -798,9 +834,12 @@ function calculateEmployeeSalary(array $emp, $month, $year)
             'type' => 'Earning',
             'amount' => $govtGross,
         ];
-        $deductions += $att['pf'] + $att['pt'] + $att['loan'] + $att['advance'];
+        $deductions += $att['pf'] + (float) ($att['pf_employer'] ?? 0) + $att['pt'] + $att['loan'] + $att['advance'];
         if ($att['pf'] > 0) {
-            $breakup[] = ['label' => 'P.F.', 'type' => 'Deduction', 'amount' => $att['pf']];
+            $breakup[] = ['label' => 'P.F. (Employee)', 'type' => 'Deduction', 'amount' => $att['pf']];
+        }
+        if (!empty($att['pf_employer']) && (float) $att['pf_employer'] > 0) {
+            $breakup[] = ['label' => 'P.F. (Employer)', 'type' => 'Deduction', 'amount' => $att['pf_employer']];
         }
         if ($att['pt'] > 0) {
             $breakup[] = ['label' => 'P.T.', 'type' => 'Deduction', 'amount' => $att['pt']];
@@ -831,9 +870,12 @@ function calculateEmployeeSalary(array $emp, $month, $year)
         $earnings = $att['govt_gross'];
         $breakup[] = ['label' => 'Under employees actual', 'type' => 'Info', 'amount' => $jwTotal];
         $breakup[] = ['label' => 'Govt gross (team)', 'type' => 'Earning', 'amount' => $att['govt_gross']];
-        $deductions += $att['pf'] + $att['pt'] + $att['loan'] + $att['advance'];
+        $deductions += $att['pf'] + (float) ($att['pf_employer'] ?? 0) + $att['pt'] + $att['loan'] + $att['advance'];
         if ($att['pf'] > 0) {
-            $breakup[] = ['label' => 'P.F.', 'type' => 'Deduction', 'amount' => $att['pf']];
+            $breakup[] = ['label' => 'P.F. (Employee)', 'type' => 'Deduction', 'amount' => $att['pf']];
+        }
+        if (!empty($att['pf_employer']) && (float) $att['pf_employer'] > 0) {
+            $breakup[] = ['label' => 'P.F. (Employer)', 'type' => 'Deduction', 'amount' => $att['pf_employer']];
         }
         if ($att['pt'] > 0) {
             $breakup[] = ['label' => 'P.T.', 'type' => 'Deduction', 'amount' => $att['pt']];
@@ -952,7 +994,11 @@ function calculateEmployeeSalary(array $emp, $month, $year)
         // Statutory + diary deductions (same as Salary Register)
         if ($att['pf'] > 0) {
             $deductions += $att['pf'];
-            $breakup[] = ['label' => 'P.F.', 'type' => 'Deduction', 'amount' => $att['pf']];
+            $breakup[] = ['label' => 'P.F. (Employee)', 'type' => 'Deduction', 'amount' => $att['pf']];
+        }
+        if (!empty($att['pf_employer']) && (float) $att['pf_employer'] > 0) {
+            $deductions += (float) $att['pf_employer'];
+            $breakup[] = ['label' => 'P.F. (Employer)', 'type' => 'Deduction', 'amount' => $att['pf_employer']];
         }
         if ($att['pt'] > 0) {
             $deductions += $att['pt'];

@@ -367,6 +367,7 @@ function leaveCountWorkingDays($conn, $employeeId, $fromDate, $toDate)
 
     $emp = getEmployeeById($employeeId);
     $weekOff = strtolower(trim((string) ($emp['week_off_day'] ?? 'Sunday')));
+    $empDeptId = (int) ($emp['department_id'] ?? 0);
     $holidaySet = [];
     $y1 = (int) date('Y', $from);
     $y2 = (int) date('Y', $to);
@@ -378,7 +379,7 @@ function leaveCountWorkingDays($conn, $employeeId, $fromDate, $toDate)
             if ($y === $y2 && $m > (int) date('n', $to)) {
                 continue;
             }
-            foreach (attendanceHolidaySet($conn, $y, $m) as $d => $meta) {
+            foreach (attendanceHolidaySet($conn, $y, $m, $empDeptId) as $d => $meta) {
                 $holidaySet[$d] = true;
             }
         }
@@ -513,6 +514,7 @@ function leaveMarkAttendanceDays($conn, $employeeId, $fromDate, $toDate, $leaveC
     $to = strtotime($toDate);
     $emp = getEmployeeById($employeeId);
     $weekOff = strtolower(trim((string) ($emp['week_off_day'] ?? 'Sunday')));
+    $empDeptId = (int) ($emp['department_id'] ?? 0);
     $leaveHalf = leaveNormalizeHalf($leaveHalf);
     $isHalf = in_array($leaveHalf, ['FHL', 'SHL'], true);
     $status = $isHalf ? 'Half Day' : 'Leave';
@@ -536,7 +538,7 @@ function leaveMarkAttendanceDays($conn, $employeeId, $fromDate, $toDate, $leaveC
         }
         $y = (int) date('Y', $ts);
         $m = (int) date('n', $ts);
-        $holidays = attendanceHolidaySet($conn, $y, $m);
+        $holidays = attendanceHolidaySet($conn, $y, $m, $empDeptId);
         if (isset($holidays[$date])) {
             continue;
         }

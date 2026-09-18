@@ -263,8 +263,89 @@
         });
     }
 
+    /**
+     * PF Employee + Employer = 12% of basic (ceiling ₹15,000).
+     * Both fill when PF = Yes and Decided Salary changes.
+     */
+    function pfTwelvePercentAmount(salary) {
+        var s = parseFloat(salary, 10);
+        if (!isFinite(s) || s <= 0) {
+            return 0;
+        }
+        var wage = Math.min(15000, s);
+        return Math.round(wage * 0.12 * 100) / 100;
+    }
+
+    function isPfYes() {
+        var checked = document.querySelector('input[name="pf_deduction"]:checked');
+        return checked && String(checked.value) === 'Yes';
+    }
+
+    function applyPfContributions(force) {
+        var empInp = document.getElementById('pfEmployeeContribution');
+        var erInp = document.getElementById('pfEmployerContribution');
+        var salaryInp = document.getElementById('decidedSalary');
+        if (!empInp || !erInp || !salaryInp) {
+            return;
+        }
+        if (!isPfYes()) {
+            return;
+        }
+        var amt = pfTwelvePercentAmount(salaryInp.value);
+        if (amt <= 0) {
+            return;
+        }
+        var amtStr = amt.toFixed(2);
+        if (force || empInp.value === '' || empInp.dataset.auto === '1') {
+            empInp.value = amtStr;
+            empInp.dataset.auto = '1';
+        }
+        if (force || erInp.value === '' || erInp.dataset.auto === '1') {
+            erInp.value = amtStr;
+            erInp.dataset.auto = '1';
+        }
+    }
+
+    function bindPfContributions() {
+        var empInp = document.getElementById('pfEmployeeContribution');
+        var erInp = document.getElementById('pfEmployerContribution');
+        var salaryInp = document.getElementById('decidedSalary');
+        if (!empInp || !erInp || !salaryInp) {
+            return;
+        }
+
+        empInp.dataset.auto = empInp.value !== '' ? '0' : '1';
+        erInp.dataset.auto = erInp.value !== '' ? '0' : '1';
+
+        empInp.addEventListener('input', function () {
+            empInp.dataset.auto = '0';
+        });
+        erInp.addEventListener('input', function () {
+            erInp.dataset.auto = '0';
+        });
+
+        salaryInp.addEventListener('input', function () {
+            applyPfContributions(true);
+        });
+        salaryInp.addEventListener('change', function () {
+            applyPfContributions(true);
+        });
+
+        document.querySelectorAll('input[name="pf_deduction"]').forEach(function (radio) {
+            radio.addEventListener('change', function () {
+                if (isPfYes()) {
+                    applyPfContributions(true);
+                }
+            });
+        });
+
+        if (isPfYes()) {
+            applyPfContributions(false);
+        }
+    }
+
     $(function () {
-        // Run after global Select2 init (employee_form.js loads before select2_init.js).
+        // Run after global Select2 init (employee_form.js loads after select2_init.js).
         setTimeout(bindShiftSelect, 0);
 
         var btnGen = document.getElementById('btnGenCode');
@@ -287,5 +368,6 @@
         setTimeout(bindMaritalStatus, 400);
         bindPhotoPreview();
         bindFamilyMembers();
+        bindPfContributions();
     });
 })(window.jQuery);
