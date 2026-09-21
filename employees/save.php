@@ -54,13 +54,22 @@ $dob           = normalizeDatePost($_POST['date_of_birth'] ?? '', false);
 $designation   = trim($_POST['designation'] ?? '');
 $doj           = normalizeDatePost($_POST['date_of_joining'] ?? '', false);
 $doe           = normalizeDatePost($_POST['date_of_exit'] ?? '', false);
-$status        = 1;
+$statusPosted  = isset($_POST['status']) ? ((int) $_POST['status'] === 0 ? 0 : 1) : 1;
 $todayYmd      = date('Y-m-d');
-if ($doe !== null && $doe !== '' && $doe <= $todayYmd) {
-    $status = 0; // Exit date reached / past → Deactive
-} elseif (isset($_POST['status'])) {
-    $status = (int) $_POST['status'] === 0 ? 0 : 1;
+$doeStr        = ($doe !== null && $doe !== '') ? (string) $doe : '';
+
+if ($doeStr !== '') {
+    // Exit date entered → save it (reflects in Exit Employees tab)
+    if ($doeStr <= $todayYmd) {
+        $status = 0; // today / past → Deactive
+    } else {
+        $status = 1; // future exit → Active until that day
+    }
+} else {
+    // No exit date: Active = rejoin / running again; Deactive = inactive without exit date
+    $status = $statusPosted;
 }
+$doe = $doeStr;
 $shiftType     = ($_POST['shift_type'] ?? 'Day') === 'Night' ? 'Night' : 'Day';
 $shiftTime     = trim($_POST['shift_time'] ?? '');
 $shiftId       = (int) ($_POST['shift_id'] ?? 0);

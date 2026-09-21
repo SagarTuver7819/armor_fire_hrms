@@ -379,7 +379,7 @@ $ob = empField($employee, 'overtime_benefits', 'No');
                         <label>23. Exit Date <small>(DD-MM-YYYY)</small></label>
                         <input type="text" name="date_of_exit" id="dateOfExitInput" class="form-control js-date" placeholder="DD-MM-YYYY"
                                value="<?php echo htmlspecialchars(dateInputValue(empField($employee, 'date_of_exit'))); ?>">
-                        <small class="form-hint">Exit date on/before today → Deactive. Future exit keeps Active until that day.</small>
+                        <small class="form-hint">Exit date → Exit Employees tab. Status Active (from Exit tab) → exit date clears, employee runs again.</small>
                     </div>
                     <div class="form-group">
                         <label>24. Employee Status</label>
@@ -552,7 +552,7 @@ $ob = empField($employee, 'overtime_benefits', 'No');
                                autocomplete="off"
                                value="<?php echo htmlspecialchars(empField($employee, 'bank_account_number')); ?>"
                                placeholder="Re-enter account number">
-                        <small class="form-hint">Must match account number above</small>
+                        <small id="bankAccountConfirmError" class="form-error-msg" hidden>Must match account number above</small>
                     </div>
                     <div class="form-group">
                         <label>38. IFSC Code</label>

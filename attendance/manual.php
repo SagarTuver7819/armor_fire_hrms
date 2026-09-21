@@ -1,7 +1,8 @@
 <?php
 /**
  * Manual Attendance — Excel-style monthly grid (same as Attendance Report.xlsx)
- * Columns: Code, Name, Designation, Department, DOJ, Days 1-31, PL, SL, C-Off, DL, LWP, Total Days
+ * Columns: Code, Name, Designation, Department, DOJ, Days 1-31,
+ *          Present Days, Week Off, PL, SL, DL, C-Off, Holiday, Total Days, Total Pay Days
  */
 
 require_once __DIR__ . '/../config/app.php';
@@ -261,23 +262,33 @@ if (isset($_GET['msg']) && $_GET['msg'] === 'saved') {
                                         <span class="day-name"><?php echo htmlspecialchars($dow); ?></span>
                                     </th>
                                 <?php endfor; ?>
-                                <th>PL</th>
-                                <th>SL</th>
-                                <th>C-Off</th>
-                                <th>DL</th>
-                                <th>LWP</th>
-                                <th>Days</th>
+                                <th class="sum-col">Present Days</th>
+                                <th class="sum-col">Week Off</th>
+                                <th class="sum-col">PL</th>
+                                <th class="sum-col">SL</th>
+                                <th class="sum-col">DL</th>
+                                <th class="sum-col">C-Off</th>
+                                <th class="sum-col">Holiday</th>
+                                <th class="sum-col">Total Days</th>
+                                <th class="sum-col">Total Pay Days</th>
                             </tr>
                         </thead>
                         <tbody>
                         <?php foreach ($monthData['employees'] as $emp):
                             $eid = (int) $emp['id'];
-                            $totals = $monthData['leave_totals'][$eid] ?? ['PL' => 0, 'SL' => 0, 'C-Off' => 0, 'DL' => 0, 'LWP' => 0, 'total_days' => $monthDays];
+                            $totals = $monthData['leave_totals'][$eid] ?? attendanceEmptyLeaveTotals();
                             $empWeekOff = trim((string) ($emp['week_off_day'] ?? ''));
                             if ($empWeekOff === '') {
                                 $empWeekOff = 'Sunday';
                             }
                             $empShift = attendanceResolveEmployeeShiftTimes($emp, $shifts, $defaultInDisp, $defaultOutDisp);
+                            $fmtTot = static function ($n) {
+                                $n = (float) $n;
+                                if ($n <= 0) {
+                                    return '';
+                                }
+                                return rtrim(rtrim(number_format($n, 1, '.', ''), '0'), '.');
+                            };
                             ?>
                             <tr class="excel-emp-row"
                                 data-emp="<?php echo $eid; ?>"
@@ -352,15 +363,15 @@ if (isset($_GET['msg']) && $_GET['msg'] === 'saved') {
                                         <input type="hidden" class="cell-touched" name="cells[<?php echo $eid; ?>][<?php echo $date; ?>][touched]" value="0">
                                     </td>
                                 <?php endfor; ?>
-                                <td class="tot-pl"><?php echo $totals['PL'] > 0 ? rtrim(rtrim(number_format($totals['PL'], 1), '0'), '.') : ''; ?></td>
-                                <td class="tot-sl"><?php echo $totals['SL'] > 0 ? rtrim(rtrim(number_format($totals['SL'], 1), '0'), '.') : ''; ?></td>
-                                <td class="tot-coff"><?php echo $totals['C-Off'] > 0 ? rtrim(rtrim(number_format($totals['C-Off'], 1), '0'), '.') : ''; ?></td>
-                                <td class="tot-dl"><?php echo $totals['DL'] > 0 ? rtrim(rtrim(number_format($totals['DL'], 1), '0'), '.') : ''; ?></td>
-                                <td class="tot-lwp"><?php echo $totals['LWP'] > 0 ? rtrim(rtrim(number_format($totals['LWP'], 1), '0'), '.') : ''; ?></td>
-                                <td class="tot-days"><?php
-                                    $td = (float) ($totals['total_days'] ?? 0);
-                                    echo $td > 0 ? rtrim(rtrim(number_format($td, 1, '.', ''), '0'), '.') : '0';
-                                ?></td>
+                                <td class="tot-present sum-col"><?php echo $fmtTot($totals['present'] ?? 0) !== '' ? $fmtTot($totals['present'] ?? 0) : '0'; ?></td>
+                                <td class="tot-wo sum-col"><?php echo $fmtTot($totals['week_off'] ?? 0); ?></td>
+                                <td class="tot-pl sum-col"><?php echo $fmtTot($totals['PL'] ?? 0); ?></td>
+                                <td class="tot-sl sum-col"><?php echo $fmtTot($totals['SL'] ?? 0); ?></td>
+                                <td class="tot-dl sum-col"><?php echo $fmtTot($totals['DL'] ?? 0); ?></td>
+                                <td class="tot-coff sum-col"><?php echo $fmtTot($totals['C-Off'] ?? 0); ?></td>
+                                <td class="tot-holiday sum-col"><?php echo $fmtTot($totals['holiday'] ?? 0); ?></td>
+                                <td class="tot-days sum-col"><?php echo $fmtTot($totals['total_days'] ?? 0) !== '' ? $fmtTot($totals['total_days'] ?? 0) : '0'; ?></td>
+                                <td class="tot-pay-days sum-col"><?php echo $fmtTot($totals['total_pay_days'] ?? 0) !== '' ? $fmtTot($totals['total_pay_days'] ?? 0) : '0'; ?></td>
                             </tr>
                         <?php endforeach; ?>
                         </tbody>
@@ -431,13 +442,21 @@ if (isset($_GET['msg']) && $_GET['msg'] === 'saved') {
             <div class="form-group">
                 <label>Punch In</label>
                 <div class="att-time-wrap">
-                    <input type="text" id="mIn" class="form-control js-time-modal mdtimepicker-input" placeholder="In time" autocomplete="off" readonly>
+                    <input type="text" id="mIn" class="form-control js-time-modal" placeholder="Type e.g. 9:00 AM" autocomplete="off" inputmode="text">
+                    <input type="text" id="mInPicker" class="att-time-picker-proxy" tabindex="-1" aria-hidden="true" readonly>
+                    <button type="button" class="att-time-clock-btn" data-input="#mIn" data-picker="#mInPicker" title="Open clock" aria-label="Open clock">
+                        <i class="fa-regular fa-clock"></i>
+                    </button>
                 </div>
             </div>
             <div class="form-group">
                 <label>Punch Out</label>
                 <div class="att-time-wrap">
-                    <input type="text" id="mOut" class="form-control js-time-modal mdtimepicker-input" placeholder="Out time" autocomplete="off" readonly>
+                    <input type="text" id="mOut" class="form-control js-time-modal" placeholder="Type e.g. 6:00 PM" autocomplete="off" inputmode="text">
+                    <input type="text" id="mOutPicker" class="att-time-picker-proxy" tabindex="-1" aria-hidden="true" readonly>
+                    <button type="button" class="att-time-clock-btn" data-input="#mOut" data-picker="#mOutPicker" title="Open clock" aria-label="Open clock">
+                        <i class="fa-regular fa-clock"></i>
+                    </button>
                 </div>
             </div>
         </div>
@@ -453,6 +472,18 @@ if (isset($_GET['msg']) && $_GET['msg'] === 'saved') {
 window.ATT_DEFAULT_IN = <?php echo json_encode($defaultInDisp); ?>;
 window.ATT_DEFAULT_OUT = <?php echo json_encode($defaultOutDisp); ?>;
 window.ATT_MONTH_DAYS = <?php echo (int) $monthDays; ?>;
+<?php
+$attHolidayDates = [];
+if ($show && $deptId > 0) {
+    $connH = getDBConnection();
+    $hSet = attendanceHolidaySet($connH, $year, $month, $deptId);
+    $connH->close();
+    foreach (array_keys($hSet) as $hd) {
+        $attHolidayDates[$hd] = 1;
+    }
+}
+?>
+window.ATT_HOLIDAY_DATES = <?php echo json_encode($attHolidayDates); ?>;
 <?php if ($toast): ?>
 window.ATT_TOAST = <?php echo json_encode($toast); ?>;
 window.ATT_TOAST_TYPE = <?php echo json_encode($toastType); ?>;

@@ -1273,8 +1273,25 @@ a {
     display: block;
     margin-top: 5px;
     font-size: 12px;
-    color: #b45309;
+    color: #64748b;
     font-weight: 500;
+}
+
+.form-error-msg {
+    display: block;
+    margin-top: 5px;
+    font-size: 12px;
+    color: #dc2626;
+    font-weight: 600;
+}
+
+.form-error-msg[hidden] {
+    display: none !important;
+}
+
+.form-control.is-invalid-code {
+    border-color: #dc2626;
+    box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.15);
 }
 
 .doc-attach-row {
@@ -1348,10 +1365,145 @@ input.js-date,
     letter-spacing: 0.02em;
 }
 
+/* Flatpickr — month dropdown + year must stay clickable (no Select2 / no arrow overlap) */
 .flatpickr-calendar {
     font-family: inherit;
     box-shadow: 0 12px 28px rgba(15, 23, 42, 0.18);
     border: 1px solid #e2e8f0;
+    z-index: 100050 !important;
+    overflow: visible !important;
+}
+
+.flatpickr-calendar.armor-fp,
+.flatpickr-calendar.open {
+    overflow: visible !important;
+}
+
+.flatpickr-months {
+    overflow: visible !important;
+    align-items: center;
+}
+
+.flatpickr-months .flatpickr-month {
+    overflow: visible !important;
+    height: 44px;
+}
+
+/* Keep arrows on sides; do NOT stretch month row under them */
+.flatpickr-months .flatpickr-prev-month,
+.flatpickr-months .flatpickr-next-month {
+    z-index: 2;
+    padding: 10px 8px;
+}
+
+.flatpickr-current-month {
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: nowrap;
+    gap: 6px;
+    width: 72% !important;
+    left: 14% !important;
+    padding: 0 4px !important;
+    overflow: visible !important;
+    height: 44px;
+    line-height: 1.2;
+    pointer-events: auto !important;
+    z-index: 5;
+}
+
+/* Native month <select> — never hide / never Select2 */
+.flatpickr-current-month .flatpickr-monthDropdown-months,
+.flatpickr-calendar select.flatpickr-monthDropdown-months {
+    display: inline-block !important;
+    position: relative !important;
+    z-index: 6 !important;
+    max-width: none !important;
+    width: auto !important;
+    min-width: 7em;
+    height: auto !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+    pointer-events: auto !important;
+    appearance: menulist !important;
+    -webkit-appearance: menulist !important;
+    -moz-appearance: menulist !important;
+    font-weight: 700;
+    font-size: 14px;
+    padding: 4px 22px 4px 8px;
+    margin: 0;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    background: #fff;
+    color: #0f172a;
+    cursor: pointer;
+    vertical-align: middle;
+    clip: auto !important;
+}
+
+.flatpickr-current-month .flatpickr-monthDropdown-months:focus {
+    outline: none;
+    border-color: #f58220;
+    box-shadow: 0 0 0 2px rgba(245, 130, 32, 0.25);
+}
+
+/* Kill Select2 chrome if it ever wraps the month control */
+.flatpickr-calendar .select2-container,
+.flatpickr-current-month .select2-container {
+    display: none !important;
+}
+
+.flatpickr-current-month .numInputWrapper {
+    display: inline-flex !important;
+    align-items: center;
+    width: 4.8em !important;
+    min-width: 4.8em !important;
+    overflow: visible !important;
+    vertical-align: middle;
+    position: relative;
+    z-index: 6;
+}
+
+.flatpickr-current-month .numInputWrapper span.arrowUp,
+.flatpickr-current-month .numInputWrapper span.arrowDown {
+    opacity: 0.55;
+}
+
+.flatpickr-current-month input.cur-year {
+    display: inline-block !important;
+    visibility: visible !important;
+    pointer-events: auto !important;
+    font-weight: 700 !important;
+    font-size: 14px !important;
+    line-height: 1.2 !important;
+    padding: 4px 6px !important;
+    margin: 0 !important;
+    width: 100% !important;
+    min-width: 3.6em !important;
+    border: 1px solid #cbd5e1 !important;
+    border-radius: 6px !important;
+    background: #fff !important;
+    color: #0f172a !important;
+    box-shadow: none !important;
+    -moz-appearance: textfield;
+}
+
+.flatpickr-current-month input.cur-year:focus {
+    outline: none;
+    border-color: #f58220 !important;
+    box-shadow: 0 0 0 2px rgba(245, 130, 32, 0.25) !important;
+}
+
+.flatpickr-day.selected,
+.flatpickr-day.startRange,
+.flatpickr-day.endRange {
+    background: #1e3a5f !important;
+    border-color: #1e3a5f !important;
+}
+
+.flatpickr-day:hover {
+    background: #fff7ed;
+    border-color: #fdba74;
 }
 
 .manual-att-wrap {
@@ -1480,9 +1632,24 @@ input.js-date,
     border-color: #16304f !important;
 }
 
-.excel-att-table thead th:nth-last-child(-n+6) {
+.excel-att-table thead th:nth-last-child(-n+9) {
     background: #f58220 !important;
     border-color: #e06f12 !important;
+}
+
+.excel-att-table td.tot-present,
+.excel-att-table td.tot-wo,
+.excel-att-table td.tot-pl,
+.excel-att-table td.tot-sl,
+.excel-att-table td.tot-dl,
+.excel-att-table td.tot-coff,
+.excel-att-table td.tot-holiday,
+.excel-att-table td.tot-days,
+.excel-att-table td.tot-pay-days,
+.excel-att-table td.sum-col {
+    text-align: center;
+    font-weight: 600;
+    background: #fff7ed;
 }
 
 .excel-att-table td.att-day {
@@ -1973,10 +2140,48 @@ input.js-date,
 
 .att-time-wrap {
     position: relative;
+    display: flex;
+    align-items: center;
 }
 
-.att-time-wrap input {
+.att-time-wrap input.js-time-modal {
+    cursor: text;
+    padding-right: 42px;
+}
+
+.att-time-picker-proxy {
+    position: absolute !important;
+    width: 1px !important;
+    height: 1px !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+    left: 0;
+    top: 0;
+    border: 0 !important;
+    padding: 0 !important;
+    margin: 0 !important;
+}
+
+.att-time-clock-btn {
+    position: absolute;
+    right: 6px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 32px;
+    height: 32px;
+    border: 0;
+    border-radius: 8px;
+    background: #fff7ed;
+    color: #c2410c;
     cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 2;
+}
+
+.att-time-clock-btn:hover {
+    background: #ffedd5;
 }
 
 /* Round MDTimePicker — full screen center */

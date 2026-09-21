@@ -29,6 +29,11 @@
         if (!$el.length || $el.hasClass('no-select2') || $el.data('select2')) {
             return;
         }
+        // Never wrap Flatpickr month/year controls — Select2 breaks month selection
+        if ($el.hasClass('flatpickr-monthDropdown-months') || $el.closest('.flatpickr-calendar').length) {
+            $el.addClass('no-select2');
+            return;
+        }
 
         var hasBlank = $el.find('option[value=""]').length > 0;
         var inLength = $el.closest('.dataTables_length').length > 0;

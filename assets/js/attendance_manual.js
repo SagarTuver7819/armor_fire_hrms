@@ -134,41 +134,83 @@
     }
 
     function recalcRowTotals($tr) {
-        var totals = { PL: 0, SL: 0, 'C-Off': 0, DL: 0, LWP: 0 };
-        var paidDays = 0;
+        var totals = {
+            present: 0,
+            week_off: 0,
+            PL: 0,
+            SL: 0,
+            DL: 0,
+            'C-Off': 0,
+            holiday: 0,
+            LWP: 0
+        };
+        var weekOffName = String($tr.attr('data-week-off') || 'Sunday').toLowerCase();
+        var holidayMap = window.ATT_HOLIDAY_DATES || {};
+
         $tr.find('td.day-cell').each(function () {
-            var status = $(this).attr('data-status') || '';
-            var type = ($(this).attr('data-leave-type') || '').trim();
-            var half = ($(this).attr('data-leave-half') || '').toUpperCase();
+            var $td = $(this);
+            var status = ($td.attr('data-status') || '').trim();
+            var type = ($td.attr('data-leave-type') || '').trim();
+            var half = ($td.attr('data-leave-half') || '').toUpperCase();
+            var date = $td.attr('data-date') || '';
+
             if (!type && status === 'Leave') type = 'PL';
+            if (type.toUpperCase() === 'COFF' || type.toUpperCase() === 'C-OFF') type = 'C-Off';
+            if (type.toUpperCase() === 'CL' || type.toUpperCase() === 'EL') type = 'PL';
+
+            // Empty cell → month calendar Week Off / Holiday
+            if (!status) {
+                if (date && holidayMap[date]) {
+                    totals.holiday += 1;
+                    return;
+                }
+                if (date && weekOffName) {
+                    var parts = date.split('-');
+                    if (parts.length === 3) {
+                        var dt = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+                        var names = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+                        if (names[dt.getDay()] === weekOffName) {
+                            totals.week_off += 1;
+                        }
+                    }
+                }
+                return;
+            }
+
             var isHalf = (status === 'Half Day' || half === 'FHF' || half === 'SHF' || half === 'FHL' || half === 'SHL');
             var inc = isHalf ? 0.5 : 1;
-            if (type && totals.hasOwnProperty(type) && (status === 'Leave' || status === 'Half Day')) {
-                totals[type] += inc;
-            }
+            var leaveKey = (type && totals.hasOwnProperty(type)) ? type : '';
+
             if (status === 'Present') {
-                paidDays += 1;
+                totals.present += 1;
+            } else if (status === 'Week Off') {
+                totals.week_off += 1;
+            } else if (status === 'Holiday') {
+                totals.holiday += 1;
             } else if (status === 'Half Day') {
-                paidDays += 0.5;
-                if (type && type.toUpperCase() !== 'LWP') {
-                    paidDays += 0.5;
-                }
-            } else if (status === 'Week Off' || status === 'Holiday') {
-                paidDays += 1;
-            } else if (status === 'Leave' && type.toUpperCase() !== 'LWP') {
-                paidDays += inc;
+                totals.present += 0.5;
+                if (leaveKey) totals[leaveKey] += 0.5;
+            } else if (status === 'Leave') {
+                if (!leaveKey) leaveKey = 'PL';
+                totals[leaveKey] += inc;
             }
         });
+
+        var totalDays = totals.present + totals.week_off + totals.PL + totals.SL + totals.DL + totals['C-Off'] + totals.holiday;
+        var payDays = totalDays;
         function fmt(n) {
             if (!n) return '';
             return (Math.round(n * 10) / 10).toString();
         }
+        $tr.find('.tot-present').text(fmt(totals.present) || '0');
+        $tr.find('.tot-wo').text(fmt(totals.week_off));
         $tr.find('.tot-pl').text(fmt(totals.PL));
         $tr.find('.tot-sl').text(fmt(totals.SL));
-        $tr.find('.tot-coff').text(fmt(totals['C-Off']));
         $tr.find('.tot-dl').text(fmt(totals.DL));
-        $tr.find('.tot-lwp').text(fmt(totals.LWP));
-        $tr.find('.tot-days').text(fmt(paidDays) || '0');
+        $tr.find('.tot-coff').text(fmt(totals['C-Off']));
+        $tr.find('.tot-holiday').text(fmt(totals.holiday));
+        $tr.find('.tot-days').text(fmt(totalDays) || '0');
+        $tr.find('.tot-pay-days').text(fmt(payDays) || '0');
     }
 
     function destroyModalSelect2() {
@@ -186,7 +228,7 @@
     }
 
     function destroyModalTimePickers() {
-        ['#mIn', '#mOut'].forEach(function (sel) {
+        ['#mInPicker', '#mOutPicker', '#mIn', '#mOut'].forEach(function (sel) {
             var el = document.querySelector(sel);
             if (!el) return;
             if (el._flatpickr) {
@@ -197,21 +239,45 @@
                 try { window.mdtimepicker(sel, 'destroy'); } catch (e2) { /* ignore */ }
             }
         });
-        // leftover overlays
-        document.querySelectorAll('.mdtp__wrapper').forEach(function (n) {
-            if (!n.querySelector('.mdtp__clock')) return;
+        ['#mIn', '#mOut'].forEach(function (sel) {
+            var el = document.querySelector(sel);
+            if (el) el.removeAttribute('readonly');
         });
         tpIn = null;
         tpOut = null;
     }
 
-    function bindRoundTimePicker(selector) {
-        var el = document.querySelector(selector);
-        if (!el || typeof window.mdtimepicker !== 'function') {
+    /** Normalize typed time → "9:00 AM" / "6:30 PM" */
+    function normalizeTypedTime(raw) {
+        var s = String(raw || '').trim();
+        if (!s) return '';
+        s = s.replace(/\./g, ':').replace(/\s+/g, ' ');
+        var m = s.match(/^(\d{1,2})(?::?(\d{2}))?\s*(a\.?m\.?|p\.?m\.?)?$/i);
+        if (!m) {
+            return s;
+        }
+        var h = parseInt(m[1], 10);
+        var min = m[2] !== undefined && m[2] !== '' ? parseInt(m[2], 10) : 0;
+        var ap = (m[3] || '').toUpperCase().replace(/\./g, '');
+        if (min > 59) return s;
+        if (ap === 'AM' || ap === 'PM') {
+            if (h < 1 || h > 12) return s;
+        } else {
+            if (h > 23) return s;
+            ap = h >= 12 ? 'PM' : 'AM';
+            h = h % 12;
+            if (h === 0) h = 12;
+        }
+        return h + ':' + (min < 10 ? '0' : '') + min + ' ' + ap;
+    }
+
+    function bindPickerProxy(pickerSel, inputSel) {
+        var picker = document.querySelector(pickerSel);
+        var input = document.querySelector(inputSel);
+        if (!picker || !input || typeof window.mdtimepicker !== 'function') {
             return null;
         }
-
-        window.mdtimepicker(selector, {
+        window.mdtimepicker(pickerSel, {
             theme: 'orange',
             format: 'h:mm tt',
             is24hour: false,
@@ -219,44 +285,70 @@
             clearBtn: true,
             readOnly: true,
             events: {
-                timeChanged: function () {
+                timeChanged: function (value) {
+                    var v = normalizeTypedTime(value || picker.value || '');
+                    input.value = v;
                     syncModalPreview();
                 }
             }
         });
+        return picker;
+    }
 
+    function bindTypeableTime(inputSel) {
+        var el = document.querySelector(inputSel);
+        if (!el) return null;
+        el.removeAttribute('readonly');
+        el.addEventListener('input', syncModalPreview);
         el.addEventListener('change', syncModalPreview);
+        el.addEventListener('blur', function () {
+            var n = normalizeTypedTime(el.value);
+            if (n !== String(el.value || '').trim()) {
+                el.value = n;
+            } else if (n) {
+                el.value = n;
+            }
+            syncModalPreview();
+        });
         return el;
     }
 
     function initModalTimePickers() {
         destroyModalTimePickers();
-        tpIn = bindRoundTimePicker('#mIn');
-        tpOut = bindRoundTimePicker('#mOut');
+        tpIn = bindPickerProxy('#mInPicker', '#mIn');
+        tpOut = bindPickerProxy('#mOutPicker', '#mOut');
+        bindTypeableTime('#mIn');
+        bindTypeableTime('#mOut');
+    }
+
+    function openTimeClock(pickerSel, inputSel) {
+        var input = document.querySelector(inputSel);
+        var cur = normalizeTypedTime(input ? input.value : '');
+        if (typeof window.mdtimepicker !== 'function') {
+            if (input) input.focus();
+            return;
+        }
+        try {
+            if (cur) {
+                window.mdtimepicker(pickerSel, 'setValue', cur);
+            }
+            window.mdtimepicker(pickerSel, 'show');
+        } catch (e) {
+            if (input) input.focus();
+        }
     }
 
     function setModalTime(selector, val) {
         var el = document.querySelector(selector);
         if (!el) return;
-        var value = (val || '').toString().trim();
-
-        if (typeof window.mdtimepicker === 'function') {
-            if (value) {
-                try {
-                    window.mdtimepicker(selector, 'setValue', value);
-                    syncModalPreview();
-                    return;
-                } catch (e) { /* fall through */ }
-            } else {
-                el.value = '';
-                try { window.mdtimepicker(selector, 'hide'); } catch (e2) { /* ignore */ }
-                syncModalPreview();
-                return;
-            }
-        }
-
+        var value = normalizeTypedTime((val || '').toString().trim());
+        el.removeAttribute('readonly');
         el.value = value;
-        $(el).trigger('change');
+        var pickerSel = selector === '#mIn' ? '#mInPicker' : (selector === '#mOut' ? '#mOutPicker' : '');
+        if (pickerSel && typeof window.mdtimepicker === 'function' && value) {
+            try { window.mdtimepicker(pickerSel, 'setValue', value); } catch (e) { /* ignore */ }
+        }
+        syncModalPreview();
     }
 
     function syncModalPreview() {
@@ -337,8 +429,8 @@
         var status = $('#mStatus').val() || '';
         var lt = $('#mLeaveType').val() || '';
         var lh = $('#mLeaveHalf').val() || '';
-        var inn = $('#mIn').val() || '';
-        var out = $('#mOut').val() || '';
+        var inn = normalizeTypedTime($('#mIn').val() || '');
+        var out = normalizeTypedTime($('#mOut').val() || '');
         var t = shiftTimes($activeCell);
 
         if (status === 'Present') {
@@ -406,6 +498,14 @@
         setTimeout(destroyModalSelect2, 50);
         setTimeout(destroyModalSelect2, 300);
         initModalTimePickers();
+
+        $(document).on('click', '.att-time-clock-btn', function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            var inputSel = $(this).data('input');
+            var pickerSel = $(this).data('picker');
+            openTimeClock(pickerSel, inputSel);
+        });
 
         $('#manualAttTable').on('click', 'td.day-cell', function (e) {
             if ($(e.target).is('input')) return;

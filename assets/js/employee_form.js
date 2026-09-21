@@ -351,36 +351,143 @@
         var form = document.getElementById('employeeForm') || document.querySelector('form.employee-form');
         var acc = document.getElementById('bankAccountNumber');
         var conf = document.getElementById('bankAccountNumberConfirm');
+        var err = document.getElementById('bankAccountConfirmError');
         if (!form || !acc || !conf) {
             return;
         }
+
+        function clearMismatch() {
+            conf.classList.remove('is-invalid-code');
+            acc.classList.remove('is-invalid-code');
+            if (err) {
+                err.hidden = true;
+            }
+        }
+
+        function showMismatch() {
+            conf.classList.add('is-invalid-code');
+            acc.classList.add('is-invalid-code');
+            if (err) {
+                err.hidden = false;
+            }
+        }
+
+        /** Validate only after confirm field is left (Tab / click away) */
+        function validateOnBlur() {
+            var a = String(acc.value || '').trim();
+            var c = String(conf.value || '').trim();
+            // Empty confirm — no message until user types something
+            if (c === '') {
+                clearMismatch();
+                return true;
+            }
+            if (a !== c) {
+                showMismatch();
+                toastError('Bank Account Number and Confirm Account Number do not match.');
+                return false;
+            }
+            clearMismatch();
+            return true;
+        }
+
+        conf.addEventListener('blur', validateOnBlur);
+
+        // While typing: hide error once values match again
+        [acc, conf].forEach(function (el) {
+            el.addEventListener('input', function () {
+                var a = String(acc.value || '').trim();
+                var c = String(conf.value || '').trim();
+                if (c === '' || a === c) {
+                    clearMismatch();
+                }
+            });
+        });
 
         form.addEventListener('submit', function (e) {
             var a = String(acc.value || '').trim();
             var c = String(conf.value || '').trim();
             if (a === '' && c === '') {
+                clearMismatch();
                 return;
             }
             if (a !== c) {
                 e.preventDefault();
+                showMismatch();
                 toastError('Bank Account Number and Confirm Account Number do not match.');
                 conf.focus();
-                conf.classList.add('is-invalid-code');
-                acc.classList.add('is-invalid-code');
                 return false;
             }
-            conf.classList.remove('is-invalid-code');
-            acc.classList.remove('is-invalid-code');
+            clearMismatch();
         });
+    }
 
-        [acc, conf].forEach(function (el) {
-            el.addEventListener('input', function () {
-                if (String(acc.value || '').trim() === String(conf.value || '').trim()) {
-                    conf.classList.remove('is-invalid-code');
-                    acc.classList.remove('is-invalid-code');
-                }
-            });
-        });
+    /** Exit date ↔ Status sync for Active / Exit Employees tabs */
+    function bindEmpStatusExitClear() {
+        var statusEl = document.getElementById('empStatusSelect');
+        var exitEl = document.getElementById('dateOfExitInput');
+        if (!statusEl || !exitEl) {
+            return;
+        }
+
+        function parseExitYmd(raw) {
+            var s = String(raw || '').trim();
+            if (!s) return '';
+            var m = s.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{4})$/);
+            if (m) {
+                var d = parseInt(m[1], 10);
+                var mo = parseInt(m[2], 10);
+                var y = parseInt(m[3], 10);
+                if (mo < 1 || mo > 12 || d < 1 || d > 31) return '';
+                return y + '-' + (mo < 10 ? '0' : '') + mo + '-' + (d < 10 ? '0' : '') + d;
+            }
+            m = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+            return m ? m[0] : '';
+        }
+
+        function todayYmd() {
+            var n = new Date();
+            var m = n.getMonth() + 1;
+            var d = n.getDate();
+            return n.getFullYear() + '-' + (m < 10 ? '0' : '') + m + '-' + (d < 10 ? '0' : '') + d;
+        }
+
+        function clearExitDate() {
+            if (!String(exitEl.value || '').trim()) return;
+            exitEl.value = '';
+            if (exitEl._flatpickr) {
+                try { exitEl._flatpickr.clear(); } catch (e) { /* ignore */ }
+            }
+        }
+
+        function setStatusValue(val) {
+            statusEl.value = String(val);
+            if (window.jQuery) {
+                window.jQuery(statusEl).val(String(val)).trigger('change.select2');
+            }
+        }
+
+        // Exit Employees tab → Active again: clear exit date (other fields stay)
+        function onStatusChange() {
+            if (String(statusEl.value) === '1') {
+                clearExitDate();
+            }
+        }
+
+        // Exit date entered → Deactive when date is today/past (so it reflects in Exit tab)
+        function onExitChange() {
+            var ymd = parseExitYmd(exitEl.value);
+            if (!ymd) return;
+            if (ymd <= todayYmd()) {
+                setStatusValue('0');
+            }
+        }
+
+        statusEl.addEventListener('change', onStatusChange);
+        exitEl.addEventListener('change', onExitChange);
+        exitEl.addEventListener('blur', onExitChange);
+        if (window.jQuery) {
+            window.jQuery(statusEl).on('change.select2 select2:select', onStatusChange);
+        }
     }
 
     $(function () {
@@ -409,5 +516,6 @@
         bindFamilyMembers();
         bindPfContributions();
         bindBankAccountConfirm();
+        bindEmpStatusExitClear();
     });
 })(window.jQuery);

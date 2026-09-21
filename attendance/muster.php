@@ -79,7 +79,7 @@ require_once __DIR__ . '/../includes/header.php';
     <div class="form-page-card">
         <div class="form-page-header">
             <h1>Muster Report</h1>
-            <p>Excel format · <?php echo htmlspecialchars(date('F Y', mktime(0, 0, 0, $month, 1, $year))); ?> · In/Out times · Leave · Week Off · PL/SL totals</p>
+            <p>Excel format · <?php echo htmlspecialchars(date('F Y', mktime(0, 0, 0, $month, 1, $year))); ?> · Present / Week Off / Leave / Holiday · Total Pay Days</p>
         </div>
 
         <form method="GET" class="employee-form" style="margin-bottom:14px;">

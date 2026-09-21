@@ -82,7 +82,7 @@ require_once __DIR__ . '/../includes/header.php';
     <div class="form-page-card">
         <div class="form-page-header">
             <h1>Attendance Report</h1>
-            <p>Same Excel format · Employee rows · Days 1–31 with In/Out · PL / SL / C-Off / DL / LWP · Export</p>
+            <p>Same Excel format · Present / Week Off / PL / SL / DL / C-Off / Holiday · Total Days · Total Pay Days · Export</p>
         </div>
 
         <form method="GET" class="employee-form" style="margin-bottom:16px;">
