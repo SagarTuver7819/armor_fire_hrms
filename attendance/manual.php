@@ -357,7 +357,10 @@ if (isset($_GET['msg']) && $_GET['msg'] === 'saved') {
                                 <td class="tot-coff"><?php echo $totals['C-Off'] > 0 ? rtrim(rtrim(number_format($totals['C-Off'], 1), '0'), '.') : ''; ?></td>
                                 <td class="tot-dl"><?php echo $totals['DL'] > 0 ? rtrim(rtrim(number_format($totals['DL'], 1), '0'), '.') : ''; ?></td>
                                 <td class="tot-lwp"><?php echo $totals['LWP'] > 0 ? rtrim(rtrim(number_format($totals['LWP'], 1), '0'), '.') : ''; ?></td>
-                                <td class="tot-days"><?php echo (int) $totals['total_days']; ?></td>
+                                <td class="tot-days"><?php
+                                    $td = (float) ($totals['total_days'] ?? 0);
+                                    echo $td > 0 ? rtrim(rtrim(number_format($td, 1, '.', ''), '0'), '.') : '0';
+                                ?></td>
                             </tr>
                         <?php endforeach; ?>
                         </tbody>

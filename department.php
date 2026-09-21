@@ -147,7 +147,21 @@ if ($department) {
                         <i class="fa-solid fa-table"></i>
                     </div>
                     <div class="module-label">Salary Register</div>
-                    <div class="module-meta">Salary · Jobwork Govt / Actual · Contractor Main</div>
+                    <div class="module-meta">Salary · Jobwork Govt / Actual · Lock → NEFT</div>
+                </a>
+                <a href="<?php echo app_url('payroll/joining_exit.php?department_id=' . (int) $department['id']); ?>" class="module-card">
+                    <div class="module-icon" style="background-color: #7C3AED;">
+                        <i class="fa-solid fa-right-left"></i>
+                    </div>
+                    <div class="module-label">Joining / Exit Report</div>
+                    <div class="module-meta">Monthly · Prorated salary days</div>
+                </a>
+                <a href="<?php echo app_url('payroll/cost_summary.php?department_id=' . (int) $department['id']); ?>" class="module-card">
+                    <div class="module-icon" style="background-color: #0F766E;">
+                        <i class="fa-solid fa-chart-pie"></i>
+                    </div>
+                    <div class="module-label">Dept Cost Summary</div>
+                    <div class="module-meta">Monthly cost · Final summary</div>
                 </a>
                 <a href="<?php echo app_url('masters/holidays/index.php?department_id=' . (int) $department['id']); ?>" class="module-card">
                     <div class="module-icon" style="background-color: #E85D75;">

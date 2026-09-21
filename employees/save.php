@@ -55,8 +55,9 @@ $designation   = trim($_POST['designation'] ?? '');
 $doj           = normalizeDatePost($_POST['date_of_joining'] ?? '', false);
 $doe           = normalizeDatePost($_POST['date_of_exit'] ?? '', false);
 $status        = 1;
-if ($doe !== null && $doe !== '') {
-    $status = 0; // Exit Date entered -> Deactive
+$todayYmd      = date('Y-m-d');
+if ($doe !== null && $doe !== '' && $doe <= $todayYmd) {
+    $status = 0; // Exit date reached / past → Deactive
 } elseif (isset($_POST['status'])) {
     $status = (int) $_POST['status'] === 0 ? 0 : 1;
 }
@@ -67,12 +68,11 @@ $reportingId   = (int) ($_POST['reporting_employee_id'] ?? 0);
 $pfDeduction   = ($_POST['pf_deduction'] ?? 'No') === 'Yes' ? 'Yes' : 'No';
 $pfStartDate   = normalizeDatePost($_POST['pf_start_date'] ?? '', false);
 $pfEmpContrib  = trim((string) ($_POST['pf_employee_contribution'] ?? ''));
-$pfErContrib   = trim((string) ($_POST['pf_employer_contribution'] ?? ''));
 $pfEmpContrib  = ($pfEmpContrib === '') ? null : (float) $pfEmpContrib;
-$pfErContrib   = ($pfErContrib === '') ? null : (float) $pfErContrib;
 $uan           = trim($_POST['uan_number'] ?? '');
 $bankName      = trim($_POST['bank_name'] ?? '');
 $bankAccount   = trim($_POST['bank_account_number'] ?? '');
+$bankAccountConfirm = trim($_POST['bank_account_number_confirm'] ?? '');
 $ifsc          = trim($_POST['ifsc_code'] ?? '');
 $bankBranch    = trim($_POST['bank_branch_address'] ?? '');
 $salary        = trim($_POST['decided_salary'] ?? '');
@@ -82,6 +82,18 @@ $weekOffDay    = trim($_POST['week_off_day'] ?? '');
 $weekOffBen    = ($_POST['week_off_benefits'] ?? 'No') === 'Yes' ? 'Yes' : 'No';
 $holidayBen    = ($_POST['holiday_benefits'] ?? 'No') === 'Yes' ? 'Yes' : 'No';
 $overtimeBen   = ($_POST['overtime_benefits'] ?? 'No') === 'Yes' ? 'Yes' : 'No';
+
+if ($bankAccount !== '' || $bankAccountConfirm !== '') {
+    if ($bankAccount !== $bankAccountConfirm) {
+        die('Bank Account Number and Confirm Account Number do not match. <a href="javascript:history.back()">Go Back</a>');
+    }
+}
+
+// Bind empty string for optional DATE columns (SQL uses NULLIF → NULL)
+$dob = $dob ?? '';
+$doj = $doj ?? '';
+$doe = $doe ?? '';
+$pfStartDate = $pfStartDate ?? '';
 
 if ($shiftId > 0) {
     $shift = getMasterRow('shifts', $shiftId);
@@ -160,7 +172,7 @@ if ($id > 0) {
     $sql = "UPDATE employees SET
         employee_code=?, biometric_user_id=?, pay_type=?, department_id=?, sub_department_id=?, employee_name=?, father_husband_name=?,
         permanent_address=?, present_address=?, mobile_number=?, emergency_mobile=?,
-        aadhar_number=?, pan_number=?, date_of_birth=?, designation=?, date_of_joining=?, date_of_exit=?,
+        aadhar_number=?, pan_number=?, date_of_birth=NULLIF(?,''), designation=?, date_of_joining=NULLIF(?,''), date_of_exit=NULLIF(?,''),
         shift_type=?, shift_time=?, pf_deduction=?, uan_number=?,
         bank_name=?, bank_account_number=?, ifsc_code=?, bank_branch_address=?,
         decided_salary=?, reporting_head=?,         extra_note=?, week_off_day=?,
@@ -216,7 +228,7 @@ if ($id > 0) {
         bank_name, bank_account_number, ifsc_code, bank_branch_address,
         decided_salary, reporting_head, extra_note, week_off_day,
         week_off_benefits, holiday_benefits, overtime_benefits, main_contractor_id, created_by, status
-    ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
+    ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,NULLIF(?,''),?,NULLIF(?,''),NULLIF(?,''),?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
 
     $stmt = $conn->prepare($sql);
     $stmt->bind_param(
@@ -271,13 +283,12 @@ if (!$ok) {
 
 if ($savedId > 0) {
     $pfEmpBind = $pfEmpContrib === null ? '' : (string) $pfEmpContrib;
-    $pfErBind = $pfErContrib === null ? '' : (string) $pfErContrib;
     $extraStmt = $conn->prepare(
         'UPDATE employees SET office_email = ?, office_mobile = ?, gender = ?, marital_status = ?, marital_remark = ?,
-         pf_start_date = ?, pf_employee_contribution = NULLIF(?, \'\'), pf_employer_contribution = NULLIF(?, \'\') WHERE id = ?'
+         pf_start_date = NULLIF(?, \'\'), pf_employee_contribution = NULLIF(?, \'\'), pf_employer_contribution = NULL WHERE id = ?'
     );
     $extraStmt->bind_param(
-        'ssssssssi',
+        'sssssssi',
         $officeEmail,
         $officeMobile,
         $gender,
@@ -285,7 +296,6 @@ if ($savedId > 0) {
         $maritalRemark,
         $pfStartDate,
         $pfEmpBind,
-        $pfErBind,
         $savedId
     );
     $extraStmt->execute();

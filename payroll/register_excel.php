@@ -40,7 +40,7 @@ $headers = $isActual
     ? ['Department', 'Designation', 'D.O.J.', 'UAN Number', 'Employee Name', 'Qty', 'Actual Amount', 'Gross Salary']
     : ['Department', 'Designation', 'D.O.J.', 'UAN Number', 'Employee Name', 'Salary', 'Present Days', 'Week Off', 'P.L.', 'S.L.', 'D.L.', 'Total Days', 'Gross Salary'];
 $headers = array_merge($headers, [
-    'Employee PF', 'Employer PF', 'P.T.', 'Loan', 'Advance', 'Total Deduction', 'Salary Arrears', 'Net Salary',
+    'Employee PF', 'P.T.', 'Loan', 'Advance', 'Total Deduction', 'Salary Arrears', 'Net Salary',
     'Account Number', 'IFSC Code', 'Remarks',
 ]);
 
@@ -85,7 +85,7 @@ foreach ($groups as $g) {
             ]);
         }
         $cells = array_merge($cells, [
-            $r['pf'], $r['pf_employer'] ?? 0, $r['pt'], $r['loan'], $r['advance'], $r['total_deduction'], $r['arrears'], $r['net'],
+            $r['pf'], $r['pt'], $r['loan'], $r['advance'], $r['total_deduction'], $r['arrears'], $r['net'],
             $r['account'], $r['ifsc'], $r['remarks'],
         ]);
         echo '<tr>';

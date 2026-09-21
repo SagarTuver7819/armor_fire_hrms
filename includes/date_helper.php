@@ -27,10 +27,15 @@ function formatDateDisplay($date)
     if (preg_match('/^\d{2}-\d{2}-\d{4}$/', $raw)) {
         return $raw;
     }
+    // Prefer explicit parser (avoids strtotime MM/DD vs DD/MM ambiguity)
+    $parsed = parseDateInput($raw);
+    if ($parsed) {
+        $ts = strtotime($parsed);
+        return $ts ? date(APP_DATE_DISPLAY, $ts) : '';
+    }
     $ts = strtotime($raw);
     if ($ts === false) {
-        $parsed = parseDateInput($raw);
-        return $parsed ? date(APP_DATE_DISPLAY, strtotime($parsed)) : '';
+        return '';
     }
     return date(APP_DATE_DISPLAY, $ts);
 }

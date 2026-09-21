@@ -264,8 +264,8 @@
     }
 
     /**
-     * PF Employee + Employer = 12% of basic (ceiling ₹15,000).
-     * Both fill when PF = Yes and Decided Salary changes.
+     * Employee PF = 12% of basic (ceiling ₹15,000).
+     * Fills when PF = Yes and Decided Salary changes.
      */
     function pfTwelvePercentAmount(salary) {
         var s = parseFloat(salary, 10);
@@ -283,9 +283,8 @@
 
     function applyPfContributions(force) {
         var empInp = document.getElementById('pfEmployeeContribution');
-        var erInp = document.getElementById('pfEmployerContribution');
         var salaryInp = document.getElementById('decidedSalary');
-        if (!empInp || !erInp || !salaryInp) {
+        if (!empInp || !salaryInp) {
             return;
         }
         if (!isPfYes()) {
@@ -300,28 +299,19 @@
             empInp.value = amtStr;
             empInp.dataset.auto = '1';
         }
-        if (force || erInp.value === '' || erInp.dataset.auto === '1') {
-            erInp.value = amtStr;
-            erInp.dataset.auto = '1';
-        }
     }
 
     function bindPfContributions() {
         var empInp = document.getElementById('pfEmployeeContribution');
-        var erInp = document.getElementById('pfEmployerContribution');
         var salaryInp = document.getElementById('decidedSalary');
-        if (!empInp || !erInp || !salaryInp) {
+        if (!empInp || !salaryInp) {
             return;
         }
 
         empInp.dataset.auto = empInp.value !== '' ? '0' : '1';
-        erInp.dataset.auto = erInp.value !== '' ? '0' : '1';
 
         empInp.addEventListener('input', function () {
             empInp.dataset.auto = '0';
-        });
-        erInp.addEventListener('input', function () {
-            erInp.dataset.auto = '0';
         });
 
         salaryInp.addEventListener('input', function () {
@@ -342,6 +332,55 @@
         if (isPfYes()) {
             applyPfContributions(false);
         }
+    }
+
+    function toastError(msg) {
+        if (window.toastr) {
+            toastr.options = toastr.options || {};
+            toastr.options.closeButton = true;
+            toastr.options.progressBar = true;
+            toastr.options.positionClass = 'toast-top-right';
+            toastr.options.timeOut = 5000;
+            toastr.error(msg);
+            return;
+        }
+        window.alert(msg);
+    }
+
+    function bindBankAccountConfirm() {
+        var form = document.getElementById('employeeForm') || document.querySelector('form.employee-form');
+        var acc = document.getElementById('bankAccountNumber');
+        var conf = document.getElementById('bankAccountNumberConfirm');
+        if (!form || !acc || !conf) {
+            return;
+        }
+
+        form.addEventListener('submit', function (e) {
+            var a = String(acc.value || '').trim();
+            var c = String(conf.value || '').trim();
+            if (a === '' && c === '') {
+                return;
+            }
+            if (a !== c) {
+                e.preventDefault();
+                toastError('Bank Account Number and Confirm Account Number do not match.');
+                conf.focus();
+                conf.classList.add('is-invalid-code');
+                acc.classList.add('is-invalid-code');
+                return false;
+            }
+            conf.classList.remove('is-invalid-code');
+            acc.classList.remove('is-invalid-code');
+        });
+
+        [acc, conf].forEach(function (el) {
+            el.addEventListener('input', function () {
+                if (String(acc.value || '').trim() === String(conf.value || '').trim()) {
+                    conf.classList.remove('is-invalid-code');
+                    acc.classList.remove('is-invalid-code');
+                }
+            });
+        });
     }
 
     $(function () {
@@ -369,5 +408,6 @@
         bindPhotoPreview();
         bindFamilyMembers();
         bindPfContributions();
+        bindBankAccountConfirm();
     });
 })(window.jQuery);

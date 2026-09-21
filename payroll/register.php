@@ -8,7 +8,11 @@ require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/employee_helper.php';
 require_once __DIR__ . '/../includes/master_helper.php';
 require_once __DIR__ . '/../includes/salary_register_helper.php';
+require_once __DIR__ . '/../includes/payroll_reports_helper.php';
 require_once __DIR__ . '/../includes/settings.php';
+require_once __DIR__ . '/../includes/auth.php';
+
+requireLogin();
 
 $deptId = isset($_GET['department_id']) ? (int) $_GET['department_id'] : 0;
 $employeeId = isset($_GET['employee_id']) ? (int) $_GET['employee_id'] : 0;
@@ -23,9 +27,27 @@ if (!isset(salaryRegisterTypes()[$type])) {
     $type = 'salary';
 }
 
+$lock = getSalaryRegisterLock($month, $year, $type, $deptId);
+$isLocked = $lock !== null;
+
 $department = $deptId > 0 ? getDepartmentById($deptId) : null;
 $monthDays = (int) date('t', strtotime(sprintf('%04d-%02d-01', $year, $month)));
-$groups = getSalaryRegisterData($type, $month, $year, $deptId, $employeeId);
+
+if ($isLocked) {
+    $snap = json_decode((string) ($lock['snapshot_json'] ?? ''), true);
+    $groups = (is_array($snap) && !empty($snap['groups'])) ? $snap['groups'] : [];
+    if ($employeeId > 0) {
+        foreach ($groups as &$g) {
+            $g['rows'] = array_values(array_filter($g['rows'] ?? [], static function ($r) use ($employeeId) {
+                return (int) ($r['employee_id'] ?? 0) === $employeeId;
+            }));
+        }
+        unset($g);
+    }
+} else {
+    $groups = getSalaryRegisterData($type, $month, $year, $deptId, $employeeId);
+}
+
 if ($view === 'employee' && $type !== 'contractor_main') {
     $flat = [];
     foreach ($groups as $g) {
@@ -85,6 +107,11 @@ require_once __DIR__ . '/../includes/header.php';
             </a>
         <?php endif; ?>
         <div class="register-toolbar-actions">
+            <?php if ($isLocked): ?>
+                <a class="btn-primary" href="<?php echo app_url('payroll/neft.php?' . $excelQs); ?>">
+                    <i class="fa-solid fa-building-columns"></i> NEFT Sheet
+                </a>
+            <?php endif; ?>
             <a class="btn-secondary" href="<?php echo app_url('payroll/register_excel.php?' . $excelQs); ?>">
                 <i class="fa-solid fa-file-excel"></i> Excel
             </a>
@@ -94,6 +121,23 @@ require_once __DIR__ . '/../includes/header.php';
         </div>
     </div>
 
+    <?php if (isset($_GET['lock_msg'])): ?>
+        <?php
+        $lm = (string) $_GET['lock_msg'];
+        $lockNote = '';
+        if ($lm === 'unlocked') {
+            $lockNote = 'Register unlocked. You can edit attendance / regenerate and lock again.';
+        } elseif ($lm === 'error') {
+            $lockNote = 'Lock failed: ' . htmlspecialchars((string) ($_GET['lock_err'] ?? 'Unknown error'));
+        }
+        ?>
+        <?php if ($lockNote !== ''): ?>
+            <div class="form-page-card" style="margin-bottom:12px;border-left:4px solid <?php echo $lm === 'error' ? '#ef4444' : '#16a085'; ?>;">
+                <p style="margin:0;"><?php echo $lockNote; ?></p>
+            </div>
+        <?php endif; ?>
+    <?php endif; ?>
+
     <div class="sr-print-heading">
         <strong><?php echo htmlspecialchars($companyName); ?></strong>
         — Salary Register · <?php echo htmlspecialchars($monthLabel); ?>
@@ -102,10 +146,45 @@ require_once __DIR__ . '/../includes/header.php';
     <div class="form-page-card no-print-shadow">
         <div class="form-page-header">
             <div>
-                <h1>Salary Register</h1>
+                <h1>Salary Register <?php if ($isLocked): ?><span class="status-pill status-deactive" style="vertical-align:middle;"><i class="fa-solid fa-lock"></i> Locked</span><?php endif; ?></h1>
                 <p><?php echo htmlspecialchars($companyName); ?> · <?php echo htmlspecialchars($monthLabel); ?> · Month days <?php echo $monthDays; ?></p>
             </div>
         </div>
+
+        <?php if ($isLocked): ?>
+            <div class="ops-live-summary" style="margin-bottom:12px;">
+                <span class="ops-chip"><i class="fa-solid fa-lock"></i> Finalized <?php echo htmlspecialchars((string) ($lock['locked_at'] ?? '')); ?></span>
+                <span class="ops-chip"><?php echo (int) ($lock['employee_count'] ?? 0); ?> employees</span>
+                <span class="ops-chip">Net ₹ <?php echo number_format((float) ($lock['total_net'] ?? 0), 2); ?></span>
+                <span class="ops-chip"><?php echo (int) ($lock['neft_count'] ?? 0); ?> NEFT rows</span>
+            </div>
+            <div class="form-actions" style="margin-bottom:12px;gap:8px;">
+                <a class="btn-primary" href="<?php echo app_url('payroll/neft.php?' . $excelQs); ?>">
+                    <i class="fa-solid fa-building-columns"></i> Open NEFT Sheet
+                </a>
+                <?php if (function_exists('isAdmin') && isAdmin()): ?>
+                    <form method="POST" action="<?php echo app_url('payroll/register_lock.php'); ?>" style="display:inline;" onsubmit="return confirm('Unlock this finalized register?');">
+                        <input type="hidden" name="action" value="unlock">
+                        <input type="hidden" name="type" value="<?php echo htmlspecialchars($type); ?>">
+                        <input type="hidden" name="month" value="<?php echo $month; ?>">
+                        <input type="hidden" name="year" value="<?php echo $year; ?>">
+                        <input type="hidden" name="department_id" value="<?php echo $deptId; ?>">
+                        <button type="submit" class="btn-secondary"><i class="fa-solid fa-lock-open"></i> Unlock (Admin)</button>
+                    </form>
+                <?php endif; ?>
+            </div>
+        <?php else: ?>
+            <div class="form-actions" style="margin-bottom:12px;">
+                <form method="POST" action="<?php echo app_url('payroll/register_lock.php'); ?>" onsubmit="return confirm('Finalize & lock this Salary Register? NEFT sheet will be generated. Locked register cannot be changed until Admin unlocks.');">
+                    <input type="hidden" name="action" value="lock">
+                    <input type="hidden" name="type" value="<?php echo htmlspecialchars($type); ?>">
+                    <input type="hidden" name="month" value="<?php echo $month; ?>">
+                    <input type="hidden" name="year" value="<?php echo $year; ?>">
+                    <input type="hidden" name="department_id" value="<?php echo $deptId; ?>">
+                    <button type="submit" class="btn-primary"><i class="fa-solid fa-lock"></i> Finalize &amp; Lock → NEFT</button>
+                </form>
+            </div>
+        <?php endif; ?>
 
         <form method="GET" class="employee-form register-filters">
             <div class="form-grid form-grid-3">
@@ -204,7 +283,7 @@ require_once __DIR__ . '/../includes/header.php';
                                 <th colspan="6" class="sr-earn">Earning</th>
                                 <th colspan="2" class="sr-gross">Gross</th>
                             <?php endif; ?>
-                            <th colspan="5" class="sr-ded">Deduction</th>
+                            <th colspan="4" class="sr-ded">Deduction</th>
                             <th colspan="3" class="sr-net">NET</th>
                             <th colspan="3"></th>
                         </tr>
@@ -229,7 +308,6 @@ require_once __DIR__ . '/../includes/header.php';
                                 <th>Gross</th>
                             <?php endif; ?>
                             <th>Emp PF</th>
-                            <th>Er PF</th>
                             <th>P.T.</th>
                             <th>Loan</th>
                             <th>Adv.</th>
@@ -273,7 +351,6 @@ require_once __DIR__ . '/../includes/header.php';
                                 <td class="num"><?php echo registerNum($r['gross']); ?></td>
                             <?php endif; ?>
                             <td class="num"><?php echo registerNum($r['pf']); ?></td>
-                            <td class="num"><?php echo registerNum($r['pf_employer'] ?? 0); ?></td>
                             <td class="num"><?php echo registerNum($r['pt']); ?></td>
                             <td class="num"><?php echo registerNum($r['loan']); ?></td>
                             <td class="num"><?php echo registerNum($r['advance']); ?></td>
@@ -291,7 +368,7 @@ require_once __DIR__ . '/../includes/header.php';
                         <tr>
                             <td colspan="<?php echo $isActual ? 7 : 12; ?>"><strong>Total</strong></td>
                             <td class="num"><strong><?php echo registerNum($sumGross); ?></strong></td>
-                            <td colspan="5"></td>
+                            <td colspan="4"></td>
                             <td></td>
                             <td></td>
                             <td class="num"><strong><?php echo registerNum($sumNet); ?></strong></td>

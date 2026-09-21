@@ -190,7 +190,7 @@ foreach ($groups as $g) {
                             <th colspan="6" class="sr-earn">Earning</th>
                             <th colspan="2" class="sr-gross">Gross</th>
                         <?php endif; ?>
-                        <th colspan="5" class="sr-ded">Deduction</th>
+                        <th colspan="4" class="sr-ded">Deduction</th>
                         <th colspan="3" class="sr-net">NET</th>
                         <th colspan="3"></th>
                     </tr>
@@ -215,7 +215,6 @@ foreach ($groups as $g) {
                             <th class="num">Gross</th>
                         <?php endif; ?>
                         <th class="num">Emp PF</th>
-                        <th class="num">Er PF</th>
                         <th class="num">P.T.</th>
                         <th class="num">Loan</th>
                         <th class="num">Adv.</th>
@@ -259,7 +258,6 @@ foreach ($groups as $g) {
                             <td class="num"><?php echo registerNum($r['gross']); ?></td>
                         <?php endif; ?>
                         <td class="num"><?php echo registerNum($r['pf']); ?></td>
-                        <td class="num"><?php echo registerNum($r['pf_employer'] ?? 0); ?></td>
                         <td class="num"><?php echo registerNum($r['pt']); ?></td>
                         <td class="num"><?php echo registerNum($r['loan']); ?></td>
                         <td class="num"><?php echo registerNum($r['advance']); ?></td>
@@ -277,7 +275,7 @@ foreach ($groups as $g) {
                     <tr>
                         <td colspan="<?php echo $colSpanLead; ?>"><strong>Total</strong></td>
                         <td class="num"><strong><?php echo registerNum($sumGross); ?></strong></td>
-                        <td colspan="5"></td>
+                        <td colspan="4"></td>
                         <td></td>
                         <td></td>
                         <td class="num"><strong><?php echo registerNum($sumNet); ?></strong></td>

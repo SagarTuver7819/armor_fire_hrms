@@ -12,6 +12,7 @@ require_once __DIR__ . '/includes/employee_helper.php';
 require_once __DIR__ . '/includes/master_helper.php';
 require_once __DIR__ . '/includes/contractor_helper.php';
 require_once __DIR__ . '/includes/payroll_helper.php';
+require_once __DIR__ . '/includes/payroll_reports_helper.php';
 require_once __DIR__ . '/includes/attendance_helper.php';
 require_once __DIR__ . '/includes/department_icons.php';
 require_once __DIR__ . '/includes/department_helper.php';
@@ -67,6 +68,9 @@ try {
     ensurePayrollTables($conn);
     $log[] = 'Payroll tables ready (diary, jobwork, payslips).';
 
+    ensurePayrollReportTables($conn);
+    $log[] = 'Payroll report tables ready (salary_register_locks for Finalize/NEFT).';
+
     ensureAttendanceTables($conn);
     $log[] = 'Attendance tables ready (punches, day status, import batches, biometric_user_id).';
 
@@ -116,6 +120,7 @@ try {
         'employees.biometric_user_id' => dbSyncHasColumn($conn, 'employees', 'biometric_user_id'),
         'employee_leave_balances table' => dbSyncHasTable($conn, 'employee_leave_balances'),
         'leave_requests table' => dbSyncHasTable($conn, 'leave_requests'),
+        'salary_register_locks table' => dbSyncHasTable($conn, 'salary_register_locks'),
     ];
 
     $counts = [

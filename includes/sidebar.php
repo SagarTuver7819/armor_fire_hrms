@@ -108,6 +108,21 @@ $openAttendance = ($sidebarMode === 'attendance' || strpos((string) $sidebarActi
                     <i class="fa-solid fa-table"></i>
                     <span>Salary Register</span>
                 </a>
+                <a href="<?php echo app_url('payroll/joining_exit.php'); ?>"
+                   class="sidebar-link <?php echo $sidebarActive === 'joining_exit_report' ? 'active' : ''; ?>">
+                    <i class="fa-solid fa-user-plus"></i>
+                    <span>Joining / Exit Report</span>
+                </a>
+                <a href="<?php echo app_url('payroll/cost_summary.php'); ?>"
+                   class="sidebar-link <?php echo $sidebarActive === 'dept_cost_summary' ? 'active' : ''; ?>">
+                    <i class="fa-solid fa-chart-pie"></i>
+                    <span>Dept Cost Summary</span>
+                </a>
+                <a href="<?php echo app_url('payroll/neft.php'); ?>"
+                   class="sidebar-link <?php echo $sidebarActive === 'neft_sheet' ? 'active' : ''; ?>">
+                    <i class="fa-solid fa-building-columns"></i>
+                    <span>NEFT Sheet</span>
+                </a>
                 <?php if (function_exists('isAdmin') && isAdmin()): ?>
                 <a href="<?php echo app_url('company_settings.php'); ?>"
                    class="sidebar-link <?php echo $sidebarActive === 'settings' ? 'active' : ''; ?>">
@@ -324,6 +339,21 @@ $openAttendance = ($sidebarMode === 'attendance' || strpos((string) $sidebarActi
                        class="sidebar-link <?php echo $sidebarActive === 'salary_register' ? 'active' : ''; ?>">
                         <i class="fa-solid fa-table"></i>
                         <span>Salary Register</span>
+                    </a>
+                    <a href="<?php echo app_url('payroll/joining_exit.php?department_id=' . $sidebarDeptId); ?>"
+                       class="sidebar-link <?php echo $sidebarActive === 'joining_exit_report' ? 'active' : ''; ?>">
+                        <i class="fa-solid fa-right-left"></i>
+                        <span>Joining / Exit Report</span>
+                    </a>
+                    <a href="<?php echo app_url('payroll/cost_summary.php?department_id=' . $sidebarDeptId); ?>"
+                       class="sidebar-link <?php echo $sidebarActive === 'dept_cost_summary' ? 'active' : ''; ?>">
+                        <i class="fa-solid fa-chart-pie"></i>
+                        <span>Dept Cost Summary</span>
+                    </a>
+                    <a href="<?php echo app_url('payroll/neft.php?department_id=' . $sidebarDeptId); ?>"
+                       class="sidebar-link <?php echo $sidebarActive === 'neft_sheet' ? 'active' : ''; ?>">
+                        <i class="fa-solid fa-building-columns"></i>
+                        <span>NEFT Sheet</span>
                     </a>
                     <a href="<?php echo app_url('leave/index.php?department_id=' . $sidebarDeptId); ?>"
                        class="sidebar-link <?php echo $sidebarActive === 'leave_request' ? 'active' : ''; ?>">

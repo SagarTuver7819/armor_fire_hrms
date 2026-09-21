@@ -479,13 +479,9 @@ $tabUrl = function ($t) use ($baseQs, $year, $month) {
                 <div class="info-row"><dt>Decided Salary</dt><dd><strong><?php echo $salaryShow; ?></strong></dd></div>
                 <div class="info-row"><dt>PF Deduction</dt><dd><?php echo showVal($emp['pf_deduction']); ?></dd></div>
                 <div class="info-row"><dt>PF Start Date</dt><dd><?php echo showVal(formatDateDisplay($emp['pf_start_date'] ?? '')); ?></dd></div>
-                <div class="info-row"><dt>Employee Contribution</dt><dd><?php
+                <div class="info-row"><dt>Employee PF Contribution</dt><dd><?php
                     $pec = $emp['pf_employee_contribution'] ?? '';
                     echo ($pec !== null && $pec !== '') ? ('₹ ' . number_format((float) $pec, 2)) : '-';
-                ?></dd></div>
-                <div class="info-row"><dt>Employer Contribution</dt><dd><?php
-                    $prc = $emp['pf_employer_contribution'] ?? '';
-                    echo ($prc !== null && $prc !== '') ? ('₹ ' . number_format((float) $prc, 2)) : '-';
                 ?></dd></div>
                 <div class="info-row"><dt>UAN Number</dt><dd><?php echo showVal($emp['uan_number']); ?></dd></div>
                 <div class="info-row"><dt>Bank Name</dt><dd><?php echo showVal($emp['bank_name']); ?></dd></div>
@@ -595,13 +591,9 @@ $tabUrl = function ($t) use ($baseQs, $year, $month) {
                 <dl class="info-list">
                     <div class="info-row"><dt>PF Deduction</dt><dd><?php echo showVal($emp['pf_deduction']); ?></dd></div>
                     <div class="info-row"><dt>PF Start Date</dt><dd><?php echo showVal(formatDateDisplay($emp['pf_start_date'] ?? '')); ?></dd></div>
-                    <div class="info-row"><dt>Employee Contribution</dt><dd><?php
+                    <div class="info-row"><dt>Employee PF Contribution</dt><dd><?php
                         $pec = $emp['pf_employee_contribution'] ?? '';
                         echo ($pec !== null && $pec !== '') ? ('₹ ' . number_format((float) $pec, 2)) : '-';
-                    ?></dd></div>
-                    <div class="info-row"><dt>Employer Contribution</dt><dd><?php
-                        $prc = $emp['pf_employer_contribution'] ?? '';
-                        echo ($prc !== null && $prc !== '') ? ('₹ ' . number_format((float) $prc, 2)) : '-';
                     ?></dd></div>
                     <div class="info-row"><dt>UAN Number</dt><dd><?php echo showVal($emp['uan_number']); ?></dd></div>
                     <div class="info-row"><dt>Reporting Head</dt><dd><?php echo showVal($emp['reporting_head']); ?></dd></div>

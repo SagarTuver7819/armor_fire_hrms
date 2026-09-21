@@ -11,6 +11,10 @@ require_once __DIR__ . '/../config/database.php';
  */
 function ensureEmployeesTable($conn = null)
 {
+    static $ready = false;
+    if ($ready && $conn === null) {
+        return;
+    }
     $closeAfter = false;
     if ($conn === null) {
         $conn = getDBConnection();
@@ -72,11 +76,19 @@ function ensureEmployeesTable($conn = null)
     ensureEmployeeColumn($conn, 'pf_employee_contribution', "pf_employee_contribution DECIMAL(12,2) DEFAULT NULL AFTER pf_start_date");
     ensureEmployeeColumn($conn, 'pf_employer_contribution', "pf_employer_contribution DECIMAL(12,2) DEFAULT NULL AFTER pf_employee_contribution");
 
-    // Auto-sync: Employees with an exit date are marked Deactive (status = 0)
-    $conn->query("UPDATE employees SET status = 0 WHERE (date_of_exit IS NOT NULL AND date_of_exit != '' AND date_of_exit != '0000-00-00') AND status = 1");
+    // Auto-sync: Exit date reached (today or past) → Deactive. Future exit date keeps Active.
+    $conn->query(
+        "UPDATE employees SET status = 0
+         WHERE status = 1
+           AND date_of_exit IS NOT NULL
+           AND date_of_exit != ''
+           AND date_of_exit != '0000-00-00'
+           AND date_of_exit <= CURDATE()"
+    );
 
     ensureEmployeeFamilyTable($conn);
 
+    $ready = true;
     if ($closeAfter) {
         $conn->close();
     }
@@ -395,8 +407,12 @@ function isEmployeeDeactive($emp)
     if (isset($emp['status']) && (int) $emp['status'] === 0) {
         return true;
     }
-    if (!empty($emp['date_of_exit']) && $emp['date_of_exit'] !== '0000-00-00') {
-        return true;
+    $exit = (string) ($emp['date_of_exit'] ?? '');
+    if ($exit !== '' && $exit !== '0000-00-00') {
+        $exitYmd = substr($exit, 0, 10);
+        if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $exitYmd) && $exitYmd <= date('Y-m-d')) {
+            return true;
+        }
     }
     return false;
 }
@@ -413,7 +429,8 @@ function countActiveEmployeesByDepartment($departmentId = 0)
     if ($departmentId > 0) {
         $stmt = $conn->prepare(
             "SELECT COUNT(*) AS total FROM employees
-             WHERE department_id = ? AND status = 1 AND (date_of_exit IS NULL OR date_of_exit = '' OR date_of_exit = '0000-00-00')"
+             WHERE department_id = ? AND status = 1
+               AND (date_of_exit IS NULL OR date_of_exit = '' OR date_of_exit = '0000-00-00' OR date_of_exit > CURDATE())"
         );
         $stmt->bind_param('i', $departmentId);
         $stmt->execute();
@@ -422,7 +439,8 @@ function countActiveEmployeesByDepartment($departmentId = 0)
     } else {
         $res = $conn->query(
             "SELECT COUNT(*) AS total FROM employees
-             WHERE status = 1 AND (date_of_exit IS NULL OR date_of_exit = '' OR date_of_exit = '0000-00-00')"
+             WHERE status = 1
+               AND (date_of_exit IS NULL OR date_of_exit = '' OR date_of_exit = '0000-00-00' OR date_of_exit > CURDATE())"
         );
         $row = $res ? $res->fetch_assoc() : null;
     }
@@ -443,7 +461,13 @@ function countExitEmployeesByDepartment($departmentId = 0)
     if ($departmentId > 0) {
         $stmt = $conn->prepare(
             "SELECT COUNT(*) AS total FROM employees
-             WHERE department_id = ? AND (status = 0 OR (date_of_exit IS NOT NULL AND date_of_exit != '' AND date_of_exit != '0000-00-00'))"
+             WHERE department_id = ? AND (
+                status = 0
+                OR (
+                    date_of_exit IS NOT NULL AND date_of_exit != '' AND date_of_exit != '0000-00-00'
+                    AND date_of_exit <= CURDATE()
+                )
+             )"
         );
         $stmt->bind_param('i', $departmentId);
         $stmt->execute();
@@ -452,7 +476,11 @@ function countExitEmployeesByDepartment($departmentId = 0)
     } else {
         $res = $conn->query(
             "SELECT COUNT(*) AS total FROM employees
-             WHERE status = 0 OR (date_of_exit IS NOT NULL AND date_of_exit != '' AND date_of_exit != '0000-00-00')"
+             WHERE status = 0
+                OR (
+                    date_of_exit IS NOT NULL AND date_of_exit != '' AND date_of_exit != '0000-00-00'
+                    AND date_of_exit <= CURDATE()
+                )"
         );
         $row = $res ? $res->fetch_assoc() : null;
     }

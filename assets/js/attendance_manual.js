@@ -135,15 +135,28 @@
 
     function recalcRowTotals($tr) {
         var totals = { PL: 0, SL: 0, 'C-Off': 0, DL: 0, LWP: 0 };
+        var paidDays = 0;
         $tr.find('td.day-cell').each(function () {
             var status = $(this).attr('data-status') || '';
             var type = ($(this).attr('data-leave-type') || '').trim();
             var half = ($(this).attr('data-leave-half') || '').toUpperCase();
             if (!type && status === 'Leave') type = 'PL';
-            if (!type || !totals.hasOwnProperty(type)) return;
-            var inc = (status === 'Half Day' || half === 'FHF' || half === 'SHF' || half === 'FHL' || half === 'SHL') ? 0.5 : 1;
-            if (status === 'Leave' || status === 'Half Day') {
+            var isHalf = (status === 'Half Day' || half === 'FHF' || half === 'SHF' || half === 'FHL' || half === 'SHL');
+            var inc = isHalf ? 0.5 : 1;
+            if (type && totals.hasOwnProperty(type) && (status === 'Leave' || status === 'Half Day')) {
                 totals[type] += inc;
+            }
+            if (status === 'Present') {
+                paidDays += 1;
+            } else if (status === 'Half Day') {
+                paidDays += 0.5;
+                if (type && type.toUpperCase() !== 'LWP') {
+                    paidDays += 0.5;
+                }
+            } else if (status === 'Week Off' || status === 'Holiday') {
+                paidDays += 1;
+            } else if (status === 'Leave' && type.toUpperCase() !== 'LWP') {
+                paidDays += inc;
             }
         });
         function fmt(n) {
@@ -155,6 +168,7 @@
         $tr.find('.tot-coff').text(fmt(totals['C-Off']));
         $tr.find('.tot-dl').text(fmt(totals.DL));
         $tr.find('.tot-lwp').text(fmt(totals.LWP));
+        $tr.find('.tot-days').text(fmt(paidDays) || '0');
     }
 
     function destroyModalSelect2() {

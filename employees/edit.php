@@ -91,7 +91,18 @@ $maritalStatus = empField($employee, 'marital_status');
 $photoFileUrl = employeeDocumentPublicUrl(empField($employee, 'photo_file'));
 $aadharFileUrl = employeeDocumentPublicUrl(empField($employee, 'aadhar_file'));
 $panFileUrl = employeeDocumentPublicUrl(empField($employee, 'pan_file'));
-$isExited = !empty(empField($employee, 'date_of_exit')) || (int) empField($employee, 'status', 1) === 0;
+$exitRaw = empField($employee, 'date_of_exit');
+$isExited = (int) empField($employee, 'status', 1) === 0;
+if (!$isExited && $exitRaw !== '' && $exitRaw !== '0000-00-00') {
+    $exitYmd = substr((string) $exitRaw, 0, 10);
+    // DB may already be Y-m-d; also accept display values via parse
+    if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $exitYmd) && function_exists('parseDateInput')) {
+        $exitYmd = (string) (parseDateInput($exitRaw) ?? '');
+    }
+    if ($exitYmd !== '' && $exitYmd <= date('Y-m-d')) {
+        $isExited = true;
+    }
+}
 $pf = empField($employee, 'pf_deduction', 'No');
 $wob = empField($employee, 'week_off_benefits', 'No');
 $hb = empField($employee, 'holiday_benefits', 'No');
@@ -368,7 +379,7 @@ $ob = empField($employee, 'overtime_benefits', 'No');
                         <label>23. Exit Date <small>(DD-MM-YYYY)</small></label>
                         <input type="text" name="date_of_exit" id="dateOfExitInput" class="form-control js-date" placeholder="DD-MM-YYYY"
                                value="<?php echo htmlspecialchars(dateInputValue(empField($employee, 'date_of_exit'))); ?>">
-                        <small class="form-hint">Exit date → employee becomes Deactive</small>
+                        <small class="form-hint">Exit date on/before today → Deactive. Future exit keeps Active until that day.</small>
                     </div>
                     <div class="form-group">
                         <label>24. Employee Status</label>
@@ -429,31 +440,24 @@ $ob = empField($employee, 'overtime_benefits', 'No');
                                value="<?php echo htmlspecialchars(dateInputValue(empField($employee, 'pf_start_date'))); ?>">
                     </div>
                     <div class="form-group">
-                        <label>30. Employee Contribution <small>(12% of basic)</small></label>
+                        <label>30. Employee PF Contribution <small>(12% of basic)</small></label>
                         <input type="number" step="0.01" min="0" name="pf_employee_contribution" id="pfEmployeeContribution" class="form-control"
                                placeholder="Auto from Decided Salary"
                                value="<?php echo htmlspecialchars(empField($employee, 'pf_employee_contribution')); ?>">
-                        <small class="form-hint">Basic ceiling ₹15,000 × 12%</small>
+                        <small class="form-hint">Basic ceiling ₹15,000 × 12% · deducts from salary</small>
                     </div>
                     <div class="form-group">
-                        <label>31. Employer Contribution <small>(12% of basic)</small></label>
-                        <input type="number" step="0.01" min="0" name="pf_employer_contribution" id="pfEmployerContribution" class="form-control"
-                               placeholder="Auto from Decided Salary"
-                               value="<?php echo htmlspecialchars(empField($employee, 'pf_employer_contribution')); ?>">
-                        <small class="form-hint">Both PF sum deducts from salary</small>
-                    </div>
-                    <div class="form-group">
-                        <label>32. UAN Number</label>
+                        <label>31. UAN Number</label>
                         <input type="text" name="uan_number" class="form-control"
                                value="<?php echo htmlspecialchars(empField($employee, 'uan_number')); ?>">
                     </div>
                     <div class="form-group">
-                        <label>33. Decided Salary</label>
+                        <label>32. Decided Salary</label>
                         <input type="number" step="0.01" name="decided_salary" id="decidedSalary" class="form-control"
                                value="<?php echo htmlspecialchars(empField($employee, 'decided_salary')); ?>">
                     </div>
                     <div class="form-group">
-                        <label>34. Reporting Person</label>
+                        <label>33. Reporting Person</label>
                         <select name="reporting_employee_id" class="form-control">
                             <option value="">— Select reporting person —</option>
                             <?php foreach ($reporters as $rep): ?>
@@ -473,7 +477,7 @@ $ob = empField($employee, 'overtime_benefits', 'No');
                 <div class="emp-subhead">Enter member count — rows open below</div>
                 <div class="form-grid form-grid-3">
                     <div class="form-group">
-                        <label>35. Family Members</label>
+                        <label>34. Family Members</label>
                         <input type="number" id="familyMemberCount" class="form-control" min="0" max="10" step="1"
                                value="<?php echo (int) $familyCount; ?>" placeholder="e.g. 3 or 4">
                         <small class="form-hint">0–10 members</small>
@@ -532,14 +536,23 @@ $ob = empField($employee, 'overtime_benefits', 'No');
                 <h3><span class="emp-sec-no">4</span><i class="fa-solid fa-building-columns"></i> Bank Information</h3>
                 <div class="form-grid form-grid-3">
                     <div class="form-group">
-                        <label>36. Bank Name</label>
+                        <label>35. Bank Name</label>
                         <input type="text" name="bank_name" class="form-control"
                                value="<?php echo htmlspecialchars(empField($employee, 'bank_name')); ?>">
                     </div>
                     <div class="form-group">
-                        <label>37. Bank Account Number</label>
-                        <input type="text" name="bank_account_number" class="form-control"
+                        <label>36. Bank Account Number</label>
+                        <input type="text" name="bank_account_number" id="bankAccountNumber" class="form-control"
+                               autocomplete="off"
                                value="<?php echo htmlspecialchars(empField($employee, 'bank_account_number')); ?>">
+                    </div>
+                    <div class="form-group">
+                        <label>37. Confirm Account Number</label>
+                        <input type="text" name="bank_account_number_confirm" id="bankAccountNumberConfirm" class="form-control"
+                               autocomplete="off"
+                               value="<?php echo htmlspecialchars(empField($employee, 'bank_account_number')); ?>"
+                               placeholder="Re-enter account number">
+                        <small class="form-hint">Must match account number above</small>
                     </div>
                     <div class="form-group">
                         <label>38. IFSC Code</label>
