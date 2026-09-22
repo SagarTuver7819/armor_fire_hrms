@@ -61,8 +61,12 @@ require_once __DIR__ . '/../../includes/header.php';
 function holidayFieldValue($row, $field)
 {
     $name = $field['name'];
-    if ($row && array_key_exists($name, $row) && $row[$name] !== null) {
+    if ($row && array_key_exists($name, $row) && $row[$name] !== null && $row[$name] !== '' && $row[$name] !== '0000-00-00') {
         return $row[$name];
+    }
+    // Edit old single-day holidays: To Date defaults to From Date
+    if ($name === 'holiday_to_date' && $row && !empty($row['holiday_date']) && $row['holiday_date'] !== '0000-00-00') {
+        return $row['holiday_date'];
     }
     return $field['default'] ?? '';
 }

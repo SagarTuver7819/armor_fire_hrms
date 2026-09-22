@@ -30,24 +30,31 @@ $from = sprintf('%04d-%02d-01', $year, $month);
 $to = sprintf('%04d-%02d-%02d', $year, $month, $monthDays);
 
 $conn = getDBConnection();
+ensureMasterTables($conn);
 if ($scopeDeptId > 0) {
     $stmt = $conn->prepare(
-        "SELECT id, title, holiday_date, is_paid, remarks, department_id
+        "SELECT id, title, holiday_date, holiday_to_date, is_paid, remarks, department_id
          FROM holidays
-         WHERE status = 1 AND holiday_type = 'Holiday' AND holiday_date BETWEEN ? AND ?
+         WHERE status = 1 AND holiday_type = 'Holiday'
+           AND holiday_date IS NOT NULL
+           AND holiday_date <= ?
+           AND COALESCE(NULLIF(holiday_to_date, '0000-00-00'), holiday_date) >= ?
            AND department_id = ?
          ORDER BY holiday_date ASC"
     );
-    $stmt->bind_param('ssi', $from, $to, $scopeDeptId);
+    $stmt->bind_param('ssi', $to, $from, $scopeDeptId);
 } else {
     $stmt = $conn->prepare(
-        "SELECT id, title, holiday_date, is_paid, remarks, department_id
+        "SELECT id, title, holiday_date, holiday_to_date, is_paid, remarks, department_id
          FROM holidays
-         WHERE status = 1 AND holiday_type = 'Holiday' AND holiday_date BETWEEN ? AND ?
+         WHERE status = 1 AND holiday_type = 'Holiday'
+           AND holiday_date IS NOT NULL
+           AND holiday_date <= ?
+           AND COALESCE(NULLIF(holiday_to_date, '0000-00-00'), holiday_date) >= ?
            AND (department_id IS NULL OR department_id = 0)
          ORDER BY holiday_date ASC"
     );
-    $stmt->bind_param('ss', $from, $to);
+    $stmt->bind_param('ss', $to, $from);
 }
 $stmt->execute();
 $existing = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
@@ -56,8 +63,12 @@ $conn->close();
 
 $byDate = [];
 foreach ($existing as $r) {
-    $d = substr((string) $r['holiday_date'], 0, 10);
-    $byDate[$d] = $r;
+    foreach (holidayExpandDates($r['holiday_date'] ?? '', $r['holiday_to_date'] ?? '') as $d) {
+        if ($d < $from || $d > $to) {
+            continue;
+        }
+        $byDate[$d] = $r;
+    }
 }
 
 $pageTitle = 'Monthly Holiday Set';

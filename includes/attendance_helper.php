@@ -386,44 +386,15 @@ function attendanceInsertPunch($conn, $employeeId, $date, $time, $type, $source,
 
 function attendanceHolidaySet($conn, $year, $month, $departmentId = 0)
 {
-    $set = [];
     $from = sprintf('%04d-%02d-01', $year, $month);
     $to = date('Y-m-t', strtotime($from));
-    $res = $conn->query('SHOW COLUMNS FROM holidays');
-    if (!$res) {
-        return $set;
+    if (!function_exists('holidayDateMapForWindow')) {
+        require_once __DIR__ . '/master_helper.php';
     }
-    $cols = [];
-    while ($c = $res->fetch_assoc()) {
-        $cols[] = $c['Field'];
-    }
-    $dateCol = in_array('holiday_date', $cols, true) ? 'holiday_date' : (in_array('date', $cols, true) ? 'date' : null);
-    if (!$dateCol) {
-        return $set;
-    }
-    $statusSql = in_array('status', $cols, true) ? ' AND status = 1' : '';
-    $typeSql = in_array('holiday_type', $cols, true) ? " AND (holiday_type = 'Holiday' OR holiday_type IS NULL OR holiday_type = '')" : '';
-    $hasPaid = in_array('is_paid', $cols, true);
-    $paidSelect = $hasPaid ? ', is_paid' : ", 'Yes' AS is_paid";
-    $deptSql = '';
-    $departmentId = (int) $departmentId;
-    if ($departmentId > 0 && in_array('department_id', $cols, true)) {
-        $deptSql = ' AND (department_id IS NULL OR department_id = 0 OR department_id = ' . $departmentId . ')';
-    }
-    $q = $conn->query(
-        "SELECT `{$dateCol}` AS d{$paidSelect}
-         FROM holidays
-         WHERE `{$dateCol}` BETWEEN '{$from}' AND '{$to}'{$statusSql}{$typeSql}{$deptSql}"
-    );
-    if ($q) {
-        while ($r = $q->fetch_assoc()) {
-            if (!empty($r['d'])) {
-                $key = substr($r['d'], 0, 10);
-                $set[$key] = [
-                    'paid' => (($r['is_paid'] ?? 'Yes') !== 'No'),
-                ];
-            }
-        }
+    $map = holidayDateMapForWindow($conn, $from, $to, (int) $departmentId);
+    $set = [];
+    foreach ($map as $d => $info) {
+        $set[$d] = ['paid' => !empty($info['paid'])];
     }
     return $set;
 }

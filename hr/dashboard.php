@@ -240,16 +240,19 @@ if ($res) {
 // ── Upcoming holidays (30 days) ────────────────────────
 $upcomingHolidays = [];
 $to30 = date('Y-m-d', strtotime('+30 days'));
+ensureMasterTables($conn);
 $st = $conn->prepare(
-    "SELECT h.id, h.title, h.holiday_date, h.is_paid, h.department_id, d.department_name
+    "SELECT h.id, h.title, h.holiday_date, h.holiday_to_date, h.is_paid, h.department_id, d.department_name
      FROM holidays h
      LEFT JOIN departments d ON d.id = h.department_id
      WHERE h.status = 1 AND h.holiday_type = 'Holiday'
-       AND h.holiday_date BETWEEN ? AND ?
+       AND h.holiday_date IS NOT NULL
+       AND h.holiday_date <= ?
+       AND COALESCE(NULLIF(h.holiday_to_date, '0000-00-00'), h.holiday_date) >= ?
      ORDER BY h.holiday_date ASC
      LIMIT 12"
 );
-$st->bind_param('ss', $today, $to30);
+$st->bind_param('ss', $to30, $today);
 $st->execute();
 $res = $st->get_result();
 while ($row = $res->fetch_assoc()) {
@@ -573,7 +576,7 @@ require_once __DIR__ . '/../includes/header.php';
                                 <div>
                                     <strong><?php echo htmlspecialchars($h['title']); ?></strong>
                                     <span>
-                                        <?php echo htmlspecialchars(formatDateDisplay($h['holiday_date'])); ?>
+                                        <?php echo htmlspecialchars(holidayFormatDateRangeDisplay($h['holiday_date'] ?? '', $h['holiday_to_date'] ?? '')); ?>
                                         · <?php echo !empty($h['department_id']) ? htmlspecialchars($h['department_name'] ?: 'Dept') : 'All Departments'; ?>
                                         <?php echo (($h['is_paid'] ?? 'Yes') === 'Yes') ? ' · Paid' : ' · Unpaid'; ?>
                                     </span>

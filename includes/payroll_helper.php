@@ -673,41 +673,22 @@ function payrollCountHolidaysInMonth($year, $month, $paidOnly = false, $fromDate
     }
 
     $departmentId = (int) $departmentId;
-    $cacheKey = $year . '-' . $month;
+    $cacheKey = $year . '-' . $month . '-d' . $departmentId;
     if (!isset($monthCache[$cacheKey])) {
-        $conn = getDBConnection();
-        $rows = [];
-        $res = @$conn->query(
-            "SELECT holiday_date, is_paid, department_id FROM holidays
-             WHERE status = 1 AND holiday_type = 'Holiday'
-               AND holiday_date BETWEEN '{$monthStart}' AND '{$monthEnd}'"
-        );
-        if ($res) {
-            while ($r = $res->fetch_assoc()) {
-                $d = substr((string) ($r['holiday_date'] ?? ''), 0, 10);
-                if ($d === '') {
-                    continue;
-                }
-                $rows[] = [
-                    'date' => $d,
-                    'paid' => (($r['is_paid'] ?? 'Yes') !== 'No'),
-                    'department_id' => (int) ($r['department_id'] ?? 0),
-                ];
-            }
+        if (!function_exists('holidayDateMapForWindow')) {
+            require_once __DIR__ . '/master_helper.php';
         }
+        $conn = getDBConnection();
+        $monthCache[$cacheKey] = holidayDateMapForWindow($conn, $monthStart, $monthEnd, $departmentId);
         $conn->close();
-        $monthCache[$cacheKey] = $rows;
     }
 
     $n = 0;
-    foreach ($monthCache[$cacheKey] as $h) {
-        if ($h['date'] < $from || $h['date'] > $to) {
+    foreach ($monthCache[$cacheKey] as $d => $h) {
+        if ($d < $from || $d > $to) {
             continue;
         }
-        if ($departmentId > 0 && $h['department_id'] > 0 && $h['department_id'] !== $departmentId) {
-            continue;
-        }
-        if ($paidOnly && !$h['paid']) {
+        if ($paidOnly && empty($h['paid'])) {
             continue;
         }
         $n++;

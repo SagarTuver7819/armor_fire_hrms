@@ -98,6 +98,18 @@ function ensureMasterTables($conn = null)
         $conn->query("ALTER TABLE holidays ADD COLUMN department_id INT DEFAULT NULL AFTER is_paid");
         $conn->query("ALTER TABLE holidays ADD INDEX idx_holidays_department (department_id)");
     }
+    // Refresh columns after possible ALTERs above
+    $holCols = [];
+    $hc2 = $conn->query("SHOW COLUMNS FROM holidays");
+    if ($hc2) {
+        while ($c = $hc2->fetch_assoc()) {
+            $holCols[] = $c['Field'];
+        }
+    }
+    if ($holCols && !in_array('holiday_to_date', $holCols, true)) {
+        $conn->query("ALTER TABLE holidays ADD COLUMN holiday_to_date DATE DEFAULT NULL AFTER holiday_date");
+        $conn->query("ALTER TABLE holidays ADD INDEX idx_holidays_to_date (holiday_to_date)");
+    }
 
     $conn->query("CREATE TABLE IF NOT EXISTS salary_components (
         id INT AUTO_INCREMENT PRIMARY KEY,
@@ -534,6 +546,9 @@ function formatMasterCell($key, $value)
     if ($key === 'holiday_date' && $value) {
         return formatDateDisplay($value) ?: '-';
     }
+    if ($key === 'holiday_to_date') {
+        return $value ? (formatDateDisplay($value) ?: '-') : '-';
+    }
     if (($key === 'start_time' || $key === 'end_time') && $value) {
         return date('h:i A', strtotime($value));
     }
@@ -643,3 +658,164 @@ function masterAjaxListJson(array $config)
         'data'            => $data,
     ];
 }
+
+/**
+ * Normalize holiday from/to into valid Y-m-d pair (to defaults to from).
+ * @return array{0:string,1:string}|null
+ */
+function holidayNormalizeRange($fromDate, $toDate = null)
+{
+    $from = '';
+    if ($fromDate && $fromDate !== '0000-00-00' && preg_match('/^\d{4}-\d{2}-\d{2}/', (string) $fromDate)) {
+        $from = substr((string) $fromDate, 0, 10);
+    }
+    if ($from === '') {
+        return null;
+    }
+    $to = '';
+    if ($toDate && $toDate !== '0000-00-00' && preg_match('/^\d{4}-\d{2}-\d{2}/', (string) $toDate)) {
+        $to = substr((string) $toDate, 0, 10);
+    }
+    if ($to === '') {
+        $to = $from;
+    }
+    if ($to < $from) {
+        $to = $from;
+    }
+    // Safety: max 366 days in one holiday row
+    $maxTs = strtotime($from . ' +365 days');
+    if ($maxTs && strtotime($to) > $maxTs) {
+        $to = date('Y-m-d', $maxTs);
+    }
+    return [$from, $to];
+}
+
+/**
+ * List each Y-m-d from from..to inclusive.
+ * @return string[]
+ */
+function holidayExpandDates($fromDate, $toDate = null)
+{
+    $range = holidayNormalizeRange($fromDate, $toDate);
+    if ($range === null) {
+        return [];
+    }
+    [$from, $to] = $range;
+    $out = [];
+    $ts = strtotime($from);
+    $end = strtotime($to);
+    if ($ts === false || $end === false) {
+        return [];
+    }
+    while ($ts <= $end) {
+        $out[] = date('Y-m-d', $ts);
+        $ts = strtotime('+1 day', $ts);
+    }
+    return $out;
+}
+
+/**
+ * Display label for holiday date / range (DD-MM-YYYY or From – To).
+ */
+function holidayFormatDateRangeDisplay($fromDate, $toDate = null)
+{
+    $range = holidayNormalizeRange($fromDate, $toDate);
+    if ($range === null) {
+        return '-';
+    }
+    [$from, $to] = $range;
+    $a = function_exists('formatDateDisplay') ? formatDateDisplay($from) : $from;
+    if ($from === $to) {
+        return $a !== '' ? $a : '-';
+    }
+    $b = function_exists('formatDateDisplay') ? formatDateDisplay($to) : $to;
+    return trim($a . ' – ' . $b);
+}
+
+/**
+ * Holiday master dates overlapping a window, expanded to day map.
+ * Keys = Y-m-d, value = ['paid' => bool, 'title' => string, 'department_id' => int]
+ *
+ * @return array<string,array{paid:bool,title:string,department_id:int}>
+ */
+function holidayDateMapForWindow($conn, $windowFrom, $windowTo, $departmentId = 0)
+{
+    $set = [];
+    $windowFrom = substr((string) $windowFrom, 0, 10);
+    $windowTo = substr((string) $windowTo, 0, 10);
+    if ($windowFrom === '' || $windowTo === '' || $windowFrom > $windowTo) {
+        return $set;
+    }
+    if (!$conn) {
+        return $set;
+    }
+
+    $cols = [];
+    $hc = @$conn->query('SHOW COLUMNS FROM holidays');
+    if (!$hc) {
+        return $set;
+    }
+    while ($c = $hc->fetch_assoc()) {
+        $cols[] = $c['Field'];
+    }
+    if (!in_array('holiday_date', $cols, true)) {
+        return $set;
+    }
+    $hasTo = in_array('holiday_to_date', $cols, true);
+    $hasPaid = in_array('is_paid', $cols, true);
+    $hasDept = in_array('department_id', $cols, true);
+    $hasType = in_array('holiday_type', $cols, true);
+    $hasStatus = in_array('status', $cols, true);
+
+    $toExpr = $hasTo
+        ? "COALESCE(NULLIF(holiday_to_date, '0000-00-00'), holiday_date)"
+        : 'holiday_date';
+    $paidSel = $hasPaid ? ', is_paid' : ", 'Yes' AS is_paid";
+    $deptSel = $hasDept ? ', department_id' : ', 0 AS department_id';
+    $titleSel = in_array('title', $cols, true) ? ', title' : ", '' AS title";
+
+    $where = "holiday_date IS NOT NULL AND holiday_date != '' AND holiday_date != '0000-00-00'";
+    $where .= " AND holiday_date <= '" . $conn->real_escape_string($windowTo) . "'";
+    $where .= " AND {$toExpr} >= '" . $conn->real_escape_string($windowFrom) . "'";
+    if ($hasStatus) {
+        $where .= ' AND status = 1';
+    }
+    if ($hasType) {
+        $where .= " AND (holiday_type = 'Holiday' OR holiday_type IS NULL OR holiday_type = '')";
+    }
+
+    $sql = "SELECT holiday_date" . ($hasTo ? ', holiday_to_date' : '') . "{$paidSel}{$deptSel}{$titleSel}
+            FROM holidays
+            WHERE {$where}";
+    $q = @$conn->query($sql);
+    if (!$q) {
+        return $set;
+    }
+
+    $departmentId = (int) $departmentId;
+    while ($r = $q->fetch_assoc()) {
+        $dept = (int) ($r['department_id'] ?? 0);
+        if ($departmentId > 0 && $dept > 0 && $dept !== $departmentId) {
+            continue;
+        }
+        $from = substr((string) ($r['holiday_date'] ?? ''), 0, 10);
+        $to = $hasTo ? substr((string) ($r['holiday_to_date'] ?? ''), 0, 10) : $from;
+        $paid = (($r['is_paid'] ?? 'Yes') !== 'No');
+        $title = (string) ($r['title'] ?? '');
+        foreach (holidayExpandDates($from, $to) as $d) {
+            if ($d < $windowFrom || $d > $windowTo) {
+                continue;
+            }
+            // Paid wins if overlapping rows disagree
+            if (!isset($set[$d]) || ($paid && empty($set[$d]['paid']))) {
+                $set[$d] = [
+                    'paid' => $paid,
+                    'title' => $title,
+                    'department_id' => $dept,
+                ];
+            }
+        }
+    }
+    return $set;
+}
+

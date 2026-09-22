@@ -25,8 +25,9 @@ $orderMap = [
     2 => 'h.title',
     3 => 'h.holiday_type',
     4 => 'h.holiday_date',
-    5 => 'h.is_paid',
-    6 => 'h.week_day',
+    5 => 'h.holiday_to_date',
+    6 => 'h.is_paid',
+    7 => 'h.week_day',
 ];
 $orderBy = $orderMap[$orderCol] ?? 'h.holiday_date';
 
@@ -77,7 +78,7 @@ if ($params) {
     $filtered = (int) ($conn->query($countSql)->fetch_assoc()['c'] ?? 0);
 }
 
-$sql = "SELECT h.id, h.title, h.holiday_type, h.holiday_date, h.is_paid, h.week_day, h.department_id,
+$sql = "SELECT h.id, h.title, h.holiday_type, h.holiday_date, h.holiday_to_date, h.is_paid, h.week_day, h.department_id,
                CASE
                    WHEN h.department_id IS NULL OR h.department_id = 0 THEN 'All Departments'
                    ELSE COALESCE(d.department_name, '-')
@@ -103,12 +104,19 @@ while ($row = $res->fetch_assoc()) {
     $label = (string) $row['title'];
     $editQs = 'id=' . $id . ($scopeDeptId > 0 ? '&department_id=' . $scopeDeptId : '');
     $delQs = 'id=' . $id . ($scopeDeptId > 0 ? '&department_id=' . $scopeDeptId : '');
+    $fromDisp = formatDateDisplay($row['holiday_date'] ?? '') ?: '-';
+    $toRaw = $row['holiday_to_date'] ?? '';
+    $toDisp = formatDateDisplay($toRaw) ?: '';
+    if ($toDisp === '' || $toDisp === $fromDisp) {
+        $toDisp = $fromDisp;
+    }
     $data[] = [
         $sr,
         htmlspecialchars((string) ($row['department_name'] ?? '-')),
         htmlspecialchars($label),
         htmlspecialchars((string) ($row['holiday_type'] ?? '-')),
-        htmlspecialchars(formatDateDisplay($row['holiday_date'] ?? '') ?: '-'),
+        htmlspecialchars($fromDisp),
+        htmlspecialchars($toDisp),
         htmlspecialchars((string) ($row['is_paid'] ?? '-')),
         htmlspecialchars((string) (($row['week_day'] ?? '') !== '' ? $row['week_day'] : '-')),
         '<div class="action-links" onclick="event.stopPropagation();">'

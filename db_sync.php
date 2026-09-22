@@ -60,7 +60,7 @@ try {
     $log[] = 'Employees table + extra columns ready (pay_type, office fields, gender, marital, photo, pf_start_date, pf contributions, family).';
 
     ensureMasterTables($conn);
-    $log[] = 'Masters tables ready (incl. holidays.department_id). Sub Department seeded from Department names where missing.';
+    $log[] = 'Masters tables ready (incl. holidays.from/to dates). Sub Department seeded from Department names where missing.';
 
     ensureContractorTables($conn);
     $log[] = 'Contractor tables ready (grades, products, employment, operations rate list).';
@@ -110,6 +110,7 @@ try {
         'employees.photo_file' => dbSyncHasColumn($conn, 'employees', 'photo_file'),
         'employee_family_members table' => dbSyncHasTable($conn, 'employee_family_members'),
         'holidays.department_id' => dbSyncHasColumn($conn, 'holidays', 'department_id'),
+        'holidays.holiday_to_date' => dbSyncHasColumn($conn, 'holidays', 'holiday_to_date'),
         'contractor_employment.sub_department_id' => dbSyncHasColumn($conn, 'contractor_employment', 'sub_department_id'),
         'contractor_operation_items.grade_id' => dbSyncHasColumn($conn, 'contractor_operation_items', 'grade_id'),
         'contractor_products table' => dbSyncHasTable($conn, 'contractor_products'),

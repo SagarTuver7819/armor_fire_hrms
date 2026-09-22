@@ -49,6 +49,7 @@ CREATE TABLE IF NOT EXISTS holidays (
     title VARCHAR(150) NOT NULL,
     holiday_type ENUM('Holiday','Week-Off') NOT NULL DEFAULT 'Holiday',
     holiday_date DATE DEFAULT NULL,
+    holiday_to_date DATE DEFAULT NULL,
     week_day VARCHAR(20) DEFAULT NULL,
     remarks TEXT,
     status TINYINT(1) NOT NULL DEFAULT 1,

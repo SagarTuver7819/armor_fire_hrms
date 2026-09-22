@@ -19,6 +19,29 @@ if ($error !== '') {
     die(htmlspecialchars($error) . ' <a href="javascript:history.back()">Go Back</a>');
 }
 
+// From / To date range for Holiday type
+$type = (string) ($data['holiday_type'] ?? 'Holiday');
+$from = $data['holiday_date'] ?? null;
+$to = $data['holiday_to_date'] ?? null;
+if ($type === 'Holiday') {
+    if ($from === null || $from === '') {
+        die('From Date is required for Holiday type. <a href="javascript:history.back()">Go Back</a>');
+    }
+    if ($to === null || $to === '') {
+        $to = $from;
+    }
+    if ($to < $from) {
+        die('To Date cannot be before From Date. <a href="javascript:history.back()">Go Back</a>');
+    }
+    $data['holiday_date'] = $from;
+    $data['holiday_to_date'] = $to;
+} else {
+    // Week-Off: dates optional
+    if (($to === null || $to === '') && $from) {
+        $data['holiday_to_date'] = $from;
+    }
+}
+
 // 0 / empty = All Departments
 $deptId = (int) ($data['department_id'] ?? 0);
 $data['department_id'] = $deptId;
