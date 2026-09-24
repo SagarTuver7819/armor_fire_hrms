@@ -21,6 +21,32 @@ $curMonth = (int) ($sheet['month_no'] ?? date('n'));
 $curYear = (int) ($sheet['year_no'] ?? date('Y'));
 $showGrade = contractorOperationShowsGrade($curOp);
 $items = $sheet['items'] ?? [];
+// #region agent log
+try {
+    $__dbg = [
+        'sessionId' => '06893f',
+        'hypothesisId' => 'A',
+        'location' => 'edit.php:items_loaded',
+        'message' => 'Edit page sheet items from DB',
+        'data' => [
+            'sheet_id' => $id,
+            'operation' => (string) ($sheet['operation'] ?? ''),
+            'item_count' => is_array($items) ? count($items) : 0,
+            'rows' => array_map(static function ($it) {
+                return [
+                    'product_id' => (int) ($it['product_id'] ?? 0),
+                    'grade_id' => (int) ($it['grade_id'] ?? 0),
+                    'product_label' => (string) ($it['product_label'] ?? ''),
+                    'total_qty' => (float) ($it['total_qty'] ?? 0),
+                ];
+            }, is_array($items) ? array_slice($items, 0, 20) : []),
+        ],
+        'timestamp' => (int) round(microtime(true) * 1000),
+        'runId' => 'grind-pre',
+    ];
+    file_put_contents(__DIR__ . '/../../debug-06893f.log', json_encode($__dbg) . "\n", FILE_APPEND);
+} catch (Throwable $e) { /* ignore */ }
+// #endregion
 if (!$items) {
     $items = [[
         'product_id' => 0,
@@ -240,6 +266,7 @@ $otJson = json_encode(contractorOtRepairOps());
 </main>
 <script>
     window.OPS_PRODUCTS_URL = <?php echo json_encode(app_url('contractor/operations/products_json.php')); ?>;
+    window.OPS_DEBUG_INGEST = <?php echo json_encode(app_url('debug_ingest.php')); ?>;
     window.OPS_REPAIR = <?php echo $repairJson; ?>;
     window.OPS_OT_REPAIR = <?php echo $otJson; ?>;
     window.OPS_GRADE_OPS = <?php echo json_encode(array_values(contractorShowGradeOps())); ?>;

@@ -373,6 +373,7 @@
                 products = (data && data.products) ? data.products : (Array.isArray(data) ? data : []);
                 grades = (data && data.grades) ? data.grades : [];
                 applyOpMode();
+                var rowDebug = [];
                 $('#opsRows .ops-row').each(function () {
                     var $row = $(this);
                     var sid = $row.find('.row-product-id').val()
@@ -385,6 +386,14 @@
                     fillProductSelect($row.find('.product-select'), sid);
                     fillGradeSelect($row.find('.grade-select'), showsGrade() ? gid : '');
                     var $opt = $row.find('.product-select option:selected');
+                    var comboTxt = ($row.find('.ops-combo-label').first().text() || '').trim();
+                    rowDebug.push({
+                        sid: String(sid || ''),
+                        gid: String(gid || ''),
+                        selectVal: String($opt.val() || ''),
+                        comboLabel: comboTxt,
+                        inList: products.some(function (p) { return String(p.id) === String(sid); })
+                    });
                     if ($opt.val()) {
                         if (!$row.find('.rate').val() || parseFloat($row.find('.rate').val()) === 0) {
                             $row.find('.rate').val($opt.attr('data-rate') || 0);
@@ -394,10 +403,18 @@
                         $row.find('.row-product-id').val($opt.val());
                     }
                 });
+                // #region agent log
+                fetch('http://127.0.0.1:7773/ingest/9028e09d-4f59-4918-ae60-c09c1f78ce7e',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'06893f'},body:JSON.stringify({sessionId:'06893f',runId:'grind-pre',hypothesisId:'B',location:'contractor_ops.js:loadProducts.done',message:'Products loaded and rows filled',data:{op:opVal(),productCount:products.length,gradeCount:grades.length,keep:keep,showGrade:showsGrade(),rows:rowDebug},timestamp:Date.now()})}).catch(function(){});
+                fetch((window.OPS_DEBUG_INGEST||'/armor_new_hrms/debug_ingest.php'),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'06893f',runId:'grind-pre',hypothesisId:'B',location:'contractor_ops.js:loadProducts.done',message:'Products loaded and rows filled',data:{op:opVal(),productCount:products.length,gradeCount:grades.length,keep:keep,showGrade:showsGrade(),rows:rowDebug},timestamp:Date.now()})}).catch(function(){});
+                // #endregion
                 if (typeof cb === 'function') cb();
                 recalcAll();
             })
-            .fail(function () {
+            .fail(function (xhr) {
+                // #region agent log
+                fetch('http://127.0.0.1:7773/ingest/9028e09d-4f59-4918-ae60-c09c1f78ce7e',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'06893f'},body:JSON.stringify({sessionId:'06893f',runId:'grind-pre',hypothesisId:'B',location:'contractor_ops.js:loadProducts.fail',message:'products_json failed',data:{op:opVal(),status:xhr&&xhr.status,url:url},timestamp:Date.now()})}).catch(function(){});
+                fetch((window.OPS_DEBUG_INGEST||'/armor_new_hrms/debug_ingest.php'),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'06893f',runId:'grind-pre',hypothesisId:'B',location:'contractor_ops.js:loadProducts.fail',message:'products_json failed',data:{op:opVal(),status:xhr&&xhr.status,url:url},timestamp:Date.now()})}).catch(function(){});
+                // #endregion
                 // Keep server-rendered selected options — do not wipe rows
                 products = [];
                 grades = [];
@@ -449,6 +466,20 @@
     $('#opsForm').on('submit', function () {
         syncRowIdsBeforeSubmit();
         reindex();
+        // #region agent log
+        var submitRows = [];
+        $('#opsRows .ops-row').each(function () {
+            var $row = $(this);
+            submitRows.push({
+                product: String($row.find('.product-select').val() || ''),
+                hiddenPid: String($row.find('.row-product-id').val() || ''),
+                grade: String($row.find('.grade-select').val() || ''),
+                combo: String($row.find('.ops-combo-label').first().text() || '').trim()
+            });
+        });
+        fetch('http://127.0.0.1:7773/ingest/9028e09d-4f59-4918-ae60-c09c1f78ce7e',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'06893f'},body:JSON.stringify({sessionId:'06893f',runId:'grind-pre',hypothesisId:'C',location:'contractor_ops.js:submit',message:'Form submit after sync',data:{op:opVal(),rows:submitRows},timestamp:Date.now()})}).catch(function(){});
+        fetch((window.OPS_DEBUG_INGEST||'/armor_new_hrms/debug_ingest.php'),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'06893f',runId:'grind-pre',hypothesisId:'C',location:'contractor_ops.js:submit',message:'Form submit after sync',data:{op:opVal(),rows:submitRows},timestamp:Date.now()})}).catch(function(){});
+        // #endregion
     });
     function calculateRowTotals($row) {
         var op = opVal();
