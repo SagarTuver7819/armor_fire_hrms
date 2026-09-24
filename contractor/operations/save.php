@@ -14,36 +14,6 @@ $month = (int) ($_POST['month_no'] ?? 0);
 $year = (int) ($_POST['year_no'] ?? 0);
 $itemsIn = $_POST['items'] ?? [];
 
-// #region agent log
-try {
-    $__posted = [];
-    foreach ((array) $itemsIn as $idx => $it) {
-        $__posted[] = [
-            'idx' => $idx,
-            'product_id' => (int) ($it['product_id'] ?? 0),
-            'grade_id' => (int) ($it['grade_id'] ?? 0),
-            'day_keys' => is_array($it['days'] ?? null) ? count($it['days']) : 0,
-        ];
-    }
-    $__dbg = [
-        'sessionId' => '06893f',
-        'hypothesisId' => 'D',
-        'location' => 'save.php:post_items',
-        'message' => 'Save received POST items',
-        'data' => [
-            'sheet_id' => $id,
-            'operation' => $operation,
-            'employee_id' => $employeeId,
-            'posted_count' => count($__posted),
-            'posted' => array_slice($__posted, 0, 30),
-        ],
-        'timestamp' => (int) round(microtime(true) * 1000),
-        'runId' => 'grind-pre',
-    ];
-    file_put_contents(__DIR__ . '/../../debug-06893f.log', json_encode($__dbg) . "\n", FILE_APPEND);
-} catch (Throwable $e) { /* ignore */ }
-// #endregion
-
 if (!isset($ops[$operation]) || $employeeId <= 0 || $month < 1 || $month > 12 || $year < 2000) {
     die('Operation, employee, month and year are required. <a href="javascript:history.back()">Go Back</a>');
 }
@@ -85,11 +55,9 @@ $grandQty = 0;
 $grandR = 0;
 $grandAmt = 0;
 $sort = 0;
-$skipped = [];
 foreach ((array) $itemsIn as $it) {
     $pid = (int) ($it['product_id'] ?? 0);
     if ($pid <= 0 || !isset($productsById[$pid])) {
-        $skipped[] = ['product_id' => $pid, 'reason' => $pid <= 0 ? 'empty_pid' : 'pid_not_in_products'];
         continue;
     }
     $gradeId = (int) ($it['grade_id'] ?? 0);
@@ -126,27 +94,6 @@ foreach ((array) $itemsIn as $it) {
         'sort_order' => $sort++,
     ];
 }
-
-// #region agent log
-try {
-    $__dbg = [
-        'sessionId' => '06893f',
-        'hypothesisId' => 'D',
-        'location' => 'save.php:built_items',
-        'message' => 'Save built vs skipped items',
-        'data' => [
-            'sheet_id' => $id,
-            'operation' => $operation,
-            'built_count' => count($built),
-            'skipped' => $skipped,
-            'built_pids' => array_map(static function ($b) { return $b['product_id']; }, $built),
-        ],
-        'timestamp' => (int) round(microtime(true) * 1000),
-        'runId' => 'grind-pre',
-    ];
-    file_put_contents(__DIR__ . '/../../debug-06893f.log', json_encode($__dbg) . "\n", FILE_APPEND);
-} catch (Throwable $e) { /* ignore */ }
-// #endregion
 
 if (!$built) {
     $conn->close();

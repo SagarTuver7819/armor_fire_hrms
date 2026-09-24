@@ -57,8 +57,8 @@
         $('#opsGrid').toggleClass('hide-grade', !showG);
         $('.r-field').prop('readonly', !showR);
         $('.ot-field').prop('readonly', !showOt);
-        if (!showR) $('.r-field').val('');
-        if (!showOt) $('.ot-field').val('');
+        // Do NOT wipe existing day qty when toggling mode (Add Product Row / load).
+        // Values stay; hidden columns just won't display.
 
         // Foundry: D / N with separate Day Qty Total & Night Qty Total (not combined)
         $('.q-lab').text(isFoundry ? 'D' : 'Q');
@@ -373,27 +373,17 @@
                 products = (data && data.products) ? data.products : (Array.isArray(data) ? data : []);
                 grades = (data && data.grades) ? data.grades : [];
                 applyOpMode();
-                var rowDebug = [];
                 $('#opsRows .ops-row').each(function () {
                     var $row = $(this);
-                    var sid = $row.find('.row-product-id').val()
-                        || $row.attr('data-saved-product-id')
-                        || $row.find('.product-select').val();
-                    var gid = $row.find('.row-grade-id').val()
-                        || $row.attr('data-saved-grade-id')
-                        || $row.find('.grade-select').val()
-                        || '';
+                    var sid = nonzeroId($row.find('.row-product-id').val())
+                        || nonzeroId($row.attr('data-saved-product-id'))
+                        || nonzeroId($row.find('.product-select').val());
+                    var gid = nonzeroId($row.find('.row-grade-id').val())
+                        || nonzeroId($row.attr('data-saved-grade-id'))
+                        || nonzeroId($row.find('.grade-select').val());
                     fillProductSelect($row.find('.product-select'), sid);
                     fillGradeSelect($row.find('.grade-select'), showsGrade() ? gid : '');
                     var $opt = $row.find('.product-select option:selected');
-                    var comboTxt = ($row.find('.ops-combo-label').first().text() || '').trim();
-                    rowDebug.push({
-                        sid: String(sid || ''),
-                        gid: String(gid || ''),
-                        selectVal: String($opt.val() || ''),
-                        comboLabel: comboTxt,
-                        inList: products.some(function (p) { return String(p.id) === String(sid); })
-                    });
                     if ($opt.val()) {
                         if (!$row.find('.rate').val() || parseFloat($row.find('.rate').val()) === 0) {
                             $row.find('.rate').val($opt.attr('data-rate') || 0);
@@ -403,18 +393,10 @@
                         $row.find('.row-product-id').val($opt.val());
                     }
                 });
-                // #region agent log
-                fetch('http://127.0.0.1:7773/ingest/9028e09d-4f59-4918-ae60-c09c1f78ce7e',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'06893f'},body:JSON.stringify({sessionId:'06893f',runId:'grind-pre',hypothesisId:'B',location:'contractor_ops.js:loadProducts.done',message:'Products loaded and rows filled',data:{op:opVal(),productCount:products.length,gradeCount:grades.length,keep:keep,showGrade:showsGrade(),rows:rowDebug},timestamp:Date.now()})}).catch(function(){});
-                fetch((window.OPS_DEBUG_INGEST||'/armor_new_hrms/debug_ingest.php'),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'06893f',runId:'grind-pre',hypothesisId:'B',location:'contractor_ops.js:loadProducts.done',message:'Products loaded and rows filled',data:{op:opVal(),productCount:products.length,gradeCount:grades.length,keep:keep,showGrade:showsGrade(),rows:rowDebug},timestamp:Date.now()})}).catch(function(){});
-                // #endregion
                 if (typeof cb === 'function') cb();
                 recalcAll();
             })
-            .fail(function (xhr) {
-                // #region agent log
-                fetch('http://127.0.0.1:7773/ingest/9028e09d-4f59-4918-ae60-c09c1f78ce7e',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'06893f'},body:JSON.stringify({sessionId:'06893f',runId:'grind-pre',hypothesisId:'B',location:'contractor_ops.js:loadProducts.fail',message:'products_json failed',data:{op:opVal(),status:xhr&&xhr.status,url:url},timestamp:Date.now()})}).catch(function(){});
-                fetch((window.OPS_DEBUG_INGEST||'/armor_new_hrms/debug_ingest.php'),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'06893f',runId:'grind-pre',hypothesisId:'B',location:'contractor_ops.js:loadProducts.fail',message:'products_json failed',data:{op:opVal(),status:xhr&&xhr.status,url:url},timestamp:Date.now()})}).catch(function(){});
-                // #endregion
+            .fail(function () {
                 // Keep server-rendered selected options — do not wipe rows
                 products = [];
                 grades = [];
@@ -422,14 +404,14 @@
                 $('#opsRows .ops-row').each(function () {
                     var $row = $(this);
                     var $sel = $row.find('.product-select');
-                    var sid = $row.find('.row-product-id').val() || $sel.val();
+                    var sid = nonzeroId($row.find('.row-product-id').val()) || nonzeroId($sel.val());
                     if (sid && !$sel.find('option[value="' + String(sid).replace(/"/g, '\\"') + '"]').length) {
                         fillProductSelect($sel, sid);
                     } else {
                         bindOpsCombo($sel, 'Select Process');
                     }
                     if (showsGrade()) {
-                        fillGradeSelect($row.find('.grade-select'), $row.find('.row-grade-id').val() || '');
+                        fillGradeSelect($row.find('.grade-select'), nonzeroId($row.find('.row-grade-id').val()) || '');
                     }
                 });
             });
@@ -466,20 +448,6 @@
     $('#opsForm').on('submit', function () {
         syncRowIdsBeforeSubmit();
         reindex();
-        // #region agent log
-        var submitRows = [];
-        $('#opsRows .ops-row').each(function () {
-            var $row = $(this);
-            submitRows.push({
-                product: String($row.find('.product-select').val() || ''),
-                hiddenPid: String($row.find('.row-product-id').val() || ''),
-                grade: String($row.find('.grade-select').val() || ''),
-                combo: String($row.find('.ops-combo-label').first().text() || '').trim()
-            });
-        });
-        fetch('http://127.0.0.1:7773/ingest/9028e09d-4f59-4918-ae60-c09c1f78ce7e',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'06893f'},body:JSON.stringify({sessionId:'06893f',runId:'grind-pre',hypothesisId:'C',location:'contractor_ops.js:submit',message:'Form submit after sync',data:{op:opVal(),rows:submitRows},timestamp:Date.now()})}).catch(function(){});
-        fetch((window.OPS_DEBUG_INGEST||'/armor_new_hrms/debug_ingest.php'),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:'06893f',runId:'grind-pre',hypothesisId:'C',location:'contractor_ops.js:submit',message:'Form submit after sync',data:{op:opVal(),rows:submitRows},timestamp:Date.now()})}).catch(function(){});
-        // #endregion
     });
     function calculateRowTotals($row) {
         var op = opVal();
@@ -708,33 +676,62 @@
             }
         });
     }
+    function nonzeroId(val) {
+        val = (val === undefined || val === null) ? '' : String(val).trim();
+        return (val && val !== '0') ? val : '';
+    }
+    /**
+     * Add Product Row — clone a blank row WITHOUT destroying existing rows.
+     * (Old code destroyed + refilled row #1 → edit screens could lose product selection.)
+     */
     $('#btnAddProduct').on('click', function () {
-        var $first = $('#opsRows .ops-row').first();
-        if (!$first.length) return;
+        var $template = $('#opsRows .ops-row').first();
+        if (!$template.length) return;
 
-        var firstProductId = $first.find('.row-product-id').val() || $first.find('.product-select').val() || '';
-        var firstGradeId = $first.find('.row-grade-id').val() || $first.find('.grade-select').val() || '';
-        destroyRowSelect2($first);
+        closeOpsCombo();
 
-        var $clone = $first.clone(false, false);
-        $clone.find('.select2-container, .ops-combo-trigger').remove();
+        var $clone = $template.clone(false, false);
+        $clone.removeAttr('data-saved-product-id');
+        $clone.removeAttr('data-saved-grade-id');
+        $clone.find('.select2-container, .ops-combo-trigger, .ops-combo-panel').remove();
         clearRowInputs($clone);
-        destroyRowSelect2($clone);
-        $clone.find('.product-select').empty().append('<option value="">Select Process</option>');
-        $clone.find('.grade-select').empty().append('<option value="">Select Grade</option>');
+        $clone.find('.product-select')
+            .empty()
+            .append('<option value="">Select Process</option>')
+            .removeAttr('data-saved-label')
+            .val('');
+        $clone.find('.grade-select')
+            .empty()
+            .append('<option value="">Select Grade</option>')
+            .removeAttr('data-saved-label')
+            .val('');
+        $clone.find('.row-product-id').val('0');
+        $clone.find('.row-grade-id').val('0');
         $clone.find('.btn-remove-row').attr('title', 'Delete row')
             .html('<i class="fa-solid fa-trash-can"></i>');
 
         $('#opsRows').append($clone);
         reindex();
 
-        fillProductSelect($first.find('.product-select'), firstProductId);
-        fillGradeSelect($first.find('.grade-select'), firstGradeId);
+        // Only wire the NEW row — existing product/grade selections stay untouched
         fillProductSelect($clone.find('.product-select'), '');
         fillGradeSelect($clone.find('.grade-select'), '');
 
         applyDayEnable();
-        applyOpMode();
+        // Refresh column visibility only (do not wipe day qty on existing rows)
+        var op = opVal();
+        var isFoundry = op === 'FOUNDRY';
+        var showR = repairOps.indexOf(op) !== -1;
+        var showOt = otRepairOps.indexOf(op) !== -1;
+        var showG = showsGrade(op);
+        $('#opsGrid').toggleClass('show-r', showR);
+        $('#opsGrid').toggleClass('show-ot', showOt);
+        $('#opsGrid').toggleClass('show-foundry', isFoundry);
+        $('#opsGrid').toggleClass('show-grade', showG);
+        $('#opsGrid').toggleClass('hide-grade', !showG);
+        $clone.find('.r-field').prop('readonly', !showR);
+        $clone.find('.ot-field').prop('readonly', !showOt);
+
         calculateRowTotals($clone);
         updateGrandTotals();
 
