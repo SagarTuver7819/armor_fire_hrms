@@ -1,0 +1,16 @@
+# Armor Fire HRMS — PHP limits for large contractor ops grids
+<IfModule mod_php.c>
+    php_value max_input_vars 20000
+    php_value max_input_time 120
+    php_value post_max_size 64M
+</IfModule>
+<IfModule mod_php7.c>
+    php_value max_input_vars 20000
+    php_value max_input_time 120
+    php_value post_max_size 64M
+</IfModule>
+<IfModule mod_php8.c>
+    php_value max_input_vars 20000
+    php_value max_input_time 120
+    php_value post_max_size 64M
+</IfModule>

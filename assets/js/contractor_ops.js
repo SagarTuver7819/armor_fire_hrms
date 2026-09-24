@@ -448,6 +448,49 @@
     $('#opsForm').on('submit', function () {
         syncRowIdsBeforeSubmit();
         reindex();
+
+        // Pack all rows into one JSON field (avoids PHP max_input_vars truncation).
+        var items = [];
+        $('#opsRows .ops-row').each(function () {
+            var $row = $(this);
+            var pid = nonzeroId($row.find('.product-select').val())
+                || nonzeroId($row.find('.row-product-id').val());
+            if (!pid) {
+                return; // skip blank Add Product rows
+            }
+            var days = {};
+            $row.find('.day-cell').each(function () {
+                var d = String($(this).attr('data-day') || '');
+                if (!d) return;
+                days[d] = {
+                    q: $(this).find('.day-qty').val() || 0,
+                    r: $(this).find('.day-qty-r').val() || 0,
+                    ot: $(this).find('.day-qty-ot').val() || 0
+                };
+            });
+            items.push({
+                product_id: pid,
+                grade_id: nonzeroId($row.find('.grade-select').val())
+                    || nonzeroId($row.find('.row-grade-id').val())
+                    || 0,
+                rate: $row.find('.rate').val(),
+                ot_rate: $row.find('.row-ot-rate').val(),
+                rejection_rate: $row.find('.row-rejection-rate').val(),
+                days: days,
+                total_qty: $row.find('.total-qty').val(),
+                total_r: $row.find('.total-r').val(),
+                total_amount: $row.find('.total-amount').val()
+            });
+        });
+
+        var $json = $('#opsItemsJson');
+        if (!$json.length) {
+            $json = $('<input type="hidden" name="items_json" id="opsItemsJson">').appendTo('#opsForm');
+        }
+        $json.prop('disabled', false).val(JSON.stringify(items));
+
+        // Disable bulky per-day fields so they don't consume max_input_vars
+        $('#opsRows').find('[name^="items["]').prop('disabled', true);
     });
     function calculateRowTotals($row) {
         var op = opVal();

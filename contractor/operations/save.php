@@ -12,7 +12,20 @@ $operation = (string) ($_POST['operation'] ?? '');
 $employeeId = (int) ($_POST['employee_id'] ?? 0);
 $month = (int) ($_POST['month_no'] ?? 0);
 $year = (int) ($_POST['year_no'] ?? 0);
-$itemsIn = $_POST['items'] ?? [];
+
+// Prefer items_json — large grids exceed PHP max_input_vars (default 1000).
+// 10 product rows ≈ 1015 named fields; 11th row never reaches $_POST['items'].
+$itemsIn = [];
+$jsonRaw = trim((string) ($_POST['items_json'] ?? ''));
+if ($jsonRaw !== '') {
+    $decoded = json_decode($jsonRaw, true);
+    if (is_array($decoded)) {
+        $itemsIn = $decoded;
+    }
+}
+if (!$itemsIn && isset($_POST['items']) && is_array($_POST['items'])) {
+    $itemsIn = $_POST['items'];
+}
 
 if (!isset($ops[$operation]) || $employeeId <= 0 || $month < 1 || $month > 12 || $year < 2000) {
     die('Operation, employee, month and year are required. <a href="javascript:history.back()">Go Back</a>');

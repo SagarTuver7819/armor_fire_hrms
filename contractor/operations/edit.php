@@ -57,6 +57,7 @@ $otJson = json_encode(contractorOtRepairOps());
 
         <form method="POST" action="<?php echo app_url('contractor/operations/save.php'); ?>" id="opsForm" class="employee-form" autocomplete="off">
             <input type="hidden" name="id" value="<?php echo (int) $id; ?>">
+            <input type="hidden" name="items_json" id="opsItemsJson" value="">
             <div class="form-section">
                 <div class="form-grid form-grid-3">
                     <div class="form-group">
