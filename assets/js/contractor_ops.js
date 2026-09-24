@@ -279,77 +279,109 @@
 
     function fillProductSelect($sel, selectedId) {
         if (!$sel.length) return;
+        selectedId = selectedId ? String(selectedId) : '';
+        if (selectedId === '0') selectedId = '';
+
         var prevLabel = '';
         if (selectedId) {
-            prevLabel = ($sel.find('option:selected').text() || '').trim();
+            prevLabel = ($sel.find('option[value="' + selectedId.replace(/"/g, '\\"') + '"]').text() || '').trim();
+            if (!prevLabel) {
+                prevLabel = ($sel.find('option:selected').text() || '').trim();
+            }
+            if (!prevLabel || prevLabel === 'Select Process') {
+                prevLabel = ($sel.attr('data-saved-label') || '').trim();
+            }
             if (!prevLabel) {
                 prevLabel = ($sel.closest('td').find('.ops-combo-label').text() || '').trim();
             }
+            if (!prevLabel || prevLabel === 'Select Process') {
+                prevLabel = 'Product #' + selectedId;
+            }
         }
+
         var html = '<option value="">Select Process</option>';
         var hasSelected = false;
         products.forEach(function (p) {
-            var selAttr = String(p.id) === String(selectedId) ? ' selected' : '';
+            var selAttr = String(p.id) === selectedId ? ' selected' : '';
             if (selAttr) hasSelected = true;
             html += '<option value="' + p.id + '" data-rate="' + p.rate + '" data-ot="' + p.ot_rate + '" data-rej="' + p.rejection_rate + '" data-process="' + (p.process || '') + '"'
                 + selAttr + '>'
                 + $('<div/>').text(p.name).html() + '</option>';
         });
-        // Old duplicate product id → map to unique label match
-        if (selectedId && !hasSelected && prevLabel) {
-            products.forEach(function (p) {
-                if (hasSelected) return;
-                if (String(p.name).toLowerCase() === String(prevLabel).toLowerCase()) {
-                    selectedId = p.id;
-                    hasSelected = true;
-                }
-            });
-            if (hasSelected) {
-                html = '<option value="">Select Process</option>';
-                products.forEach(function (p) {
-                    html += '<option value="' + p.id + '" data-rate="' + p.rate + '" data-ot="' + p.ot_rate + '" data-rej="' + p.rejection_rate + '" data-process="' + (p.process || '') + '"'
-                        + (String(p.id) === String(selectedId) ? ' selected' : '') + '>'
-                        + $('<div/>').text(p.name).html() + '</option>';
-                });
-            }
+
+        // Keep saved product even if missing from list (duplicate label / old id)
+        if (selectedId && !hasSelected) {
+            html += '<option value="' + selectedId + '" selected data-rate="' + ($sel.closest('tr').find('.rate').val() || 0) + '"'
+                + ' data-ot="' + ($sel.closest('tr').find('.row-ot-rate').val() || 0) + '"'
+                + ' data-rej="' + ($sel.closest('tr').find('.row-rejection-rate').val() || 0) + '">'
+                + $('<div/>').text(prevLabel).html() + '</option>';
+            hasSelected = true;
         }
+
         $sel.html(html);
-        if (selectedId) $sel.val(String(selectedId));
+        if (selectedId) {
+            $sel.val(selectedId);
+            $sel.attr('data-saved-label', prevLabel);
+        }
         bindOpsCombo($sel, 'Select Process');
     }
     function fillGradeSelect($sel, selectedId) {
         if (!$sel.length) return;
+        selectedId = selectedId ? String(selectedId) : '';
+        if (selectedId === '0') selectedId = '';
         teardownOpsCombo($sel);
 
         if (!showsGrade()) {
             $sel.html('<option value="">Select Grade</option>');
             $sel.val('');
-            $sel.closest('tr').find('.row-grade-id').val('0');
+            // Do NOT wipe saved grade_id when column is hidden — keep for re-open on grade ops
             return;
         }
 
+        var prevLabel = '';
+        if (selectedId) {
+            prevLabel = ($sel.find('option[value="' + selectedId.replace(/"/g, '\\"') + '"]').text() || '').trim();
+            if (!prevLabel) prevLabel = ($sel.attr('data-saved-label') || '').trim();
+            if (!prevLabel) prevLabel = 'Grade #' + selectedId;
+        }
+
         var html = '<option value="">Select Grade</option>';
+        var hasSelected = false;
         grades.forEach(function (g) {
-            html += '<option value="' + g.id + '"'
-                + (String(g.id) === String(selectedId) ? ' selected' : '') + '>'
+            var selAttr = String(g.id) === selectedId ? ' selected' : '';
+            if (selAttr) hasSelected = true;
+            html += '<option value="' + g.id + '"' + selAttr + '>'
                 + $('<div/>').text(g.name).html() + '</option>';
         });
+        if (selectedId && !hasSelected) {
+            html += '<option value="' + selectedId + '" selected>'
+                + $('<div/>').text(prevLabel).html() + '</option>';
+        }
         $sel.html(html);
-        if (selectedId) $sel.val(String(selectedId));
+        if (selectedId) $sel.val(selectedId);
         bindOpsCombo($sel, 'Select Grade');
         $sel.closest('tr').find('.row-grade-id').val($sel.val() || '0');
     }
     function loadProducts(cb) {
         var op = encodeURIComponent(opVal());
-        $.getJSON(window.OPS_PRODUCTS_URL + '?operation=' + op)
+        var keep = (window.OPS_KEEP_PRODUCT_IDS || []).join(',');
+        var url = window.OPS_PRODUCTS_URL + '?operation=' + op;
+        if (keep) url += '&keep_ids=' + encodeURIComponent(keep);
+
+        $.getJSON(url)
             .done(function (data) {
                 products = (data && data.products) ? data.products : (Array.isArray(data) ? data : []);
                 grades = (data && data.grades) ? data.grades : [];
                 applyOpMode();
                 $('#opsRows .ops-row').each(function () {
                     var $row = $(this);
-                    var sid = $row.find('.row-product-id').val() || $row.find('.product-select').val();
-                    var gid = $row.find('.row-grade-id').val() || $row.find('.grade-select').val() || '';
+                    var sid = $row.find('.row-product-id').val()
+                        || $row.attr('data-saved-product-id')
+                        || $row.find('.product-select').val();
+                    var gid = $row.find('.row-grade-id').val()
+                        || $row.attr('data-saved-grade-id')
+                        || $row.find('.grade-select').val()
+                        || '';
                     fillProductSelect($row.find('.product-select'), sid);
                     fillGradeSelect($row.find('.grade-select'), showsGrade() ? gid : '');
                     var $opt = $row.find('.product-select option:selected');
@@ -366,14 +398,58 @@
                 recalcAll();
             })
             .fail(function () {
+                // Keep server-rendered selected options — do not wipe rows
                 products = [];
                 grades = [];
+                applyOpMode();
                 $('#opsRows .ops-row').each(function () {
-                    fillProductSelect($(this).find('.product-select'), '');
-                    fillGradeSelect($(this).find('.grade-select'), '');
+                    var $row = $(this);
+                    var $sel = $row.find('.product-select');
+                    var sid = $row.find('.row-product-id').val() || $sel.val();
+                    if (sid && !$sel.find('option[value="' + String(sid).replace(/"/g, '\\"') + '"]').length) {
+                        fillProductSelect($sel, sid);
+                    } else {
+                        bindOpsCombo($sel, 'Select Process');
+                    }
+                    if (showsGrade()) {
+                        fillGradeSelect($row.find('.grade-select'), $row.find('.row-grade-id').val() || '');
+                    }
                 });
             });
     }
+    function syncRowIdsBeforeSubmit() {
+        $('#opsRows .ops-row').each(function () {
+            var $row = $(this);
+            var $ps = $row.find('.product-select');
+            var pid = $ps.val() || $row.find('.row-product-id').val() || $row.attr('data-saved-product-id') || '';
+            if (pid && pid !== '0') {
+                if (!$ps.find('option[value="' + String(pid).replace(/"/g, '\\"') + '"]').length) {
+                    var lab = $ps.attr('data-saved-label') || ('Product #' + pid);
+                    $ps.append($('<option/>').val(pid).text(lab));
+                }
+                $ps.val(String(pid));
+                $row.find('.row-product-id').val(String(pid));
+            }
+            if (showsGrade()) {
+                var $gs = $row.find('.grade-select');
+                var gid = $gs.val() || $row.find('.row-grade-id').val() || $row.attr('data-saved-grade-id') || '';
+                if (gid && gid !== '0') {
+                    if (!$gs.find('option[value="' + String(gid).replace(/"/g, '\\"') + '"]').length) {
+                        var glab = $gs.attr('data-saved-label') || ('Grade #' + gid);
+                        $gs.append($('<option/>').val(gid).text(glab));
+                    }
+                    $gs.val(String(gid));
+                    $row.find('.row-grade-id').val(String(gid));
+                }
+            }
+            // Disabled day cells are not posted — temporarily enable so totals/days are not lost
+            $row.find('.day-cell.is-off input, .day-cell input:disabled').prop('disabled', false);
+        });
+    }
+    $('#opsForm').on('submit', function () {
+        syncRowIdsBeforeSubmit();
+        reindex();
+    });
     function calculateRowTotals($row) {
         var op = opVal();
         var rate = parseFloat($row.find('.rate').val()) || 0;

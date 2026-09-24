@@ -60,6 +60,16 @@ if (!defined('APP_BASE')) {
             $scriptName = $m[1] === '' ? '/' : $m[1];
         }
 
+        // Nested HR workspace: /hr
+        if (preg_match('#^(.*?)/hr$#', $scriptName, $m)) {
+            $scriptName = $m[1] === '' ? '/' : $m[1];
+        }
+
+        // Nested leave / attendance
+        if (preg_match('#^(.*?)/(leave|attendance)$#', $scriptName, $m)) {
+            $scriptName = $m[1] === '' ? '/' : $m[1];
+        }
+
         $base = rtrim($scriptName, '/');
         if ($base === '' || $base === '\\' || $base === '.') {
             $base = '';

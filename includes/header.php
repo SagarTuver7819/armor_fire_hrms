@@ -53,12 +53,34 @@ if ($logoSrc && strpos($logoSrc, 'http') !== 0 && strpos($logoSrc, '/') !== 0) {
             </a>
         </div>
         <div class="header-right">
-            <div class="user-info">
-                <div class="user-text">
-                    <span class="user-name"><?php echo htmlspecialchars(getUserName()); ?></span>
-                    <span class="user-role"><?php echo htmlspecialchars(getUserRoleLabel()); ?></span>
+            <div class="header-status" id="headerStatus" aria-live="polite">
+                <div class="header-status-item">
+                    <i class="fa-regular fa-clock" aria-hidden="true"></i>
+                    <span class="header-status-line">
+                        Time : <strong class="header-clock" id="headerClock">--:--:-- --</strong>
+                    </span>
                 </div>
-                <div class="user-avatar">
+                <div class="header-status-divider" aria-hidden="true"></div>
+                <div class="header-status-item">
+                    <i class="fa-regular fa-calendar" aria-hidden="true"></i>
+                    <span class="header-status-line">
+                        Day : <strong class="header-day" id="headerDay"><?php echo htmlspecialchars(date('l')); ?></strong>
+                    </span>
+                </div>
+                <div class="header-status-divider" aria-hidden="true"></div>
+                <div class="header-status-item">
+                    <i class="fa-solid fa-user-check" aria-hidden="true"></i>
+                    <span class="header-status-line">
+                        Logged in as :
+                        <strong class="header-login-user"><?php echo htmlspecialchars(getUserName()); ?></strong>
+                        <?php if (!empty($_SESSION['username'])): ?>
+                            <em class="header-login-handle">(@<?php echo htmlspecialchars((string) $_SESSION['username']); ?>)</em>
+                        <?php endif; ?>
+                    </span>
+                </div>
+            </div>
+            <div class="user-info">
+                <div class="user-avatar" title="<?php echo htmlspecialchars(getUserName() . ' · ' . getUserRoleLabel()); ?>">
                     <i class="fa-solid fa-user"></i>
                 </div>
                 <a href="<?php echo app_url('logout.php'); ?>" class="logout-btn" title="Logout">

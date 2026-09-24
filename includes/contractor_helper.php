@@ -558,12 +558,26 @@ function getContractorSheetById($id, $conn = null)
         return null;
     }
     $items = [];
-    $it = $conn->prepare('SELECT * FROM contractor_operation_items WHERE sheet_id = ? ORDER BY sort_order ASC, id ASC');
+    $it = $conn->prepare('SELECT i.*,
+            p.process AS product_process,
+            p.product_name AS product_name,
+            p.rate AS product_rate,
+            p.ot_text AS product_ot_text,
+            p.rejection_rate AS product_rejection_rate,
+            g.grade_name AS grade_name
+        FROM contractor_operation_items i
+        LEFT JOIN contractor_products p ON p.id = i.product_id
+        LEFT JOIN contractor_grades g ON g.id = i.grade_id
+        WHERE i.sheet_id = ?
+        ORDER BY i.sort_order ASC, i.id ASC');
     $it->bind_param('i', $id);
     $it->execute();
     $res = $it->get_result();
     while ($row = $res->fetch_assoc()) {
         $row['days'] = json_decode((string) ($row['days_json'] ?? '{}'), true) ?: [];
+        $process = trim(html_entity_decode((string) ($row['product_process'] ?? '')));
+        $pname = trim(html_entity_decode((string) ($row['product_name'] ?? '')));
+        $row['product_label'] = ($process !== '' && $process !== '-') ? $process : $pname;
         $items[] = $row;
     }
     $it->close();

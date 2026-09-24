@@ -57,9 +57,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $_SESSION['role']          = $user['role'];
             $_SESSION['department_id'] = $user['department_id'];
             if ($user['role'] === 'hr') {
-                header('Location: hr/dashboard.php');
+                header('Location: ' . app_url('hr/dashboard.php'));
             } else {
-                header('Location: dashboard.php');
+                header('Location: ' . app_url('dashboard.php'));
             }
             exit;
         }

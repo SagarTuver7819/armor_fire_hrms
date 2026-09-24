@@ -1,7 +1,6 @@
 <?php
 /**
- * Dashboard - Department Master as Cards
- * Looks like ERP Workspace Dashboard with department boxes.
+ * Dashboard — Workspace hub (quick access + departments)
  */
 
 require_once __DIR__ . '/config/app.php';
@@ -9,158 +8,138 @@ require_once __DIR__ . '/config/database.php';
 require_once __DIR__ . '/includes/masters_config.php';
 
 $pageTitle = 'Dashboard';
+// Main workspace: no sidebar (card hub layout, like before)
 require_once __DIR__ . '/includes/header.php';
 
 $conn = getDBConnection();
-
-// Admin: see all departments
-// Employee: see all departments for now (master view) - can restrict later
 $sql = "SELECT id, department_name, icon_class, icon_color, sort_order
         FROM departments
         WHERE status = 1
         ORDER BY sort_order ASC, department_name ASC";
-
 $result = $conn->query($sql);
 $departments = [];
-
 if ($result) {
     while ($row = $result->fetch_assoc()) {
         $departments[] = $row;
     }
 }
-
 $conn->close();
+
+$masterCount = count(getMastersConfig());
+$deptCount = count($departments);
+$userLabel = function_exists('getUserName') ? getUserName() : 'User';
+$hour = (int) date('G');
+if ($hour < 12) {
+    $greet = 'Good morning';
+} elseif ($hour < 17) {
+    $greet = 'Good afternoon';
+} else {
+    $greet = 'Good evening';
+}
 ?>
 
-<main class="dashboard-main">
-    <div class="dashboard-title-block">
-        <h1><?php echo strtoupper(htmlspecialchars(getCompanyName())); ?> HRMS</h1>
-        <p>WORKSPACE DASHBOARD · MANUFACTURING HRMS</p>
+<main class="dashboard-main dash-workspace">
+    <div class="dash-hero">
+        <div class="dash-hero-copy">
+            <p class="dash-eyebrow"><?php echo htmlspecialchars(strtoupper(getCompanyName())); ?> · WORKSPACE</p>
+            <h1><?php echo htmlspecialchars($greet); ?>, <?php echo htmlspecialchars($userLabel); ?></h1>
+            <p class="dash-sub">Open HR tools, masters, contractor ops, or jump into a department.</p>
+        </div>
+        <div class="dash-hero-stats">
+            <div class="dash-stat">
+                <span class="dash-stat-num"><?php echo (int) $deptCount; ?></span>
+                <span class="dash-stat-lab">Departments</span>
+            </div>
+            <div class="dash-stat">
+                <span class="dash-stat-num"><?php echo (int) $masterCount; ?></span>
+                <span class="dash-stat-lab">Masters</span>
+            </div>
+        </div>
     </div>
 
-    <!-- HR Dashboard entry -->
-    <section class="module-section">
+    <section class="module-section dash-section">
         <div class="section-heading">
-            <i class="fa-solid fa-user-tie"></i>
-            <span>HR WORKSPACE</span>
+            <i class="fa-solid fa-bolt"></i>
+            <span>QUICK ACCESS</span>
         </div>
-        <div class="module-grid module-grid-sm">
-            <a href="<?php echo app_url('hr/dashboard.php'); ?>" class="module-card masters-entry-card" title="HR Dashboard">
-                <div class="module-icon" style="background-color: #0F766E;">
-                    <i class="fa-solid fa-chart-pie"></i>
+        <div class="dash-hub-grid">
+            <a href="<?php echo htmlspecialchars(app_url('hr/dashboard.php')); ?>" class="dash-hub-card is-hr" title="Open HR Dashboard">
+                <div class="dash-hub-icon" style="background:#0F766E;"><i class="fa-solid fa-chart-pie"></i></div>
+                <div class="dash-hub-body">
+                    <strong>HR Dashboard</strong>
+                    <span>Birthdays · Attendance · Leaves</span>
                 </div>
-                <div class="module-label">HR Dashboard</div>
-                <div class="module-meta">Birthdays · Attendance · Leaves</div>
+                <i class="fa-solid fa-arrow-right dash-hub-go"></i>
             </a>
+            <a href="<?php echo htmlspecialchars(app_url('masters/index.php')); ?>" class="dash-hub-card is-masters" title="All Masters">
+                <div class="dash-hub-icon" style="background:#F58220;"><i class="fa-solid fa-cubes"></i></div>
+                <div class="dash-hub-body">
+                    <strong>All Masters</strong>
+                    <span><?php echo (int) $masterCount; ?> Masters · CRUD</span>
+                </div>
+                <i class="fa-solid fa-arrow-right dash-hub-go"></i>
+            </a>
+            <a href="<?php echo htmlspecialchars(app_url('contractor/index.php')); ?>" class="dash-hub-card is-contractor" title="Contractor Manage">
+                <div class="dash-hub-icon" style="background:#8E44AD;"><i class="fa-solid fa-helmet-safety"></i></div>
+                <div class="dash-hub-body">
+                    <strong>Contractor Manage</strong>
+                    <span>Employees · Products · Rate List</span>
+                </div>
+                <i class="fa-solid fa-arrow-right dash-hub-go"></i>
+            </a>
+            <a href="<?php echo htmlspecialchars(app_url('employees/index.php')); ?>" class="dash-hub-card is-emp" title="All Employees Report">
+                <div class="dash-hub-icon" style="background:#059669;"><i class="fa-solid fa-users"></i></div>
+                <div class="dash-hub-body">
+                    <strong>All Employees</strong>
+                    <span>Active staff directory</span>
+                </div>
+                <i class="fa-solid fa-arrow-right dash-hub-go"></i>
+            </a>
+            <a href="<?php echo htmlspecialchars(app_url('employees/exit_list.php')); ?>" class="dash-hub-card is-exit" title="Exit Employee List">
+                <div class="dash-hub-icon" style="background:#DC2626;"><i class="fa-solid fa-user-xmark"></i></div>
+                <div class="dash-hub-body">
+                    <strong>Exit Employees</strong>
+                    <span>Deactive &amp; exited staff</span>
+                </div>
+                <i class="fa-solid fa-arrow-right dash-hub-go"></i>
+            </a>
+            <?php if (isAdmin()): ?>
+            <a href="<?php echo htmlspecialchars(app_url('company_settings.php')); ?>" class="dash-hub-card is-admin" title="Company Logo Setup">
+                <div class="dash-hub-icon" style="background:#E85D75;"><i class="fa-solid fa-image"></i></div>
+                <div class="dash-hub-body">
+                    <strong>Company Settings</strong>
+                    <span>Logo &amp; branding</span>
+                </div>
+                <i class="fa-solid fa-arrow-right dash-hub-go"></i>
+            </a>
+            <?php endif; ?>
         </div>
     </section>
 
-    <!-- Masters Hub entry -->
-    <section class="module-section">
-        <div class="section-heading">
-            <i class="fa-solid fa-database"></i>
-            <span>MASTERS</span>
-        </div>
-        <div class="module-grid module-grid-sm">
-            <a href="<?php echo app_url('masters/index.php'); ?>" class="module-card masters-entry-card" title="All Masters">
-                <div class="module-icon" style="background-color: #F58220;">
-                    <i class="fa-solid fa-cubes"></i>
-                </div>
-                <div class="module-label">All Masters</div>
-                <div class="module-meta"><?php echo count(getMastersConfig()); ?> Masters · CRUD</div>
-            </a>
-        </div>
-    </section>
-
-    <!-- Contractor Manage -->
-    <section class="module-section">
-        <div class="section-heading">
-            <i class="fa-solid fa-helmet-safety"></i>
-            <span>CONTRACTOR MANAGE</span>
-        </div>
-        <div class="module-grid module-grid-sm">
-            <a href="<?php echo app_url('contractor/index.php'); ?>" class="module-card masters-entry-card" title="Contractor Manage">
-                <div class="module-icon" style="background-color: #8E44AD;">
-                    <i class="fa-solid fa-helmet-safety"></i>
-                </div>
-                <div class="module-label">Contractor Manage</div>
-                <div class="module-meta">Employees · Products · Rate List</div>
-            </a>
-        </div>
-    </section>
-
-    <!-- Department workspace (Join Employee flow) -->
-    <section class="module-section" id="department-workspace">
+    <section class="module-section dash-section" id="department-workspace">
         <div class="section-heading">
             <i class="fa-solid fa-building"></i>
             <span>DEPARTMENT WORKSPACE</span>
+            <em class="dash-section-count"><?php echo (int) $deptCount; ?></em>
         </div>
 
-        <div class="module-grid">
-            <?php if (count($departments) === 0): ?>
-                <p class="empty-msg">No departments found. Please import the SQL file.</p>
+        <div class="module-grid dash-dept-grid">
+            <?php if ($deptCount === 0): ?>
+                <p class="empty-msg">No departments found. Please run DB Sync / seed masters.</p>
             <?php else: ?>
                 <?php foreach ($departments as $dept): ?>
-                    <a href="<?php echo app_url('department.php?id=' . (int) $dept['id']); ?>" class="module-card" title="<?php echo htmlspecialchars($dept['department_name']); ?>">
+                    <a href="<?php echo htmlspecialchars(app_url('department.php?id=' . (int) $dept['id'])); ?>"
+                       class="module-card dash-dept-card"
+                       title="<?php echo htmlspecialchars($dept['department_name']); ?>">
                         <div class="module-icon" style="background-color: <?php echo htmlspecialchars($dept['icon_color']); ?>;">
                             <i class="fa-solid <?php echo htmlspecialchars($dept['icon_class']); ?>"></i>
                         </div>
-                        <div class="module-label">
-                            <?php echo htmlspecialchars($dept['department_name']); ?>
-                        </div>
+                        <div class="module-label"><?php echo htmlspecialchars($dept['department_name']); ?></div>
                     </a>
                 <?php endforeach; ?>
             <?php endif; ?>
         </div>
     </section>
-
-    <!-- All employees report (all departments) -->
-    <section class="module-section">
-        <div class="section-heading">
-            <i class="fa-solid fa-users"></i>
-            <span>EMPLOYEE REPORTS</span>
-        </div>
-        <div class="module-grid module-grid-sm">
-            <a href="<?php echo app_url('employees/index.php'); ?>" class="module-card" title="All Employees Report">
-                <div class="module-icon" style="background-color: #2ECC71;">
-                    <i class="fa-solid fa-list"></i>
-                </div>
-                <div class="module-label">All Employees Report</div>
-                <div class="module-meta">Active staff directory</div>
-            </a>
-            <a href="<?php echo app_url('employees/exit_list.php'); ?>" class="module-card" title="Exit Employee List">
-                <div class="module-icon" style="background-color: #EF4444;">
-                    <i class="fa-solid fa-user-xmark"></i>
-                </div>
-                <div class="module-label">Exit Employee List</div>
-                <div class="module-meta">Deactive &amp; Exited staff</div>
-            </a>
-        </div>
-    </section>
-
-    <?php if (isAdmin()): ?>
-    <!-- Admin-only quick links (placeholder for next phase) -->
-    <section class="module-section">
-        <div class="section-heading">
-            <i class="fa-solid fa-chart-pie"></i>
-            <span>ADMIN CONTROLS</span>
-        </div>
-        <div class="module-grid module-grid-sm">
-            <a href="<?php echo app_url('company_settings.php'); ?>" class="module-card" title="Company Logo Setup">
-                <div class="module-icon" style="background-color: #E85D75;">
-                    <i class="fa-solid fa-image"></i>
-                </div>
-                <div class="module-label">Company Logo Setup</div>
-            </a>
-            <a href="#" class="module-card disabled-card" title="Coming soon">
-                <div class="module-icon" style="background-color: #5B6CFF;">
-                    <i class="fa-solid fa-user-gear"></i>
-                </div>
-                <div class="module-label">Manage Users</div>
-            </a>
-        </div>
-    </section>
-    <?php endif; ?>
 </main>
 
 <?php require_once __DIR__ . '/includes/footer.php'; ?>

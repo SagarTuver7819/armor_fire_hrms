@@ -1,17 +1,15 @@
 /**
- * Dashboard animations - staggered cards + icon hover feel
+ * Dashboard animations - hub tiles + department cards
  */
 (function () {
-    var cards = document.querySelectorAll('.module-card');
+    var cards = document.querySelectorAll('.module-card, .dash-hub-card');
     if (!cards.length) return;
 
-    // Stagger entrance
     cards.forEach(function (card, index) {
         card.style.setProperty('--i', index);
         card.classList.add('card-animate');
     });
 
-    // Intersection Observer - animate when visible
     if ('IntersectionObserver' in window) {
         var observer = new IntersectionObserver(function (entries) {
             entries.forEach(function (entry) {
@@ -20,7 +18,7 @@
                     observer.unobserve(entry.target);
                 }
             });
-        }, { threshold: 0.12 });
+        }, { threshold: 0.08 });
 
         cards.forEach(function (card) {
             observer.observe(card);
@@ -31,8 +29,7 @@
         });
     }
 
-    // Title fade-in
-    var title = document.querySelector('.dashboard-title-block');
+    var title = document.querySelector('.dashboard-title-block, .dash-hero');
     if (title) {
         title.classList.add('title-animate');
     }

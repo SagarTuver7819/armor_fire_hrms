@@ -138,8 +138,14 @@ $otJson = json_encode(contractorOtRepairOps());
                     <?php foreach ($items as $i => $item):
                         $days = mergeDayMap($item['days'] ?? [], $curMonth, $curYear);
                         $itemGradeId = (int) ($item['grade_id'] ?? 0);
+                        $itemProductId = (int) ($item['product_id'] ?? 0);
+                        $itemProductLabel = trim((string) ($item['product_label'] ?? ''));
+                        if ($itemProductLabel === '' && $itemProductId > 0) {
+                            $itemProductLabel = 'Product #' . $itemProductId;
+                        }
+                        $itemGradeName = trim((string) ($item['grade_name'] ?? ''));
                         ?>
-                        <tr class="ops-row">
+                        <tr class="ops-row" data-saved-product-id="<?php echo $itemProductId; ?>" data-saved-grade-id="<?php echo $itemGradeId; ?>">
                             <td class="sticky-col sticky-action">
                                 <button type="button" class="btn-icon btn-remove-row" title="Delete row">
                                     <i class="fa-solid fa-trash-can"></i>
@@ -147,14 +153,29 @@ $otJson = json_encode(contractorOtRepairOps());
                             </td>
                             <td class="sticky-col sticky-sr ops-sr"><?php echo $i + 1; ?></td>
                             <td class="sticky-col sticky-name">
-                                <select name="items[<?php echo $i; ?>][product_id]" class="form-control product-select no-select2">
+                                <select name="items[<?php echo $i; ?>][product_id]" class="form-control product-select no-select2"
+                                        data-saved-label="<?php echo htmlspecialchars($itemProductLabel); ?>">
                                     <option value="">Select Process</option>
+                                    <?php if ($itemProductId > 0): ?>
+                                        <option value="<?php echo $itemProductId; ?>" selected
+                                                data-rate="<?php echo htmlspecialchars((string) ($item['rate'] ?? 0)); ?>"
+                                                data-ot="<?php echo htmlspecialchars((string) ($item['ot_rate'] ?? 0)); ?>"
+                                                data-rej="<?php echo htmlspecialchars((string) ($item['rejection_rate'] ?? 0)); ?>">
+                                            <?php echo htmlspecialchars($itemProductLabel); ?>
+                                        </option>
+                                    <?php endif; ?>
                                 </select>
-                                <input type="hidden" class="row-product-id" value="<?php echo (int) ($item['product_id'] ?? 0); ?>">
+                                <input type="hidden" class="row-product-id" value="<?php echo $itemProductId; ?>">
                             </td>
                             <td class="sticky-col sticky-grade td-grade">
-                                <select name="items[<?php echo $i; ?>][grade_id]" class="form-control grade-select no-select2">
+                                <select name="items[<?php echo $i; ?>][grade_id]" class="form-control grade-select no-select2"
+                                        data-saved-label="<?php echo htmlspecialchars($itemGradeName); ?>">
                                     <option value="">Select Grade</option>
+                                    <?php if ($itemGradeId > 0): ?>
+                                        <option value="<?php echo $itemGradeId; ?>" selected>
+                                            <?php echo htmlspecialchars($itemGradeName !== '' ? $itemGradeName : ('Grade #' . $itemGradeId)); ?>
+                                        </option>
+                                    <?php endif; ?>
                                 </select>
                                 <input type="hidden" class="row-grade-id" value="<?php echo $itemGradeId; ?>">
                             </td>
@@ -222,6 +243,16 @@ $otJson = json_encode(contractorOtRepairOps());
     window.OPS_REPAIR = <?php echo $repairJson; ?>;
     window.OPS_OT_REPAIR = <?php echo $otJson; ?>;
     window.OPS_GRADE_OPS = <?php echo json_encode(array_values(contractorShowGradeOps())); ?>;
+    window.OPS_KEEP_PRODUCT_IDS = <?php
+        $keepPids = [];
+        foreach ($items as $itRow) {
+            $pid = (int) ($itRow['product_id'] ?? 0);
+            if ($pid > 0) {
+                $keepPids[] = $pid;
+            }
+        }
+        echo json_encode(array_values(array_unique($keepPids)));
+    ?>;
 </script>
 <?php
 $extraJs = [
