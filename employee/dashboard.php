@@ -355,7 +355,7 @@ $connPeople = getDBConnection();
 $todayMd = date('m-d');
 $todayYmd = date('Y-m-d');
 
-// Upcoming work anniversaries (next 60 days, excl. year 0 joiners today as anniversary)
+// Work anniversaries from Join Date — show from 30 days before completing next year
 $stAnn = $connPeople->query(
     "SELECT e.id, e.employee_code, e.employee_name, e.date_of_joining, e.designation, e.photo_file,
             d.department_name,
@@ -366,34 +366,60 @@ $stAnn = $connPeople->query(
        AND e.date_of_joining IS NOT NULL
        AND e.date_of_joining != ''
        AND e.date_of_joining != '0000-00-00'
-       AND YEAR(e.date_of_joining) < YEAR(CURDATE())
+       AND e.date_of_joining <= DATE_SUB(CURDATE(), INTERVAL 335 DAY)
      ORDER BY e.employee_name ASC
-     LIMIT 400"
+     LIMIT 500"
 );
 $annCandidates = [];
 $cutoff = new DateTime('today');
-$annLimitDt = (clone $cutoff)->modify('+60 days');
+$annLimitDt = (clone $cutoff)->modify('+30 days');
 if ($stAnn) {
     while ($row = $stAnn->fetch_assoc()) {
+        $doj = substr((string) ($row['date_of_joining'] ?? ''), 0, 10);
+        if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $doj)) {
+            continue;
+        }
+        $joinDt = DateTime::createFromFormat('Y-m-d', $doj);
+        if (!$joinDt) {
+            continue;
+        }
         $md = (string) ($row['md'] ?? '');
-        if (!preg_match('/^\d{2}-\d{2}$/', $md)) {
+        // Leap-day joiners: use Feb 28 in non-leap years
+        if ($md === '02-29') {
+            $yCheck = (int) $cutoff->format('Y');
+            $mdUse = checkdate(2, 29, $yCheck) ? '02-29' : '02-28';
+        } else {
+            $mdUse = $md;
+        }
+        if (!preg_match('/^\d{2}-\d{2}$/', $mdUse)) {
             continue;
         }
         $y = (int) $cutoff->format('Y');
-        $candidate = DateTime::createFromFormat('Y-m-d', $y . '-' . $md);
+        $candidate = DateTime::createFromFormat('Y-m-d', $y . '-' . $mdUse);
         if (!$candidate) {
             continue;
         }
+        $candidate->setTime(0, 0, 0);
         if ($candidate < $cutoff) {
             $candidate->modify('+1 year');
+            if ($md === '02-29') {
+                $y2 = (int) $candidate->format('Y');
+                $md2 = checkdate(2, 29, $y2) ? '02-29' : '02-28';
+                $candidate = DateTime::createFromFormat('Y-m-d', $y2 . '-' . $md2) ?: $candidate;
+                $candidate->setTime(0, 0, 0);
+            }
         }
         if ($candidate > $annLimitDt) {
             continue;
         }
-        $joinY = (int) date('Y', strtotime((string) $row['date_of_joining']));
+        $years = (int) $candidate->format('Y') - (int) $joinDt->format('Y');
+        // Only show when completing at least 1 year
+        if ($years < 1) {
+            continue;
+        }
         $row['next_on'] = $candidate->format('Y-m-d');
         $row['in_days'] = (int) $cutoff->diff($candidate)->days;
-        $row['years'] = max(1, (int) $candidate->format('Y') - $joinY);
+        $row['years'] = $years;
         $annCandidates[] = $row;
     }
 }
@@ -528,7 +554,7 @@ $denied = isset($_GET['msg']) && $_GET['msg'] === 'denied';
                         <?php endif; ?>
                     </div>
                     <div>
-                        <h1><?php echo htmlspecialchars($greetLine); ?></h1>
+                        <h1 class="emp-dash-greet"><?php echo htmlspecialchars($greetLine); ?></h1>
                         <p>
                             Employee Portal
                             <?php if ($deptName !== ''): ?>
@@ -768,7 +794,7 @@ $denied = isset($_GET['msg']) && $_GET['msg'] === 'denied';
             <div class="emp-dash-panel-head">
                 <div>
                     <h3><i class="fa-solid fa-award" style="color:#B45309;"></i> Work Anniversaries</h3>
-                    <p>Next 60 days</p>
+                    <p>Join date · Next 30 days (1+ year)</p>
                 </div>
                 <?php if ($workAnniversariesTotal > $panelLimit && $expand !== 'anniv'): ?>
                     <a class="btn-ghost emp-dash-more" href="<?php echo app_url('employee/dashboard.php?expand=anniv#panel-anniv'); ?>">More</a>
