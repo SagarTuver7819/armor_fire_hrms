@@ -75,15 +75,15 @@ foreach ($groups as $g) {
     <meta charset="UTF-8">
     <title>Salary Register — Print · <?php echo htmlspecialchars($deptLabel); ?> · <?php echo htmlspecialchars($monthLabel); ?></title>
     <style>
-        @page { size: A4 landscape; margin: 6mm; }
-        body { font-family: Arial, Helvetica, sans-serif; color: #111; margin: 18px; background: #fff; }
-        h1 { margin: 0 0 4px; font-size: 18px; text-align: center; }
+        @page { size: A4 landscape; margin: 5mm; }
+        body { font-family: Arial, Helvetica, sans-serif; color: #111; margin: 14px; background: #fff; }
+        h1 { margin: 0 0 4px; font-size: 16px; text-align: center; font-weight: 700; }
         .period-head {
             text-align: center;
-            font-size: 14px;
+            font-size: 13px;
             font-weight: 700;
-            margin: 6px 0 10px;
-            padding: 8px 12px;
+            margin: 6px 0 8px;
+            padding: 6px 10px;
             background: #fff4e8;
             border: 1px solid #f5c89a;
             border-radius: 6px;
@@ -91,17 +91,17 @@ foreach ($groups as $g) {
         }
         .sub-head {
             text-align: center;
-            font-size: 12px;
+            font-size: 11px;
             font-weight: 600;
-            margin: 0 0 14px;
+            margin: 0 0 10px;
             color: #334155;
         }
-        .sheet { margin-bottom: 18px; }
+        .sheet { margin-bottom: 14px; overflow-x: auto; }
         .sheet-banner {
             background: #94a3b8;
             color: #0f172a;
-            padding: 6px 10px;
-            font-size: 11px;
+            padding: 5px 8px;
+            font-size: 10px;
             font-weight: 700;
             display: flex;
             justify-content: space-between;
@@ -110,21 +110,52 @@ foreach ($groups as $g) {
             border-bottom: 0;
         }
         .sheet-banner span { font-weight: 600; }
-        table { width: 100%; border-collapse: collapse; font-size: 8px; table-layout: fixed; }
-        th, td { border: 1px solid #94a3b8; padding: 3px 2px; text-align: left; word-wrap: break-word; vertical-align: middle; }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 7.5px;
+            table-layout: auto;
+        }
+        th, td {
+            border: 1px solid #94a3b8;
+            padding: 4px 5px;
+            text-align: center;
+            vertical-align: middle;
+            font-weight: 600;
+            white-space: nowrap;
+            word-break: keep-all;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
         th { background: #e2e8f0; font-weight: 700; color: #0f172a; }
-        td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+        td.num, th.num { text-align: center; font-variant-numeric: tabular-nums; }
+        td.emp-cell {
+            text-align: center;
+            white-space: nowrap;
+            max-width: 140px;
+        }
+        td.dept-cell { max-width: 110px; }
+        td.remarks-cell { max-width: 90px; }
         .sr-earn { background: #86efac !important; }
         .sr-gross { background: #bbf7d0 !important; }
         .sr-ded { background: #fde047 !important; }
         .sr-net { background: #facc15 !important; }
-        .sr-code { font-size: 7px; color: #64748b; font-weight: 600; }
-        tfoot td { font-weight: bold; background: #f8fafc; }
+        .sr-code {
+            display: inline;
+            font-size: 7px;
+            color: #64748b;
+            font-weight: 600;
+            margin-left: 4px;
+        }
+        .sr-code::before { content: "("; }
+        .sr-code::after { content: ")"; }
+        tfoot td { font-weight: 700; background: #f8fafc; text-align: center; white-space: nowrap; }
         .meta {
             color: #555;
-            margin: 12px 0 0;
-            font-size: 11px;
+            margin: 10px 0 0;
+            font-size: 10px;
             text-align: right;
+            font-weight: 600;
         }
         .toolbar { margin-bottom: 12px; text-align: left; }
         .toolbar button, .toolbar a {
@@ -141,8 +172,9 @@ foreach ($groups as $g) {
                 -webkit-print-color-adjust: exact !important;
                 print-color-adjust: exact !important;
             }
-            table { font-size: 7px !important; }
-            .sheet { page-break-inside: avoid; }
+            table { font-size: 6.5px !important; }
+            th, td { padding: 3px 4px !important; white-space: nowrap !important; }
+            .sheet { page-break-inside: avoid; overflow: visible; }
         }
     </style>
 </head>
@@ -173,7 +205,7 @@ foreach ($groups as $g) {
             $sumGross += (float) $r['gross'];
             $sumNet += (float) $r['net'];
         }
-        $colSpanLead = $isActual ? 7 : 12;
+        $colSpanLead = $isActual ? 7 : 13;
         ?>
         <div class="sheet">
             <div class="sheet-banner">
@@ -232,18 +264,39 @@ foreach ($groups as $g) {
                     <tr><td colspan="25">No employees for this register.</td></tr>
                 <?php endif; ?>
                 <?php foreach ($rows as $r): ?>
+                    <?php
+                    $deptShow = trim((string) ($r['department'] ?: '-'));
+                    $remarksShow = trim((string) ($r['remarks'] ?: '-'));
+                    if (function_exists('mb_strlen')) {
+                        if (mb_strlen($deptShow) > 28) {
+                            $deptShow = mb_substr($deptShow, 0, 26) . '…';
+                        }
+                        if (mb_strlen($remarksShow) > 24) {
+                            $remarksShow = mb_substr($remarksShow, 0, 22) . '…';
+                        }
+                    } else {
+                        if (strlen($deptShow) > 28) {
+                            $deptShow = substr($deptShow, 0, 26) . '...';
+                        }
+                        if (strlen($remarksShow) > 24) {
+                            $remarksShow = substr($remarksShow, 0, 22) . '...';
+                        }
+                    }
+                    $empLabel = trim((string) ($r['employee_name'] ?? ''));
+                    $empCode = trim((string) ($r['employee_code'] ?? ''));
+                    if ($empCode !== '') {
+                        $empLabel .= ' (' . $empCode . ')';
+                    }
+                    if (!empty($r['main_contractor'])) {
+                        $empLabel .= ' · ' . $r['main_contractor'];
+                    }
+                    ?>
                     <tr>
-                        <td><?php echo htmlspecialchars($r['department'] ?: '-'); ?></td>
+                        <td class="dept-cell" title="<?php echo htmlspecialchars($r['department'] ?: '-'); ?>"><?php echo htmlspecialchars($deptShow); ?></td>
                         <td><?php echo htmlspecialchars($r['designation']); ?></td>
                         <td><?php echo htmlspecialchars($r['doj']); ?></td>
                         <td><?php echo htmlspecialchars($r['uan'] ?: '-'); ?></td>
-                        <td>
-                            <strong><?php echo htmlspecialchars($r['employee_name']); ?></strong>
-                            <div class="sr-code"><?php echo htmlspecialchars($r['employee_code']); ?></div>
-                            <?php if (!empty($r['main_contractor'])): ?>
-                                <div class="sr-code">Under: <?php echo htmlspecialchars($r['main_contractor']); ?></div>
-                            <?php endif; ?>
-                        </td>
+                        <td class="emp-cell" title="<?php echo htmlspecialchars($empLabel); ?>"><?php echo htmlspecialchars($empLabel); ?></td>
                         <?php if ($isActual): ?>
                             <td class="num"><?php echo registerNum($r['qty'], 2); ?></td>
                             <td class="num"><?php echo registerNum($r['actual']); ?></td>
@@ -268,7 +321,7 @@ foreach ($groups as $g) {
                         <td class="num"><strong><?php echo registerNum($r['net']); ?></strong></td>
                         <td><?php echo htmlspecialchars($r['account'] ?: '-'); ?></td>
                         <td><?php echo htmlspecialchars($r['ifsc'] ?: '-'); ?></td>
-                        <td><?php echo htmlspecialchars($r['remarks'] ?: '-'); ?></td>
+                        <td class="remarks-cell" title="<?php echo htmlspecialchars($r['remarks'] ?: '-'); ?>"><?php echo htmlspecialchars($remarksShow); ?></td>
                     </tr>
                 <?php endforeach; ?>
                 </tbody>

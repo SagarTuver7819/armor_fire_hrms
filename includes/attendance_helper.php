@@ -1773,14 +1773,16 @@ function attendanceFormatLeaveTotal($n)
 }
 
 /**
- * Render Excel-format month table HTML (screen or export).
+ * Render Excel-format month table HTML (screen, print, or export).
  * @param array $grid from getAttendanceExcelMonthGrid
- * @param array $opts export=bool, tableClass=string, editable=bool
+ * @param array $opts export=bool, print=bool, tableClass=string, editable=bool
  */
 function attendanceRenderExcelMonthTableHtml(array $grid, array $opts = [])
 {
     $export = !empty($opts['export']);
-    $tableClass = $opts['tableClass'] ?? ($export ? '' : 'data-table excel-att-table');
+    $print = !empty($opts['print']);
+    $formal = $export || $print;
+    $tableClass = $opts['tableClass'] ?? ($formal ? 'att-report-table' : 'data-table excel-att-table');
     $monthDays = (int) ($grid['month_days'] ?? 0);
     $month = (int) ($grid['month'] ?? date('n'));
     $year = (int) ($grid['year'] ?? date('Y'));
@@ -1793,16 +1795,28 @@ function attendanceRenderExcelMonthTableHtml(array $grid, array $opts = [])
         $dayNames[$d] = date('D', mktime(0, 0, 0, $month, $d, $year));
     }
 
-    $border = $export ? ' border="1"' : '';
+    $border = $formal ? ' border="1"' : '';
     $html = '<table class="' . htmlspecialchars($tableClass) . '"' . $border . ' style="width:100%;border-collapse:collapse;">';
     $html .= '<thead>';
     $html .= '<tr>';
-    $html .= '<th>Employee Code</th><th>Employee Name</th><th>Designation</th><th>Department</th><th>Date of Joining</th>';
+
+    $metaTh = $formal
+        ? 'text-align:center;font-weight:700;background:#1e3a5f;color:#fff;vertical-align:middle;padding:6px 4px;'
+        : 'text-align:center;font-weight:700;';
+    $html .= '<th style="' . $metaTh . '">Employee Code</th>';
+    $html .= '<th style="' . $metaTh . '">Employee Name</th>';
+    $html .= '<th style="' . $metaTh . '">Designation</th>';
+    $html .= '<th style="' . $metaTh . '">Department</th>';
+    $html .= '<th style="' . $metaTh . '">Date of Joining</th>';
     for ($d = 1; $d <= $monthDays; $d++) {
-        $thStyle = $export ? 'text-align:center;font-weight:700;background:#1e3a5f;color:#fff;' : 'text-align:center;';
-        $html .= '<th style="' . $thStyle . '">' . $d . '<br><span style="font-weight:500;font-size:10px;opacity:0.9;">' . htmlspecialchars($dayNames[$d]) . '</span></th>';
+        $thStyle = $formal
+            ? 'text-align:center;font-weight:700;background:#1e3a5f;color:#fff;vertical-align:middle;padding:4px 2px;'
+            : 'text-align:center;font-weight:700;';
+        $html .= '<th style="' . $thStyle . '">' . $d . '<br><span style="font-weight:600;font-size:9px;opacity:0.95;">' . htmlspecialchars($dayNames[$d]) . '</span></th>';
     }
-    $sumStyle = $export ? 'text-align:center;font-weight:700;background:#f58220;color:#fff;' : 'text-align:center;';
+    $sumStyle = $formal
+        ? 'text-align:center;font-weight:700;background:#f58220;color:#fff;vertical-align:middle;padding:4px 2px;'
+        : 'text-align:center;font-weight:700;';
     $html .= '<th style="' . $sumStyle . '">Present Days</th>';
     $html .= '<th style="' . $sumStyle . '">Week Off</th>';
     $html .= '<th style="' . $sumStyle . '">PL</th>';
@@ -1817,17 +1831,25 @@ function attendanceRenderExcelMonthTableHtml(array $grid, array $opts = [])
 
     if (!$employees) {
         $cols = 5 + $monthDays + 10;
-        $html .= '<tr><td colspan="' . $cols . '">No employees found.</td></tr>';
+        $emptyStyle = $formal ? ' style="text-align:center;font-weight:600;padding:10px;"' : '';
+        $html .= '<tr><td colspan="' . $cols . '"' . $emptyStyle . '>No employees found.</td></tr>';
     }
+
+    $metaTd = $formal
+        ? 'text-align:center;font-weight:600;vertical-align:middle;padding:5px 4px;font-size:11px;'
+        : 'text-align:center;font-weight:600;';
+    $totTd = $formal
+        ? 'text-align:center;font-weight:700;vertical-align:middle;padding:5px 3px;background:#fff7ed;font-size:11px;'
+        : 'text-align:center;font-weight:700;';
 
     foreach ($employees as $emp) {
         $eid = (int) $emp['id'];
         $totals = $leaveTotals[$eid] ?? attendanceEmptyLeaveTotals();
         $html .= '<tr>';
-        $html .= '<td>' . htmlspecialchars((string) ($emp['employee_code'] ?? '')) . '</td>';
-        $html .= '<td>' . htmlspecialchars((string) ($emp['employee_name'] ?? '')) . '</td>';
-        $html .= '<td>' . htmlspecialchars((string) ($emp['designation'] ?? '')) . '</td>';
-        $html .= '<td>' . htmlspecialchars((string) ($emp['department_name'] ?? '')) . '</td>';
+        $html .= '<td style="' . $metaTd . '">' . htmlspecialchars((string) ($emp['employee_code'] ?? '')) . '</td>';
+        $html .= '<td style="' . $metaTd . '">' . htmlspecialchars((string) ($emp['employee_name'] ?? '')) . '</td>';
+        $html .= '<td style="' . $metaTd . '">' . htmlspecialchars((string) ($emp['designation'] ?? '')) . '</td>';
+        $html .= '<td style="' . $metaTd . '">' . htmlspecialchars((string) ($emp['department_name'] ?? '')) . '</td>';
         $doj = '';
         if (function_exists('formatDateDisplay')) {
             $doj = formatDateDisplay($emp['date_of_joining'] ?? '');
@@ -1835,24 +1857,28 @@ function attendanceRenderExcelMonthTableHtml(array $grid, array $opts = [])
             $ts = strtotime((string) $emp['date_of_joining']);
             $doj = $ts ? date('d-m-Y', $ts) : '';
         }
-        $html .= '<td>' . htmlspecialchars($doj) . '</td>';
+        $html .= '<td style="' . $metaTd . '">' . htmlspecialchars($doj) . '</td>';
 
         for ($d = 1; $d <= $monthDays; $d++) {
             $date = sprintf('%04d-%02d-%02d', $year, $month, $d);
             $day = $dayMap[$eid][$date] ?? null;
-            $html .= attendanceRenderDayCellTd($day, $export);
+            $html .= attendanceRenderDayCellTd($day, $formal);
         }
 
-        $html .= '<td style="text-align:center;">' . htmlspecialchars(attendanceFormatLeaveTotal($totals['present'] ?? 0) !== '' ? attendanceFormatLeaveTotal($totals['present'] ?? 0) : '0') . '</td>';
-        $html .= '<td style="text-align:center;">' . htmlspecialchars(attendanceFormatLeaveTotal($totals['week_off'] ?? 0)) . '</td>';
-        $html .= '<td style="text-align:center;">' . htmlspecialchars(attendanceFormatLeaveTotal($totals['PL'] ?? 0)) . '</td>';
-        $html .= '<td style="text-align:center;">' . htmlspecialchars(attendanceFormatLeaveTotal($totals['SL'] ?? 0)) . '</td>';
-        $html .= '<td style="text-align:center;">' . htmlspecialchars(attendanceFormatLeaveTotal($totals['DL'] ?? 0)) . '</td>';
-        $html .= '<td style="text-align:center;">' . htmlspecialchars(attendanceFormatLeaveTotal($totals['C-Off'] ?? 0)) . '</td>';
-        $html .= '<td style="text-align:center;">' . htmlspecialchars(attendanceFormatLeaveTotal($totals['holiday'] ?? 0)) . '</td>';
-        $html .= '<td style="text-align:center;">' . htmlspecialchars(attendanceFormatLeaveTotal($totals['LWP'] ?? 0)) . '</td>';
-        $html .= '<td style="text-align:center;">' . htmlspecialchars(attendanceFormatLeaveTotal($totals['total_days'] ?? 0) !== '' ? attendanceFormatLeaveTotal($totals['total_days'] ?? 0) : '0') . '</td>';
-        $html .= '<td style="text-align:center;">' . htmlspecialchars(attendanceFormatLeaveTotal($totals['total_pay_days'] ?? 0) !== '' ? attendanceFormatLeaveTotal($totals['total_pay_days'] ?? 0) : '0') . '</td>';
+        $fmt = static function ($v) {
+            $t = attendanceFormatLeaveTotal($v);
+            return $t !== '' ? $t : '0';
+        };
+        $html .= '<td style="' . $totTd . '">' . htmlspecialchars($fmt($totals['present'] ?? 0)) . '</td>';
+        $html .= '<td style="' . $totTd . '">' . htmlspecialchars($fmt($totals['week_off'] ?? 0)) . '</td>';
+        $html .= '<td style="' . $totTd . '">' . htmlspecialchars($fmt($totals['PL'] ?? 0)) . '</td>';
+        $html .= '<td style="' . $totTd . '">' . htmlspecialchars($fmt($totals['SL'] ?? 0)) . '</td>';
+        $html .= '<td style="' . $totTd . '">' . htmlspecialchars($fmt($totals['DL'] ?? 0)) . '</td>';
+        $html .= '<td style="' . $totTd . '">' . htmlspecialchars($fmt($totals['C-Off'] ?? 0)) . '</td>';
+        $html .= '<td style="' . $totTd . '">' . htmlspecialchars($fmt($totals['holiday'] ?? 0)) . '</td>';
+        $html .= '<td style="' . $totTd . '">' . htmlspecialchars($fmt($totals['LWP'] ?? 0)) . '</td>';
+        $html .= '<td style="' . $totTd . '">' . htmlspecialchars($fmt($totals['total_days'] ?? 0)) . '</td>';
+        $html .= '<td style="' . $totTd . '">' . htmlspecialchars($fmt($totals['total_pay_days'] ?? 0)) . '</td>';
         $html .= '</tr>';
     }
 
@@ -1861,7 +1887,7 @@ function attendanceRenderExcelMonthTableHtml(array $grid, array $opts = [])
 }
 
 /**
- * One day cell for report / export — bold status labels, FHL/SHL + punch line
+ * One day cell for report / export / print — center + bold status labels
  */
 function attendanceRenderDayCellTd($day, $export = false)
 {
@@ -1934,7 +1960,7 @@ function attendanceRenderDayCellTd($day, $export = false)
     }
 
     if ($export) {
-        $style = 'text-align:center;font-size:11px;vertical-align:middle;padding:6px 4px;';
+        $style = 'text-align:center;font-weight:600;font-size:10px;vertical-align:middle;padding:5px 2px;';
         if ($bg !== '') {
             $style .= 'background:' . $bg . ';color:' . $fg . ';';
         }
@@ -1946,9 +1972,9 @@ function attendanceRenderDayCellTd($day, $export = false)
             }
             $safe = htmlspecialchars($line);
             if ($i === 0) {
-                $exportInner .= '<div style="font-weight:700;line-height:1.25;">' . $safe . '</div>';
+                $exportInner .= '<div style="font-weight:700;line-height:1.2;text-align:center;">' . $safe . '</div>';
             } else {
-                $exportInner .= '<div style="font-weight:600;font-size:10px;opacity:0.9;margin-top:2px;">' . $safe . '</div>';
+                $exportInner .= '<div style="font-weight:600;font-size:9px;opacity:0.95;margin-top:2px;text-align:center;">' . $safe . '</div>';
             }
         }
         return '<td style="' . $style . '">' . $exportInner . '</td>';
