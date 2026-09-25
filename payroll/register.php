@@ -247,13 +247,13 @@ require_once __DIR__ . '/../includes/header.php';
         </form>
 
         <?php if ($type === 'jobwork_govt'): ?>
-            <p class="form-hint">Jobwork <strong>Government</strong>: Actual (Ops Qty × Rate) ÷ <?php echo $monthDays; ?> month days × paid days from <strong>Attendance</strong> (Present + Week Off + P.L. + S.L. + D.L.). Enter Manual Attendance first, then open this register / Generate Salary.</p>
+            <p class="form-hint">Jobwork <strong>Government</strong>: Actual (Ops Qty × Rate) ÷ <?php echo $monthDays; ?> month days × paid days from <strong>Attendance Report</strong> (Present + Week Off + Holiday + P.L. + S.L. + D.L.). Enter Manual Attendance first, then open this register / Generate Salary.</p>
         <?php elseif ($type === 'jobwork_actual'): ?>
             <p class="form-hint">Jobwork <strong>Regular / Actual</strong>: full production amount (Qty × Rate) from Operations Rate List. No attendance day split — contract base earning.</p>
         <?php elseif ($type === 'contractor_main'): ?>
             <p class="form-hint">Contractor Main: under employees, government-style day split using each member’s attendance. Link Jobwork employees to a Contractor Main on the employee form.</p>
         <?php else: ?>
-            <p class="form-hint">Normal <strong>Fixed Salary</strong>: Gross = Decided Salary × (Present + Week Off + P.L. + S.L. + D.L.) ÷ month days — from Manual Attendance / Import.</p>
+            <p class="form-hint">Normal <strong>Fixed Salary</strong>: Gross = Decided Salary × (Present + Week Off + Holiday + P.L. + S.L. + D.L.) ÷ month days — same totals as <strong>Attendance Report</strong> (employee week-off day for this month).</p>
         <?php endif; ?>
     </div>
 
@@ -282,7 +282,7 @@ require_once __DIR__ . '/../includes/header.php';
                             <?php if ($isActual): ?>
                                 <th colspan="3" class="sr-earn">Earning</th>
                             <?php else: ?>
-                                <th colspan="6" class="sr-earn">Earning</th>
+                                <th colspan="7" class="sr-earn">Earning</th>
                                 <th colspan="2" class="sr-gross">Gross</th>
                             <?php endif; ?>
                             <th colspan="4" class="sr-ded">Deduction</th>
@@ -303,6 +303,7 @@ require_once __DIR__ . '/../includes/header.php';
                                 <th>Salary</th>
                                 <th>P.Days</th>
                                 <th>W.Off</th>
+                                <th>Holiday</th>
                                 <th>P.L.</th>
                                 <th>S.L.</th>
                                 <th>D.L.</th>
@@ -323,7 +324,7 @@ require_once __DIR__ . '/../includes/header.php';
                     </thead>
                     <tbody>
                     <?php if (!$rows): ?>
-                        <tr><td colspan="24" class="empty-cell">No employees for this register.</td></tr>
+                        <tr><td colspan="25" class="empty-cell">No employees for this register.</td></tr>
                     <?php endif; ?>
                     <?php foreach ($rows as $r): ?>
                         <tr>
@@ -346,6 +347,7 @@ require_once __DIR__ . '/../includes/header.php';
                                 <td class="num"><?php echo registerNum($r['salary']); ?></td>
                                 <td class="num"><?php echo registerNum($r['present'], 1); ?></td>
                                 <td class="num"><?php echo registerNum($r['week_off'], 1); ?></td>
+                                <td class="num"><?php echo registerNum($r['holiday'] ?? 0, 1); ?></td>
                                 <td class="num"><?php echo registerNum($r['pl'], 1); ?></td>
                                 <td class="num"><?php echo registerNum($r['sl'], 1); ?></td>
                                 <td class="num"><?php echo registerNum($r['dl'], 1); ?></td>
@@ -368,7 +370,7 @@ require_once __DIR__ . '/../includes/header.php';
                     <?php if ($rows): ?>
                     <tfoot>
                         <tr>
-                            <td colspan="<?php echo $isActual ? 7 : 12; ?>"><strong>Total</strong></td>
+                            <td colspan="<?php echo $isActual ? 7 : 13; ?>"><strong>Total</strong></td>
                             <td class="num"><strong><?php echo registerNum($sumGross); ?></strong></td>
                             <td colspan="4"></td>
                             <td></td>

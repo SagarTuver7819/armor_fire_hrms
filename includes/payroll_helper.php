@@ -725,6 +725,100 @@ function statutoryPt($gross)
 }
 
 /**
+ * Same Present / Week Off / Holiday / PL / SL / DL / LWP / Total Pay Days as Attendance Report.
+ * Uses employee.week_off_day for the running month + holiday master + day marks.
+ *
+ * @return array{present:float,week_off:float,holiday:float,pl:float,sl:float,dl:float,coff:float,lwp:float,total_pay_days:float}|null
+ */
+function payrollAttendanceAlignedTotals(array $emp, $month, $year, $conn = null)
+{
+    $employeeId = (int) ($emp['id'] ?? 0);
+    $month = (int) $month;
+    $year = (int) $year;
+    if ($employeeId <= 0 || $month < 1 || $month > 12) {
+        return null;
+    }
+
+    $closeAfter = false;
+    if ($conn === null) {
+        $conn = getDBConnection();
+        $closeAfter = true;
+    }
+
+    if (!function_exists('ensureAttendanceTables')) {
+        if (is_file(__DIR__ . '/attendance_helper.php')) {
+            require_once __DIR__ . '/attendance_helper.php';
+        }
+    }
+    if (!function_exists('attendanceBuildEmployeeMonthTotals')) {
+        if ($closeAfter) {
+            $conn->close();
+        }
+        return null;
+    }
+
+    ensureAttendanceTables($conn);
+    $from = sprintf('%04d-%02d-01', $year, $month);
+    $to = date('Y-m-t', strtotime($from));
+
+    $st = $conn->prepare(
+        "SELECT attendance_date, day_status, remarks, working_minutes, punch_in, punch_out, source
+         FROM attendance_day_status
+         WHERE employee_id = ? AND attendance_date BETWEEN ? AND ?"
+    );
+    $st->bind_param('iss', $employeeId, $from, $to);
+    $st->execute();
+    $res = $st->get_result();
+    $dayMap = [];
+    $hasAny = false;
+    while ($r = $res->fetch_assoc()) {
+        $date = substr((string) ($r['attendance_date'] ?? ''), 0, 10);
+        if ($date === '') {
+            continue;
+        }
+        $dayMap[$date] = $r;
+        $hasAny = true;
+    }
+    $st->close();
+
+    // Even with no day rows yet, still compute virtual WO/Holiday from employee week_off + master
+    $empRow = [
+        'id' => $employeeId,
+        'week_off_day' => trim((string) ($emp['week_off_day'] ?? 'Sunday')) ?: 'Sunday',
+        'date_of_joining' => $emp['date_of_joining'] ?? null,
+        'date_of_exit' => $emp['date_of_exit'] ?? null,
+        'department_id' => (int) ($emp['department_id'] ?? 0),
+    ];
+    $holidaySet = attendanceHolidaySet($conn, $year, $month, (int) $empRow['department_id']);
+    $totals = attendanceBuildEmployeeMonthTotals($empRow, $dayMap, $month, $year, $holidaySet);
+
+    if ($closeAfter) {
+        $conn->close();
+    }
+
+    // No attendance activity and no WO/Holiday either → null (caller may fall back)
+    $pay = (float) ($totals['total_pay_days'] ?? 0);
+    $lwp = (float) ($totals['LWP'] ?? 0);
+    if (!$hasAny && $pay <= 0 && $lwp <= 0) {
+        return null;
+    }
+
+    return [
+        'present' => (float) ($totals['present'] ?? 0),
+        'week_off' => (float) ($totals['week_off'] ?? 0),
+        'holiday' => (float) ($totals['holiday'] ?? 0),
+        'pl' => (float) ($totals['PL'] ?? 0),
+        'sl' => (float) ($totals['SL'] ?? 0),
+        'dl' => (float) ($totals['DL'] ?? 0),
+        'coff' => (float) ($totals['C-Off'] ?? 0),
+        'lwp' => $lwp,
+        'total_pay_days' => $pay,
+        'from_attendance' => true,
+        'has_day_rows' => $hasAny,
+    ];
+}
+
+/**
  * Count Holiday Master dates in a month (optionally only Paid=Yes)
  */
 function payrollCountHolidaysInMonth($year, $month, $paidOnly = false, $fromDate = null, $toDate = null, $departmentId = 0)
@@ -803,6 +897,8 @@ function getPayrollAttendanceBundle(array $emp, $month, $year, $actualAmount)
             'pl' => 0.0,
             'sl' => 0.0,
             'dl' => 0.0,
+            'coff' => 0.0,
+            'lwp' => 0.0,
             'total_days' => 0.0,
             'loan' => $diary ? (float) ($diary['loan_amount'] ?? 0) : 0.0,
             'advance' => $diary ? (float) ($diary['advance_amount'] ?? 0) : 0.0,
@@ -815,6 +911,7 @@ function getPayrollAttendanceBundle(array $emp, $month, $year, $actualAmount)
             'working' => 0.0,
             'emp_from' => null,
             'emp_to' => null,
+            'source' => 'none',
         ];
     }
 
@@ -822,74 +919,132 @@ function getPayrollAttendanceBundle(array $emp, $month, $year, $actualAmount)
     $empTo = $range['to'];
     $eligibleDays = (float) $range['days'];
 
-    // Week offs / holidays only from joining date through exit date inside this month
-    $autoWeekOff = (float) countWeekOffDaysInMonth(
-        $month,
-        $year,
-        $emp['week_off_day'] ?? 'Sunday',
-        $empFrom,
-        $empTo
-    );
-    $autoHoliday = (float) payrollCountHolidaysInMonth($year, $month, false, $empFrom, $empTo, (int) ($emp['department_id'] ?? 0));
-    $autoPaidHoliday = (float) payrollCountHolidaysInMonth($year, $month, true, $empFrom, $empTo, (int) ($emp['department_id'] ?? 0));
-
-    $workedJw = (float) getJobworkWorkedDays($employeeId, $month, $year);
-    $fullPresent = max(0, $eligibleDays - $autoWeekOff - $autoHoliday);
-
-    if ($payType === 'Salary') {
-        $autoPresent = $fullPresent;
-    } else {
-        $autoPresent = $workedJw > 0 ? min((float) $workedJw, $fullPresent) : $fullPresent;
-    }
-
-    $hasDiary = is_array($diary) && !empty($diary);
-    $weekOffRaw = $autoWeekOff;
-    $holidayRaw = $autoHoliday;
-    if ($hasDiary) {
-        $diaryHoliday = (float) ($diary['holiday_days'] ?? 0);
-        if ($diaryHoliday > 0) {
-            $holidayRaw = min($diaryHoliday, $autoHoliday > 0 ? $autoHoliday : $diaryHoliday);
-        }
-    }
-
-    $present = $hasDiary ? (float) ($diary['present_days'] ?? 0) : $autoPresent;
-    if ($present > $fullPresent) {
-        $present = $fullPresent;
-    }
-    $pl = $hasDiary ? (float) ($diary['pl_days'] ?? 0) : 0;
-    $sl = $hasDiary ? (float) ($diary['sl_days'] ?? 0) : 0;
-    $dl = $hasDiary ? (float) ($diary['dl_days'] ?? 0) : 0;
-    $lwp = $hasDiary ? (float) ($diary['lwp_days'] ?? 0) : 0;
-
-    if ($present >= $eligibleDays && ($weekOffRaw + $holidayRaw) > 0) {
-        $present = max(0, $eligibleDays - $weekOffRaw - $holidayRaw - $pl - $sl - $dl - $lwp);
-    }
-
-    $weekOffPaid = (($emp['week_off_benefits'] ?? 'No') === 'Yes') ? $weekOffRaw : 0.0;
-    $holidayPaid = 0.0;
-    if (($emp['holiday_benefits'] ?? 'No') === 'Yes') {
-        if ($hasDiary && $holidayRaw > 0 && $autoHoliday > 0) {
-            $holidayPaid = round($holidayRaw * ($autoPaidHoliday / max(1.0, $autoHoliday)), 2);
-            $holidayPaid = min($holidayPaid, $autoPaidHoliday);
-        } else {
-            $holidayPaid = $autoPaidHoliday;
-        }
-    }
-
     $loan = $diary ? (float) ($diary['loan_amount'] ?? 0) : 0;
     $advance = $diary ? (float) ($diary['advance_amount'] ?? 0) : 0;
     $arrears = $diary ? (float) ($diary['arrears_amount'] ?? 0) : 0;
 
-    // LWP is unpaid — excluded from paid total days (salary reduced)
-    $totalDays = $present + $weekOffPaid + $holidayPaid + $pl + $sl + $dl;
-    if ($totalDays > $eligibleDays) {
-        $totalDays = $eligibleDays;
-    }
-    if ($totalDays > $monthDays) {
-        $totalDays = (float) $monthDays;
-    }
-    if ($totalDays < 0) {
-        $totalDays = 0;
+    // Prefer Attendance Report totals (employee.week_off_day + holiday master + day marks)
+    $aligned = payrollAttendanceAlignedTotals($emp, $month, $year);
+    if (is_array($aligned)) {
+        $present = (float) $aligned['present'];
+        $weekOffRaw = (float) $aligned['week_off'];
+        $holidayRaw = (float) $aligned['holiday'];
+        $pl = (float) $aligned['pl'];
+        $sl = (float) $aligned['sl'];
+        $dl = (float) $aligned['dl'];
+        $coff = (float) ($aligned['coff'] ?? 0);
+        $lwp = (float) $aligned['lwp'];
+        // Same paid-day rule as Attendance Report (WO + Holiday + C-Off included; LWP excluded)
+        $weekOffPaid = $weekOffRaw;
+        $holidayPaid = $holidayRaw;
+        $totalDays = (float) $aligned['total_pay_days'];
+        if ($totalDays > $eligibleDays) {
+            $totalDays = $eligibleDays;
+        }
+        if ($totalDays > $monthDays) {
+            $totalDays = (float) $monthDays;
+        }
+        if ($totalDays < 0) {
+            $totalDays = 0;
+        }
+    } else {
+        // Fallback: calendar WO/Holiday when no attendance activity yet
+        $autoWeekOff = (float) countWeekOffDaysInMonth(
+            $month,
+            $year,
+            $emp['week_off_day'] ?? 'Sunday',
+            $empFrom,
+            $empTo
+        );
+        $autoHoliday = (float) payrollCountHolidaysInMonth($year, $month, false, $empFrom, $empTo, (int) ($emp['department_id'] ?? 0));
+        $autoPaidHoliday = (float) payrollCountHolidaysInMonth($year, $month, true, $empFrom, $empTo, (int) ($emp['department_id'] ?? 0));
+        // Do not double-count week-off days that fall on a holiday
+        if ($autoHoliday > 0 && $autoWeekOff > 0) {
+            $woOverlap = 0.0;
+            $map = [
+                'Sunday' => 0, 'Monday' => 1, 'Tuesday' => 2, 'Wednesday' => 3,
+                'Thursday' => 4, 'Friday' => 5, 'Saturday' => 6,
+            ];
+            $want = $map[(string) ($emp['week_off_day'] ?? 'Sunday')] ?? 0;
+            $ts = strtotime($empFrom);
+            $endTs = strtotime($empTo);
+            static $holCache = [];
+            $hk = $year . '-' . $month . '-d' . (int) ($emp['department_id'] ?? 0);
+            if (!isset($holCache[$hk])) {
+                if (!function_exists('holidayDateMapForWindow')) {
+                    require_once __DIR__ . '/master_helper.php';
+                }
+                $c = getDBConnection();
+                $holCache[$hk] = holidayDateMapForWindow(
+                    $c,
+                    sprintf('%04d-%02d-01', $year, $month),
+                    date('Y-m-t', strtotime(sprintf('%04d-%02d-01', $year, $month))),
+                    (int) ($emp['department_id'] ?? 0)
+                );
+                $c->close();
+            }
+            while ($ts !== false && $ts <= $endTs) {
+                $d = date('Y-m-d', $ts);
+                if ((int) date('w', $ts) === $want && isset($holCache[$hk][$d])) {
+                    $woOverlap++;
+                }
+                $ts = strtotime('+1 day', $ts);
+            }
+            $autoWeekOff = max(0, $autoWeekOff - $woOverlap);
+        }
+
+        $workedJw = (float) getJobworkWorkedDays($employeeId, $month, $year);
+        $fullPresent = max(0, $eligibleDays - $autoWeekOff - $autoHoliday);
+        $autoPresent = ($payType === 'Salary')
+            ? $fullPresent
+            : ($workedJw > 0 ? min((float) $workedJw, $fullPresent) : $fullPresent);
+
+        $hasDiary = is_array($diary) && !empty($diary);
+        $weekOffRaw = $autoWeekOff;
+        $holidayRaw = $autoHoliday;
+        if ($hasDiary) {
+            $diaryHoliday = (float) ($diary['holiday_days'] ?? 0);
+            if ($diaryHoliday > 0) {
+                $holidayRaw = min($diaryHoliday, $autoHoliday > 0 ? $autoHoliday : $diaryHoliday);
+            }
+        }
+
+        $present = $hasDiary ? (float) ($diary['present_days'] ?? 0) : $autoPresent;
+        if ($present > $fullPresent) {
+            $present = $fullPresent;
+        }
+        $pl = $hasDiary ? (float) ($diary['pl_days'] ?? 0) : 0;
+        $sl = $hasDiary ? (float) ($diary['sl_days'] ?? 0) : 0;
+        $dl = $hasDiary ? (float) ($diary['dl_days'] ?? 0) : 0;
+        $coff = $hasDiary ? (float) ($diary['coff_days'] ?? 0) : 0;
+        $lwp = $hasDiary ? (float) ($diary['lwp_days'] ?? 0) : 0;
+
+        if ($present >= $eligibleDays && ($weekOffRaw + $holidayRaw) > 0) {
+            $present = max(0, $eligibleDays - $weekOffRaw - $holidayRaw - $pl - $sl - $dl - $coff - $lwp);
+        }
+
+        $weekOffPaid = (($emp['week_off_benefits'] ?? 'No') === 'Yes') ? $weekOffRaw : 0.0;
+        $holidayPaid = 0.0;
+        if (($emp['holiday_benefits'] ?? 'No') === 'Yes') {
+            if ($hasDiary && $holidayRaw > 0 && $autoHoliday > 0) {
+                $holidayPaid = round($holidayRaw * ($autoPaidHoliday / max(1.0, $autoHoliday)), 2);
+                $holidayPaid = min($holidayPaid, $autoPaidHoliday);
+            } else {
+                $holidayPaid = $autoPaidHoliday;
+            }
+        }
+
+        // LWP unpaid — excluded; C-Off paid like Attendance Report
+        $totalDays = $present + $weekOffPaid + $holidayPaid + $pl + $sl + $dl + $coff;
+        if ($totalDays > $eligibleDays) {
+            $totalDays = $eligibleDays;
+        }
+        if ($totalDays > $monthDays) {
+            $totalDays = (float) $monthDays;
+        }
+        if ($totalDays < 0) {
+            $totalDays = 0;
+        }
     }
 
     $salary = (float) ($emp['decided_salary'] ?? 0);
@@ -921,6 +1076,7 @@ function getPayrollAttendanceBundle(array $emp, $month, $year, $actualAmount)
         'pl' => $pl,
         'sl' => $sl,
         'dl' => $dl,
+        'coff' => $coff ?? 0.0,
         'lwp' => $lwp,
         'total_days' => $totalDays,
         'loan' => $loan,
@@ -934,6 +1090,7 @@ function getPayrollAttendanceBundle(array $emp, $month, $year, $actualAmount)
         'working' => $eligibleDays,
         'emp_from' => $empFrom,
         'emp_to' => $empTo,
+        'source' => is_array($aligned ?? null) ? 'attendance' : 'calendar',
     ];
 }
 

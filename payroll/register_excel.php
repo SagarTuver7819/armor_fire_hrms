@@ -35,10 +35,10 @@ header('Content-Type: application/vnd.ms-excel; charset=utf-8');
 header('Content-Disposition: attachment; filename="' . $filename . '"');
 header('Cache-Control: max-age=0');
 
-$earnSpan = $isActual ? 3 : 6;
+$earnSpan = $isActual ? 3 : 7;
 $headers = $isActual
     ? ['Department', 'Designation', 'D.O.J.', 'UAN Number', 'Employee Name', 'Qty', 'Actual Amount', 'Gross Salary']
-    : ['Department', 'Designation', 'D.O.J.', 'UAN Number', 'Employee Name', 'Salary', 'Present Days', 'Week Off', 'P.L.', 'S.L.', 'D.L.', 'Total Days', 'Gross Salary'];
+    : ['Department', 'Designation', 'D.O.J.', 'UAN Number', 'Employee Name', 'Salary', 'Present Days', 'Week Off', 'Holiday', 'P.L.', 'S.L.', 'D.L.', 'Total Days', 'Gross Salary'];
 $headers = array_merge($headers, [
     'Employee PF', 'P.T.', 'Loan', 'Advance', 'Total Deduction', 'Salary Arrears', 'Net Salary',
     'Account Number', 'IFSC Code', 'Remarks',
@@ -81,7 +81,7 @@ foreach ($groups as $g) {
             $cells[] = $r['gross'];
         } else {
             $cells = array_merge($cells, [
-                $r['salary'], $r['present'], $r['week_off'], $r['pl'], $r['sl'], $r['dl'], $r['total_days'], $r['gross'],
+                $r['salary'], $r['present'], $r['week_off'], $r['holiday'] ?? 0, $r['pl'], $r['sl'], $r['dl'], $r['total_days'], $r['gross'],
             ]);
         }
         $cells = array_merge($cells, [

@@ -184,12 +184,12 @@ foreach ($groups as $g) {
                 <thead>
                     <tr>
                         <th colspan="5"></th>
-                        <?php if ($isActual): ?>
-                            <th colspan="3" class="sr-earn">Earning</th>
-                        <?php else: ?>
-                            <th colspan="6" class="sr-earn">Earning</th>
-                            <th colspan="2" class="sr-gross">Gross</th>
-                        <?php endif; ?>
+                            <?php if ($isActual): ?>
+                                <th colspan="3" class="sr-earn">Earning</th>
+                            <?php else: ?>
+                                <th colspan="7" class="sr-earn">Earning</th>
+                                <th colspan="2" class="sr-gross">Gross</th>
+                            <?php endif; ?>
                         <th colspan="4" class="sr-ded">Deduction</th>
                         <th colspan="3" class="sr-net">NET</th>
                         <th colspan="3"></th>
@@ -208,6 +208,7 @@ foreach ($groups as $g) {
                             <th class="num">Salary</th>
                             <th class="num">P.Days</th>
                             <th class="num">W.Off</th>
+                            <th class="num">Holiday</th>
                             <th class="num">P.L.</th>
                             <th class="num">S.L.</th>
                             <th class="num">D.L.</th>
@@ -228,7 +229,7 @@ foreach ($groups as $g) {
                 </thead>
                 <tbody>
                 <?php if (!$rows): ?>
-                    <tr><td colspan="24">No employees for this register.</td></tr>
+                    <tr><td colspan="25">No employees for this register.</td></tr>
                 <?php endif; ?>
                 <?php foreach ($rows as $r): ?>
                     <tr>
@@ -251,6 +252,7 @@ foreach ($groups as $g) {
                             <td class="num"><?php echo registerNum($r['salary']); ?></td>
                             <td class="num"><?php echo registerNum($r['present'], 1); ?></td>
                             <td class="num"><?php echo registerNum($r['week_off'], 1); ?></td>
+                            <td class="num"><?php echo registerNum($r['holiday'] ?? 0, 1); ?></td>
                             <td class="num"><?php echo registerNum($r['pl'], 1); ?></td>
                             <td class="num"><?php echo registerNum($r['sl'], 1); ?></td>
                             <td class="num"><?php echo registerNum($r['dl'], 1); ?></td>
