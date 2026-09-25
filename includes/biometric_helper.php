@@ -1387,6 +1387,7 @@ function biometricFormatPunchTime($time)
 /**
  * Build machine-wise month grid (SEPARATE from attendance report data).
  * Source: machine_attendance_logs only.
+ * Shows linked employees AND unlinked machine codes (so data is visible without link).
  */
 function getMachineWiseMonthGrid($month, $year, $machineId = 0, $deptId = 0, $employeeId = 0, $conn = null)
 {
@@ -1408,7 +1409,7 @@ function getMachineWiseMonthGrid($month, $year, $machineId = 0, $deptId = 0, $em
     $from = sprintf('%04d-%02d-01', $year, $month);
     $to = sprintf('%04d-%02d-%02d', $year, $month, $monthDays);
 
-    $where = "l.attendance_date BETWEEN ? AND ? AND l.employee_id IS NOT NULL AND l.employee_id > 0";
+    $where = 'l.attendance_date BETWEEN ? AND ?';
     $types = 'ss';
     $params = [$from, $to];
     if ($machineId > 0) {
@@ -1427,50 +1428,74 @@ function getMachineWiseMonthGrid($month, $year, $machineId = 0, $deptId = 0, $em
         $params[] = $deptId;
     }
 
-    $sql = "SELECT DISTINCT e.id, e.employee_code, e.employee_name, e.designation, e.date_of_joining,
-                   e.department_id, d.department_name
+    // Pull all punches in range (left join employee for dept filter / names)
+    $sql = "SELECT l.employee_id, l.employee_code, l.employee_name, l.biometric_user_id,
+                   l.attendance_date, l.punch_time, l.punch_type, l.machine_id,
+                   e.employee_code AS local_code, e.employee_name AS local_name,
+                   e.designation, e.date_of_joining, e.department_id, d.department_name
             FROM machine_attendance_logs l
-            INNER JOIN employees e ON e.id = l.employee_id
+            LEFT JOIN employees e ON e.id = l.employee_id
             LEFT JOIN departments d ON d.id = e.department_id
             WHERE {$where}
-            ORDER BY d.department_name ASC, e.employee_code ASC, e.employee_name ASC";
+            ORDER BY COALESCE(e.employee_code, l.employee_code) ASC,
+                     l.attendance_date ASC, l.punch_time ASC, l.id ASC";
     $st = $conn->prepare($sql);
     $st->bind_param($types, ...$params);
     $st->execute();
-    $employees = $st->get_result()->fetch_all(MYSQLI_ASSOC);
-    $st->close();
+    $res = $st->get_result();
 
-    $punchMap = []; // empId => date => [punches...]
-    if ($employees) {
-        $ids = array_map(static function ($e) {
-            return (int) $e['id'];
-        }, $employees);
-        $idList = implode(',', $ids);
-        $pWhere = "attendance_date BETWEEN '{$conn->real_escape_string($from)}' AND '{$conn->real_escape_string($to)}'
-                   AND employee_id IN ({$idList})";
-        if ($machineId > 0) {
-            $pWhere .= ' AND machine_id = ' . $machineId;
+    $employees = []; // key => emp row
+    $punchMap = [];  // key => date => punches
+
+    while ($r = $res->fetch_assoc()) {
+        $eid = (int) ($r['employee_id'] ?? 0);
+        $code = trim((string) ($r['employee_code'] ?? ''));
+        if ($code === '') {
+            $code = trim((string) ($r['biometric_user_id'] ?? ''));
         }
-        $pres = $conn->query(
-            "SELECT employee_id, attendance_date, punch_time, punch_type, machine_id, records_source, device_ip
-             FROM machine_attendance_logs
-             WHERE {$pWhere}
-             ORDER BY attendance_date ASC, punch_time ASC, id ASC"
-        );
-        if ($pres) {
-            while ($r = $pres->fetch_assoc()) {
-                $eid = (int) $r['employee_id'];
-                $dt = $r['attendance_date'];
-                $punchMap[$eid][$dt][] = $r;
-            }
+        if ($eid > 0) {
+            $key = 'E' . $eid;
+        } elseif ($code !== '') {
+            $key = 'C' . strtoupper($code);
+        } else {
+            continue;
         }
+
+        if (!isset($employees[$key])) {
+            $linked = $eid > 0;
+            $employees[$key] = [
+                'id' => $eid,
+                'row_key' => $key,
+                'employee_code' => $linked
+                    ? (string) ($r['local_code'] ?: $code)
+                    : $code,
+                'employee_name' => $linked
+                    ? (string) ($r['local_name'] ?: ($r['employee_name'] ?? ''))
+                    : (string) ($r['employee_name'] ?: 'Not linked'),
+                'designation' => $linked ? (string) ($r['designation'] ?? '') : '',
+                'date_of_joining' => $linked ? ($r['date_of_joining'] ?? '') : '',
+                'department_id' => $linked ? (int) ($r['department_id'] ?? 0) : 0,
+                'department_name' => $linked
+                    ? (string) ($r['department_name'] ?? '')
+                    : 'Machine code (unlinked)',
+                'is_linked' => $linked ? 1 : 0,
+                'machine_code' => $code,
+            ];
+        }
+
+        $date = $r['attendance_date'];
+        $punchMap[$key][$date][] = [
+            'punch_time' => $r['punch_time'],
+            'punch_type' => $r['punch_type'],
+            'machine_id' => $r['machine_id'],
+        ];
     }
+    $st->close();
 
     $dayMap = [];
     $totals = [];
-    foreach ($employees as $emp) {
-        $eid = (int) $emp['id'];
-        $totals[$eid] = [
+    foreach ($employees as $key => $emp) {
+        $totals[$key] = [
             'present' => 0,
             'punch_days' => 0,
             'in_count' => 0,
@@ -1479,9 +1504,9 @@ function getMachineWiseMonthGrid($month, $year, $machineId = 0, $deptId = 0, $em
         ];
         for ($d = 1; $d <= $monthDays; $d++) {
             $date = sprintf('%04d-%02d-%02d', $year, $month, $d);
-            $punches = $punchMap[$eid][$date] ?? [];
+            $punches = $punchMap[$key][$date] ?? [];
             if (!$punches) {
-                $dayMap[$eid][$date] = null;
+                $dayMap[$key][$date] = null;
                 continue;
             }
             $ins = 0;
@@ -1494,17 +1519,17 @@ function getMachineWiseMonthGrid($month, $year, $machineId = 0, $deptId = 0, $em
                     $ins++;
                 }
             }
-            $dayMap[$eid][$date] = [
+            $dayMap[$key][$date] = [
                 'punches' => $punches,
                 'in_count' => $ins,
                 'out_count' => $outs,
                 'has_data' => true,
             ];
-            $totals[$eid]['punch_days']++;
-            $totals[$eid]['present']++;
-            $totals[$eid]['in_count'] += $ins;
-            $totals[$eid]['out_count'] += $outs;
-            $totals[$eid]['total_punches'] += count($punches);
+            $totals[$key]['punch_days']++;
+            $totals[$key]['present']++;
+            $totals[$key]['in_count'] += $ins;
+            $totals[$key]['out_count'] += $outs;
+            $totals[$key]['total_punches'] += count($punches);
         }
     }
 
@@ -1513,7 +1538,7 @@ function getMachineWiseMonthGrid($month, $year, $machineId = 0, $deptId = 0, $em
     }
 
     return [
-        'employees' => $employees,
+        'employees' => array_values($employees),
         'days' => $dayMap,
         'totals' => $totals,
         'month_days' => $monthDays,
@@ -1522,6 +1547,157 @@ function getMachineWiseMonthGrid($month, $year, $machineId = 0, $deptId = 0, $em
         'month' => $month,
         'year' => $year,
         'machine_id' => $machineId,
+    ];
+}
+
+/**
+ * Day-wise punches for one machine employee code (Ocean-style O/X multi-punch sheet).
+ */
+function getMachineWiseDaySheet($codeOrEmpId, $fromDate, $toDate, $machineId = 0, $conn = null)
+{
+    $closeAfter = false;
+    if ($conn === null) {
+        $conn = getDBConnection();
+        $closeAfter = true;
+    }
+    ensureBiometricTables($conn);
+    $machineId = (int) $machineId;
+    $fromDate = trim((string) $fromDate);
+    $toDate = trim((string) $toDate);
+    if ($fromDate === '' || $toDate === '') {
+        $toDate = date('Y-m-d');
+        $fromDate = date('Y-m-d', strtotime('-15 days'));
+    }
+
+    $where = 'attendance_date BETWEEN ? AND ?';
+    $types = 'ss';
+    $params = [$fromDate, $toDate];
+    $empId = 0;
+    $code = '';
+    if (is_numeric($codeOrEmpId) && (int) $codeOrEmpId > 0 && strpos((string) $codeOrEmpId, 'C') !== 0) {
+        // Could be employee id — try both
+        $empId = (int) $codeOrEmpId;
+    }
+    $raw = trim((string) $codeOrEmpId);
+    if (stripos($raw, 'E') === 0 && is_numeric(substr($raw, 1))) {
+        $empId = (int) substr($raw, 1);
+    } elseif (stripos($raw, 'C') === 0) {
+        $code = substr($raw, 1);
+    } elseif ($empId <= 0) {
+        $code = $raw;
+    }
+
+    if ($empId > 0) {
+        $where .= ' AND employee_id = ?';
+        $types .= 'i';
+        $params[] = $empId;
+    } elseif ($code !== '') {
+        $where .= ' AND (UPPER(TRIM(employee_code)) = UPPER(TRIM(?)) OR UPPER(TRIM(biometric_user_id)) = UPPER(TRIM(?)))';
+        $types .= 'ss';
+        $params[] = $code;
+        $params[] = $code;
+    } else {
+        if ($closeAfter) {
+            $conn->close();
+        }
+        return ['meta' => [], 'days' => [], 'from' => $fromDate, 'to' => $toDate];
+    }
+    if ($machineId > 0) {
+        $where .= ' AND machine_id = ?';
+        $types .= 'i';
+        $params[] = $machineId;
+    }
+
+    $st = $conn->prepare(
+        "SELECT attendance_date, punch_time, punch_type, employee_code, employee_name, employee_id, biometric_user_id
+         FROM machine_attendance_logs
+         WHERE {$where}
+         ORDER BY attendance_date ASC, punch_time ASC, id ASC"
+    );
+    $st->bind_param($types, ...$params);
+    $st->execute();
+    $res = $st->get_result();
+    $byDate = [];
+    $meta = ['employee_code' => $code, 'employee_name' => '', 'employee_id' => $empId];
+    while ($r = $res->fetch_assoc()) {
+        if ($meta['employee_code'] === '' || $meta['employee_code'] === null) {
+            $meta['employee_code'] = (string) ($r['employee_code'] ?: $r['biometric_user_id']);
+        }
+        if ($meta['employee_name'] === '' && !empty($r['employee_name'])) {
+            $meta['employee_name'] = (string) $r['employee_name'];
+        }
+        if ($meta['employee_id'] <= 0 && !empty($r['employee_id'])) {
+            $meta['employee_id'] = (int) $r['employee_id'];
+        }
+        $byDate[$r['attendance_date']][] = $r;
+    }
+    $st->close();
+
+    if ($meta['employee_id'] > 0) {
+        $es = $conn->prepare('SELECT employee_code, employee_name FROM employees WHERE id = ? LIMIT 1');
+        $es->bind_param('i', $meta['employee_id']);
+        $es->execute();
+        $er = $es->get_result()->fetch_assoc();
+        $es->close();
+        if ($er) {
+            $meta['employee_code'] = (string) $er['employee_code'];
+            $meta['employee_name'] = (string) $er['employee_name'];
+        }
+    }
+
+    $days = [];
+    $ts = strtotime($fromDate);
+    $te = strtotime($toDate);
+    for ($t = $ts; $t <= $te; $t += 86400) {
+        $date = date('Y-m-d', $t);
+        $punches = $byDate[$date] ?? [];
+        $times = [];
+        foreach ($punches as $p) {
+            $times[] = [
+                'time' => substr((string) $p['punch_time'], 0, 5),
+                'type' => strtolower((string) ($p['punch_type'] ?? 'in')) === 'out' ? 'out' : 'in',
+            ];
+        }
+        $first = $times[0]['time'] ?? '';
+        $last = count($times) > 1 ? $times[count($times) - 1]['time'] : '';
+        $worked = '00:00';
+        if ($first !== '' && $last !== '' && count($times) >= 2) {
+            $mins = (int) ((strtotime($date . ' ' . $last) - strtotime($date . ' ' . $first)) / 60);
+            if ($mins < 0) {
+                $mins = 0;
+            }
+            $worked = sprintf('%02d:%02d', intdiv($mins, 60), $mins % 60);
+        }
+        $days[] = [
+            'date' => $date,
+            'status' => $punches ? 'O' : 'X',
+            'punches' => $times,
+            'first' => $first !== '' ? $first : '--:--',
+            'last' => $last !== '' ? $last : '--:--',
+            'worked' => $worked,
+            'count' => count($times),
+        ];
+    }
+
+    // Max punch slots for table columns
+    $maxSlots = 2;
+    foreach ($days as $d) {
+        $maxSlots = max($maxSlots, (int) $d['count']);
+    }
+    if ($maxSlots > 12) {
+        $maxSlots = 12;
+    }
+
+    if ($closeAfter) {
+        $conn->close();
+    }
+
+    return [
+        'meta' => $meta,
+        'days' => $days,
+        'from' => $fromDate,
+        'to' => $toDate,
+        'max_slots' => $maxSlots,
     ];
 }
 
@@ -1588,14 +1764,20 @@ function machineWiseRenderMonthTableHtml(array $grid)
 
     if (!$employees) {
         $cols = 5 + $monthDays + 4;
-        $html .= '<tr><td colspan="' . $cols . '">No linked machine punches for this filter. Link employees on Machine Logs first.</td></tr>';
+        $html .= '<tr><td colspan="' . $cols . '">No machine punches for this month/filter. Run Sync first.</td></tr>';
     }
 
     foreach ($employees as $emp) {
-        $eid = (int) $emp['id'];
-        $tot = $totals[$eid] ?? ['punch_days' => 0, 'in_count' => 0, 'out_count' => 0, 'total_punches' => 0];
+        $key = (string) ($emp['row_key'] ?? ('E' . (int) ($emp['id'] ?? 0)));
+        $tot = $totals[$key] ?? ['punch_days' => 0, 'in_count' => 0, 'out_count' => 0, 'total_punches' => 0];
+        $linked = !empty($emp['is_linked']);
         $html .= '<tr>';
-        $html .= '<td>' . htmlspecialchars((string) ($emp['employee_code'] ?? '')) . '</td>';
+        $codeCell = htmlspecialchars((string) ($emp['employee_code'] ?? ''));
+        $dayUrl = app_url('attendance/machine_day.php?code=' . rawurlencode((string) ($emp['machine_code'] ?? $emp['employee_code'] ?? ''))
+            . '&from_date=' . rawurlencode((string) ($grid['from'] ?? ''))
+            . '&to_date=' . rawurlencode((string) ($grid['to'] ?? '')));
+        $html .= '<td><a href="' . htmlspecialchars($dayUrl) . '">' . $codeCell . '</a>'
+            . ($linked ? '' : ' <span class="bio-unmatched">unlinked</span>') . '</td>';
         $html .= '<td>' . htmlspecialchars((string) ($emp['employee_name'] ?? '')) . '</td>';
         $html .= '<td>' . htmlspecialchars((string) ($emp['designation'] ?? '')) . '</td>';
         $html .= '<td>' . htmlspecialchars((string) ($emp['department_name'] ?? '')) . '</td>';
@@ -1610,7 +1792,7 @@ function machineWiseRenderMonthTableHtml(array $grid)
 
         for ($d = 1; $d <= $monthDays; $d++) {
             $date = sprintf('%04d-%02d-%02d', $year, $month, $d);
-            $day = $dayMap[$eid][$date] ?? null;
+            $day = $dayMap[$key][$date] ?? null;
             $text = machineWiseDayCellText($day);
             $has = $text !== '';
             $cls = 'att-day' . ($has ? ' is-present machine-has-punch' : '');

@@ -88,7 +88,7 @@ require_once __DIR__ . '/../includes/header.php';
             <div class="bio-stat">
                 <span class="bio-stat-label">Unlinked</span>
                 <span class="bio-stat-value"><?php echo number_format(max(0, (int) $stats['logs_total'] - (int) $stats['logs_matched'])); ?></span>
-                <span class="bio-stat-sub">link on Machine Logs first</span>
+                <span class="bio-stat-sub">link optional — report shows all codes</span>
             </div>
         </div>
 
@@ -147,7 +147,8 @@ require_once __DIR__ . '/../includes/header.php';
             <div class="ops-live-summary" style="margin-bottom:12px;">
                 <span class="ops-chip">Machine Wise (separate)</span>
                 <span class="ops-chip"><?php echo htmlspecialchars(date('F Y', mktime(0, 0, 0, $month, 1, $year))); ?></span>
-                <span class="ops-chip"><?php echo count($grid['employees']); ?> employees with linked punches</span>
+                <span class="ops-chip"><?php echo count($grid['employees']); ?> codes with punches</span>
+                <span class="ops-chip">Click employee code → day sheet (O/X + multi punch)</span>
             </div>
             <div class="table-wrap excel-att-wrap">
                 <?php echo machineWiseRenderMonthTableHtml($grid); ?>
