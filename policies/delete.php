@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Delete Policy (HR / Admin)
  */

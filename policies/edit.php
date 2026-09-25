@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Add / Edit Policy (HR / Admin)
  */

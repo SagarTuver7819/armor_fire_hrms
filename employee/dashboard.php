@@ -227,30 +227,10 @@ $fmtClock12 = static function ($raw) use ($parseClockToParts) {
     return sprintf('%02d:%02d %s', $h12, $i, $ap);
 };
 
-$shiftTypeLabel = $emp ? trim((string) ($emp['shift_type'] ?? '')) : '';
-$shiftTimeLabel = $emp ? trim((string) ($emp['shift_time'] ?? '')) : '';
-$shiftStartShow = '';
-$shiftEndShow = '';
-if ($shiftTimeLabel !== '') {
-    $startRaw = $shiftTimeLabel;
-    $endRaw = '';
-    if (preg_match('/^(.+?)\s*(?:[-–]|to)\s*(.+)$/i', $shiftTimeLabel, $m)) {
-        $startRaw = trim($m[1]);
-        $endRaw = trim($m[2]);
-    }
-    $shiftStartShow = $fmtClock12($startRaw);
-    $shiftEndShow = $endRaw !== '' ? $fmtClock12($endRaw) : '';
-}
-$shiftRangeShow = ($shiftStartShow !== '' && $shiftStartShow !== '—' && $shiftEndShow !== '' && $shiftEndShow !== '—')
-    ? ($shiftStartShow . ' to ' . $shiftEndShow)
-    : ($shiftStartShow !== '' && $shiftStartShow !== '—' ? $shiftStartShow : '');
-$shiftDisplay = trim(
-    ($shiftTypeLabel !== '' ? $shiftTypeLabel : '')
-    . ($shiftRangeShow !== '' ? (($shiftTypeLabel !== '' ? ' · ' : '') . $shiftRangeShow) : '')
-);
-if ($shiftDisplay === '') {
-    $shiftDisplay = 'Not set';
-}
+$shiftLabels = resolveEmployeeShiftLabels($emp ?: []);
+$shiftTypeLabel = $shiftLabels['type'];
+$shiftTimeLabel = $shiftLabels['time'];
+$shiftDisplay = $shiftLabels['display'];
 
 $todayDate = date('Y-m-d');
 $todayPunchIn = null;
@@ -521,13 +501,15 @@ $denied = isset($_GET['msg']) && $_GET['msg'] === 'denied';
         <div class="form-page-header" style="margin-bottom:0;">
             <div class="master-list-title" style="width:100%;align-items:flex-start;flex-wrap:wrap;gap:16px;">
                 <div style="display:flex;align-items:center;gap:14px;min-width:220px;flex:1;">
+                    <?php if ($photoUrl !== ''): ?>
+                    <button type="button" class="emp-avatar emp-dash-avatar emp-photo-view-btn" data-photo-url="<?php echo htmlspecialchars($photoUrl); ?>" title="View photo" aria-label="View profile photo">
+                        <img src="<?php echo htmlspecialchars($photoUrl); ?>" alt="">
+                    </button>
+                    <?php else: ?>
                     <div class="emp-avatar emp-dash-avatar" aria-hidden="true">
-                        <?php if ($photoUrl !== ''): ?>
-                            <img src="<?php echo htmlspecialchars($photoUrl); ?>" alt="">
-                        <?php else: ?>
-                            <span><?php echo htmlspecialchars($empInitials !== '' ? $empInitials : 'E'); ?></span>
-                        <?php endif; ?>
+                        <span><?php echo htmlspecialchars($empInitials !== '' ? $empInitials : 'E'); ?></span>
                     </div>
+                    <?php endif; ?>
                     <div>
                         <h1 class="emp-dash-greet">
                             <?php echo htmlspecialchars($greet); ?>,
@@ -549,7 +531,14 @@ $denied = isset($_GET['msg']) && $_GET['msg'] === 'denied';
                         <div class="emp-dash-att-ico"><i class="fa-solid fa-clock"></i></div>
                         <div>
                             <div class="emp-dash-att-label">Shift Time</div>
-                            <div class="emp-dash-att-value"><?php echo htmlspecialchars($shiftDisplay); ?></div>
+                            <?php if ($shiftTimeLabel !== ''): ?>
+                                <div class="emp-dash-att-value"><?php echo htmlspecialchars($shiftTimeLabel); ?></div>
+                                <?php if ($shiftTypeLabel !== ''): ?>
+                                    <div class="emp-dash-att-sub"><?php echo htmlspecialchars($shiftTypeLabel); ?></div>
+                                <?php endif; ?>
+                            <?php else: ?>
+                                <div class="emp-dash-att-value"><?php echo htmlspecialchars($shiftDisplay); ?></div>
+                            <?php endif; ?>
                         </div>
                     </div>
                     <div class="emp-dash-att-chip is-punch">
@@ -948,4 +937,5 @@ $denied = isset($_GET['msg']) && $_GET['msg'] === 'denied';
     </section>
 </main>
 
+<script src="<?php echo app_url('assets/js/emp_photo_view.js'); ?>?v=<?php echo (int) @filemtime(__DIR__ . '/../assets/js/emp_photo_view.js'); ?>"></script>
 <?php require_once __DIR__ . '/../includes/footer.php'; ?>

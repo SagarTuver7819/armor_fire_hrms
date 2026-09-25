@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Add / Edit Circular (HR / Admin)
  */

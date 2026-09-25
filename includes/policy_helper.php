@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Company Policies — HR/Admin PDF uploads, department targeting, bell notifications
  */

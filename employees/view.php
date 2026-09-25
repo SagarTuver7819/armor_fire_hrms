@@ -78,6 +78,9 @@ $pageTitle = $isOwnProfile
 $extraCss = [
     'https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.css',
 ];
+if ($isOwnProfile) {
+    $extraCss[] = 'https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.css';
+}
 
 $useSidebar = true;
 if ($isOwnProfile && (isOfficeStaffRole() || !canAccess('employees', 'view', $deptId))) {
@@ -202,28 +205,35 @@ $tabUrl = function ($t) use ($baseQs, $year, $month) {
             <div class="emp-id-identity">
                 <?php if ($canEditOwnPhoto): ?>
                 <form action="<?php echo app_url('employee/photo_save.php'); ?>" method="post" enctype="multipart/form-data" class="emp-avatar-form" id="empOwnPhotoForm">
-                    <label class="emp-avatar emp-avatar-editable" title="Change photo">
+                    <div class="emp-avatar emp-avatar-editable emp-avatar--profile<?php echo $photoUrl !== '' ? ' emp-photo-view-btn' : ''; ?>"
+                         <?php if ($photoUrl !== ''): ?>data-photo-url="<?php echo htmlspecialchars($photoUrl); ?>" title="Click to view · camera to change"<?php else: ?>title="Add photo"<?php endif; ?>
+                         id="empOwnPhotoWrap">
                         <?php if ($photoUrl !== ''): ?>
                             <img src="<?php echo htmlspecialchars($photoUrl); ?>" alt="" id="empOwnPhotoPreview">
                         <?php else: ?>
                             <span id="empOwnPhotoInitials"><?php echo htmlspecialchars(empInitials($emp['employee_name'])); ?></span>
                             <img src="" alt="" id="empOwnPhotoPreview" hidden>
                         <?php endif; ?>
-                        <span class="emp-avatar-camera"><i class="fa-solid fa-camera"></i></span>
+                        <button type="button" class="emp-avatar-camera emp-avatar-change-btn" id="empOwnPhotoChangeBtn" title="Change &amp; crop photo" aria-label="Change photo">
+                            <i class="fa-solid fa-camera"></i>
+                        </button>
                         <input type="file" name="photo_file" id="empOwnPhotoInput" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" hidden>
-                    </label>
+                    </div>
                     <button type="submit" class="emp-avatar-save-btn" id="empOwnPhotoSave" hidden>
                         <i class="fa-solid fa-check"></i> Save Photo
                     </button>
+                    <small class="emp-avatar-hint"><?php echo $photoUrl !== '' ? 'Click photo to view · camera to crop' : 'Tap camera to crop &amp; set photo'; ?></small>
                 </form>
                 <?php else: ?>
-                <div class="emp-avatar" aria-hidden="true">
-                    <?php if ($photoUrl !== ''): ?>
-                        <img src="<?php echo htmlspecialchars($photoUrl); ?>" alt="">
-                    <?php else: ?>
-                        <span><?php echo htmlspecialchars(empInitials($emp['employee_name'])); ?></span>
-                    <?php endif; ?>
+                <?php if ($photoUrl !== ''): ?>
+                <button type="button" class="emp-avatar emp-avatar--profile emp-photo-view-btn" data-photo-url="<?php echo htmlspecialchars($photoUrl); ?>" title="View photo" aria-label="View profile photo">
+                    <img src="<?php echo htmlspecialchars($photoUrl); ?>" alt="">
+                </button>
+                <?php else: ?>
+                <div class="emp-avatar emp-avatar--profile" aria-hidden="true">
+                    <span><?php echo htmlspecialchars(empInitials($emp['employee_name'])); ?></span>
                 </div>
+                <?php endif; ?>
                 <?php endif; ?>
                 <div class="emp-id-copy">
                     <div class="emp-id-tags">
@@ -297,7 +307,14 @@ $tabUrl = function ($t) use ($baseQs, $year, $month) {
                 <div class="emp-stat-icon"><i class="fa-solid fa-clock"></i></div>
                 <div>
                     <span>Shift</span>
+                    <?php
+                    $shiftLabelsView = resolveEmployeeShiftLabels($emp);
+                    $shiftTimeShow = $shiftLabelsView['time'] !== '' ? $shiftLabelsView['time'] : '';
+                    ?>
                     <strong class="shift-pill <?php echo $shiftClass; ?>"><?php echo showVal($emp['shift_type']); ?></strong>
+                    <?php if ($shiftTimeShow !== ''): ?>
+                        <div class="emp-shift-time"><?php echo htmlspecialchars($shiftTimeShow); ?></div>
+                    <?php endif; ?>
                 </div>
             </div>
             <div class="emp-stat-item">
@@ -848,35 +865,37 @@ $tabUrl = function ($t) use ($baseQs, $year, $month) {
             </div>
         </div>
     <?php endif; ?>
+
+    <?php if ($canEditOwnPhoto): ?>
+    <div class="emp-photo-crop-modal" id="empPhotoCropModal" hidden>
+        <div class="emp-photo-crop-dialog" role="dialog" aria-modal="true" aria-labelledby="empPhotoCropTitle">
+            <div class="emp-photo-crop-head">
+                <h3 id="empPhotoCropTitle"><i class="fa-solid fa-crop-simple"></i> Crop Photo</h3>
+                <button type="button" class="emp-photo-crop-close" id="empPhotoCropClose" aria-label="Close">&times;</button>
+            </div>
+            <div class="emp-photo-crop-body">
+                <div class="emp-photo-crop-stage">
+                    <img id="empPhotoCropImage" alt="Crop preview">
+                </div>
+                <p class="emp-photo-crop-hint">Drag to reposition · scroll / pinch to zoom · square crop for profile</p>
+            </div>
+            <div class="emp-photo-crop-actions">
+                <button type="button" class="btn-secondary" id="empPhotoCropCancel">Cancel</button>
+                <button type="button" class="btn-secondary" id="empPhotoCropRotate" title="Rotate">
+                    <i class="fa-solid fa-rotate-right"></i>
+                </button>
+                <button type="button" class="btn-primary" id="empPhotoCropApply">
+                    <i class="fa-solid fa-check"></i> Use Photo
+                </button>
+            </div>
+        </div>
+    </div>
+    <?php endif; ?>
 </main>
 
 <script>
     window.EMP_TOAST_MSG  = <?php echo json_encode($toastMsg); ?>;
     window.EMP_TOAST_TYPE = <?php echo json_encode($toastType); ?>;
-    (function () {
-        var input = document.getElementById('empOwnPhotoInput');
-        var preview = document.getElementById('empOwnPhotoPreview');
-        var initials = document.getElementById('empOwnPhotoInitials');
-        var saveBtn = document.getElementById('empOwnPhotoSave');
-        if (!input || !preview) return;
-        input.addEventListener('change', function () {
-            var file = input.files && input.files[0];
-            if (!file) return;
-            if (!/^image\/(jpeg|png|webp)$/i.test(file.type) && !/\.(jpe?g|png|webp)$/i.test(file.name)) {
-                alert('Photo must be JPG, PNG, or WEBP.');
-                input.value = '';
-                return;
-            }
-            var reader = new FileReader();
-            reader.onload = function (e) {
-                preview.src = e.target.result;
-                preview.hidden = false;
-                if (initials) initials.hidden = true;
-                if (saveBtn) saveBtn.hidden = false;
-            };
-            reader.readAsDataURL(file);
-        });
-    })();
 </script>
 
 <?php
@@ -884,6 +903,11 @@ $extraJs = [
     'https://code.jquery.com/jquery-3.7.1.min.js',
     'https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.js',
     'assets/js/employees.js',
+    'assets/js/emp_photo_view.js',
 ];
+if ($canEditOwnPhoto) {
+    $extraJs[] = 'https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.js';
+    $extraJs[] = 'assets/js/emp_photo_crop.js';
+}
 require_once __DIR__ . '/../includes/footer.php';
 ?>

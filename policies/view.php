@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * View Policy + PDF preview
  */

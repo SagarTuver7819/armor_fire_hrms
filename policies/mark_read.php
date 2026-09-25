@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Mark Policy notification(s) as read
  */

@@ -1080,6 +1080,93 @@ function findMatchingShiftId($shifts, $shiftType, $shiftTime)
 }
 
 /**
+ * Employee shift labels for profile / dashboard chips.
+ * Prefer employees.shift_time; if empty, fall back to matching active shift master.
+ *
+ * @return array{type:string,time:string,display:string}
+ */
+function resolveEmployeeShiftLabels($employee, array $shifts = [])
+{
+    $type = '';
+    $time = '';
+    if (is_array($employee)) {
+        $type = trim((string) ($employee['shift_type'] ?? ''));
+        $time = trim((string) ($employee['shift_time'] ?? ''));
+    }
+
+    if ($time === '') {
+        if ($shifts === []) {
+            if (!function_exists('getActiveMasterRows')) {
+                require_once __DIR__ . '/master_helper.php';
+            }
+            if (function_exists('getActiveMasterRows')) {
+                $shifts = getActiveMasterRows('shifts', 'name ASC');
+            }
+        }
+        $matchId = findMatchingShiftId($shifts, $type !== '' ? $type : 'Day', '');
+        $picked = null;
+        if ($matchId > 0) {
+            foreach ($shifts as $shift) {
+                if ((int) ($shift['id'] ?? 0) === $matchId) {
+                    $picked = $shift;
+                    break;
+                }
+            }
+        }
+        if ($picked === null && $type !== '') {
+            $typeMatches = [];
+            foreach ($shifts as $shift) {
+                if (($shift['shift_type'] ?? '') === $type) {
+                    $typeMatches[] = $shift;
+                }
+            }
+            foreach ($typeMatches as $shift) {
+                $name = strtolower(trim((string) ($shift['name'] ?? '')));
+                if (strpos($name, 'general') !== false) {
+                    $picked = $shift;
+                    break;
+                }
+            }
+            if ($picked === null && $typeMatches !== []) {
+                usort($typeMatches, static function ($a, $b) {
+                    return strcmp((string) ($a['start_time'] ?? ''), (string) ($b['start_time'] ?? ''));
+                });
+                // Prefer classic office window ~09:00 if present
+                foreach ($typeMatches as $shift) {
+                    $st = (string) ($shift['start_time'] ?? '');
+                    if (strpos($st, '09:') === 0 || strpos($st, '9:') === 0) {
+                        $picked = $shift;
+                        break;
+                    }
+                }
+                if ($picked === null) {
+                    $picked = $typeMatches[0];
+                }
+            }
+        }
+        if ($picked === null && $shifts !== []) {
+            $picked = $shifts[0];
+        }
+        if ($picked !== null) {
+            if ($type === '') {
+                $type = trim((string) ($picked['shift_type'] ?? ''));
+            }
+            $time = formatShiftTimeRange($picked);
+        }
+    }
+
+    $display = $time !== ''
+        ? (($type !== '' ? $type . ' · ' : '') . $time)
+        : ($type !== '' ? $type : 'Not set');
+
+    return [
+        'type' => $type,
+        'time' => $time,
+        'display' => $display,
+    ];
+}
+
+/**
  * Resolve shift dropdown + type/time fields for add/edit form.
  */
 function resolveShiftSelection(array $shifts, $employee)
