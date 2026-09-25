@@ -456,9 +456,6 @@ function leaveApplyRequest($conn, array $data)
     if (strtotime($toDate) < strtotime($fromDate)) {
         throw new RuntimeException('To date cannot be before from date.');
     }
-    if (in_array($leaveHalf, ['FHL', 'SHL'], true) && $fromDate !== $toDate) {
-        throw new RuntimeException('First / Second half leave is allowed for a single day only.');
-    }
 
     $lt = getLeaveTypeById($leaveTypeId, $conn);
     if (!$lt || (int) ($lt['status'] ?? 0) !== 1) {
@@ -469,8 +466,9 @@ function leaveApplyRequest($conn, array $data)
     if ($days <= 0) {
         throw new RuntimeException('No working days in selected date range (week-off/holiday excluded).');
     }
+    // FHL/SHL on a date range: each working day counts as 0.5 (e.g. 5–8 FHL)
     if (in_array($leaveHalf, ['FHL', 'SHL'], true)) {
-        $days = 0.5;
+        $days = round($days * 0.5, 2);
     }
 
     if (leaveHasOverlap($conn, $employeeId, $fromDate, $toDate)) {
@@ -584,7 +582,7 @@ function leaveClearAttendanceDays($conn, $employeeId, $fromDate, $toDate)
          WHERE employee_id = ?
            AND attendance_date BETWEEN ? AND ?
            AND source = 'leave'
-           AND day_status = 'Leave'"
+           AND day_status IN ('Leave', 'Half Day')"
     );
     $stmt->bind_param('iss', $employeeId, $fromDate, $toDate);
     $stmt->execute();

@@ -327,6 +327,12 @@ require_once __DIR__ . '/../includes/header.php';
             <a class="btn-ghost" href="<?php echo app_url('leave/index.php'); ?>">
                 <i class="fa-solid fa-scale-balanced"></i> Leave Desk
             </a>
+            <a class="btn-ghost" href="<?php echo app_url('circulars/edit.php'); ?>">
+                <i class="fa-solid fa-file-circle-plus"></i> Add Circular
+            </a>
+            <a class="btn-ghost" href="<?php echo app_url('policies/edit.php'); ?>">
+                <i class="fa-solid fa-scroll"></i> Add Policy
+            </a>
         </div>
     </section>
 
@@ -521,6 +527,10 @@ require_once __DIR__ . '/../includes/header.php';
                     <a href="<?php echo app_url('attendance/import.php'); ?>"><i class="fa-solid fa-file-import"></i> Import Attendance</a>
                     <a href="<?php echo app_url('attendance/manual.php'); ?>"><i class="fa-solid fa-pen-to-square"></i> Manual Entry</a>
                     <a href="<?php echo app_url('leave/apply.php'); ?>"><i class="fa-solid fa-plus"></i> Apply Leave</a>
+                    <a href="<?php echo app_url('circulars/index.php'); ?>"><i class="fa-solid fa-file-circle-plus"></i> Circulars</a>
+                    <a href="<?php echo app_url('circulars/edit.php'); ?>"><i class="fa-solid fa-upload"></i> Add Circular</a>
+                    <a href="<?php echo app_url('policies/index.php'); ?>"><i class="fa-solid fa-scroll"></i> Policies</a>
+                    <a href="<?php echo app_url('policies/edit.php'); ?>"><i class="fa-solid fa-file-arrow-up"></i> Add Policy</a>
                     <a href="<?php echo app_url('payroll/register.php'); ?>"><i class="fa-solid fa-table"></i> Salary Register</a>
                     <a href="<?php echo app_url('masters/holidays/index.php'); ?>"><i class="fa-solid fa-calendar-days"></i> Holiday Master</a>
                     <a href="<?php echo app_url('dashboard.php'); ?>"><i class="fa-solid fa-building"></i> Dept Workspace</a>

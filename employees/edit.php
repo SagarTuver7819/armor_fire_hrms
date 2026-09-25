@@ -9,6 +9,7 @@ require_once __DIR__ . '/../includes/employee_helper.php';
 require_once __DIR__ . '/../includes/master_helper.php';
 
 ensureEmployeesTable();
+ensureMasterTables();
 
 $deptId = isset($_GET['department_id']) ? (int) $_GET['department_id'] : 0;
 $empId  = isset($_GET['id']) ? (int) $_GET['id'] : 0;
@@ -24,6 +25,10 @@ function empField($employee, $key, $default = '')
 
 $employee = null;
 if ($empId > 0) {
+    $connSync = getDBConnection();
+    ensureEmployeesTable($connSync);
+    employeeSyncDecidedSalaryFromHistory($connSync, $empId);
+    $connSync->close();
     $employee = getEmployeeById($empId);
     if ($employee) {
         $deptId = (int) $employee['department_id'];
@@ -55,6 +60,7 @@ $departments  = getActiveMasterRows('departments', 'sort_order ASC, department_n
 $designations = getActiveMasterRows('designations', 'sort_order ASC, name ASC');
 $shifts       = getActiveMasterRows('shifts', 'name ASC');
 $holidays     = getActiveMasterRows('holidays', 'title ASC');
+$assignedStates = getActiveMasterRows('assigned_states', 'sort_order ASC, name ASC');
 $weekOffDays  = getWeekOffDaysFromMaster($holidays);
 $reporters    = getReportingEmployees($empId);
 
@@ -93,6 +99,12 @@ $aadharFileUrl = employeeDocumentPublicUrl(empField($employee, 'aadhar_file'));
 $panFileUrl = employeeDocumentPublicUrl(empField($employee, 'pan_file'));
 $exitRaw = empField($employee, 'date_of_exit');
 $isExited = (int) empField($employee, 'status', 1) === 0;
+$isOnFieldDept = isSalesOnFieldDepartment($department ?: ['department_name' => '']);
+$currentAssignedStateId = (int) empField($employee, 'assigned_state_id', 0);
+$currentAssignedLocationId = (int) empField($employee, 'assigned_location_id', 0);
+$assignedLocationsForState = $currentAssignedStateId > 0
+    ? getAssignedLocationsByState($currentAssignedStateId)
+    : [];
 if (!$isExited && $exitRaw !== '' && $exitRaw !== '0000-00-00') {
     $exitYmd = substr((string) $exitRaw, 0, 10);
     // DB may already be Y-m-d; also accept display values via parse
@@ -191,14 +203,20 @@ $ob = empField($employee, 'overtime_benefits', 'No');
                 </div>
 
                 <div class="emp-subhead">Address</div>
-                <div class="form-grid form-grid-3">
+                <div class="form-grid form-grid-3 emp-address-grid">
                     <div class="form-group span-2">
-                        <label>6. Permanent Address <small>(As per Aadhar)</small></label>
-                        <textarea name="permanent_address" class="form-control" rows="2"><?php echo htmlspecialchars(empField($employee, 'permanent_address')); ?></textarea>
+                        <div class="emp-addr-label-row">
+                            <label for="permanentAddress">6. Permanent Address <small>(As per Aadhar)</small></label>
+                            <label class="emp-same-addr-check" for="sameAsPermanentAddr">
+                                <input type="checkbox" id="sameAsPermanentAddr" value="1">
+                                <span>Same as Permanent Address</span>
+                            </label>
+                        </div>
+                        <textarea name="permanent_address" id="permanentAddress" class="form-control" rows="2"><?php echo htmlspecialchars(empField($employee, 'permanent_address')); ?></textarea>
                     </div>
                     <div class="form-group span-2">
-                        <label>7. Present Address <small>(Current)</small></label>
-                        <textarea name="present_address" class="form-control" rows="2"><?php echo htmlspecialchars(empField($employee, 'present_address')); ?></textarea>
+                        <label for="presentAddress">7. Present Address <small>(Current)</small></label>
+                        <textarea name="present_address" id="presentAddress" class="form-control" rows="2"><?php echo htmlspecialchars(empField($employee, 'present_address')); ?></textarea>
                     </div>
                 </div>
 
@@ -331,9 +349,11 @@ $ob = empField($employee, 'overtime_benefits', 'No');
                 <div class="form-grid form-grid-3">
                     <div class="form-group">
                         <label>19. Department</label>
-                        <select name="department_id" class="form-control" required>
+                        <select name="department_id" id="empDepartmentId" class="form-control" required>
                             <?php foreach ($departments as $dept): ?>
-                                <option value="<?php echo (int) $dept['id']; ?>" <?php echo ((int) $dept['id'] === $deptId) ? 'selected' : ''; ?>>
+                                <option value="<?php echo (int) $dept['id']; ?>"
+                                        data-on-field="<?php echo isSalesOnFieldDepartment($dept) ? '1' : '0'; ?>"
+                                        <?php echo ((int) $dept['id'] === $deptId) ? 'selected' : ''; ?>>
                                     <?php echo htmlspecialchars($dept['department_name']); ?>
                                 </option>
                             <?php endforeach; ?>
@@ -365,6 +385,84 @@ $ob = empField($employee, 'overtime_benefits', 'No');
                                 </option>
                             <?php endif; ?>
                         </select>
+                    </div>
+                </div>
+
+                <div id="onFieldAssignWrap" class="on-field-assign-block" style="<?php echo !empty($isOnFieldDept) ? '' : 'display:none;'; ?>">
+                    <div class="emp-subhead">Assigned territory (Sales On Field)</div>
+                    <div class="form-grid form-grid-3">
+                        <div class="form-group">
+                            <label>Assigned State</label>
+                            <select name="assigned_state_id" id="assignedStateId" class="form-control">
+                                <option value="0">— Select state —</option>
+                                <?php foreach (($assignedStates ?? []) as $st): ?>
+                                    <option value="<?php echo (int) $st['id']; ?>" <?php echo ((int) ($currentAssignedStateId ?? 0) === (int) $st['id']) ? 'selected' : ''; ?>>
+                                        <?php echo htmlspecialchars((string) $st['name']); ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Assigned Location</label>
+                            <select name="assigned_location_id" id="assignedLocationId" class="form-control"
+                                    data-selected="<?php echo (int) ($currentAssignedLocationId ?? 0); ?>">
+                                <option value="0">— Select location —</option>
+                                <?php foreach (($assignedLocationsForState ?? []) as $loc): ?>
+                                    <option value="<?php echo (int) $loc['id']; ?>"
+                                        <?php echo ((int) ($currentAssignedLocationId ?? 0) === (int) $loc['id']) ? 'selected' : ''; ?>>
+                                        <?php echo htmlspecialchars((string) $loc['name']); ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                    </div>
+                    <?php
+                    $locHist = ($empId > 0) ? getEmployeeLocationHistory($empId) : [];
+                    $hasLocHist = !empty($locHist);
+                    ?>
+                    <div class="form-group full" style="margin-top:8px;">
+                        <div class="salary-history-box location-history-box">
+                            <div class="salary-history-head">Location Change History</div>
+                            <p class="salary-history-empty" <?php echo $hasLocHist ? 'hidden' : ''; ?>>
+                                No location changes yet. Save after changing state / location to record history.
+                            </p>
+                            <div class="salary-history-scroll" <?php echo $hasLocHist ? '' : 'hidden'; ?>>
+                                <table class="salary-history-table location-history-table">
+                                    <thead>
+                                        <tr>
+                                            <th class="col-eff">Date / Time</th>
+                                            <th class="col-note">Old State / Location</th>
+                                            <th class="col-note">New State / Location</th>
+                                            <th class="col-by">Changed By (Login)</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <?php foreach ($locHist as $h):
+                                            $oldShow = trim(
+                                                ((string) ($h['old_state_name'] ?? '') !== '' ? $h['old_state_name'] : '—')
+                                                . ' / '
+                                                . ((string) ($h['old_location_name'] ?? '') !== '' ? $h['old_location_name'] : '—')
+                                            );
+                                            $newShow = trim(
+                                                ((string) ($h['new_state_name'] ?? '') !== '' ? $h['new_state_name'] : '—')
+                                                . ' / '
+                                                . ((string) ($h['new_location_name'] ?? '') !== '' ? $h['new_location_name'] : '—')
+                                            );
+                                            $when = !empty($h['created_at'])
+                                                ? date('d-m-Y H:i', strtotime($h['created_at']))
+                                                : '—';
+                                            ?>
+                                            <tr>
+                                                <td class="col-eff"><?php echo htmlspecialchars($when); ?></td>
+                                                <td class="col-note"><?php echo htmlspecialchars($oldShow); ?></td>
+                                                <td class="col-note"><strong><?php echo htmlspecialchars($newShow); ?></strong></td>
+                                                <td class="col-by"><?php echo htmlspecialchars((string) ($h['changed_by_label'] ?? '—')); ?></td>
+                                            </tr>
+                                        <?php endforeach; ?>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
@@ -453,9 +551,62 @@ $ob = empField($employee, 'overtime_benefits', 'No');
                     </div>
                     <div class="form-group">
                         <label>32. Decided Salary</label>
-                        <input type="number" step="0.01" name="decided_salary" id="decidedSalary" class="form-control"
-                               value="<?php echo htmlspecialchars(empField($employee, 'decided_salary')); ?>">
+                        <?php if ($empId > 0): ?>
+                            <div class="salary-revise-wrap">
+                                <input type="number" step="0.01" name="decided_salary" id="decidedSalary" class="form-control"
+                                       value="<?php echo htmlspecialchars(empField($employee, 'decided_salary')); ?>"
+                                       readonly title="Click Revise to change salary">
+                                <button type="button" class="btn-secondary" id="btnReviseSalary" title="Increase / decrease salary">
+                                    <i class="fa-solid fa-pen-to-square"></i> Revise
+                                </button>
+                            </div>
+                        <?php else: ?>
+                            <input type="number" step="0.01" name="decided_salary" id="decidedSalary" class="form-control"
+                                   value="<?php echo htmlspecialchars(empField($employee, 'decided_salary')); ?>">
+                        <?php endif; ?>
                     </div>
+                    <?php if ($empId > 0):
+                        $salHist = getEmployeeSalaryHistory($empId);
+                        $hasSalHist = !empty($salHist);
+                        ?>
+                    <div class="form-group full">
+                        <div id="salaryHistoryBox" class="salary-history-box">
+                            <div class="salary-history-head">Salary History</div>
+                            <p class="salary-history-empty" id="salaryHistoryEmpty" <?php echo $hasSalHist ? 'hidden' : ''; ?>>
+                                No revisions yet. Use Revise to add increase / decrease.
+                            </p>
+                            <div class="salary-history-scroll" <?php echo $hasSalHist ? '' : 'hidden'; ?>>
+                                <table class="salary-history-table">
+                                    <thead>
+                                        <tr>
+                                            <th class="col-eff">Effective Date</th>
+                                            <th class="col-amt">Old Salary</th>
+                                            <th class="col-chg">Change</th>
+                                            <th class="col-amt">New Salary</th>
+                                            <th class="col-note">Note</th>
+                                            <th class="col-by">Changed By (Login)</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="salaryHistoryBody">
+                                        <?php foreach ($salHist as $h):
+                                            $chg = (float) $h['change_amount'];
+                                            $cls = $chg >= 0 ? 'is-up' : 'is-down';
+                                            ?>
+                                            <tr>
+                                                <td class="col-eff"><?php echo htmlspecialchars(formatDateDisplay($h['effective_date'])); ?></td>
+                                                <td class="col-amt">₹ <?php echo number_format((float) $h['old_salary'], 2); ?></td>
+                                                <td class="col-chg <?php echo $cls; ?>"><?php echo ($chg >= 0 ? '+' : '') . number_format($chg, 2); ?></td>
+                                                <td class="col-amt"><strong>₹ <?php echo number_format((float) $h['new_salary'], 2); ?></strong></td>
+                                                <td class="col-note"><?php echo htmlspecialchars((string) ($h['remarks'] ?? '—')); ?></td>
+                                                <td class="col-by"><?php echo htmlspecialchars((string) ($h['changed_by_label'] ?? '—')); ?></td>
+                                            </tr>
+                                        <?php endforeach; ?>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                    <?php endif; ?>
                     <div class="form-group">
                         <label>33. Reporting Person</label>
                         <select name="reporting_employee_id" class="form-control">
@@ -626,12 +777,51 @@ $ob = empField($employee, 'overtime_benefits', 'No');
     </div>
 </main>
 
+<?php if ($empId > 0): ?>
+<div id="salaryReviseModal" class="salary-revise-modal" hidden>
+    <div class="salary-revise-backdrop" data-close-salary-modal></div>
+    <div class="salary-revise-box" role="dialog" aria-labelledby="salaryReviseTitle">
+        <h3 id="salaryReviseTitle"><i class="fa-solid fa-indian-rupee-sign"></i> Revise Decided Salary</h3>
+        <p class="salary-revise-sub">Existing salary + increase/decrease + from which date new salary starts</p>
+        <div class="salary-revise-grid">
+            <div class="form-group">
+                <label>Existing Salary</label>
+                <input type="text" id="salExistDisp" class="form-control" readonly>
+            </div>
+            <div class="form-group">
+                <label>Vadharo / Ghatado <small>(+/-)</small></label>
+                <input type="number" step="0.01" id="salChangeAmt" class="form-control" placeholder="e.g. 2000 or -500">
+            </div>
+            <div class="form-group">
+                <label>Effective Date <small>(DD-MM-YYYY)</small></label>
+                <input type="text" id="salEffectiveDate" class="form-control js-date" placeholder="DD-MM-YYYY">
+            </div>
+            <div class="form-group">
+                <label>New Salary <small>(preview)</small></label>
+                <input type="text" id="salNewPreview" class="form-control" readonly>
+            </div>
+            <div class="form-group" style="grid-column: 1 / -1;">
+                <label>Note <small>(optional)</small></label>
+                <input type="text" id="salRemark" class="form-control" placeholder="e.g. Annual increment">
+            </div>
+        </div>
+        <div class="salary-revise-actions">
+            <button type="button" class="btn-primary" id="salReviseOk"><i class="fa-solid fa-check"></i> OK</button>
+            <button type="button" class="btn-secondary" data-close-salary-modal>Cancel</button>
+        </div>
+    </div>
+</div>
+<?php endif; ?>
+
 <script>
     window.EMP_NEXT_CODE_URL = <?php echo json_encode(app_url('employees/next_code.php')); ?>;
     window.EMP_CHECK_CODE_URL = <?php echo json_encode(app_url('employees/check_code.php')); ?>;
     window.EMP_IS_NEW = <?php echo $empId > 0 ? 'false' : 'true'; ?>;
     window.EMP_ID = <?php echo (int) $empId; ?>;
+    window.EMP_SALARY_REVISE_URL = <?php echo json_encode(app_url('employees/salary_revise.php')); ?>;
     window.SUBDEPT_URL = <?php echo json_encode(app_url('masters/sub_departments/by_department.php')); ?>;
     window.SUBDEPT_SELECTED = <?php echo json_encode((string) empField($employee, 'sub_department_id', '0')); ?>;
+    window.LOC_BY_STATE_URL = <?php echo json_encode(app_url('masters/locations/by_state.php')); ?>;
+    window.ASSIGNED_LOC_SELECTED = <?php echo json_encode((string) ($currentAssignedLocationId ?? 0)); ?>;
 </script>
 <?php require_once __DIR__ . '/../includes/footer.php'; ?>

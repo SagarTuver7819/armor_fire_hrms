@@ -32,6 +32,10 @@ function buildSalaryRegisterRow(array $emp, $month, $year, $mode)
     $actual = getJobworkTotal((int) $emp['id'], $month, $year);
     $qty = getJobworkQtyTotal((int) $emp['id'], $month, $year);
     $baseAmount = (float) ($emp['decided_salary'] ?? 0);
+    if ($payType === 'Salary' && function_exists('employeeDecidedSalaryAsOf')) {
+        $monthEnd = sprintf('%04d-%02d-%02d', $year, $month, (int) date('t', strtotime(sprintf('%04d-%02d-01', $year, $month))));
+        $baseAmount = employeeDecidedSalaryAsOf((int) ($emp['id'] ?? 0), $monthEnd, null, $baseAmount);
+    }
     if ($payType === 'Salary' && $baseAmount <= 0) {
         foreach (getEmployeeSalaryDetails((int) $emp['id']) as $line) {
             if (($line['line_type'] ?? 'component') === 'component' && ($line['component_type'] ?? 'Earning') !== 'Deduction') {

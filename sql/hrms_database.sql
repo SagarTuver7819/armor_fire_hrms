@@ -46,35 +46,36 @@ INSERT INTO departments (department_name, icon_class, icon_color, sort_order) VA
 ('SALES & MARKETING - ON FIELD', 'fa-handshake', '#1ABC9C', 6),
 ('IT AND NETWORKING', 'fa-network-wired', '#3498DB', 7),
 ('TENDER', 'fa-file-contract', '#E67E22', 8),
-('QA AND QC', 'fa-clipboard-check', '#16A085', 9),
-('QMS', 'fa-certificate', '#0D9488', 10),
-('NPD', 'fa-lightbulb', '#F1C40F', 11),
-('DESIGN', 'fa-ruler-combined', '#8E44AD', 12),
-('PRODUCTION', 'fa-industry', '#E74C3C', 13),
-('PURCHASE', 'fa-cart-shopping', '#2980B9', 14),
-('STORE', 'fa-warehouse', '#D35400', 15),
-('LABORATORY', 'fa-flask', '#27AE60', 16),
-('CORE', 'fa-cubes', '#7F8C8D', 17),
-('MELTING 1', 'fa-fire', '#C0392B', 18),
-('MELTING 2', 'fa-fire-flame-curved', '#E74C3C', 19),
-('CUTTING', 'fa-scissors', '#34495E', 20),
-('GRINDING', 'fa-gear', '#95A5A6', 21),
-('LATHE', 'fa-gears', '#2C3E50', 22),
-('CNC', 'fa-microchip', '#1ABC9C', 23),
-('BUFF', 'fa-star', '#F39C12', 24),
-('CLEANING', 'fa-broom', '#3498DB', 25),
-('ASSEMBLY 1 & COATING', 'fa-layer-group', '#9B59B6', 26),
-('ASSEMBLY 2', 'fa-object-group', '#8E44AD', 27),
-('ASSEMBLY 3 RRL & FLEXIBLE', 'fa-diagram-project', '#6C5CE7', 28),
-('ASSEMBLY 4 ALARM & DELUGE VALVE', 'fa-bell', '#E17055', 29),
-('SPRINKLER', 'fa-shower', '#00CEC9', 30),
-('ARGON', 'fa-atom', '#0984E3', 31),
-('MAINTENANCE', 'fa-wrench', '#FD79A8', 32),
-('CANTEEN', 'fa-utensils', '#FDCB6E', 33),
-('DISPATCH', 'fa-truck', '#00B894', 34),
-('TRANSPORT', 'fa-truck-fast', '#636E72', 35),
-('BUTTERFLY VALVE', 'fa-circle-dot', '#00B894', 36),
-('DRUM', 'fa-drum', '#6C5CE7', 37);
+('PRODUCT COMPLIANCE', 'fa-clipboard-list', '#14B8A6', 9),
+('QA AND QC', 'fa-clipboard-check', '#16A085', 10),
+('QMS', 'fa-certificate', '#0D9488', 11),
+('NPD', 'fa-lightbulb', '#F1C40F', 12),
+('DESIGN', 'fa-ruler-combined', '#8E44AD', 13),
+('PRODUCTION', 'fa-industry', '#E74C3C', 14),
+('PURCHASE', 'fa-cart-shopping', '#2980B9', 15),
+('STORE', 'fa-warehouse', '#D35400', 16),
+('LABORATORY', 'fa-flask', '#27AE60', 17),
+('CORE', 'fa-cubes', '#7F8C8D', 18),
+('MELTING 1', 'fa-fire', '#C0392B', 19),
+('MELTING 2', 'fa-fire-flame-curved', '#E74C3C', 20),
+('CUTTING', 'fa-scissors', '#34495E', 21),
+('GRINDING', 'fa-gear', '#95A5A6', 22),
+('LATHE', 'fa-gears', '#2C3E50', 23),
+('CNC', 'fa-microchip', '#1ABC9C', 24),
+('BUFF', 'fa-star', '#F39C12', 25),
+('CLEANING', 'fa-broom', '#3498DB', 26),
+('ASSEMBLY 1 & COATING', 'fa-layer-group', '#9B59B6', 27),
+('ASSEMBLY 2', 'fa-object-group', '#8E44AD', 28),
+('ASSEMBLY 3 RRL & FLEXIBLE', 'fa-diagram-project', '#6C5CE7', 29),
+('ASSEMBLY 4 ALARM & DELUGE VALVE', 'fa-bell', '#E17055', 30),
+('SPRINKLER', 'fa-shower', '#00CEC9', 31),
+('ARGON', 'fa-atom', '#0984E3', 32),
+('MAINTENANCE', 'fa-wrench', '#FD79A8', 33),
+('CANTEEN', 'fa-utensils', '#FDCB6E', 34),
+('DISPATCH', 'fa-truck', '#00B894', 35),
+('TRANSPORT', 'fa-truck-fast', '#636E72', 36),
+('BUTTERFLY VALVE', 'fa-circle-dot', '#00B894', 37),
+('DRUM', 'fa-drum', '#6C5CE7', 38);
 
 -- -----------------------------------------------------
 -- Table: company_settings (Logo + Company Name)
@@ -91,6 +92,80 @@ CREATE TABLE IF NOT EXISTS company_settings (
 INSERT INTO company_settings (id, company_name, company_logo, login_logo, dashboard_logo)
 VALUES (1, 'Armor Fire', NULL, NULL, NULL)
 ON DUPLICATE KEY UPDATE id = id;
+
+-- -----------------------------------------------------
+-- Table: circulars (HR/Admin scanned company circulars)
+-- -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS circulars (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    title VARCHAR(255) NOT NULL,
+    circular_no VARCHAR(100) DEFAULT NULL,
+    circular_date DATE NOT NULL,
+    added_date DATE NOT NULL,
+    remarks TEXT DEFAULT NULL,
+    pdf_file VARCHAR(255) NOT NULL,
+    original_filename VARCHAR(255) DEFAULT NULL,
+    apply_all_departments TINYINT(1) NOT NULL DEFAULT 0,
+    created_by INT DEFAULT NULL,
+    status TINYINT(1) NOT NULL DEFAULT 1,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_circular_date (circular_date),
+    INDEX idx_circular_added (added_date),
+    INDEX idx_circular_status (status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS circular_departments (
+    circular_id INT NOT NULL,
+    department_id INT NOT NULL,
+    PRIMARY KEY (circular_id, department_id),
+    INDEX idx_cd_dept (department_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS circular_reads (
+    circular_id INT NOT NULL,
+    user_id INT NOT NULL,
+    read_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (circular_id, user_id),
+    INDEX idx_cr_user (user_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- -----------------------------------------------------
+-- Table: policies (HR/Admin scanned company policies)
+-- -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS policies (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    title VARCHAR(255) NOT NULL,
+    policy_no VARCHAR(100) DEFAULT NULL,
+    policy_date DATE NOT NULL,
+    added_date DATE NOT NULL,
+    remarks TEXT DEFAULT NULL,
+    pdf_file VARCHAR(255) NOT NULL,
+    original_filename VARCHAR(255) DEFAULT NULL,
+    apply_all_departments TINYINT(1) NOT NULL DEFAULT 0,
+    created_by INT DEFAULT NULL,
+    status TINYINT(1) NOT NULL DEFAULT 1,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_policy_date (policy_date),
+    INDEX idx_policy_added (added_date),
+    INDEX idx_policy_status (status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS policy_departments (
+    policy_id INT NOT NULL,
+    department_id INT NOT NULL,
+    PRIMARY KEY (policy_id, department_id),
+    INDEX idx_pd_dept (department_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS policy_reads (
+    policy_id INT NOT NULL,
+    user_id INT NOT NULL,
+    read_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (policy_id, user_id),
+    INDEX idx_pr_user (user_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- -----------------------------------------------------
 -- Default Users

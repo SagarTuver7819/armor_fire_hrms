@@ -1207,21 +1207,27 @@ function attendanceBuildEmployeeMonthTotals(array $emp, array &$dayMapByDate, $m
         $isCalWeekOff = (strcasecmp($dowName, $weekOffName) === 0);
         $isCalHoliday = isset($holidaySet[$date]);
 
-        // No attendance mark → apply month calendar Week Off / Holiday
+        // Holiday wins over Week Off — same day must count only once
+        if ($isCalHoliday && ($status === '' || $status === 'Week Off' || $status === 'Absent')) {
+            $wasEmpty = ($status === '' || !empty($cell['_virtual']));
+            $status = 'Holiday';
+            $dayMapByDate[$date] = [
+                'employee_id' => (int) ($emp['id'] ?? 0),
+                'attendance_date' => $date,
+                'day_status' => 'Holiday',
+                'punch_in' => null,
+                'punch_out' => null,
+                'remarks' => (string) (($cell['remarks'] ?? '') ?: ''),
+                'working_minutes' => 0,
+                '_virtual' => $wasEmpty ? 1 : 0,
+            ];
+            attendanceAddDayToLeaveTotals($totals, 'Holiday');
+            continue;
+        }
+
+        // No attendance mark → apply employee Week Off from calendar
         if ($status === '') {
-            if ($isCalHoliday) {
-                $status = 'Holiday';
-                $dayMapByDate[$date] = [
-                    'employee_id' => (int) ($emp['id'] ?? 0),
-                    'attendance_date' => $date,
-                    'day_status' => 'Holiday',
-                    'punch_in' => null,
-                    'punch_out' => null,
-                    'remarks' => '',
-                    'working_minutes' => 0,
-                    '_virtual' => 1,
-                ];
-            } elseif ($isCalWeekOff) {
+            if ($isCalWeekOff) {
                 $status = 'Week Off';
                 $dayMapByDate[$date] = [
                     'employee_id' => (int) ($emp['id'] ?? 0),
@@ -1233,10 +1239,8 @@ function attendanceBuildEmployeeMonthTotals(array $emp, array &$dayMapByDate, $m
                     'working_minutes' => 0,
                     '_virtual' => 1,
                 ];
-            } else {
-                continue;
+                attendanceAddDayToLeaveTotals($totals, $status);
             }
-            attendanceAddDayToLeaveTotals($totals, $status);
             continue;
         }
 

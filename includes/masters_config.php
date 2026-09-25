@@ -74,6 +74,49 @@ function getMastersConfig()
             ],
         ],
 
+        'states' => [
+            'key'         => 'states',
+            'title'       => 'Assigned State Master',
+            'singular'    => 'State',
+            'table'       => 'assigned_states',
+            'folder'      => 'states',
+            'icon'        => 'fa-map',
+            'color'       => '#0EA5E9',
+            'name_field'  => 'name',
+            'list_columns'=> [
+                ['key' => 'name', 'label' => 'State'],
+                ['key' => 'sort_order', 'label' => 'Sort'],
+            ],
+            'fields' => [
+                ['name' => 'name', 'label' => 'State Name', 'type' => 'text', 'required' => true, 'span' => 2],
+                ['name' => 'sort_order', 'label' => 'Sort Order', 'type' => 'number', 'required' => false, 'span' => 1, 'default' => 0],
+            ],
+        ],
+
+        'locations' => [
+            'key'         => 'locations',
+            'title'       => 'Assigned Location Master',
+            'singular'    => 'Location',
+            'table'       => 'assigned_locations',
+            'folder'      => 'locations',
+            'icon'        => 'fa-location-dot',
+            'color'       => '#059669',
+            'name_field'  => 'name',
+            'fill_state_options' => true,
+            'list_columns'=> [
+                ['key' => 'state_name', 'label' => 'State'],
+                ['key' => 'name', 'label' => 'Location'],
+                ['key' => 'sort_order', 'label' => 'Sort'],
+            ],
+            'fields' => [
+                ['name' => 'state_id', 'label' => 'Assigned State', 'type' => 'select', 'required' => true, 'span' => 1,
+                    'options' => ['' => 'Select State']],
+                ['name' => 'name', 'label' => 'Location Name', 'type' => 'text', 'required' => true, 'span' => 2,
+                    'help' => 'City / area under the selected state'],
+                ['name' => 'sort_order', 'label' => 'Sort Order', 'type' => 'number', 'required' => false, 'span' => 1, 'default' => 0],
+            ],
+        ],
+
         'shifts' => [
             'key'         => 'shifts',
             'title'       => 'Shift Master',

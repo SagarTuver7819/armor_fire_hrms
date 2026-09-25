@@ -158,12 +158,16 @@
             if (type.toUpperCase() === 'COFF' || type.toUpperCase() === 'C-OFF') type = 'C-Off';
             if (type.toUpperCase() === 'CL' || type.toUpperCase() === 'EL') type = 'PL';
 
-            // Empty cell → month calendar Week Off / Holiday
-            if (!status) {
-                if (date && holidayMap[date]) {
+            // Empty / soft Week Off → Holiday wins once (never count both)
+            var onHoliday = !!(date && holidayMap[date]);
+            if (!status || status === 'Week Off' || status === 'Absent') {
+                if (onHoliday) {
                     totals.holiday += 1;
                     return;
                 }
+            }
+
+            if (!status) {
                 if (date && weekOffName) {
                     var parts = date.split('-');
                     if (parts.length === 3) {
@@ -561,12 +565,25 @@
             return off !== '' && day !== '' && off === day;
         }
 
+        function isHolidayDate($td) {
+            var date = String($td.attr('data-date') || $td.data('date') || '');
+            var map = window.ATT_HOLIDAY_DATES || {};
+            return !!(date && map[date]);
+        }
+
         $('#btnFillPresent').on('click', function () {
             var presentN = 0;
             var offN = 0;
+            var holN = 0;
             $('#manualAttTable td.day-cell').each(function () {
                 var $td = $(this);
                 if (($td.attr('data-status') || '') !== '') return;
+                // Holiday first — never also mark Week Off
+                if (isHolidayDate($td)) {
+                    writeCell($td, { status: 'Holiday', in: '', out: '', leaveType: '', leaveHalf: '' });
+                    holN++;
+                    return;
+                }
                 if (isEmployeeWeekOffDay($td)) {
                     writeCell($td, { status: 'Week Off', in: '', out: '', leaveType: '', leaveHalf: '' });
                     offN++;
@@ -577,7 +594,7 @@
                 presentN++;
             });
             if (typeof toastr !== 'undefined') {
-                toastr.info('Filled Present (employee shift): ' + presentN + ' · Week Off: ' + offN);
+                toastr.info('Filled Present: ' + presentN + ' · Week Off: ' + offN + ' · Holiday: ' + holN);
             }
         });
 
@@ -586,6 +603,15 @@
             $('#manualAttTable td.day-cell').each(function () {
                 var $td = $(this);
                 if (!isEmployeeWeekOffDay($td)) return;
+                // Never overwrite holiday as Week Off (count once)
+                if (isHolidayDate($td)) {
+                    var stH = ($td.attr('data-status') || '');
+                    if (stH === '' || stH === 'Week Off' || stH === 'Absent' || stH === 'Present') {
+                        writeCell($td, { status: 'Holiday', in: '', out: '', leaveType: '', leaveHalf: '' });
+                        n++;
+                    }
+                    return;
+                }
                 // Only fill empty, or overwrite if already Week Off / Present from bulk fill
                 var st = ($td.attr('data-status') || '');
                 if (st !== '' && st !== 'Week Off' && st !== 'Present') return;
@@ -593,7 +619,7 @@
                 n++;
             });
             if (typeof toastr !== 'undefined') {
-                toastr.info(n + ' day(s) marked Week Off from each employee\'s week-off day.');
+                toastr.info(n + ' day(s) marked Week Off / Holiday (holiday wins if both).');
             }
         });
 

@@ -26,6 +26,7 @@ if (!$isAllReport) {
         exit;
     }
 }
+$isOnFieldDept = (!$isAllReport && $department) ? isSalesOnFieldDepartment($department) : false;
 
 if ($isExit) {
     $pageTitle = $isAllReport ? 'Exit Employee List (All Departments)' : ('Exit Employee List — ' . $department['department_name']);
@@ -153,6 +154,10 @@ $excelUrl = app_url('employees/export_excel.php?view=' . $view . ($deptId > 0 ? 
                         <?php endif; ?>
                         <th>Type</th>
                         <th>Designation</th>
+                        <?php if (!empty($isOnFieldDept)): ?>
+                            <th>Assigned State</th>
+                            <th>Location</th>
+                        <?php endif; ?>
                         <th>Mobile</th>
                         <th>Joining Date</th>
                         <?php if ($isExit): ?>
@@ -175,10 +180,33 @@ $excelUrl = app_url('employees/export_excel.php?view=' . $view . ($deptId > 0 ? 
 <script>
     window.EMP_TOAST_MSG   = <?php echo json_encode($toastMsg); ?>;
     window.EMP_TOAST_TYPE  = <?php echo json_encode($toastType); ?>;
-    window.EMP_AJAX_URL    = <?php echo json_encode($ajaxUrl); ?>;
+    window.EMP_AJAX_URL    = <?php echo json_encode($ajaxUrl . ($isOnFieldDept ? '&on_field=1' : '')); ?>;
     window.EMP_IS_ALL      = <?php echo $isAllReport ? 'true' : 'false'; ?>;
     window.EMP_IS_EXIT     = <?php echo $isExit ? 'true' : 'false'; ?>;
-    window.EMP_ACTION_COLS = <?php echo json_encode($isExit ? ($isAllReport ? [11, 12] : [10, 11]) : ($isAllReport ? [9, 10] : [8, 9])); ?>;
+    window.EMP_IS_ON_FIELD = <?php echo $isOnFieldDept ? 'true' : 'false'; ?>;
+    <?php
+    // Action col indexes: PDF + Action at end
+    // Base active dept: Sr,Code,Name,Type,Desig,Mobile,Join,Shift,PDF,Action => PDF=8 Action=9
+    // On-field adds State+Location after Designation => PDF=10 Action=11
+    if ($isExit) {
+        if ($isAllReport) {
+            $pdfCol = 11; $actCol = 12;
+        } elseif ($isOnFieldDept) {
+            $pdfCol = 12; $actCol = 13;
+        } else {
+            $pdfCol = 10; $actCol = 11;
+        }
+    } else {
+        if ($isAllReport) {
+            $pdfCol = 9; $actCol = 10;
+        } elseif ($isOnFieldDept) {
+            $pdfCol = 10; $actCol = 11;
+        } else {
+            $pdfCol = 8; $actCol = 9;
+        }
+    }
+    ?>
+    window.EMP_ACTION_COLS = <?php echo json_encode([$pdfCol, $actCol]); ?>;
     window.EMP_APP_BASE    = <?php echo json_encode(APP_BASE); ?>;
     window.EMP_DEPT_ID     = <?php echo (int) $deptId; ?>;
 </script>

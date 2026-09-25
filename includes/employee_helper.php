@@ -75,6 +75,8 @@ function ensureEmployeesTable($conn = null)
     ensureEmployeeColumn($conn, 'pf_start_date', "pf_start_date DATE DEFAULT NULL AFTER pf_deduction");
     ensureEmployeeColumn($conn, 'pf_employee_contribution', "pf_employee_contribution DECIMAL(12,2) DEFAULT NULL AFTER pf_start_date");
     ensureEmployeeColumn($conn, 'pf_employer_contribution', "pf_employer_contribution DECIMAL(12,2) DEFAULT NULL AFTER pf_employee_contribution");
+    ensureEmployeeColumn($conn, 'assigned_state_id', "assigned_state_id INT DEFAULT NULL AFTER sub_department_id");
+    ensureEmployeeColumn($conn, 'assigned_location_id', "assigned_location_id INT DEFAULT NULL AFTER assigned_state_id");
 
     // Auto-sync: Exit date reached (today or past) → Deactive. Future exit date keeps Active.
     $conn->query(
@@ -87,6 +89,8 @@ function ensureEmployeesTable($conn = null)
     );
 
     ensureEmployeeFamilyTable($conn);
+    ensureEmployeeSalaryHistoryTable($conn);
+    ensureEmployeeLocationHistoryTable($conn);
 
     $ready = true;
     if ($closeAfter) {
@@ -109,6 +113,424 @@ function ensureEmployeeFamilyTable($conn)
             INDEX idx_emp_family_employee (employee_id)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
     );
+}
+
+/**
+ * Salary revision history (vadharo / ghatado) with effective date.
+ */
+function ensureEmployeeSalaryHistoryTable($conn)
+{
+    $conn->query(
+        "CREATE TABLE IF NOT EXISTS employee_salary_history (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            employee_id INT NOT NULL,
+            old_salary DECIMAL(12,2) NOT NULL DEFAULT 0,
+            change_amount DECIMAL(12,2) NOT NULL DEFAULT 0,
+            new_salary DECIMAL(12,2) NOT NULL DEFAULT 0,
+            effective_date DATE NOT NULL,
+            remarks VARCHAR(255) DEFAULT NULL,
+            created_by INT DEFAULT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            INDEX idx_sal_hist_emp (employee_id),
+            INDEX idx_sal_hist_eff (employee_id, effective_date)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+    );
+}
+
+/**
+ * Assigned State / Location change history (Sales On Field).
+ */
+function ensureEmployeeLocationHistoryTable($conn)
+{
+    $conn->query(
+        "CREATE TABLE IF NOT EXISTS employee_location_history (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            employee_id INT NOT NULL,
+            old_state_id INT DEFAULT NULL,
+            old_location_id INT DEFAULT NULL,
+            new_state_id INT DEFAULT NULL,
+            new_location_id INT DEFAULT NULL,
+            old_state_name VARCHAR(120) DEFAULT NULL,
+            old_location_name VARCHAR(150) DEFAULT NULL,
+            new_state_name VARCHAR(120) DEFAULT NULL,
+            new_location_name VARCHAR(150) DEFAULT NULL,
+            created_by INT DEFAULT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            INDEX idx_loc_hist_emp (employee_id),
+            INDEX idx_loc_hist_created (employee_id, created_at)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+    );
+}
+
+/**
+ * @return array<int, array>
+ */
+function getEmployeeLocationHistory($employeeId, $conn = null)
+{
+    $closeAfter = false;
+    if ($conn === null) {
+        $conn = getDBConnection();
+        $closeAfter = true;
+    }
+    ensureEmployeeLocationHistoryTable($conn);
+    $employeeId = (int) $employeeId;
+    $rows = [];
+    if ($employeeId > 0) {
+        $stmt = $conn->prepare(
+            'SELECT h.*,
+                    u.username AS changed_by_login,
+                    u.full_name AS changed_by_name
+             FROM employee_location_history h
+             LEFT JOIN users u ON u.id = h.created_by
+             WHERE h.employee_id = ?
+             ORDER BY h.created_at DESC, h.id DESC'
+        );
+        $stmt->bind_param('i', $employeeId);
+        $stmt->execute();
+        $res = $stmt->get_result();
+        while ($row = $res->fetch_assoc()) {
+            $login = trim((string) ($row['changed_by_login'] ?? ''));
+            $name = trim((string) ($row['changed_by_name'] ?? ''));
+            if ($login !== '' && $name !== '') {
+                $row['changed_by_label'] = $name . ' (@' . $login . ')';
+            } elseif ($login !== '') {
+                $row['changed_by_label'] = '@' . $login;
+            } elseif ($name !== '') {
+                $row['changed_by_label'] = $name;
+            } else {
+                $row['changed_by_label'] = ((int) ($row['created_by'] ?? 0) > 0) ? ('User #' . (int) $row['created_by']) : '—';
+            }
+            $rows[] = $row;
+        }
+        $stmt->close();
+    }
+    if ($closeAfter) {
+        $conn->close();
+    }
+    return $rows;
+}
+
+function employeeResolveStateLocationNames($conn, $stateId, $locationId)
+{
+    $stateId = (int) $stateId;
+    $locationId = (int) $locationId;
+    $stateName = '';
+    $locName = '';
+    if ($stateId > 0) {
+        $st = $conn->prepare('SELECT name FROM assigned_states WHERE id = ? LIMIT 1');
+        $st->bind_param('i', $stateId);
+        $st->execute();
+        $r = $st->get_result()->fetch_assoc();
+        $st->close();
+        $stateName = (string) ($r['name'] ?? '');
+    }
+    if ($locationId > 0) {
+        $st = $conn->prepare('SELECT name FROM assigned_locations WHERE id = ? LIMIT 1');
+        $st->bind_param('i', $locationId);
+        $st->execute();
+        $r = $st->get_result()->fetch_assoc();
+        $st->close();
+        $locName = (string) ($r['name'] ?? '');
+    }
+    return [$stateName, $locName];
+}
+
+/**
+ * Record location assignment change if state/location actually changed.
+ */
+function employeeRecordLocationChange($conn, $employeeId, $oldStateId, $oldLocationId, $newStateId, $newLocationId, $createdBy = null)
+{
+    $employeeId = (int) $employeeId;
+    $oldStateId = (int) $oldStateId;
+    $oldLocationId = (int) $oldLocationId;
+    $newStateId = (int) $newStateId;
+    $newLocationId = (int) $newLocationId;
+    if ($employeeId <= 0) {
+        return false;
+    }
+    if ($oldStateId === $newStateId && $oldLocationId === $newLocationId) {
+        return false;
+    }
+    // Ignore empty → empty
+    if ($oldStateId <= 0 && $oldLocationId <= 0 && $newStateId <= 0 && $newLocationId <= 0) {
+        return false;
+    }
+    ensureEmployeeLocationHistoryTable($conn);
+    if (function_exists('ensureMasterTables')) {
+        require_once __DIR__ . '/master_helper.php';
+        ensureMasterTables($conn);
+    }
+    list($oldStateName, $oldLocName) = employeeResolveStateLocationNames($conn, $oldStateId, $oldLocationId);
+    list($newStateName, $newLocName) = employeeResolveStateLocationNames($conn, $newStateId, $newLocationId);
+    $by = $createdBy !== null ? (int) $createdBy : null;
+    $os = $oldStateId > 0 ? $oldStateId : null;
+    $ol = $oldLocationId > 0 ? $oldLocationId : null;
+    $ns = $newStateId > 0 ? $newStateId : null;
+    $nl = $newLocationId > 0 ? $newLocationId : null;
+    // bind_param needs variables; use 0 for null IDs and store names always
+    $osI = $os ?: 0;
+    $olI = $ol ?: 0;
+    $nsI = $ns ?: 0;
+    $nlI = $nl ?: 0;
+    $stmt = $conn->prepare(
+        'INSERT INTO employee_location_history
+            (employee_id, old_state_id, old_location_id, new_state_id, new_location_id,
+             old_state_name, old_location_name, new_state_name, new_location_name, created_by)
+         VALUES (?, NULLIF(?,0), NULLIF(?,0), NULLIF(?,0), NULLIF(?,0), ?, ?, ?, ?, NULLIF(?,0))'
+    );
+    $byI = $by ?: 0;
+    $stmt->bind_param(
+        'iiiiissssi',
+        $employeeId,
+        $osI,
+        $olI,
+        $nsI,
+        $nlI,
+        $oldStateName,
+        $oldLocName,
+        $newStateName,
+        $newLocName,
+        $byI
+    );
+    $ok = $stmt->execute();
+    $stmt->close();
+    return $ok;
+}
+
+/**
+ * @return array<int, array>
+ */
+function getEmployeeSalaryHistory($employeeId, $conn = null)
+{
+    $closeAfter = false;
+    if ($conn === null) {
+        $conn = getDBConnection();
+        $closeAfter = true;
+    }
+    ensureEmployeeSalaryHistoryTable($conn);
+    $employeeId = (int) $employeeId;
+    $rows = [];
+    if ($employeeId > 0) {
+        $stmt = $conn->prepare(
+            'SELECT h.id, h.employee_id, h.old_salary, h.change_amount, h.new_salary, h.effective_date,
+                    h.remarks, h.created_by, h.created_at,
+                    u.username AS changed_by_login,
+                    u.full_name AS changed_by_name
+             FROM employee_salary_history h
+             LEFT JOIN users u ON u.id = h.created_by
+             WHERE h.employee_id = ?
+             ORDER BY h.effective_date DESC, h.id DESC'
+        );
+        $stmt->bind_param('i', $employeeId);
+        $stmt->execute();
+        $res = $stmt->get_result();
+        while ($row = $res->fetch_assoc()) {
+            $login = trim((string) ($row['changed_by_login'] ?? ''));
+            $name = trim((string) ($row['changed_by_name'] ?? ''));
+            if ($login !== '' && $name !== '') {
+                $row['changed_by_label'] = $name . ' (@' . $login . ')';
+            } elseif ($login !== '') {
+                $row['changed_by_label'] = '@' . $login;
+            } elseif ($name !== '') {
+                $row['changed_by_label'] = $name;
+            } else {
+                $row['changed_by_label'] = ((int) ($row['created_by'] ?? 0) > 0) ? ('User #' . (int) $row['created_by']) : '—';
+            }
+            $rows[] = $row;
+        }
+        $stmt->close();
+    }
+    if ($closeAfter) {
+        $conn->close();
+    }
+    return $rows;
+}
+
+/**
+ * Decided salary applicable on a given date (from history, else employees.decided_salary).
+ */
+function employeeDecidedSalaryAsOf($employeeId, $asOfDate, $conn = null, $fallback = null)
+{
+    $closeAfter = false;
+    if ($conn === null) {
+        $conn = getDBConnection();
+        $closeAfter = true;
+    }
+    ensureEmployeeSalaryHistoryTable($conn);
+    $employeeId = (int) $employeeId;
+    $asOfDate = substr((string) $asOfDate, 0, 10);
+    $salary = null;
+
+    if ($employeeId > 0 && preg_match('/^\d{4}-\d{2}-\d{2}$/', $asOfDate)) {
+        $stmt = $conn->prepare(
+            'SELECT new_salary FROM employee_salary_history
+             WHERE employee_id = ? AND effective_date <= ?
+             ORDER BY effective_date DESC, id DESC
+             LIMIT 1'
+        );
+        $stmt->bind_param('is', $employeeId, $asOfDate);
+        $stmt->execute();
+        $row = $stmt->get_result()->fetch_assoc();
+        $stmt->close();
+        if ($row) {
+            $salary = (float) $row['new_salary'];
+        }
+    }
+
+    if ($salary === null) {
+        if ($fallback !== null) {
+            $salary = (float) $fallback;
+        } else {
+            $st = $conn->prepare('SELECT decided_salary FROM employees WHERE id = ? LIMIT 1');
+            $st->bind_param('i', $employeeId);
+            $st->execute();
+            $er = $st->get_result()->fetch_assoc();
+            $st->close();
+            $salary = (float) ($er['decided_salary'] ?? 0);
+        }
+    }
+
+    if ($closeAfter) {
+        $conn->close();
+    }
+    return round((float) $salary, 2);
+}
+
+/**
+ * Apply salary as of today onto employees.decided_salary (pending future revisions stay in history).
+ */
+function employeeSyncDecidedSalaryFromHistory($conn, $employeeId)
+{
+    $employeeId = (int) $employeeId;
+    if ($employeeId <= 0) {
+        return;
+    }
+    ensureEmployeeSalaryHistoryTable($conn);
+    $today = date('Y-m-d');
+    $current = employeeDecidedSalaryAsOf($employeeId, $today, $conn);
+    $stmt = $conn->prepare('UPDATE employees SET decided_salary = ? WHERE id = ?');
+    $stmt->bind_param('di', $current, $employeeId);
+    $stmt->execute();
+    $stmt->close();
+}
+
+/**
+ * Seed baseline history row if none exist (joining / first salary).
+ */
+function employeeSeedSalaryHistoryIfEmpty($conn, $employeeId, $salary, $effectiveDate = null, $createdBy = null)
+{
+    $employeeId = (int) $employeeId;
+    $salary = round((float) $salary, 2);
+    if ($employeeId <= 0 || $salary <= 0) {
+        return;
+    }
+    ensureEmployeeSalaryHistoryTable($conn);
+    $chk = $conn->prepare('SELECT id FROM employee_salary_history WHERE employee_id = ? LIMIT 1');
+    $chk->bind_param('i', $employeeId);
+    $chk->execute();
+    $exists = (bool) $chk->get_result()->fetch_assoc();
+    $chk->close();
+    if ($exists) {
+        return;
+    }
+    $eff = $effectiveDate && preg_match('/^\d{4}-\d{2}-\d{2}$/', (string) $effectiveDate)
+        ? $effectiveDate
+        : date('Y-m-d');
+    $zero = 0.0;
+    $remark = 'Initial salary';
+    $by = $createdBy !== null ? (int) $createdBy : null;
+    $stmt = $conn->prepare(
+        'INSERT INTO employee_salary_history
+            (employee_id, old_salary, change_amount, new_salary, effective_date, remarks, created_by)
+         VALUES (?, ?, ?, ?, ?, ?, ?)'
+    );
+    $stmt->bind_param('idddssi', $employeeId, $zero, $salary, $salary, $eff, $remark, $by);
+    $stmt->execute();
+    $stmt->close();
+}
+
+/**
+ * Record salary revision (increase / decrease) and sync current decided_salary.
+ *
+ * @return array{old_salary:float,change_amount:float,new_salary:float,effective_date:string,history:array}
+ */
+function employeeReviseSalary($conn, $employeeId, $changeAmount, $effectiveDate, $createdBy = null, $remarks = '')
+{
+    ensureEmployeeSalaryHistoryTable($conn);
+    $employeeId = (int) $employeeId;
+    if ($employeeId <= 0) {
+        throw new RuntimeException('Invalid employee.');
+    }
+    if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', (string) $effectiveDate)) {
+        throw new RuntimeException('Valid effective date is required.');
+    }
+    $changeAmount = round((float) $changeAmount, 2);
+    if (abs($changeAmount) < 0.001) {
+        throw new RuntimeException('Enter increase / decrease amount (not zero).');
+    }
+
+    $st = $conn->prepare('SELECT decided_salary, date_of_joining FROM employees WHERE id = ? LIMIT 1');
+    $st->bind_param('i', $employeeId);
+    $st->execute();
+    $emp = $st->get_result()->fetch_assoc();
+    $st->close();
+    if (!$emp) {
+        throw new RuntimeException('Employee not found.');
+    }
+
+    $current = (float) ($emp['decided_salary'] ?? 0);
+    employeeSeedSalaryHistoryIfEmpty(
+        $conn,
+        $employeeId,
+        $current > 0 ? $current : max(0, $current + $changeAmount),
+        !empty($emp['date_of_joining']) && $emp['date_of_joining'] !== '0000-00-00'
+            ? substr((string) $emp['date_of_joining'], 0, 10)
+            : date('Y-m-d'),
+        $createdBy
+    );
+
+    // Old salary = rate just before this effective date
+    $dayBefore = date('Y-m-d', strtotime($effectiveDate . ' -1 day'));
+    $oldSalary = employeeDecidedSalaryAsOf($employeeId, $dayBefore, $conn, $current);
+    $newSalary = round($oldSalary + $changeAmount, 2);
+    if ($newSalary < 0) {
+        throw new RuntimeException('New salary cannot be negative.');
+    }
+
+    $remark = trim((string) $remarks);
+    if ($remark === '') {
+        $remark = $changeAmount >= 0 ? 'Salary increase' : 'Salary decrease';
+    }
+    $by = $createdBy !== null ? (int) $createdBy : null;
+    $stmt = $conn->prepare(
+        'INSERT INTO employee_salary_history
+            (employee_id, old_salary, change_amount, new_salary, effective_date, remarks, created_by)
+         VALUES (?, ?, ?, ?, ?, ?, ?)'
+    );
+    $stmt->bind_param('idddssi', $employeeId, $oldSalary, $changeAmount, $newSalary, $effectiveDate, $remark, $by);
+    if (!$stmt->execute()) {
+        $err = $stmt->error;
+        $stmt->close();
+        throw new RuntimeException('Could not save salary history: ' . $err);
+    }
+    $stmt->close();
+
+    employeeSyncDecidedSalaryFromHistory($conn, $employeeId);
+
+    $st2 = $conn->prepare('SELECT decided_salary FROM employees WHERE id = ? LIMIT 1');
+    $st2->bind_param('i', $employeeId);
+    $st2->execute();
+    $synced = (float) ($st2->get_result()->fetch_assoc()['decided_salary'] ?? $newSalary);
+    $st2->close();
+
+    return [
+        'old_salary' => $oldSalary,
+        'change_amount' => $changeAmount,
+        'new_salary' => $newSalary,
+        'current_salary' => $synced,
+        'effective_date' => $effectiveDate,
+        'history' => getEmployeeSalaryHistory($employeeId, $conn),
+    ];
 }
 
 /**
@@ -380,11 +802,19 @@ function getEmployeeById($employeeId)
 {
     $conn = getDBConnection();
     ensureEmployeesTable($conn);
+    if (function_exists('ensureMasterTables')) {
+        require_once __DIR__ . '/master_helper.php';
+        ensureMasterTables($conn);
+    }
 
     $stmt = $conn->prepare(
-        "SELECT e.*, d.department_name
+        "SELECT e.*, d.department_name,
+                ast.name AS assigned_state_name,
+                aloc.name AS assigned_location_name
          FROM employees e
          LEFT JOIN departments d ON d.id = e.department_id
+         LEFT JOIN assigned_states ast ON ast.id = e.assigned_state_id
+         LEFT JOIN assigned_locations aloc ON aloc.id = e.assigned_location_id
          WHERE e.id = ?
          LIMIT 1"
     );
@@ -394,6 +824,47 @@ function getEmployeeById($employeeId)
     $stmt->close();
     $conn->close();
     return $row;
+}
+
+/**
+ * SALES & MARKETING - ON FIELD department check.
+ */
+function isSalesOnFieldDepartment($department)
+{
+    if (is_array($department)) {
+        $name = (string) ($department['department_name'] ?? '');
+    } else {
+        $name = (string) $department;
+    }
+    $n = strtoupper(trim(preg_replace('/[^A-Z0-9]+/', ' ', $name)));
+    $n = trim(preg_replace('/\s+/', ' ', $n));
+    if ($n === '') {
+        return false;
+    }
+    return $n === 'SALES MARKETING ON FIELD'
+        || (strpos($n, 'SALES') !== false && strpos($n, 'ON FIELD') !== false);
+}
+
+function isSalesOnFieldDepartmentId($departmentId, $conn = null)
+{
+    $departmentId = (int) $departmentId;
+    if ($departmentId <= 0) {
+        return false;
+    }
+    $closeAfter = false;
+    if ($conn === null) {
+        $conn = getDBConnection();
+        $closeAfter = true;
+    }
+    $stmt = $conn->prepare('SELECT department_name FROM departments WHERE id = ? LIMIT 1');
+    $stmt->bind_param('i', $departmentId);
+    $stmt->execute();
+    $row = $stmt->get_result()->fetch_assoc();
+    $stmt->close();
+    if ($closeAfter) {
+        $conn->close();
+    }
+    return isSalesOnFieldDepartment($row ?: []);
 }
 
 /**

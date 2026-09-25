@@ -33,6 +33,7 @@ require_once __DIR__ . '/../config/app.php';
 
     <script src="<?php echo app_url('assets/js/dashboard.js'); ?>?v=<?php echo (int) @filemtime(__DIR__ . '/../assets/js/dashboard.js'); ?>"></script>
     <script src="<?php echo app_url('assets/js/header_clock.js'); ?>?v=<?php echo (int) @filemtime(__DIR__ . '/../assets/js/header_clock.js'); ?>"></script>
+    <script src="<?php echo app_url('assets/js/header_notify.js'); ?>?v=<?php echo (int) @filemtime(__DIR__ . '/../assets/js/header_notify.js'); ?>"></script>
     <script src="<?php echo app_url('assets/js/confirm_delete.js'); ?>?v=<?php echo (int) @filemtime(__DIR__ . '/../assets/js/confirm_delete.js'); ?>"></script>
     <?php if (!empty($useSidebar)): ?>
         <script src="<?php echo app_url('assets/js/sidebar.js'); ?>?v=<?php echo (int) @filemtime(__DIR__ . '/../assets/js/sidebar.js'); ?>"></script>

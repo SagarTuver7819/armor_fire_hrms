@@ -150,7 +150,6 @@ $tabUrl = function ($t) use ($baseQs, $year, $month) {
                 </div>
                 <div class="emp-id-copy">
                     <div class="emp-id-tags">
-                        <span class="code-badge"><?php echo showVal($emp['employee_code']); ?></span>
                         <?php if ($isDeactive): ?>
                             <span class="status-pill status-deactive" title="<?php echo !empty($emp['date_of_exit']) ? ('Exit Date: ' . htmlspecialchars(formatDateDisplay($emp['date_of_exit']))) : 'Deactive'; ?>">
                                 <i class="fa-solid fa-circle"></i> Deactive
@@ -159,7 +158,10 @@ $tabUrl = function ($t) use ($baseQs, $year, $month) {
                             <span class="status-pill status-active"><i class="fa-solid fa-circle"></i> Active</span>
                         <?php endif; ?>
                     </div>
-                    <h1><?php echo showVal($emp['employee_name']); ?></h1>
+                    <div class="emp-id-title-row">
+                        <strong class="emp-id-code"><?php echo showVal($emp['employee_code']); ?></strong>
+                        <h1><?php echo showVal($emp['employee_name']); ?></h1>
+                    </div>
                     <p class="emp-id-role">
                         <span><i class="fa-solid fa-briefcase"></i> <?php echo showVal($emp['designation']); ?></span>
                         <span class="sep">|</span>
@@ -212,9 +214,23 @@ $tabUrl = function ($t) use ($baseQs, $year, $month) {
                 </div>
             </div>
             <div class="emp-stat-item">
+                <div class="emp-stat-icon"><i class="fa-solid fa-envelope"></i></div>
+                <div>
+                    <span>Official Mail ID</span>
+                    <strong class="emp-stat-mail"><?php echo showVal($emp['office_email'] ?? ''); ?></strong>
+                </div>
+            </div>
+            <div class="emp-stat-item">
                 <div class="emp-stat-icon"><i class="fa-solid fa-phone"></i></div>
                 <div>
-                    <span>Mobile</span>
+                    <span>Official Mobile</span>
+                    <strong><?php echo showVal($emp['office_mobile'] ?? ''); ?></strong>
+                </div>
+            </div>
+            <div class="emp-stat-item">
+                <div class="emp-stat-icon"><i class="fa-solid fa-mobile-screen"></i></div>
+                <div>
+                    <span>Personal Mobile</span>
                     <strong><?php echo showVal($emp['mobile_number']); ?></strong>
                 </div>
             </div>
@@ -488,6 +504,43 @@ $tabUrl = function ($t) use ($baseQs, $year, $month) {
                 <div class="info-row"><dt>Account Number</dt><dd><?php echo showVal($emp['bank_account_number']); ?></dd></div>
                 <div class="info-row"><dt>IFSC Code</dt><dd><?php echo showVal($emp['ifsc_code']); ?></dd></div>
             </dl>
+            <?php
+            $salHistView = getEmployeeSalaryHistory($id);
+            if ($salHistView):
+            ?>
+            <div class="view-subhead" style="margin-top:16px;">Salary Revision History</div>
+            <div class="salary-history-box">
+                <div class="salary-history-scroll">
+                    <table class="salary-history-table">
+                        <thead>
+                            <tr>
+                                <th class="col-eff">Effective Date</th>
+                                <th class="col-amt">Old Salary</th>
+                                <th class="col-chg">Change</th>
+                                <th class="col-amt">New Salary</th>
+                                <th class="col-note">Note</th>
+                                <th class="col-by">Changed By (Login)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php foreach ($salHistView as $h):
+                                $chg = (float) $h['change_amount'];
+                                $cls = $chg >= 0 ? 'is-up' : 'is-down';
+                                ?>
+                                <tr>
+                                    <td class="col-eff"><?php echo htmlspecialchars(formatDateDisplay($h['effective_date'])); ?></td>
+                                    <td class="col-amt">₹ <?php echo number_format((float) $h['old_salary'], 2); ?></td>
+                                    <td class="col-chg <?php echo $cls; ?>"><?php echo ($chg >= 0 ? '+' : '') . number_format($chg, 2); ?></td>
+                                    <td class="col-amt"><strong>₹ <?php echo number_format((float) $h['new_salary'], 2); ?></strong></td>
+                                    <td class="col-note"><?php echo htmlspecialchars((string) ($h['remarks'] ?? '—')); ?></td>
+                                    <td class="col-by"><?php echo htmlspecialchars((string) ($h['changed_by_label'] ?? '—')); ?></td>
+                                </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <?php endif; ?>
         </div>
 
     <?php else: ?>
@@ -574,6 +627,48 @@ $tabUrl = function ($t) use ($baseQs, $year, $month) {
                 </div>
                 <dl class="info-list">
                     <div class="info-row"><dt>Department</dt><dd><?php echo showVal($emp['department_name']); ?></dd></div>
+                    <?php if (isSalesOnFieldDepartment($emp)): ?>
+                    <div class="info-row"><dt>Assigned State</dt><dd><?php echo showVal($emp['assigned_state_name'] ?? ''); ?></dd></div>
+                    <div class="info-row"><dt>Assigned Location</dt><dd><?php echo showVal($emp['assigned_location_name'] ?? ''); ?></dd></div>
+                    <?php
+                    $locHistView = getEmployeeLocationHistory($id);
+                    if ($locHistView):
+                    ?>
+                    <div class="view-subhead" style="margin-top:12px;">Location Change History</div>
+                    <div class="salary-history-box location-history-box">
+                        <div class="salary-history-scroll">
+                            <table class="salary-history-table location-history-table">
+                                <thead>
+                                    <tr>
+                                        <th class="col-eff">Date / Time</th>
+                                        <th class="col-note">Old State / Location</th>
+                                        <th class="col-note">New State / Location</th>
+                                        <th class="col-by">Changed By (Login)</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <?php foreach ($locHistView as $h):
+                                        $oldShow = ((string) ($h['old_state_name'] ?? '') !== '' ? $h['old_state_name'] : '—')
+                                            . ' / '
+                                            . ((string) ($h['old_location_name'] ?? '') !== '' ? $h['old_location_name'] : '—');
+                                        $newShow = ((string) ($h['new_state_name'] ?? '') !== '' ? $h['new_state_name'] : '—')
+                                            . ' / '
+                                            . ((string) ($h['new_location_name'] ?? '') !== '' ? $h['new_location_name'] : '—');
+                                        $when = !empty($h['created_at']) ? date('d-m-Y H:i', strtotime($h['created_at'])) : '—';
+                                        ?>
+                                        <tr>
+                                            <td class="col-eff"><?php echo htmlspecialchars($when); ?></td>
+                                            <td class="col-note"><?php echo htmlspecialchars($oldShow); ?></td>
+                                            <td class="col-note"><strong><?php echo htmlspecialchars($newShow); ?></strong></td>
+                                            <td class="col-by"><?php echo htmlspecialchars((string) ($h['changed_by_label'] ?? '—')); ?></td>
+                                        </tr>
+                                    <?php endforeach; ?>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <?php endif; ?>
+                    <?php endif; ?>
                     <div class="info-row"><dt>Pay Type</dt><dd><?php echo showVal(payTypeLabel($emp['pay_type'] ?? 'Salary')); ?></dd></div>
                     <div class="info-row"><dt>Designation</dt><dd><?php echo showVal($emp['designation']); ?></dd></div>
                 </dl>

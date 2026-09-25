@@ -21,6 +21,7 @@ function departmentIconCatalog()
         'IT AND NETWORKING' => ['fa-network-wired', '#3498DB'],
         'INFORMATION TECHNOLOGY' => ['fa-laptop-code', '#3498DB'],
         'TENDER' => ['fa-file-contract', '#E67E22'],
+        'PRODUCT COMPLIANCE' => ['fa-clipboard-list', '#14B8A6'],
         'QA AND QC' => ['fa-clipboard-check', '#16A085'],
         'QMS' => ['fa-certificate', '#0D9488'],
         'NPD' => ['fa-lightbulb', '#F1C40F'],

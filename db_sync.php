@@ -17,6 +17,8 @@ require_once __DIR__ . '/includes/attendance_helper.php';
 require_once __DIR__ . '/includes/department_icons.php';
 require_once __DIR__ . '/includes/department_helper.php';
 require_once __DIR__ . '/includes/leave_helper.php';
+require_once __DIR__ . '/includes/circular_helper.php';
+require_once __DIR__ . '/includes/policy_helper.php';
 require_once __DIR__ . '/sql/seed_contractor_masters.php';
 
 requireAdmin();
@@ -77,6 +79,12 @@ try {
     ensureLeaveTables($conn);
     $log[] = 'Leave tables ready (employee leave balances, leave requests).';
 
+    ensureCircularTables($conn);
+    $log[] = 'Circulars table ready (scanned PDF circulars for HR/Admin).';
+
+    ensurePolicyTables($conn);
+    $log[] = 'Policies table ready (scanned PDF policies for HR/Admin).';
+
     $deptMerge = mergeDuplicateDepartments($conn);
     foreach ($deptMerge['log'] as $line) {
         $log[] = 'Departments: ' . $line;
@@ -121,6 +129,12 @@ try {
         'employees.biometric_user_id' => dbSyncHasColumn($conn, 'employees', 'biometric_user_id'),
         'employee_leave_balances table' => dbSyncHasTable($conn, 'employee_leave_balances'),
         'leave_requests table' => dbSyncHasTable($conn, 'leave_requests'),
+        'circulars table' => dbSyncHasTable($conn, 'circulars'),
+        'circular_departments table' => dbSyncHasTable($conn, 'circular_departments'),
+        'circular_reads table' => dbSyncHasTable($conn, 'circular_reads'),
+        'policies table' => dbSyncHasTable($conn, 'policies'),
+        'policy_departments table' => dbSyncHasTable($conn, 'policy_departments'),
+        'policy_reads table' => dbSyncHasTable($conn, 'policy_reads'),
         'salary_register_locks table' => dbSyncHasTable($conn, 'salary_register_locks'),
     ];
 
@@ -135,6 +149,8 @@ try {
         'Attendance Punches' => dbSyncCount($conn, 'SELECT COUNT(*) AS c FROM attendance_punches'),
         'Leave Balance Rows' => dbSyncCount($conn, 'SELECT COUNT(*) AS c FROM employee_leave_balances'),
         'Leave Requests' => dbSyncCount($conn, 'SELECT COUNT(*) AS c FROM leave_requests'),
+        'Circulars' => dbSyncCount($conn, 'SELECT COUNT(*) AS c FROM circulars WHERE status = 1'),
+        'Policies' => dbSyncCount($conn, 'SELECT COUNT(*) AS c FROM policies WHERE status = 1'),
     ];
 } catch (Throwable $e) {
     $ok = false;

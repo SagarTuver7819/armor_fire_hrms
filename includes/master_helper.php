@@ -210,7 +210,30 @@ function ensureMasterTables($conn = null)
         INDEX idx_subdept_status (status)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
 
+    $conn->query("CREATE TABLE IF NOT EXISTS assigned_states (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        name VARCHAR(120) NOT NULL,
+        sort_order INT NOT NULL DEFAULT 0,
+        status TINYINT(1) NOT NULL DEFAULT 1,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        INDEX idx_assigned_states_status (status)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+
+    $conn->query("CREATE TABLE IF NOT EXISTS assigned_locations (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        state_id INT NOT NULL,
+        name VARCHAR(150) NOT NULL,
+        sort_order INT NOT NULL DEFAULT 0,
+        status TINYINT(1) NOT NULL DEFAULT 1,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        INDEX idx_assigned_loc_state (state_id),
+        INDEX idx_assigned_loc_status (status)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+
     seedSubDepartmentsFromDepartments($conn);
+    seedAssignedStatesAndLocations($conn);
 
     if ($closeAfter) {
         $conn->close();
@@ -243,6 +266,128 @@ function seedSubDepartmentsFromDepartments($conn)
         $stmt->execute();
     }
     $stmt->close();
+}
+
+/**
+ * Seed common Indian states + cities (first run + fill missing cities per state).
+ */
+function seedAssignedStatesAndLocations($conn)
+{
+    $states = [
+        'Gujarat', 'Maharashtra', 'Rajasthan', 'Madhya Pradesh', 'Goa',
+        'Karnataka', 'Tamil Nadu', 'Telangana', 'Andhra Pradesh', 'Delhi',
+        'Haryana', 'Punjab', 'Uttar Pradesh', 'West Bengal', 'Kerala',
+    ];
+    $citiesByState = [
+        'Gujarat' => [
+            'Rajkot', 'Ahmedabad', 'Surat', 'Vadodara', 'Jamnagar', 'Bhavnagar', 'Morbi', 'Gandhinagar',
+            'Junagadh', 'Mehsana', 'Anand', 'Nadiad', 'Bharuch', 'Vapi', 'Navsari', 'Porbandar',
+            'Gondal', 'Jetpur', 'Amreli', 'Palanpur', 'Himmatnagar', 'Godhra', 'Dahod', 'Surendranagar',
+        ],
+        'Maharashtra' => [
+            'Mumbai', 'Pune', 'Nagpur', 'Nashik', 'Thane', 'Aurangabad', 'Solapur', 'Kolhapur',
+            'Sangli', 'Satara', 'Ahmednagar', 'Jalgaon', 'Amravati', 'Nanded',
+        ],
+        'Rajasthan' => [
+            'Jaipur', 'Jodhpur', 'Udaipur', 'Kota', 'Ajmer', 'Bikaner', 'Alwar', 'Bhilwara', 'Sikar',
+        ],
+        'Madhya Pradesh' => [
+            'Indore', 'Bhopal', 'Jabalpur', 'Gwalior', 'Ujjain', 'Sagar', 'Ratlam', 'Dewas',
+        ],
+        'Goa' => ['Panaji', 'Margao', 'Vasco da Gama', 'Mapusa', 'Ponda'],
+        'Karnataka' => [
+            'Bengaluru', 'Mysuru', 'Mangaluru', 'Hubballi', 'Belagavi', 'Kalaburagi', 'Davangere',
+        ],
+        'Tamil Nadu' => [
+            'Chennai', 'Coimbatore', 'Madurai', 'Tiruchirappalli', 'Salem', 'Tirunelveli', 'Erode',
+        ],
+        'Telangana' => ['Hyderabad', 'Warangal', 'Nizamabad', 'Karimnagar', 'Khammam'],
+        'Andhra Pradesh' => [
+            'Visakhapatnam', 'Vijayawada', 'Guntur', 'Nellore', 'Kurnool', 'Tirupati', 'Rajahmundry',
+        ],
+        'Delhi' => ['New Delhi', 'North Delhi', 'South Delhi', 'East Delhi', 'West Delhi', 'Central Delhi'],
+        'Haryana' => ['Gurugram', 'Faridabad', 'Panipat', 'Ambala', 'Hisar', 'Karnal', 'Rohtak'],
+        'Punjab' => ['Ludhiana', 'Amritsar', 'Jalandhar', 'Patiala', 'Bathinda', 'Mohali'],
+        'Uttar Pradesh' => [
+            'Lucknow', 'Kanpur', 'Varanasi', 'Agra', 'Noida', 'Ghaziabad', 'Prayagraj', 'Meerut',
+        ],
+        'West Bengal' => ['Kolkata', 'Howrah', 'Durgapur', 'Asansol', 'Siliguri', 'Kharagpur'],
+        'Kerala' => ['Thiruvananthapuram', 'Kochi', 'Kozhikode', 'Thrissur', 'Kollam', 'Kannur'],
+    ];
+
+    $insState = $conn->prepare('INSERT INTO assigned_states (name, sort_order, status) VALUES (?, ?, 1)');
+    foreach ($states as $i => $name) {
+        $chk = $conn->prepare('SELECT id FROM assigned_states WHERE name = ? LIMIT 1');
+        $chk->bind_param('s', $name);
+        $chk->execute();
+        $exists = $chk->get_result()->fetch_assoc();
+        $chk->close();
+        if ($exists) {
+            continue;
+        }
+        $ord = $i + 1;
+        $insState->bind_param('si', $name, $ord);
+        $insState->execute();
+    }
+    $insState->close();
+
+    $insLoc = $conn->prepare('INSERT INTO assigned_locations (state_id, name, sort_order, status) VALUES (?, ?, ?, 1)');
+    $chkLoc = $conn->prepare(
+        'SELECT id FROM assigned_locations WHERE state_id = ? AND name = ? AND status = 1 LIMIT 1'
+    );
+    foreach ($citiesByState as $stateName => $cities) {
+        $st = $conn->prepare('SELECT id FROM assigned_states WHERE name = ? LIMIT 1');
+        $st->bind_param('s', $stateName);
+        $st->execute();
+        $srow = $st->get_result()->fetch_assoc();
+        $st->close();
+        if (!$srow) {
+            continue;
+        }
+        $stateId = (int) $srow['id'];
+        foreach ($cities as $i => $city) {
+            $chkLoc->bind_param('is', $stateId, $city);
+            $chkLoc->execute();
+            if ($chkLoc->get_result()->fetch_assoc()) {
+                continue;
+            }
+            $ord = $i + 1;
+            $insLoc->bind_param('isi', $stateId, $city, $ord);
+            $insLoc->execute();
+        }
+    }
+    $insLoc->close();
+    $chkLoc->close();
+}
+
+function getAssignedLocationsByState($stateId, $conn = null)
+{
+    $closeAfter = false;
+    if ($conn === null) {
+        $conn = getDBConnection();
+        $closeAfter = true;
+        ensureMasterTables($conn);
+    }
+    $stateId = (int) $stateId;
+    $rows = [];
+    if ($stateId > 0) {
+        $stmt = $conn->prepare(
+            'SELECT id, state_id, name FROM assigned_locations
+             WHERE status = 1 AND state_id = ?
+             ORDER BY sort_order ASC, name ASC'
+        );
+        $stmt->bind_param('i', $stateId);
+        $stmt->execute();
+        $res = $stmt->get_result();
+        while ($r = $res->fetch_assoc()) {
+            $rows[] = $r;
+        }
+        $stmt->close();
+    }
+    if ($closeAfter) {
+        $conn->close();
+    }
+    return $rows;
 }
 
 function getSubDepartmentsByDepartment($departmentId, $conn = null)

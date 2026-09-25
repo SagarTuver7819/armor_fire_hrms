@@ -16,6 +16,7 @@ header('Content-Type: application/json; charset=utf-8');
 $deptId = isset($_GET['department_id']) ? (int) $_GET['department_id'] : 0;
 $view   = isset($_GET['view']) && $_GET['view'] === 'exit' ? 'exit' : (isset($_POST['view']) && $_POST['view'] === 'exit' ? 'exit' : 'active');
 $isExit = ($view === 'exit');
+$isOnField = (isset($_GET['on_field']) && (string) $_GET['on_field'] === '1');
 
 $draw   = (int) ($_POST['draw'] ?? 1);
 $start  = max(0, (int) ($_POST['start'] ?? 0));
@@ -47,18 +48,35 @@ if ($isExit) {
             10 => 'e.status',
         ];
     } else {
-        $columns = [
-            0 => 'e.id',
-            1 => 'e.employee_code',
-            2 => 'e.employee_name',
-            3 => 'e.pay_type',
-            4 => 'e.designation',
-            5 => 'e.mobile_number',
-            6 => 'e.date_of_joining',
-            7 => 'e.date_of_exit',
-            8 => 'e.shift_type',
-            9 => 'e.status',
-        ];
+        if ($isOnField) {
+            $columns = [
+                0 => 'e.id',
+                1 => 'e.employee_code',
+                2 => 'e.employee_name',
+                3 => 'e.pay_type',
+                4 => 'e.designation',
+                5 => 'ast.name',
+                6 => 'aloc.name',
+                7 => 'e.mobile_number',
+                8 => 'e.date_of_joining',
+                9 => 'e.date_of_exit',
+                10 => 'e.shift_type',
+                11 => 'e.status',
+            ];
+        } else {
+            $columns = [
+                0 => 'e.id',
+                1 => 'e.employee_code',
+                2 => 'e.employee_name',
+                3 => 'e.pay_type',
+                4 => 'e.designation',
+                5 => 'e.mobile_number',
+                6 => 'e.date_of_joining',
+                7 => 'e.date_of_exit',
+                8 => 'e.shift_type',
+                9 => 'e.status',
+            ];
+        }
     }
 } elseif ($isAll) {
     $columns = [
@@ -73,21 +91,43 @@ if ($isExit) {
         8 => 'e.shift_type',
     ];
 } else {
-    $columns = [
-        0 => 'e.id',
-        1 => 'e.employee_code',
-        2 => 'e.employee_name',
-        3 => 'e.pay_type',
-        4 => 'e.designation',
-        5 => 'e.mobile_number',
-        6 => 'e.date_of_joining',
-        7 => 'e.shift_type',
-    ];
+    if ($isOnField) {
+        $columns = [
+            0 => 'e.id',
+            1 => 'e.employee_code',
+            2 => 'e.employee_name',
+            3 => 'e.pay_type',
+            4 => 'e.designation',
+            5 => 'ast.name',
+            6 => 'aloc.name',
+            7 => 'e.mobile_number',
+            8 => 'e.date_of_joining',
+            9 => 'e.shift_type',
+        ];
+    } else {
+        $columns = [
+            0 => 'e.id',
+            1 => 'e.employee_code',
+            2 => 'e.employee_name',
+            3 => 'e.pay_type',
+            4 => 'e.designation',
+            5 => 'e.mobile_number',
+            6 => 'e.date_of_joining',
+            7 => 'e.shift_type',
+        ];
+    }
 }
 $orderBy = $columns[$orderCol] ?? 'e.id';
 
 $conn = getDBConnection();
 ensureEmployeesTable($conn);
+if (function_exists('ensureMasterTables')) {
+    require_once __DIR__ . '/../includes/master_helper.php';
+    ensureMasterTables($conn);
+}
+if (!$isOnField && $deptId > 0) {
+    $isOnField = isSalesOnFieldDepartmentId($deptId, $conn);
+}
 
 // Active list vs Exit list base condition
 if ($isExit) {
@@ -141,6 +181,8 @@ if (isset($stmtT)) {
 $countSql = "SELECT COUNT(*) AS c
              FROM employees e
              LEFT JOIN departments d ON d.id = e.department_id
+             LEFT JOIN assigned_states ast ON ast.id = e.assigned_state_id
+             LEFT JOIN assigned_locations aloc ON aloc.id = e.assigned_location_id
              WHERE $where";
 $stmtC = $conn->prepare($countSql);
 if ($types !== '') {
@@ -152,9 +194,12 @@ $stmtC->close();
 
 // Data page
 $dataSql = "SELECT e.id, e.employee_code, e.employee_name, e.designation, e.mobile_number,
-                   e.date_of_joining, e.date_of_exit, e.shift_type, e.department_id, e.pay_type, e.status, d.department_name
+                   e.date_of_joining, e.date_of_exit, e.shift_type, e.department_id, e.pay_type, e.status, d.department_name,
+                   ast.name AS assigned_state_name, aloc.name AS assigned_location_name
             FROM employees e
             LEFT JOIN departments d ON d.id = e.department_id
+            LEFT JOIN assigned_states ast ON ast.id = e.assigned_state_id
+            LEFT JOIN assigned_locations aloc ON aloc.id = e.assigned_location_id
             WHERE $where
             ORDER BY $orderBy $orderDir
             LIMIT ?, ?";
@@ -201,6 +246,10 @@ while ($row = $result->fetch_assoc()) {
 
     $item[] = '<span class="pay-pill ' . $payClass . '">' . htmlspecialchars($payLabel) . '</span>';
     $item[] = htmlspecialchars($row['designation'] ?? '-');
+    if ($isOnField && !$isAll) {
+        $item[] = htmlspecialchars($row['assigned_state_name'] ?? '-');
+        $item[] = htmlspecialchars($row['assigned_location_name'] ?? '-');
+    }
     $item[] = htmlspecialchars($row['mobile_number'] ?? '-');
     $item[] = htmlspecialchars(formatDateDisplay($row['date_of_joining']));
 

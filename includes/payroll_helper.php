@@ -811,6 +811,12 @@ function getPayrollAttendanceBundle(array $emp, $month, $year, $actualAmount)
     }
 
     $salary = (float) ($emp['decided_salary'] ?? 0);
+    if ($payType === 'Salary') {
+        $monthEnd = sprintf('%04d-%02d-%02d', $year, $month, (int) date('t', strtotime(sprintf('%04d-%02d-01', $year, $month))));
+        if (function_exists('employeeDecidedSalaryAsOf')) {
+            $salary = employeeDecidedSalaryAsOf((int) ($emp['id'] ?? 0), $monthEnd, null, $salary);
+        }
+    }
     if ($payType !== 'Salary') {
         $salary = (float) $actualAmount;
     }
@@ -934,7 +940,11 @@ function calculateEmployeeSalary(array $emp, $month, $year)
         $govtAmount = $att['govt_gross'];
     } else {
         // Normal salary — same formula as Salary Register
+        $monthEnd = sprintf('%04d-%02d-%02d', $year, $month, (int) date('t', strtotime(sprintf('%04d-%02d-01', $year, $month))));
         $baseAmount = (float) ($emp['decided_salary'] ?? 0);
+        if (function_exists('employeeDecidedSalaryAsOf')) {
+            $baseAmount = employeeDecidedSalaryAsOf((int) ($emp['id'] ?? 0), $monthEnd, null, $baseAmount);
+        }
         $componentLines = array_values(array_filter($lines, function ($l) {
             return ($l['line_type'] ?? 'component') === 'component';
         }));

@@ -41,6 +41,18 @@ if (!empty($master['fill_department_options'])) {
     }
 }
 
+if (!empty($master['fill_state_options'])) {
+    $stateOpts = ['' => 'Select State'];
+    foreach (getActiveMasterRows('assigned_states', 'sort_order ASC, name ASC') as $s) {
+        $stateOpts[(string) $s['id']] = (string) $s['name'];
+    }
+    foreach ($master['fields'] as $fi => $field) {
+        if (($field['name'] ?? '') === 'state_id') {
+            $master['fields'][$fi]['options'] = $stateOpts;
+        }
+    }
+}
+
 $masterBase = 'masters/' . $master['folder'];
 $masterListUrl = app_url($masterBase . '/index.php');
 $masterAddUrl  = app_url($masterBase . '/edit.php');

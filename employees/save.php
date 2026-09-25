@@ -325,6 +325,55 @@ if ($savedId > 0) {
         $fileStmt->close();
     }
 
+    if ($savedId > 0) {
+        $assignedStateId = (int) ($_POST['assigned_state_id'] ?? 0);
+        $assignedLocationId = (int) ($_POST['assigned_location_id'] ?? 0);
+        if (!isSalesOnFieldDepartmentId($departmentId, $conn)) {
+            $assignedStateId = 0;
+            $assignedLocationId = 0;
+        } elseif ($assignedStateId > 0 && $assignedLocationId > 0) {
+            // Location must belong to selected state
+            $chk = $conn->prepare('SELECT id FROM assigned_locations WHERE id = ? AND state_id = ? AND status = 1 LIMIT 1');
+            $chk->bind_param('ii', $assignedLocationId, $assignedStateId);
+            $chk->execute();
+            if (!$chk->get_result()->fetch_assoc()) {
+                $assignedLocationId = 0;
+            }
+            $chk->close();
+        }
+
+        $oldStateId = 0;
+        $oldLocationId = 0;
+        $prev = $conn->prepare('SELECT assigned_state_id, assigned_location_id FROM employees WHERE id = ? LIMIT 1');
+        $prev->bind_param('i', $savedId);
+        $prev->execute();
+        $prevRow = $prev->get_result()->fetch_assoc();
+        $prev->close();
+        if ($prevRow) {
+            $oldStateId = (int) ($prevRow['assigned_state_id'] ?? 0);
+            $oldLocationId = (int) ($prevRow['assigned_location_id'] ?? 0);
+        }
+
+        $asNull = $assignedStateId > 0 ? (string) $assignedStateId : '';
+        $alNull = $assignedLocationId > 0 ? (string) $assignedLocationId : '';
+        $asStmt = $conn->prepare(
+            'UPDATE employees SET assigned_state_id = NULLIF(?, \'\'), assigned_location_id = NULLIF(?, \'\') WHERE id = ?'
+        );
+        $asStmt->bind_param('ssi', $asNull, $alNull, $savedId);
+        $asStmt->execute();
+        $asStmt->close();
+
+        employeeRecordLocationChange(
+            $conn,
+            $savedId,
+            $oldStateId,
+            $oldLocationId,
+            $assignedStateId,
+            $assignedLocationId,
+            $createdBy ?? null
+        );
+    }
+
     $familyNames = $_POST['family_name'] ?? [];
     $familyRelations = $_POST['family_relation'] ?? [];
     $familyOccupations = $_POST['family_occupation'] ?? [];
@@ -338,6 +387,18 @@ if ($savedId > 0) {
         $familyOccupations = [];
     }
     saveEmployeeFamilyMembers($conn, $savedId, $familyNames, $familyRelations, $familyOccupations);
+
+    // Seed / keep salary history in sync with decided salary on join / edit
+    if ($salary !== null && (float) $salary > 0) {
+        $seedEff = ($doj !== '' && $doj !== '0000-00-00') ? $doj : date('Y-m-d');
+        employeeSeedSalaryHistoryIfEmpty($conn, $savedId, (float) $salary, $seedEff, $createdBy ?? null);
+        if ($id <= 0) {
+            // New join already seeded; decided_salary is set
+        } else {
+            // Edit without revise popup: if no history change, keep current row; sync as-of today
+            employeeSyncDecidedSalaryFromHistory($conn, $savedId);
+        }
+    }
 }
 
 $conn->close();

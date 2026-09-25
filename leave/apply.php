@@ -96,7 +96,7 @@ require_once __DIR__ . '/../includes/header.php';
                         <option value="FHL">FHL (First Half)</option>
                         <option value="SHL">SHL (Second Half)</option>
                     </select>
-                    <small class="form-hint">Half leave = 0.5 day · single date only</small>
+                    <small class="form-hint">FHL/SHL = 0.5 day per working day (date range allowed, e.g. 5–8 FHL)</small>
                 </div>
                 <div class="form-group" style="grid-column: span 3;">
                     <label>Reason</label>
@@ -112,28 +112,17 @@ require_once __DIR__ . '/../includes/header.php';
 </main>
 <script>
 (function () {
-    var half = document.getElementById('leaveHalf');
     var from = document.getElementById('leaveFromDate');
     var to = document.getElementById('leaveToDate');
-    if (!half || !from || !to) return;
-    function syncHalf() {
-        var v = half.value;
-        if (v === 'FHL' || v === 'SHL') {
-            to.value = from.value;
-            to.readOnly = true;
-            to.classList.add('is-readonly');
-        } else {
-            to.readOnly = false;
-            to.classList.remove('is-readonly');
-        }
-    }
-    half.addEventListener('change', syncHalf);
+    if (!from || !to) return;
     from.addEventListener('change', function () {
-        if (half.value === 'FHL' || half.value === 'SHL') {
+        if (to.value && to.value < from.value) {
+            to.value = from.value;
+        }
+        if (!to.value) {
             to.value = from.value;
         }
     });
-    syncHalf();
 })();
 </script>
 <?php require_once __DIR__ . '/../includes/footer.php'; ?>

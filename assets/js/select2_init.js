@@ -37,10 +37,12 @@
 
         var hasBlank = $el.find('option[value=""]').length > 0;
         var inLength = $el.closest('.dataTables_length').length > 0;
+        var isMulti = !!$el.prop('multiple');
         $el.select2({
             width: inLength ? 'style' : '100%',
-            placeholder: placeholderOf($el),
-            allowClear: hasBlank && !$el.prop('required'),
+            placeholder: placeholderOf($el) || (isMulti ? 'Select departments…' : 'Search & select'),
+            allowClear: hasBlank && !$el.prop('required') && !isMulti,
+            closeOnSelect: !isMulti,
             minimumResultsForSearch: inLength ? Infinity : 0,
             dropdownParent: $(document.body),
             language: {

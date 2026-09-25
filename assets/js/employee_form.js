@@ -490,6 +490,56 @@
         }
     }
 
+    function bindSameAsPermanentAddress() {
+        var perm = document.getElementById('permanentAddress');
+        var present = document.getElementById('presentAddress');
+        var chk = document.getElementById('sameAsPermanentAddr');
+        if (!perm || !present || !chk) {
+            return;
+        }
+
+        function syncFromPermanent() {
+            if (!chk.checked) {
+                return;
+            }
+            present.value = perm.value;
+        }
+
+        function refreshCheckedState() {
+            var p = (perm.value || '').trim();
+            var c = (present.value || '').trim();
+            if (p !== '' && p === c) {
+                chk.checked = true;
+            }
+        }
+
+        chk.addEventListener('change', function () {
+            if (chk.checked) {
+                syncFromPermanent();
+                present.readOnly = true;
+                present.classList.add('is-synced-addr');
+            } else {
+                present.readOnly = false;
+                present.classList.remove('is-synced-addr');
+            }
+        });
+
+        perm.addEventListener('input', syncFromPermanent);
+        present.addEventListener('input', function () {
+            if (chk.checked && present.value !== perm.value) {
+                chk.checked = false;
+                present.readOnly = false;
+                present.classList.remove('is-synced-addr');
+            }
+        });
+
+        refreshCheckedState();
+        if (chk.checked) {
+            present.readOnly = true;
+            present.classList.add('is-synced-addr');
+        }
+    }
+
     $(function () {
         // Run after global Select2 init (employee_form.js loads after select2_init.js).
         setTimeout(bindShiftSelect, 0);
@@ -517,5 +567,287 @@
         bindPfContributions();
         bindBankAccountConfirm();
         bindEmpStatusExitClear();
+        bindSameAsPermanentAddress();
+        bindSalaryRevise();
+        bindOnFieldAssign();
     });
+
+    function bindOnFieldAssign() {
+        if (!window.jQuery) {
+            return;
+        }
+        var $ = window.jQuery;
+        var $dept = $('#empDepartmentId');
+        var $wrap = $('#onFieldAssignWrap');
+        var $state = $('#assignedStateId');
+        var $loc = $('#assignedLocationId');
+        if (!$dept.length || !$wrap.length || !$state.length || !$loc.length) {
+            return;
+        }
+        var locUrl = window.LOC_BY_STATE_URL || '';
+        var initialLoc = String(window.ASSIGNED_LOC_SELECTED || $loc.attr('data-selected') || '0');
+        var selectedLoc = initialLoc;
+        var suppressStateChange = false;
+        var initDone = false;
+
+        function isOnFieldSelected() {
+            var onField = String($dept.find('option:selected').attr('data-on-field') || '');
+            return onField === '1';
+        }
+
+        function refreshSelect2($el, placeholder) {
+            if ($el.hasClass('select2-hidden-accessible') && $el.data('select2')) {
+                try { $el.select2('destroy'); } catch (e) { /* ignore */ }
+            }
+            if ($.fn.select2) {
+                $el.select2({
+                    width: '100%',
+                    placeholder: placeholder || 'Select',
+                    allowClear: true
+                });
+            }
+        }
+
+        function fillLocations(rows, keepId) {
+            var html = '<option value="0">— Select location —</option>';
+            var keep = String(keepId || '0');
+            var found = false;
+            (rows || []).forEach(function (r) {
+                var id = String(r.id);
+                var isSel = (keep !== '0' && id === keep);
+                if (isSel) found = true;
+                html += '<option value="' + id + '"' + (isSel ? ' selected' : '') + '>'
+                    + $('<div/>').text(r.name || '').html() + '</option>';
+            });
+            $loc.html(html);
+            if (found) {
+                $loc.val(keep);
+            } else {
+                $loc.val('0');
+            }
+            refreshSelect2($loc, '— Select location —');
+            // Select2 needs explicit val + trigger after rebuild
+            if (found) {
+                $loc.val(keep).trigger('change.select2');
+            }
+        }
+
+        function loadLocations(keepId) {
+            var stateId = parseInt($state.val(), 10) || 0;
+            var keep = String(keepId || '0');
+            if (!locUrl || stateId <= 0) {
+                fillLocations([], '0');
+                return;
+            }
+            $.getJSON(locUrl, { state_id: stateId })
+                .done(function (rows) {
+                    fillLocations(Array.isArray(rows) ? rows : [], keep);
+                })
+                .fail(function () {
+                    fillLocations([], '0');
+                });
+        }
+
+        function toggleWrap(isInit) {
+            var show = isOnFieldSelected();
+            $wrap.toggle(show);
+            if (!show) {
+                suppressStateChange = true;
+                $state.val('0');
+                refreshSelect2($state, '— Select state —');
+                fillLocations([], '0');
+                suppressStateChange = false;
+                return;
+            }
+            suppressStateChange = true;
+            refreshSelect2($state, '— Select state —');
+            suppressStateChange = false;
+            // Keep saved location on first open / edit load
+            loadLocations(isInit ? selectedLoc : '0');
+        }
+
+        $dept.on('change', function () {
+            selectedLoc = '0';
+            initialLoc = '0';
+            toggleWrap(false);
+        });
+        $state.on('change', function () {
+            if (suppressStateChange) {
+                return;
+            }
+            // User changed state → reset location (not during init)
+            selectedLoc = '0';
+            if (isOnFieldSelected()) {
+                loadLocations('0');
+            }
+        });
+
+        // Wait for global Select2 init, then restore saved location
+        setTimeout(function () {
+            if (!isOnFieldSelected()) {
+                $wrap.hide();
+                initDone = true;
+                return;
+            }
+            selectedLoc = initialLoc;
+            toggleWrap(true);
+            // Second pass: ensure Select2 shows the saved city
+            setTimeout(function () {
+                if (isOnFieldSelected() && String(initialLoc) !== '0') {
+                    selectedLoc = initialLoc;
+                    loadLocations(initialLoc);
+                }
+                initDone = true;
+            }, 250);
+        }, 200);
+    }
+
+    function bindSalaryRevise() {
+        var btn = document.getElementById('btnReviseSalary');
+        var modal = document.getElementById('salaryReviseModal');
+        var salaryInp = document.getElementById('decidedSalary');
+        if (!btn || !modal || !salaryInp || !window.EMP_ID) {
+            return;
+        }
+
+        var existDisp = document.getElementById('salExistDisp');
+        var changeInp = document.getElementById('salChangeAmt');
+        var effInp = document.getElementById('salEffectiveDate');
+        var preview = document.getElementById('salNewPreview');
+        var remarkInp = document.getElementById('salRemark');
+        var okBtn = document.getElementById('salReviseOk');
+
+        function money(n) {
+            var x = parseFloat(n, 10);
+            if (!isFinite(x)) x = 0;
+            return x.toFixed(2);
+        }
+
+        function updatePreview() {
+            var oldV = parseFloat(salaryInp.value, 10) || 0;
+            var chg = parseFloat(changeInp.value, 10);
+            if (!isFinite(chg)) {
+                preview.value = '';
+                return;
+            }
+            preview.value = money(oldV + chg);
+        }
+
+        function openModal() {
+            existDisp.value = money(salaryInp.value || 0);
+            changeInp.value = '';
+            remarkInp.value = '';
+            preview.value = '';
+            var today = new Date();
+            var dd = String(today.getDate()).padStart(2, '0');
+            var mm = String(today.getMonth() + 1).padStart(2, '0');
+            var yyyy = today.getFullYear();
+            var todayStr = dd + '-' + mm + '-' + yyyy;
+            modal.hidden = false;
+            document.body.classList.add('confirm-modal-open');
+            if (typeof window.ArmorInitDates === 'function') {
+                window.ArmorInitDates(modal);
+            }
+            // Force flatpickr to show DD-MM-YYYY (re-open sync)
+            if (effInp._flatpickr) {
+                try {
+                    effInp._flatpickr.setDate(today, true);
+                } catch (e1) {
+                    effInp.value = todayStr;
+                }
+            } else {
+                effInp.value = todayStr;
+            }
+            setTimeout(function () { changeInp.focus(); }, 50);
+        }
+
+        function closeModal() {
+            modal.hidden = true;
+            document.body.classList.remove('confirm-modal-open');
+        }
+
+        function renderHistory(rows) {
+            var body = document.getElementById('salaryHistoryBody');
+            var empty = document.getElementById('salaryHistoryEmpty');
+            var wrap = body ? body.closest('.salary-history-scroll') : null;
+            if (!body) return;
+            body.innerHTML = '';
+            if (!rows || !rows.length) {
+                if (empty) empty.hidden = false;
+                if (wrap) wrap.hidden = true;
+                return;
+            }
+            if (empty) empty.hidden = true;
+            if (wrap) wrap.hidden = false;
+            rows.forEach(function (h) {
+                var tr = document.createElement('tr');
+                var cls = h.is_increase ? 'is-up' : 'is-down';
+                var note = h.remarks || '—';
+                var by = h.changed_by || '—';
+                tr.innerHTML =
+                    '<td class="col-eff">' + (h.effective_date || '') + '</td>' +
+                    '<td class="col-amt">₹ ' + (h.old_salary || '0.00') + '</td>' +
+                    '<td class="col-chg ' + cls + '">' + (h.change_signed || h.change_amount || '') + '</td>' +
+                    '<td class="col-amt"><strong>₹ ' + (h.new_salary || '0.00') + '</strong></td>' +
+                    '<td class="col-note"></td>' +
+                    '<td class="col-by"></td>';
+                tr.querySelector('.col-note').textContent = note;
+                tr.querySelector('.col-by').textContent = by;
+                body.appendChild(tr);
+            });
+        }
+
+        btn.addEventListener('click', openModal);
+        salaryInp.addEventListener('click', openModal);
+        modal.querySelectorAll('[data-close-salary-modal]').forEach(function (el) {
+            el.addEventListener('click', closeModal);
+        });
+        changeInp.addEventListener('input', updatePreview);
+        changeInp.addEventListener('change', updatePreview);
+
+        okBtn.addEventListener('click', function () {
+            var chg = parseFloat(changeInp.value, 10);
+            if (!isFinite(chg) || Math.abs(chg) < 0.001) {
+                toastError('Enter vadharo / ghatado amount (e.g. 2000 or -500).');
+                changeInp.focus();
+                return;
+            }
+            if (!String(effInp.value || '').trim()) {
+                toastError('Effective date is required.');
+                effInp.focus();
+                return;
+            }
+            okBtn.disabled = true;
+            var fd = new FormData();
+            fd.append('employee_id', String(window.EMP_ID));
+            fd.append('change_amount', String(chg));
+            fd.append('effective_date', String(effInp.value).trim());
+            fd.append('remarks', String(remarkInp.value || '').trim());
+
+            fetch(window.EMP_SALARY_REVISE_URL, {
+                method: 'POST',
+                body: fd,
+                credentials: 'same-origin'
+            })
+                .then(function (r) { return r.json(); })
+                .then(function (data) {
+                    okBtn.disabled = false;
+                    if (!data || !data.ok) {
+                        toastError((data && data.error) || 'Could not save salary revision.');
+                        return;
+                    }
+                    salaryInp.value = money(data.current_salary);
+                    applyPfContributions(true);
+                    renderHistory(data.history || []);
+                    closeModal();
+                    if (window.toastr) {
+                        toastr.success(data.message || 'Salary revised.');
+                    }
+                })
+                .catch(function () {
+                    okBtn.disabled = false;
+                    toastError('Network error while saving salary.');
+                });
+        });
+    }
 })(window.jQuery);

@@ -16,14 +16,22 @@ $isExit = ($view === 'exit');
 
 $conn = getDBConnection();
 ensureEmployeesTable($conn);
+if (function_exists('ensureMasterTables')) {
+    require_once __DIR__ . '/../includes/master_helper.php';
+    ensureMasterTables($conn);
+}
 
 $baseWhere = $isExit
     ? "(e.status = 0 OR (e.date_of_exit IS NOT NULL AND e.date_of_exit != '' AND e.date_of_exit != '0000-00-00'))"
     : "(e.status = 1 AND (e.date_of_exit IS NULL OR e.date_of_exit = '' OR e.date_of_exit = '0000-00-00'))";
 
-$sql = "SELECT e.*, d.department_name
+$sql = "SELECT e.*, d.department_name,
+               ast.name AS assigned_state_name,
+               aloc.name AS assigned_location_name
         FROM employees e
         LEFT JOIN departments d ON d.id = e.department_id
+        LEFT JOIN assigned_states ast ON ast.id = e.assigned_state_id
+        LEFT JOIN assigned_locations aloc ON aloc.id = e.assigned_location_id
         WHERE $baseWhere";
 $params = [];
 $types = '';
@@ -60,7 +68,7 @@ header('Cache-Control: max-age=0');
 
 $headers = [
     'Sr', 'Employee Code', 'Pay Type', 'Employee Name', 'Father / Husband Name',
-    'Department', 'Designation', 'Date of Birth', 'Date of Joining', 'Exit Date',
+    'Department', 'Assigned State', 'Assigned Location', 'Designation', 'Date of Birth', 'Date of Joining', 'Exit Date',
     'Mobile', 'Emergency Mobile', 'Aadhar', 'PAN',
     'Permanent Address', 'Present Address',
     'Shift Type', 'Shift Time', 'PF Deduction', 'PF Start Date', 'Employee PF Contribution', 'UAN',
@@ -88,6 +96,8 @@ if ($result) {
             $row['employee_name'] ?? '',
             $row['father_husband_name'] ?? '',
             $row['department_name'] ?? '',
+            $row['assigned_state_name'] ?? '',
+            $row['assigned_location_name'] ?? '',
             $row['designation'] ?? '',
             formatDateDisplay($row['date_of_birth'] ?? ''),
             formatDateDisplay($row['date_of_joining'] ?? ''),

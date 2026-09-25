@@ -3,6 +3,7 @@
  * Login Page — Admin & HR only (centered, animated)
  */
 
+require_once __DIR__ . '/config/app.php';
 require_once __DIR__ . '/config/database.php';
 require_once __DIR__ . '/includes/auth.php';
 require_once __DIR__ . '/includes/settings.php';
@@ -12,7 +13,6 @@ $companyLogo = getLoginLogo();
 $hasCustomLogo = isCustomLogo($companyLogo);
 
 if (isLoggedIn()) {
-    require_once __DIR__ . '/config/app.php';
     header('Location: ' . app_url('dashboard.php'));
     exit;
 }

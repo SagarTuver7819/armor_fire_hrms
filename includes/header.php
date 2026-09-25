@@ -15,6 +15,43 @@ $logoSrc = $companyLogo;
 if ($logoSrc && strpos($logoSrc, 'http') !== 0 && strpos($logoSrc, '/') !== 0) {
     $logoSrc = app_url($logoSrc);
 }
+
+$headerNotifyItems = [];
+$headerNotifyUnread = 0;
+if (function_exists('isStaffUser') && isStaffUser()) {
+    $uid = (int) ($_SESSION['user_id'] ?? 0);
+    require_once __DIR__ . '/circular_helper.php';
+    require_once __DIR__ . '/policy_helper.php';
+    if (function_exists('ensureCircularTables')) {
+        ensureCircularTables();
+        foreach (fetchUnreadCircularNotifications($uid, 8) as $n) {
+            $n['_type'] = 'circular';
+            $n['_date'] = $n['circular_date'] ?? '';
+            $n['_dept_label'] = circularDepartmentsLabel($n);
+            $n['_url'] = app_url('circulars/mark_read.php?id=' . (int) $n['id'] . '&go=view');
+            $n['_icon'] = 'fa-file-circle-plus';
+            $n['_label'] = 'Circular';
+            $headerNotifyItems[] = $n;
+        }
+    }
+    if (function_exists('ensurePolicyTables')) {
+        ensurePolicyTables();
+        foreach (fetchUnreadPolicyNotifications($uid, 8) as $n) {
+            $n['_type'] = 'policy';
+            $n['_date'] = $n['policy_date'] ?? '';
+            $n['_dept_label'] = policyDepartmentsLabel($n);
+            $n['_url'] = app_url('policies/mark_read.php?id=' . (int) $n['id'] . '&go=view');
+            $n['_icon'] = 'fa-scroll';
+            $n['_label'] = 'Policy';
+            $headerNotifyItems[] = $n;
+        }
+    }
+    usort($headerNotifyItems, static function ($a, $b) {
+        return strcmp((string) ($b['created_at'] ?? ''), (string) ($a['created_at'] ?? ''));
+    });
+    $headerNotifyItems = array_slice($headerNotifyItems, 0, 12);
+    $headerNotifyUnread = count($headerNotifyItems);
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -79,6 +116,58 @@ if ($logoSrc && strpos($logoSrc, 'http') !== 0 && strpos($logoSrc, '/') !== 0) {
                     </span>
                 </div>
             </div>
+
+            <div class="header-notify" id="headerNotify">
+                <button type="button"
+                        class="header-bell-btn"
+                        id="headerBellBtn"
+                        aria-haspopup="true"
+                        aria-expanded="false"
+                        aria-controls="headerNotifyPanel"
+                        title="Notifications">
+                    <i class="fa-solid fa-bell"></i>
+                    <?php if ($headerNotifyUnread > 0): ?>
+                        <span class="header-bell-badge"><?php echo $headerNotifyUnread > 9 ? '9+' : (int) $headerNotifyUnread; ?></span>
+                    <?php endif; ?>
+                </button>
+                <div class="header-notify-panel" id="headerNotifyPanel" hidden>
+                    <div class="header-notify-head">
+                        <strong>Notifications</strong>
+                        <?php if ($headerNotifyUnread > 0): ?>
+                            <span class="header-notify-head-links">
+                                <a href="<?php echo app_url('circulars/mark_read.php?all=1'); ?>">Read circulars</a>
+                                ·
+                                <a href="<?php echo app_url('policies/mark_read.php?all=1'); ?>">Read policies</a>
+                            </span>
+                        <?php endif; ?>
+                    </div>
+                    <div class="header-notify-body">
+                        <?php if (!$headerNotifyItems): ?>
+                            <div class="header-notify-empty">No new circulars or policies</div>
+                        <?php else: ?>
+                            <?php foreach ($headerNotifyItems as $n): ?>
+                                <a class="header-notify-item" href="<?php echo htmlspecialchars($n['_url']); ?>">
+                                    <span class="header-notify-ico"><i class="fa-solid <?php echo htmlspecialchars($n['_icon']); ?>"></i></span>
+                                    <span class="header-notify-meta">
+                                        <strong><?php echo htmlspecialchars($n['title']); ?></strong>
+                                        <small>
+                                            <?php echo htmlspecialchars($n['_label']); ?>
+                                            · <?php echo htmlspecialchars(formatDateDisplay($n['_date'] ?? '')); ?>
+                                            · <?php echo htmlspecialchars($n['_dept_label'] ?? ''); ?>
+                                        </small>
+                                    </span>
+                                </a>
+                            <?php endforeach; ?>
+                        <?php endif; ?>
+                    </div>
+                    <div class="header-notify-foot">
+                        <a href="<?php echo app_url('circulars/index.php'); ?>">Circulars</a>
+                        <span aria-hidden="true">·</span>
+                        <a href="<?php echo app_url('policies/index.php'); ?>">Policies</a>
+                    </div>
+                </div>
+            </div>
+
             <div class="user-info">
                 <div class="user-avatar" title="<?php echo htmlspecialchars(getUserName() . ' · ' . getUserRoleLabel()); ?>">
                     <i class="fa-solid fa-user"></i>

@@ -65,8 +65,8 @@ if (!defined('APP_BASE')) {
             $scriptName = $m[1] === '' ? '/' : $m[1];
         }
 
-        // Nested leave / attendance
-        if (preg_match('#^(.*?)/(leave|attendance)$#', $scriptName, $m)) {
+        // Nested leave / attendance / circulars / policies
+        if (preg_match('#^(.*?)/(leave|attendance|circulars|policies)$#', $scriptName, $m)) {
             $scriptName = $m[1] === '' ? '/' : $m[1];
         }
 
