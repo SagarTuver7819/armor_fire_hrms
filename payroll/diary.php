@@ -66,7 +66,7 @@ require_once __DIR__ . '/../includes/header.php';
                 <h1>Salary Structure</h1>
                 <p>
                     <?php echo htmlspecialchars($department['department_name']); ?>
-                    · Set individual salary · PF = min(₹15,000, salary) × 12% · PT = ₹200 if salary ≥ ₹12,001
+                    · Set individual salary · PF = Basic × 12% (ceiling ₹15,000 → max ₹1,800) · PT = ₹200 if salary ≥ ₹12,001
                 </p>
             </div>
         </div>

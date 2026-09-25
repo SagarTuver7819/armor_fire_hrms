@@ -571,22 +571,85 @@ function getContractorUnderEmployees($mainContractorId)
     return $rows;
 }
 
+/**
+ * PF wage base = Basic Salary component (if set), else decided salary.
+ * Ceiling ₹15,000 (EPFO).
+ */
+function payrollPfWageBase(array $emp, $employeeId = 0)
+{
+    $employeeId = (int) ($employeeId > 0 ? $employeeId : ($emp['id'] ?? 0));
+    $decided = (float) ($emp['decided_salary'] ?? 0);
+    $basicComp = 0.0;
+
+    if ($employeeId > 0 && function_exists('getEmployeeSalaryDetails')) {
+        foreach (getEmployeeSalaryDetails($employeeId) as $line) {
+            if (($line['line_type'] ?? 'component') !== 'component') {
+                continue;
+            }
+            if (($line['component_type'] ?? 'Earning') === 'Deduction') {
+                continue;
+            }
+            $label = strtolower(trim((string) ($line['label'] ?? '')));
+            if ($label !== '' && (strpos($label, 'basic') !== false)) {
+                $basicComp = (float) ($line['amount'] ?? 0);
+                break;
+            }
+        }
+    }
+
+    $wage = $basicComp > 0 ? $basicComp : $decided;
+    if ($wage <= 0) {
+        $wage = $decided;
+    }
+    return min(15000.0, max(0.0, $wage));
+}
+
+/**
+ * True if a salary-structure deduction line is statutory PF / PT (handled separately).
+ */
+function payrollIsStatutoryDeductionLabel($label)
+{
+    $l = strtolower(trim((string) $label));
+    if ($l === '') {
+        return false;
+    }
+    if (strpos($l, 'provident') !== false || preg_match('/\bpf\b/', $l) || strpos($l, 'p.f') !== false) {
+        return true;
+    }
+    if (strpos($l, 'professional tax') !== false || preg_match('/\bpt\b/', $l) || strpos($l, 'p.t') !== false) {
+        return true;
+    }
+    return false;
+}
+
+/**
+ * Employee PF = 12% of Basic (ceiling ₹15,000) → max ₹1,800 / month.
+ * $dayFactor = joining / exit / PF-start window only (LOP does not reduce PF).
+ */
 function statutoryPf($gross, array $emp, $dayFactor = 1.0)
 {
     if (($emp['pf_deduction'] ?? 'No') !== 'Yes') {
         return 0.0;
     }
-    // Employee master fixed monthly contribution (prorated by paid days)
+    $factor = max(0.0, min(1.0, (float) $dayFactor));
+    if ($factor <= 0) {
+        return 0.0;
+    }
+
+    $wage = payrollPfWageBase($emp, (int) ($emp['id'] ?? 0));
+    $formula = round($wage * 0.12, 2);
+
     $fixed = isset($emp['pf_employee_contribution']) && $emp['pf_employee_contribution'] !== '' && $emp['pf_employee_contribution'] !== null
         ? (float) $emp['pf_employee_contribution']
         : 0.0;
-    if ($fixed > 0) {
-        $factor = max(0.0, min(1.0, (float) $dayFactor));
-        return round($fixed * $factor, 2);
+
+    // Ignore wrongly saved values like 12% of full CTC (e.g. 6240); keep ≤ ₹1,800
+    $monthly = $formula;
+    if ($fixed > 0 && $fixed <= 1800.05) {
+        $monthly = round($fixed, 2);
     }
-    // Fallback: PF wage ceiling ₹15,000 × 12% = ₹1,800 max
-    $pfWage = min(15000.0, (float) $gross);
-    return round($pfWage * 0.12, 2);
+
+    return round($monthly * $factor, 2);
 }
 
 /**
@@ -598,45 +661,61 @@ function statutoryEmployerPf($gross, array $emp, $dayFactor = 1.0)
 }
 
 /**
- * PF applies only on/after pf_start_date. Returns day factor 0..1 for PF in this month.
+ * PF applies only on/after pf_start_date.
+ * $paidDayFactor should be 1.0 for full-month PF (LOP does not reduce PF);
+ * joining / exit / mid-month PF start still prorate via calendar.
  */
 function payrollPfDayFactor($month, $year, array $emp, $paidDayFactor, $empFrom, $empTo)
 {
     if (($emp['pf_deduction'] ?? 'No') !== 'Yes') {
         return 0.0;
     }
-    $factor = max(0.0, min(1.0, (float) $paidDayFactor));
+    // LOP must not shrink PF — only employment presence in month matters upstream
+    $factor = 1.0;
     $pfStart = '';
     if (!empty($emp['pf_start_date']) && $emp['pf_start_date'] !== '0000-00-00'
         && preg_match('/^\d{4}-\d{2}-\d{2}/', (string) $emp['pf_start_date'])) {
         $pfStart = substr((string) $emp['pf_start_date'], 0, 10);
     }
-    if ($pfStart === '') {
-        return $factor;
-    }
 
     $monthStart = sprintf('%04d-%02d-01', $year, $month);
     $monthEnd = date('Y-m-t', strtotime($monthStart));
-    if ($pfStart > $monthEnd) {
-        return 0.0; // PF not started this month
-    }
-    if ($pfStart <= $monthStart) {
-        return $factor;
-    }
 
-    // Mid-month PF start: prorate by calendar days from PF start through employment end
-    $from = $pfStart;
-    if ($empFrom && $from < $empFrom) {
-        $from = $empFrom;
+    // Restrict to employment window in this month
+    $from = $monthStart;
+    $to = $monthEnd;
+    if ($empFrom && preg_match('/^\d{4}-\d{2}-\d{2}/', (string) $empFrom)) {
+        $from = max($from, substr((string) $empFrom, 0, 10));
     }
-    $to = $empTo ?: $monthEnd;
+    if ($empTo && preg_match('/^\d{4}-\d{2}-\d{2}/', (string) $empTo)) {
+        $to = min($to, substr((string) $empTo, 0, 10));
+    }
     if ($from > $to) {
         return 0.0;
     }
+
+    if ($pfStart !== '') {
+        if ($pfStart > $monthEnd) {
+            return 0.0;
+        }
+        if ($pfStart > $from) {
+            $from = $pfStart;
+        }
+        if ($from > $to) {
+            return 0.0;
+        }
+    }
+
     $monthDays = (int) date('t', strtotime($monthStart));
-    $pfDays = (int) ((strtotime($to) - strtotime($from)) / 86400) + 1;
-    $pfCalFactor = $monthDays > 0 ? ($pfDays / $monthDays) : 0.0;
-    return max(0.0, min($factor, $pfCalFactor));
+    if ($monthDays <= 0) {
+        return 0.0;
+    }
+    // Full month employment → 1.0; mid join/exit/PF start → calendar fraction
+    if ($from === $monthStart && $to === $monthEnd) {
+        return 1.0;
+    }
+    $days = (int) ((strtotime($to) - strtotime($from)) / 86400) + 1;
+    return max(0.0, min(1.0, $days / $monthDays));
 }
 
 function statutoryPt($gross)
@@ -826,8 +905,9 @@ function getPayrollAttendanceBundle(array $emp, $month, $year, $actualAmount)
     $factor = $monthDays > 0 ? ($totalDays / $monthDays) : 1;
     $govtGross = round($salary * $factor, 2);
 
-    $pfFactor = payrollPfDayFactor($month, $year, $emp, $factor, $empFrom, $empTo);
-    $pf = statutoryPf($govtGross, $emp, $pfFactor);
+    // PF = 12% of Basic (max ₹1,800). Not reduced by LOP; zero if no paid days.
+    $pfFactor = payrollPfDayFactor($month, $year, $emp, 1.0, $empFrom, $empTo);
+    $pf = ($totalDays > 0) ? statutoryPf($salary, $emp, $pfFactor) : 0.0;
     $pfEmployer = 0.0;
     $pt = statutoryPt($govtGross);
 
@@ -1040,6 +1120,10 @@ function calculateEmployeeSalary(array $emp, $month, $year)
         }
 
         foreach ($deductionComponents as $line) {
+            // Skip PF / PT structure lines — statutory amounts added below (avoids double + wrong 12% of CTC)
+            if (payrollIsStatutoryDeductionLabel($line['label'] ?? '')) {
+                continue;
+            }
             $amt = round((float) $line['amount'] * $factor, 2);
             $breakup[] = ['label' => $line['label'], 'type' => 'Deduction', 'amount' => $amt];
             $deductions += $amt;

@@ -56,8 +56,9 @@ foreach ($saved as $row) {
 
 $basic = $emp ? (float) ($emp['decided_salary'] ?? 0) : 0;
 $pfYes = $emp ? (($emp['pf_deduction'] ?? 'No') === 'Yes') : false;
-$pfPreview = $emp ? statutoryPf($basic, $emp) : 0;
+$pfPreview = $emp ? statutoryPf($basic, $emp, 1.0) : 0;
 $ptPreview = statutoryPt($basic);
+$pfWageBase = $emp ? payrollPfWageBase($emp, $employeeId) : 0;
 
 $pageTitle = $employeeId > 0 ? 'Edit Salary Structure' : 'Add Salary Structure';
 $useSidebar = true;
@@ -81,7 +82,7 @@ require_once __DIR__ . '/../includes/header.php';
                 <h1><?php echo htmlspecialchars($pageTitle); ?></h1>
                 <p>
                     <?php echo htmlspecialchars($department['department_name']); ?>
-                    · PF norm: min(₹15,000 × 12%) · PT: ₹200 if salary ≥ ₹12,001
+                    · PF = 12% of Basic (ceiling ₹15,000 → max ₹1,800) · PT: ₹200 if salary ≥ ₹12,001
                 </p>
             </div>
         </div>
@@ -135,7 +136,7 @@ require_once __DIR__ . '/../includes/header.php';
                     <div class="form-group">
                         <label>PF Amount (auto)</label>
                         <input type="text" class="form-control" id="pfPreview" readonly value="<?php echo number_format($pfPreview, 2); ?>">
-                        <small class="form-hint">min(₹15,000, salary) × 12%</small>
+                        <small class="form-hint">Basic ₹<?php echo number_format($pfWageBase, 0); ?> × 12% (ceiling ₹15,000)</small>
                     </div>
                     <div class="form-group">
                         <label>PT Amount (auto)</label>
@@ -186,20 +187,45 @@ require_once __DIR__ . '/../includes/header.php';
                                 <?php
                                 $cid = (int) $c['id'];
                                 $amt = isset($savedMap[$cid]) ? (float) $savedMap[$cid]['amount'] : (float) $c['default_value'];
-                                if (($c['calculation'] ?? '') === 'Percentage' && !isset($savedMap[$cid]) && $basic > 0) {
+                                $ln = strtolower(trim((string) ($c['component_name'] ?? '')));
+                                $isPfComp = ($ln !== '' && (
+                                    strpos($ln, 'provident') !== false
+                                    || preg_match('/\bpf\b/', $ln)
+                                    || strpos($ln, 'p.f') !== false
+                                ));
+                                $isPtComp = ($ln !== '' && (
+                                    strpos($ln, 'professional tax') !== false
+                                    || preg_match('/\bpt\b/', $ln)
+                                    || strpos($ln, 'p.t') !== false
+                                ));
+                                // PF / PT: always statutory amounts (never 12% of full CTC)
+                                if ($isPfComp) {
+                                    $amt = $pfYes ? (float) $pfPreview : 0.0;
+                                } elseif ($isPtComp) {
+                                    $amt = (float) $ptPreview;
+                                } elseif (($c['calculation'] ?? '') === 'Percentage' && !isset($savedMap[$cid]) && $basic > 0) {
                                     $amt = round($basic * ((float) $c['default_value']) / 100, 2);
+                                }
+                                $inputClass = 'form-control';
+                                if ($isPfComp) {
+                                    $inputClass .= ' js-pf-comp-amount';
+                                }
+                                if ($isPtComp) {
+                                    $inputClass .= ' js-pt-comp-amount';
                                 }
                                 ?>
                                 <tr>
                                     <td><?php echo htmlspecialchars($c['component_name']); ?></td>
                                     <td><?php echo htmlspecialchars($c['component_type']); ?></td>
-                                    <td><?php echo htmlspecialchars($c['calculation']); ?></td>
+                                    <td><?php echo htmlspecialchars($isPfComp ? 'Basic × 12%' : ($c['calculation'] ?? '')); ?></td>
                                     <td>
                                         <input type="hidden" name="comp_id[]" value="<?php echo $cid; ?>">
                                         <input type="hidden" name="comp_label[]" value="<?php echo htmlspecialchars($c['component_name']); ?>">
                                         <input type="hidden" name="comp_type[]" value="<?php echo htmlspecialchars($c['component_type']); ?>">
                                         <input type="hidden" name="comp_calc[]" value="<?php echo htmlspecialchars($c['calculation']); ?>">
-                                        <input type="number" step="0.01" name="comp_amount[]" class="form-control" value="<?php echo htmlspecialchars((string) $amt); ?>">
+                                        <input type="number" step="0.01" name="comp_amount[]" class="<?php echo htmlspecialchars($inputClass); ?>"
+                                               value="<?php echo htmlspecialchars((string) $amt); ?>"
+                                               <?php echo ($isPfComp || $isPtComp) ? 'readonly' : ''; ?>>
                                     </td>
                                 </tr>
                             <?php endforeach; ?>
@@ -235,17 +261,40 @@ require_once __DIR__ . '/../includes/header.php';
         var salary = parseFloat(salaryEl.value) || 0;
         var pfYes = document.querySelector('input[name="pf_deduction"]:checked');
         pfYes = pfYes && pfYes.value === 'Yes';
-        var pf = 0;
-        if (pfYes) {
-            pf = Math.min(15000, salary) * 0.12;
+        // Prefer Basic Salary component amount if present in the form
+        var basicWage = salary;
+        var rows = document.querySelectorAll('input[name="comp_label[]"]');
+        var amts = document.querySelectorAll('input[name="comp_amount[]"]');
+        for (var i = 0; i < rows.length; i++) {
+            var lab = (rows[i].value || '').toLowerCase();
+            if (lab.indexOf('basic') !== -1 && amts[i] && !amts[i].classList.contains('js-pf-comp-amount')) {
+                var b = parseFloat(amts[i].value) || 0;
+                if (b > 0) {
+                    basicWage = b;
+                    break;
+                }
+            }
         }
+        var wage = Math.min(15000, basicWage);
+        var pf = pfYes ? (wage * 0.12) : 0;
         var pt = salary >= 12001 ? 200 : 0;
         pfPreview.value = pf.toFixed(2);
         ptPreview.value = pt.toFixed(2);
+        document.querySelectorAll('.js-pf-comp-amount').forEach(function (el) {
+            el.value = pf.toFixed(2);
+        });
+        document.querySelectorAll('.js-pt-comp-amount').forEach(function (el) {
+            el.value = pt.toFixed(2);
+        });
     }
     salaryEl.addEventListener('input', recalc);
     document.querySelectorAll('.pf-toggle').forEach(function (el) {
         el.addEventListener('change', recalc);
+    });
+    document.querySelectorAll('input[name="comp_amount[]"]').forEach(function (el) {
+        if (!el.classList.contains('js-pf-comp-amount') && !el.classList.contains('js-pt-comp-amount')) {
+            el.addEventListener('input', recalc);
+        }
     });
     recalc();
 })();
