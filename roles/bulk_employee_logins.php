@@ -42,8 +42,8 @@ require_once __DIR__ . '/../includes/header.php';
                     <h1>Bulk Employee Logins</h1>
                     <p>
                         All active employees · Role <strong>Office Staff</strong> ·
-                        Username = <strong>Employee Code</strong> ·
-                        Password = <strong><?php echo htmlspecialchars(employeePortalDefaultPassword()); ?></strong>
+                        Username = <strong>Employee Code</strong> (e.g. EMP0001) ·
+                        Password = <strong>FirstName@123</strong> (e.g. Test Kumar → <code>Test@123</code>)
                     </p>
                 </div>
             </div>

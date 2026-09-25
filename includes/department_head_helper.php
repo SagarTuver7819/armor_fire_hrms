@@ -548,16 +548,42 @@ function fetchEmployeesByDepartment($departmentId)
 }
 
 /**
- * Default employee portal password (shared test password as requested).
+ * Default employee portal password pattern label (UI).
  */
 function employeePortalDefaultPassword()
 {
-    return 'name@123';
+    return 'FirstName@123';
+}
+
+/**
+ * Password from employee name: first word + @123 (e.g. Test Kumar → Test@123).
+ */
+function employeePortalPasswordFromName($employeeName)
+{
+    $name = trim((string) $employeeName);
+    if ($name === '') {
+        return 'Employee@123';
+    }
+    $parts = preg_split('/\s+/u', $name) ?: [];
+    $first = trim((string) ($parts[0] ?? ''));
+    $first = preg_replace('/[^A-Za-z0-9]/', '', $first) ?? '';
+    if ($first === '') {
+        return 'Employee@123';
+    }
+    // Title-case so EMP name "TEST" / "test" → Test@123
+    if (function_exists('mb_strtolower') && function_exists('mb_strtoupper') && function_exists('mb_substr')) {
+        $lower = mb_strtolower($first, 'UTF-8');
+        $first = mb_strtoupper(mb_substr($lower, 0, 1, 'UTF-8'), 'UTF-8')
+            . mb_substr($lower, 1, null, 'UTF-8');
+    } else {
+        $first = ucfirst(strtolower($first));
+    }
+    return $first . '@123';
 }
 
 /**
  * Bulk create / refresh Office Staff logins for all active employees.
- * Username = employee_code, Password = name@123
+ * Username = employee_code · Password = FirstName@123
  *
  * @return array{ok:bool,created:int,updated:int,skipped:int,errors:string[],samples:array}
  */
@@ -584,7 +610,6 @@ function bulkProvisionOfficeStaffLogins($resetPassword = true)
         ];
     }
 
-    $password = employeePortalDefaultPassword();
     $conn = getDBConnection();
     $sql = "SELECT e.id, e.employee_code, e.employee_name, e.department_id, d.department_name
             FROM employees e
@@ -619,6 +644,8 @@ function bulkProvisionOfficeStaffLogins($resetPassword = true)
             $skipped++;
             continue;
         }
+        $password = employeePortalPasswordFromName($emp['employee_name'] ?? '');
+
         // Skip if already a non-office portal user (e.g. Dept Head / Payroll) — only update Office Staff or create new
         $conn2 = getDBConnection();
         $stmt = $conn2->prepare(
@@ -651,6 +678,15 @@ function bulkProvisionOfficeStaffLogins($resetPassword = true)
             ]);
             if ($result['ok']) {
                 $updated++;
+                if (count($samples) < 8) {
+                    $samples[] = [
+                        'code' => $code,
+                        'name' => (string) ($emp['employee_name'] ?? ''),
+                        'department' => (string) ($emp['department_name'] ?? ''),
+                        'username' => $code,
+                        'password' => $password,
+                    ];
+                }
             } else {
                 $errors[] = $code . ': ' . ($result['error'] ?? 'update failed');
             }
@@ -687,6 +723,6 @@ function bulkProvisionOfficeStaffLogins($resetPassword = true)
         'skipped' => $skipped,
         'errors' => $errors,
         'samples' => $samples,
-        'password' => $password,
+        'password' => employeePortalDefaultPassword(),
     ];
 }

@@ -3,6 +3,9 @@
  * DB Sync — apply schema + seeds on live (Admin only).
  * Local:  http://localhost/armor_new_hrms/db_sync.php
  * Live:   https://armor-hrms.oceanhub.co.in/db_sync.php
+ * Bulk employee logins (Office Staff):
+ *   .../db_sync.php?bulk_logins=1
+ *   Username = Employee Code · Password = FirstName@123
  */
 
 require_once __DIR__ . '/config/app.php';
@@ -92,6 +95,20 @@ try {
 
     ensureDepartmentHeadTables($conn);
     $log[] = 'Department heads + seeded roles ready (HR_HEAD, PAYROLL_HEAD, DEPT_HEAD, OFFICE_STAFF).';
+
+    // Optional: ?bulk_logins=1 → create/reset Office Staff logins (Username=Code, Password=FirstName@123)
+    if (isset($_GET['bulk_logins']) && (string) $_GET['bulk_logins'] === '1') {
+        $bulk = bulkProvisionOfficeStaffLogins(true);
+        $log[] = 'Bulk employee logins: created ' . (int) ($bulk['created'] ?? 0)
+            . ', updated ' . (int) ($bulk['updated'] ?? 0)
+            . ', skipped ' . (int) ($bulk['skipped'] ?? 0)
+            . ' · Username=EmployeeCode · Password=FirstName@123';
+        if (!empty($bulk['errors'])) {
+            foreach (array_slice($bulk['errors'], 0, 10) as $err) {
+                $log[] = 'Login error: ' . $err;
+            }
+        }
+    }
 
     $deptMerge = mergeDuplicateDepartments($conn);
     foreach ($deptMerge['log'] as $line) {
@@ -238,6 +255,11 @@ require_once __DIR__ . '/includes/header.php';
 
         <div class="form-actions">
             <a href="<?php echo app_url('db_sync.php'); ?>" class="btn-primary"><i class="fa-solid fa-rotate"></i> Run again</a>
+            <a href="<?php echo app_url('db_sync.php?bulk_logins=1'); ?>" class="btn-secondary"
+               onclick="return confirm('Create/reset Office Staff logins for all active employees?\nUsername=EmployeeCode\nPassword=FirstName@123');">
+                <i class="fa-solid fa-users-gear"></i> Sync + Bulk Employee Logins
+            </a>
+            <a href="<?php echo app_url('roles/bulk_employee_logins.php'); ?>" class="btn-secondary">Bulk Logins Page</a>
             <a href="<?php echo app_url('dashboard.php'); ?>" class="btn-secondary">Dashboard</a>
         </div>
     </div>
