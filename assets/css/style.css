@@ -1,6 +1,6 @@
 /* =====================================================
    Armor Fire HRMS - Main Stylesheet
-   Professional ERP look · Brand orange #F58220
+   Professional ERP look Â· Brand orange #F58220
    ===================================================== */
 
 :root {
@@ -1793,7 +1793,7 @@ input.js-date,
     letter-spacing: 0.02em;
 }
 
-/* Flatpickr — month dropdown + year must stay clickable (no Select2 / no arrow overlap) */
+/* Flatpickr â month dropdown + year must stay clickable (no Select2 / no arrow overlap) */
 .flatpickr-calendar {
     font-family: inherit;
     box-shadow: 0 12px 28px rgba(15, 23, 42, 0.18);
@@ -1840,7 +1840,7 @@ input.js-date,
     z-index: 5;
 }
 
-/* Native month <select> — never hide / never Select2 */
+/* Native month <select> â never hide / never Select2 */
 .flatpickr-current-month .flatpickr-monthDropdown-months,
 .flatpickr-calendar select.flatpickr-monthDropdown-months {
     display: inline-block !important;
@@ -2513,7 +2513,7 @@ input.js-date,
     display: none !important;
 }
 
-/* Keep save bar in flow — sticky overlay was covering last grid rows */
+/* Keep save bar in flow â sticky overlay was covering last grid rows */
 .sticky-actions {
     position: relative;
     bottom: auto;
@@ -2612,7 +2612,7 @@ input.js-date,
     background: #ffedd5;
 }
 
-/* Round MDTimePicker — full screen center */
+/* Round MDTimePicker â full screen center */
 .mdtimepicker {
     z-index: 120000 !important;
     display: flex !important;
@@ -2970,7 +2970,7 @@ body > .select2-container--open {
 }
 
 /* =====================================================
-   Employee Profile — Professional ID Card
+   Employee Profile â Professional ID Card
    ===================================================== */
 
 .toolbar-actions {
@@ -3949,7 +3949,7 @@ body.confirm-modal-open {
 }
 
 /* =====================================================
-   App Sidebar — scrollable + toggle
+   App Sidebar â scrollable + toggle
    ===================================================== */
 
 .has-app-sidebar {
@@ -4435,7 +4435,7 @@ body.confirm-modal-open {
 }
 
 /*
- * Body-attached open dropdowns must NEVER be width:100% —
+ * Body-attached open dropdowns must NEVER be width:100% â
  * that paints a full-viewport white layer (looks like blank page).
  */
 body > .select2-container {
@@ -4776,7 +4776,7 @@ body > .select2-container .select2-dropdown {
     max-width: 100% !important;
 }
 
-/* Native select hidden — custom combo trigger shown instead (Select2 removed from grid) */
+/* Native select hidden â custom combo trigger shown instead (Select2 removed from grid) */
 .ops-grid select.ops-combo-native,
 .ops-grid select.product-select.no-select2,
 .ops-grid select.grade-select.no-select2 {
@@ -5153,7 +5153,7 @@ body > .select2-container .select2-dropdown {
     z-index: 2;
 }
 
-/* Crosshair — row (horizontal) + column (vertical) like reference */
+/* Crosshair â row (horizontal) + column (vertical) like reference */
 .ops-grid tbody tr.cross-row > td {
     background: #fff7ed !important;
 }
@@ -5176,7 +5176,7 @@ body > .select2-container .select2-dropdown {
 .ops-grid tbody td.cross-cell {
     background: #fdba74 !important;
     box-shadow: inset 0 0 0 2px #F58220;
-    /* DO NOT set position:relative — it overrides sticky and shifts Process sideways */
+    /* DO NOT set position:relative â it overrides sticky and shifts Process sideways */
     z-index: 8;
 }
 
@@ -6224,7 +6224,7 @@ body.confirm-modal-open .flatpickr-calendar {
 }
 .header-notify-meta small { font-size: 11px; color: #64748b; line-height: 1.35; }
 
-/* Circular form — Select2 multi departments (proper design) */
+/* Circular form â Select2 multi departments (proper design) */
 .circ-dept-field {
     padding: 14px 16px;
     border: 1px solid #e2e8f0;
@@ -6670,21 +6670,83 @@ a.emp-dash-row:hover {
 .is-bday .emp-dash-date { color: #BE185D; border-color: #FBCFE8; }
 
 .emp-dash-detail {
-    font-size: 15px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #0f172a;
+    line-height: 1.3;
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* PAN-card style rows (birthdays / anniversaries) */
+.emp-dash-row.emp-dash-pan {
+    align-items: center;
+    gap: 8px;
+    padding: 7px 9px;
+    border-radius: 8px;
+    flex-wrap: nowrap;
+}
+.emp-dash-pan-body {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+}
+.emp-dash-name {
+    display: block;
+    font-size: 11.5px;
     font-weight: 700;
     color: #0f172a;
-    line-height: 1.35;
-    flex: 1;
-    min-width: 120px;
+    line-height: 1.25;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
+.emp-dash-meta {
+    display: block;
+    font-size: 10px;
+    font-weight: 600;
+    color: #64748b;
+    line-height: 1.25;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.emp-dash-desig {
+    color: #0f172a;
+    font-weight: 800;
+}
+
+.is-bday .emp-dash-date,
+.is-anniv .emp-dash-date {
+    font-size: 10px;
+    font-weight: 700;
+    padding: 3px 6px;
+    border-radius: 6px;
+}
+
+.emp-dash-panel-head h3 {
+    font-size: 15px;
+}
+.emp-dash-panel-head p {
+    font-size: 11px;
+}
+.emp-dash-list {
+    gap: 6px;
+}
+
 @media (max-width: 1200px) {
     .emp-dash-panels { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (max-width: 700px) {
     .emp-dash-panels { grid-template-columns: 1fr; }
-    .emp-dash-panel { min-height: 300px; }
-    .emp-dash-panel-head h3 { font-size: 16px; }
-    .emp-dash-detail { font-size: 14px; }
+    .emp-dash-panel { min-height: 260px; }
+    .emp-dash-panel-head h3 { font-size: 14px; }
+    .emp-dash-detail { font-size: 12px; }
 }
 
 /* Employee dashboard leave balance KPI */
@@ -6848,7 +6910,7 @@ a.emp-dash-row:hover {
     color: #BE185D;
 }
 
-/* Monthly Join / Left — same card family as leave balance */
+/* Monthly Join / Left â same card family as leave balance */
 .emp-leave-bal-card.is-join {
     border-color: #93C5FD;
     background: linear-gradient(145deg, #EFF6FF 0%, #FFFFFF 55%);
@@ -6885,51 +6947,61 @@ a.emp-dash-row:hover {
 }
 .emp-move-list {
     display: flex;
-    flex-wrap: wrap;
+    flex-direction: column;
     gap: 8px;
-    max-height: 168px;
+    max-height: 220px;
     overflow-y: auto;
     padding-right: 2px;
 }
 .emp-move-empty {
     width: 100%;
-    padding: 10px 8px;
+    padding: 14px 8px;
     font-size: 12px;
     font-weight: 600;
     color: #64748b;
     text-align: center;
 }
 .emp-move-chip {
-    display: inline-flex;
+    display: grid;
+    grid-template-columns: 96px minmax(0, 1fr) minmax(120px, 38%);
     align-items: center;
-    gap: 8px;
-    flex-wrap: wrap;
-    max-width: 100%;
-    padding: 7px 11px;
+    column-gap: 12px;
+    row-gap: 6px;
+    width: 100%;
+    box-sizing: border-box;
+    padding: 9px 12px;
     border-radius: 10px;
     border: 1px solid transparent;
     font-size: 12px;
-    line-height: 1.25;
+    line-height: 1.3;
 }
 .emp-move-chip b {
     font-weight: 800;
     letter-spacing: 0.02em;
     white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 .emp-move-chip span {
     font-weight: 700;
     color: #0f172a;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 .emp-move-chip em {
     font-style: normal;
     font-weight: 700;
     font-size: 11px;
-    padding: 2px 8px;
+    padding: 4px 10px;
     border-radius: 999px;
     white-space: nowrap;
-    max-width: 220px;
     overflow: hidden;
     text-overflow: ellipsis;
+    justify-self: end;
+    max-width: 100%;
+    text-align: center;
 }
 .emp-move-chip.is-join {
     background: linear-gradient(160deg, #DBEAFE, #EFF6FF);
@@ -6952,6 +7024,15 @@ a.emp-dash-row:hover {
 .emp-move-chip.is-left em {
     background: #F1F5F9;
     color: #475569;
+}
+@media (max-width: 640px) {
+    .emp-move-chip {
+        grid-template-columns: 1fr;
+        justify-items: start;
+    }
+    .emp-move-chip em {
+        justify-self: start;
+    }
 }
 .emp-kpi-card {
     margin: 0;
@@ -6985,7 +7066,7 @@ a.emp-dash-row:hover {
     .emp-leave-bal-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
-/* Employee Matrix — Heads directory */
+/* Employee Matrix â Heads directory */
 .emp-matrix-card {
     margin-top: 16px;
     padding: 0;

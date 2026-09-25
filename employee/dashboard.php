@@ -168,9 +168,9 @@ if ($hour < 12) {
     $greet = 'Good Evening';
 }
 $userLabel = getUserName();
-$roleLabel = getUserRoleLabel();
 $empCode = $emp ? trim((string) ($emp['employee_code'] ?? '')) : '';
 $empName = $emp ? trim((string) ($emp['employee_name'] ?? '')) : $userLabel;
+$designationLabel = $emp ? trim((string) ($emp['designation'] ?? '')) : '';
 $greetLine = $greet . ', '
     . ($empCode !== '' ? $empCode . ' - ' : '')
     . ($empName !== '' ? $empName : $userLabel);
@@ -534,8 +534,8 @@ $denied = isset($_GET['msg']) && $_GET['msg'] === 'denied';
                             <?php if ($deptName !== ''): ?>
                                 · <?php echo htmlspecialchars($deptName); ?>
                             <?php endif; ?>
-                            <?php if ($roleLabel !== ''): ?>
-                                · <?php echo htmlspecialchars($roleLabel); ?>
+                            <?php if ($designationLabel !== ''): ?>
+                                · <strong class="emp-dash-desig"><?php echo htmlspecialchars($designationLabel); ?></strong>
                             <?php endif; ?>
                         </p>
                     </div>
@@ -785,14 +785,18 @@ $denied = isset($_GET['msg']) && $_GET['msg'] === 'denied';
                             $when = ((int) ($a['in_days'] ?? 0) === 0)
                                 ? 'Today'
                                 : (((int) $a['in_days'] === 1) ? 'Tomorrow' : ('In ' . (int) $a['in_days'] . ' days'));
-                            $detail = trim((string) ($a['employee_name'] ?? ''))
-                                . ' · ' . (int) ($a['years'] ?? 0) . ' yr'
-                                . ' · ' . $when;
+                            $dn = trim((string) ($a['department_name'] ?? ''));
                             ?>
                             <li>
-                                <div class="emp-dash-row">
+                                <div class="emp-dash-row emp-dash-pan">
                                     <em class="emp-dash-date"><?php echo htmlspecialchars(formatDateDisplay($a['next_on'] ?? '')); ?></em>
-                                    <strong class="emp-dash-detail"><?php echo htmlspecialchars($detail); ?></strong>
+                                    <div class="emp-dash-pan-body">
+                                        <strong class="emp-dash-name"><?php echo htmlspecialchars((string) ($a['employee_name'] ?? '—')); ?></strong>
+                                        <span class="emp-dash-meta">
+                                            <?php echo htmlspecialchars((int) ($a['years'] ?? 0) . ' yr · ' . $when); ?>
+                                            <?php if ($dn !== ''): ?> · <?php echo htmlspecialchars($dn); ?><?php endif; ?>
+                                        </span>
+                                    </div>
                                 </div>
                             </li>
                         <?php endforeach; ?>
@@ -823,14 +827,17 @@ $denied = isset($_GET['msg']) && $_GET['msg'] === 'denied';
                                 ? 'Today'
                                 : (((int) $b['in_days'] === 1) ? 'Tomorrow' : ('In ' . (int) $b['in_days'] . ' days'));
                             $dn = trim((string) ($b['department_name'] ?? ''));
-                            $detail = trim((string) ($b['employee_name'] ?? ''))
-                                . ' · ' . $when
-                                . ($dn !== '' ? (' · ' . $dn) : '');
                             ?>
                             <li>
-                                <div class="emp-dash-row">
+                                <div class="emp-dash-row emp-dash-pan">
                                     <em class="emp-dash-date"><?php echo htmlspecialchars(formatDateDisplay($b['next_on'] ?? '')); ?></em>
-                                    <strong class="emp-dash-detail"><?php echo htmlspecialchars($detail); ?></strong>
+                                    <div class="emp-dash-pan-body">
+                                        <strong class="emp-dash-name"><?php echo htmlspecialchars((string) ($b['employee_name'] ?? '—')); ?></strong>
+                                        <span class="emp-dash-meta">
+                                            <?php echo htmlspecialchars($when); ?>
+                                            <?php if ($dn !== ''): ?> · <?php echo htmlspecialchars($dn); ?><?php endif; ?>
+                                        </span>
+                                    </div>
                                 </div>
                             </li>
                         <?php endforeach; ?>
