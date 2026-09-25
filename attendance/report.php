@@ -10,8 +10,10 @@ require_once __DIR__ . '/../includes/employee_helper.php';
 require_once __DIR__ . '/../includes/attendance_helper.php';
 
 requireLogin();
+require_once __DIR__ . '/../includes/permission_helper.php';
 
 $deptId = isset($_GET['department_id']) ? (int) $_GET['department_id'] : 0;
+requireAccess('attendance', 'view', $deptId);
 $employeeId = isset($_GET['employee_id']) ? (int) $_GET['employee_id'] : 0;
 $month = (int) ($_GET['month'] ?? date('n'));
 $year = (int) ($_GET['year'] ?? date('Y'));

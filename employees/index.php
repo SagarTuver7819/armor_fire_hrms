@@ -12,8 +12,11 @@
 require_once __DIR__ . '/../config/app.php';
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/employee_helper.php';
+require_once __DIR__ . '/../includes/auth.php';
+require_once __DIR__ . '/../includes/permission_helper.php';
 
 $deptId = isset($_GET['department_id']) ? (int) $_GET['department_id'] : 0;
+requireAccess('employees', 'view', $deptId);
 $view   = isset($_GET['view']) && $_GET['view'] === 'exit' ? 'exit' : 'active';
 $isExit = ($view === 'exit');
 $department = null;
@@ -88,7 +91,7 @@ $excelUrl = app_url('employees/export_excel.php?view=' . $view . ($deptId > 0 ? 
             <a href="<?php echo htmlspecialchars($excelUrl); ?>" class="btn-secondary">
                 <i class="fa-solid fa-file-excel"></i> Excel
             </a>
-            <?php if (!$isExit): ?>
+            <?php if (!$isExit && canAccess('employees', 'add', $deptId)): ?>
             <a href="<?php echo htmlspecialchars(app_url('employees/import.php') . ($deptId > 0 ? ('?department_id=' . $deptId) : '')); ?>"
                class="btn-secondary"
                title="<?php echo $deptId > 0 ? ('Import into ' . htmlspecialchars($department['department_name'])) : 'Import employees (all departments)'; ?>">
@@ -104,7 +107,7 @@ $excelUrl = app_url('employees/export_excel.php?view=' . $view . ($deptId > 0 ? 
                     <i class="fa-solid fa-cloud-arrow-down"></i> Sync from Reference
                 </a>
             <?php endif; ?>
-            <?php if ($deptId > 0): ?>
+            <?php if ($deptId > 0 && canAccess('employees', 'add', $deptId)): ?>
                 <a href="<?php echo htmlspecialchars($addUrl); ?>" class="btn-primary">
                     <i class="fa-solid fa-plus"></i> Add Employee
                 </a>

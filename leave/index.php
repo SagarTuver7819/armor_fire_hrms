@@ -11,19 +11,62 @@ require_once __DIR__ . '/../includes/master_helper.php';
 require_once __DIR__ . '/../includes/leave_helper.php';
 
 requireLogin();
-ensureLeaveTables();
+require_once __DIR__ . '/../includes/permission_helper.php';
+require_once __DIR__ . '/../includes/department_head_helper.php';
 
 $deptId = (int) ($_GET['department_id'] ?? 0);
+requireAccess('leave', 'view', $deptId);
+ensureLeaveTables();
+
+if (empty($_SESSION['role_code'])) {
+    refreshHeadedDepartmentsSession();
+}
+
 $status = trim((string) ($_GET['status'] ?? 'All'));
 $year = (int) ($_GET['year'] ?? date('Y'));
 if ($year < 2000 || $year > 2100) {
     $year = (int) date('Y');
 }
 
-$department = $deptId > 0 ? getDepartmentById($deptId) : null;
-$rows = fetchLeaveRequests($deptId, $status, $year);
+$sessionEmpId = (int) ($_SESSION['employee_id'] ?? 0);
+$canApproveAny = canAccess('leave', 'edit', $deptId > 0 ? $deptId : 0);
+$selfOnly = function_exists('isEmployee') && isEmployee() && !$canApproveAny && !isDeptHeadRole();
 
-$pageTitle = 'Leave Request';
+$department = $deptId > 0 ? getDepartmentById($deptId) : null;
+
+if ($selfOnly && $sessionEmpId > 0) {
+    $rows = fetchLeaveRequests(0, $status, $year, null, $sessionEmpId);
+} elseif (isDeptHeadRole()) {
+    $headed = array_map('intval', $_SESSION['headed_department_ids'] ?? []);
+    if ($deptId > 0) {
+        if (!in_array($deptId, $headed, true)) {
+            header('Location: ' . app_url('hr/dashboard.php') . '?msg=denied');
+            exit;
+        }
+        $rows = fetchLeaveRequests($deptId, $status, $year);
+    } else {
+        $rows = fetchLeaveRequests(0, $status, $year, null, 0, $headed);
+    }
+} else {
+    $allowed = allowedDepartmentsFor('leave', 'view');
+    if (is_array($allowed) && $allowed !== []) {
+        if ($deptId > 0 && !in_array($deptId, $allowed, true)) {
+            header('Location: ' . app_url('hr/dashboard.php') . '?msg=denied');
+            exit;
+        }
+        if ($deptId > 0) {
+            $rows = fetchLeaveRequests($deptId, $status, $year);
+        } else {
+            $rows = fetchLeaveRequests(0, $status, $year, null, 0, $allowed);
+        }
+    } elseif (is_array($allowed) && $allowed === []) {
+        $rows = [];
+    } else {
+        $rows = fetchLeaveRequests($deptId, $status, $year);
+    }
+}
+
+$pageTitle = $selfOnly ? 'My Leave Requests' : 'Leave Request';
 $useSidebar = true;
 $sidebarMode = $deptId > 0 ? 'department' : 'workspace';
 $sidebarDeptId = $deptId;
@@ -57,6 +100,7 @@ $qsBase = http_build_query([
     'status' => $status,
     'year' => $year,
 ]);
+$canAddLeave = canAccess('leave', 'add', $deptId);
 ?>
 
 <main class="dashboard-main">
@@ -66,12 +110,16 @@ $qsBase = http_build_query([
             <?php echo $deptId > 0 ? 'Back to Modules' : 'Back to Dashboard'; ?>
         </a>
         <div class="toolbar-actions" style="display:flex;gap:8px;flex-wrap:wrap;">
+            <?php if (!$selfOnly && canAccess('leave', 'view', $deptId)): ?>
             <a href="<?php echo app_url('leave/balance.php?' . http_build_query(['department_id' => $deptId, 'year' => $year])); ?>" class="btn-secondary">
                 <i class="fa-solid fa-scale-balanced"></i> Leave Balance
             </a>
+            <?php endif; ?>
+            <?php if ($canAddLeave): ?>
             <a href="<?php echo app_url('leave/apply.php?' . http_build_query(['department_id' => $deptId])); ?>" class="btn-primary">
-                <i class="fa-solid fa-plus"></i> Apply Leave
+                <i class="fa-solid fa-plus"></i> <?php echo $selfOnly ? 'Apply My Leave' : 'Apply Leave'; ?>
             </a>
+            <?php endif; ?>
         </div>
     </div>
 
@@ -168,7 +216,11 @@ $qsBase = http_build_query([
                         </td>
                         <td><?php echo htmlspecialchars($r['reason'] ?: '-'); ?></td>
                         <td>
-                            <?php if ($r['status'] === 'Pending'): ?>
+                            <?php
+                            $rowDeptId = (int) ($r['department_id'] ?? 0);
+                            $canAct = canAccess('leave', 'edit', $rowDeptId);
+                            ?>
+                            <?php if ($canAct && $r['status'] === 'Pending'): ?>
                                 <a class="action-btn edit" title="Approve"
                                    href="<?php echo app_url('leave/action.php?id=' . (int) $r['id'] . '&do=approve&' . $qsBase); ?>"
                                    onclick="return confirm('Approve this leave? Balance will be deducted.');">
@@ -179,7 +231,7 @@ $qsBase = http_build_query([
                                    onclick="return confirm('Reject this leave request?');">
                                     <i class="fa-solid fa-xmark"></i>
                                 </a>
-                            <?php elseif ($r['status'] === 'Approved'): ?>
+                            <?php elseif ($canAct && $r['status'] === 'Approved'): ?>
                                 <a class="action-btn delete" title="Cancel approved"
                                    href="<?php echo app_url('leave/action.php?id=' . (int) $r['id'] . '&do=cancel&' . $qsBase); ?>"
                                    onclick="return confirm('Cancel approved leave and restore balance?');">

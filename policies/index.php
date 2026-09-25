@@ -11,11 +11,24 @@ require_once __DIR__ . '/../includes/policy_helper.php';
 
 requireStaff();
 ensurePolicyTables();
+require_once __DIR__ . '/../includes/permission_helper.php';
+requireAccess('policies', 'view');
 
 $year = (int) ($_GET['year'] ?? 0);
 $deptFilter = (int) ($_GET['department_id'] ?? 0);
 $rows = fetchPolicies($year, $deptFilter);
 $departments = getActiveMasterRows('departments', 'sort_order ASC, department_name ASC');
+$canEditPolicy = canAccess('policies', 'edit');
+$canDeletePolicy = canAccess('policies', 'delete');
+// Employee portal roles (except HR Head): view/PDF only — never show edit/delete
+if (isEmployee()) {
+    $roleCode = strtoupper((string) ($_SESSION['role_code'] ?? ''));
+    if ($roleCode !== 'HR_HEAD') {
+        $canEditPolicy = false;
+        $canDeletePolicy = false;
+    }
+}
+$showPolicyActions = $canEditPolicy || $canDeletePolicy;
 
 $pageTitle = 'Policies';
 $useSidebar = true;
@@ -47,9 +60,11 @@ if (isset($_GET['msg'])) {
             <i class="fa-solid fa-arrow-left"></i> Back to HR Dashboard
         </a>
         <div class="toolbar-actions" style="display:flex;gap:8px;flex-wrap:wrap;">
+            <?php if (canAccess('policies', 'add')): ?>
             <a href="<?php echo app_url('policies/edit.php'); ?>" class="btn-primary">
                 <i class="fa-solid fa-plus"></i> Add Policy
             </a>
+            <?php endif; ?>
         </div>
     </div>
 
@@ -105,12 +120,14 @@ if (isset($_GET['msg'])) {
                         <th>Added On</th>
                         <th>Uploaded By</th>
                         <th>PDF</th>
+                        <?php if ($showPolicyActions): ?>
                         <th>Action</th>
+                        <?php endif; ?>
                     </tr>
                 </thead>
                 <tbody>
                 <?php if (!$rows): ?>
-                    <tr><td colspan="9" class="empty-cell">No Policies yet. Click <strong>Add Policy</strong> to upload a scanned PDF.</td></tr>
+                    <tr><td colspan="<?php echo $showPolicyActions ? 9 : 8; ?>" class="empty-cell">No Policies yet.<?php if (canAccess('policies', 'add')): ?> Click <strong>Add Policy</strong> to upload a scanned PDF.<?php endif; ?></td></tr>
                 <?php endif; ?>
                 <?php foreach ($rows as $i => $r): ?>
                     <tr>
@@ -140,17 +157,23 @@ if (isset($_GET['msg'])) {
                                 <span class="sr-code">Missing</span>
                             <?php endif; ?>
                         </td>
+                        <?php if ($showPolicyActions): ?>
                         <td>
+                            <?php if ($canEditPolicy): ?>
                             <a class="action-btn edit" title="Edit"
                                href="<?php echo app_url('policies/edit.php?id=' . (int) $r['id']); ?>">
                                 <i class="fa-solid fa-pen"></i>
                             </a>
+                            <?php endif; ?>
+                            <?php if ($canDeletePolicy): ?>
                             <a class="action-btn delete btn-delete" title="Delete"
                                href="<?php echo app_url('policies/delete.php?id=' . (int) $r['id']); ?>"
                                data-name="<?php echo htmlspecialchars($r['title']); ?>">
                                 <i class="fa-solid fa-trash"></i>
                             </a>
+                            <?php endif; ?>
                         </td>
+                        <?php endif; ?>
                     </tr>
                 <?php endforeach; ?>
                 </tbody>

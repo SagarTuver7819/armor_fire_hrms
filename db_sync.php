@@ -19,6 +19,8 @@ require_once __DIR__ . '/includes/department_helper.php';
 require_once __DIR__ . '/includes/leave_helper.php';
 require_once __DIR__ . '/includes/circular_helper.php';
 require_once __DIR__ . '/includes/policy_helper.php';
+require_once __DIR__ . '/includes/permission_helper.php';
+require_once __DIR__ . '/includes/department_head_helper.php';
 require_once __DIR__ . '/sql/seed_contractor_masters.php';
 
 requireAdmin();
@@ -85,6 +87,12 @@ try {
     ensurePolicyTables($conn);
     $log[] = 'Policies table ready (scanned PDF policies for HR/Admin).';
 
+    ensureRoleTables($conn);
+    $log[] = 'Roles & permissions tables ready (custom roles, role_permissions, users.custom_role_id, users.employee_id).';
+
+    ensureDepartmentHeadTables($conn);
+    $log[] = 'Department heads + seeded roles ready (HR_HEAD, PAYROLL_HEAD, DEPT_HEAD, OFFICE_STAFF).';
+
     $deptMerge = mergeDuplicateDepartments($conn);
     foreach ($deptMerge['log'] as $line) {
         $log[] = 'Departments: ' . $line;
@@ -135,6 +143,11 @@ try {
         'policies table' => dbSyncHasTable($conn, 'policies'),
         'policy_departments table' => dbSyncHasTable($conn, 'policy_departments'),
         'policy_reads table' => dbSyncHasTable($conn, 'policy_reads'),
+        'roles table' => dbSyncHasTable($conn, 'roles'),
+        'role_permissions table' => dbSyncHasTable($conn, 'role_permissions'),
+        'users.custom_role_id' => dbSyncHasColumn($conn, 'users', 'custom_role_id'),
+        'users.employee_id' => dbSyncHasColumn($conn, 'users', 'employee_id'),
+        'department_heads table' => dbSyncHasTable($conn, 'department_heads'),
         'salary_register_locks table' => dbSyncHasTable($conn, 'salary_register_locks'),
     ];
 
@@ -151,6 +164,9 @@ try {
         'Leave Requests' => dbSyncCount($conn, 'SELECT COUNT(*) AS c FROM leave_requests'),
         'Circulars' => dbSyncCount($conn, 'SELECT COUNT(*) AS c FROM circulars WHERE status = 1'),
         'Policies' => dbSyncCount($conn, 'SELECT COUNT(*) AS c FROM policies WHERE status = 1'),
+        'Custom Roles' => dbSyncCount($conn, 'SELECT COUNT(*) AS c FROM roles WHERE status = 1'),
+        'Employee Portal Logins' => dbSyncCount($conn, "SELECT COUNT(*) AS c FROM users WHERE role = 'employee' AND status = 1"),
+        'Department Heads' => dbSyncCount($conn, 'SELECT COUNT(*) AS c FROM department_heads WHERE status = 1'),
     ];
 } catch (Throwable $e) {
     $ok = false;

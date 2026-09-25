@@ -13,6 +13,9 @@ require_once __DIR__ . '/../includes/master_helper.php';
 require_once __DIR__ . '/../includes/attendance_helper.php';
 
 requireLogin();
+require_once __DIR__ . '/../includes/permission_helper.php';
+$deptId = isset($_GET['department_id']) ? (int) $_GET['department_id'] : 0;
+requireAccess('attendance', 'edit', $deptId);
 ensureAttendanceTables();
 
 $deptId = (int) ($_GET['department_id'] ?? 0);

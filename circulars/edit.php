@@ -11,8 +11,10 @@ require_once __DIR__ . '/../includes/circular_helper.php';
 
 requireStaff();
 ensureCircularTables();
+require_once __DIR__ . '/../includes/permission_helper.php';
 
 $id = (int) ($_GET['id'] ?? 0);
+requireAccess('circulars', $id > 0 ? 'edit' : 'add');
 $row = $id > 0 ? getCircularById($id) : null;
 if ($id > 0 && !$row) {
     header('Location: ' . app_url('circulars/index.php?msg=error&err=' . rawurlencode('Circular not found.')));

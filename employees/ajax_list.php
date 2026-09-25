@@ -9,14 +9,30 @@ require_once __DIR__ . '/../config/app.php';
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/employee_helper.php';
+require_once __DIR__ . '/../includes/permission_helper.php';
+require_once __DIR__ . '/../includes/department_head_helper.php';
 
 requireLogin();
+$deptId = isset($_GET['department_id']) ? (int) $_GET['department_id'] : 0;
+if (isset($_POST['department_id'])) {
+    $deptId = (int) $_POST['department_id'];
+}
+requireAccess('employees', 'view', $deptId);
 header('Content-Type: application/json; charset=utf-8');
 
-$deptId = isset($_GET['department_id']) ? (int) $_GET['department_id'] : 0;
+if (empty($_SESSION['role_code']) && !empty($_SESSION['custom_role_id'])) {
+    refreshHeadedDepartmentsSession();
+}
+
 $view   = isset($_GET['view']) && $_GET['view'] === 'exit' ? 'exit' : (isset($_POST['view']) && $_POST['view'] === 'exit' ? 'exit' : 'active');
 $isExit = ($view === 'exit');
 $isOnField = (isset($_GET['on_field']) && (string) $_GET['on_field'] === '1');
+$allowedEmpDepts = allowedDepartmentsFor('employees', 'view');
+
+$sessionEmpId = (int) ($_SESSION['employee_id'] ?? 0);
+$selfEmpOnly = function_exists('isEmployee') && isEmployee()
+    && $sessionEmpId > 0
+    && isOfficeStaffRole();
 
 $draw   = (int) ($_POST['draw'] ?? 1);
 $start  = max(0, (int) ($_POST['start'] ?? 0));
@@ -144,6 +160,23 @@ if (!$isAll) {
     $where .= ' AND e.department_id = ?';
     $types .= 'i';
     $params[] = $deptId;
+} elseif (is_array($allowedEmpDepts)) {
+    if ($allowedEmpDepts === []) {
+        $where .= ' AND 1=0';
+    } else {
+        $placeholders = implode(',', array_fill(0, count($allowedEmpDepts), '?'));
+        $where .= " AND e.department_id IN ({$placeholders})";
+        $types .= str_repeat('i', count($allowedEmpDepts));
+        foreach ($allowedEmpDepts as $ad) {
+            $params[] = (int) $ad;
+        }
+    }
+}
+
+if (!empty($selfEmpOnly) && $sessionEmpId > 0) {
+    $where .= ' AND e.id = ?';
+    $types .= 'i';
+    $params[] = $sessionEmpId;
 }
 
 if ($search !== '') {
@@ -164,15 +197,33 @@ if ($search !== '') {
 
 // Total records (filtered by base condition and dept if needed, no search)
 if ($isAll) {
-    $totalRes = $conn->query("SELECT COUNT(*) AS c FROM employees e WHERE {$baseCondition}");
+    if (is_array($allowedEmpDepts)) {
+        if ($allowedEmpDepts === []) {
+            $recordsTotal = 0;
+            $totalRes = null;
+        } else {
+            $ph = implode(',', array_fill(0, count($allowedEmpDepts), '?'));
+            $stmtT = $conn->prepare(
+                "SELECT COUNT(*) AS c FROM employees e WHERE {$baseCondition} AND e.department_id IN ({$ph})"
+            );
+            $tTypes = str_repeat('i', count($allowedEmpDepts));
+            $stmtT->bind_param($tTypes, ...$allowedEmpDepts);
+            $stmtT->execute();
+            $totalRes = $stmtT->get_result();
+        }
+    } else {
+        $totalRes = $conn->query("SELECT COUNT(*) AS c FROM employees e WHERE {$baseCondition}");
+    }
 } else {
     $stmtT = $conn->prepare("SELECT COUNT(*) AS c FROM employees e WHERE {$baseCondition} AND e.department_id = ?");
     $stmtT->bind_param('i', $deptId);
     $stmtT->execute();
     $totalRes = $stmtT->get_result();
 }
-$totalRow = $totalRes ? $totalRes->fetch_assoc() : null;
-$recordsTotal = (int) ($totalRow['c'] ?? 0);
+if (!isset($recordsTotal)) {
+    $totalRow = $totalRes ? $totalRes->fetch_assoc() : null;
+    $recordsTotal = (int) ($totalRow['c'] ?? 0);
+}
 if (isset($stmtT)) {
     $stmtT->close();
 }
@@ -269,12 +320,24 @@ while ($row = $result->fetch_assoc()) {
             . '<a href="' . htmlspecialchars($pdfEn) . '" target="_blank" class="pdf-btn en">EN</a>'
             . '<a href="' . htmlspecialchars($pdfHi) . '" target="_blank" class="pdf-btn hi">HI</a>'
             . '</div>';
-    $item[] = '<div class="action-links" onclick="event.stopPropagation();">'
-            . '<a href="' . htmlspecialchars($viewUrl) . '" class="action-btn view" title="View"><i class="fa-solid fa-eye"></i></a>'
-            . '<a href="' . htmlspecialchars($editUrl) . '" class="action-btn edit" title="Edit"><i class="fa-solid fa-pen"></i></a>'
-            . '<a href="' . htmlspecialchars($salaryUrl) . '" class="action-btn view" title="Salary Details"><i class="fa-solid fa-indian-rupee-sign"></i></a>'
-            . '<a href="' . htmlspecialchars($delUrl) . '" class="action-btn delete btn-delete" data-name="' . htmlspecialchars($row['employee_name']) . '" title="Delete"><i class="fa-solid fa-trash"></i></a>'
-            . '</div>';
+
+    $rowDeptId = (int) $row['department_id'];
+    $canView = canAccess('employees', 'view', $rowDeptId);
+    $canEdit = canAccess('employees', 'edit', $rowDeptId);
+    $canDelete = canAccess('employees', 'delete', $rowDeptId);
+    $actions = '<div class="action-links" onclick="event.stopPropagation();">';
+    if ($canView) {
+        $actions .= '<a href="' . htmlspecialchars($viewUrl) . '" class="action-btn view" title="View"><i class="fa-solid fa-eye"></i></a>';
+    }
+    if ($canEdit) {
+        $actions .= '<a href="' . htmlspecialchars($editUrl) . '" class="action-btn edit" title="Edit"><i class="fa-solid fa-pen"></i></a>';
+        $actions .= '<a href="' . htmlspecialchars($salaryUrl) . '" class="action-btn view" title="Salary Details"><i class="fa-solid fa-indian-rupee-sign"></i></a>';
+    }
+    if ($canDelete) {
+        $actions .= '<a href="' . htmlspecialchars($delUrl) . '" class="action-btn delete btn-delete" data-name="' . htmlspecialchars($row['employee_name']) . '" title="Delete"><i class="fa-solid fa-trash"></i></a>';
+    }
+    $actions .= '</div>';
+    $item[] = $actions;
 
     $data[] = $item;
 }

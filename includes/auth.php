@@ -1,7 +1,7 @@
 <?php
 /**
  * Authentication Helper Functions
- * Handles session checks for Admin and HR roles.
+ * Admin, HR, and Employee portal logins.
  */
 
 if (session_status() === PHP_SESSION_NONE) {
@@ -45,11 +45,27 @@ function isHR()
 }
 
 /**
- * Admin or HR (staff portal users)
+ * Employee portal user (custom role assigned)
+ */
+function isEmployee()
+{
+    return isset($_SESSION['role']) && $_SESSION['role'] === 'employee';
+}
+
+/**
+ * Admin or HR (staff portal users — not employee)
  */
 function isStaffUser()
 {
     return isAdmin() || isHR();
+}
+
+/**
+ * Any portal user: Admin, HR, or Employee with login
+ */
+function isPortalUser()
+{
+    return isAdmin() || isHR() || isEmployee();
 }
 
 /**
@@ -66,24 +82,16 @@ function requireAdmin()
 }
 
 /**
- * Force Admin or HR
+ * Force Admin / HR / Employee portal (module pages use requireAccess after this)
  */
 function requireStaff()
 {
     requireLogin();
-    if (!isStaffUser()) {
+    if (!isPortalUser()) {
         require_once __DIR__ . '/../config/app.php';
         header('Location: ' . app_url('index.php'));
         exit;
     }
-}
-
-/**
- * Legacy helper — employee self-login removed from portal
- */
-function isEmployee()
-{
-    return isset($_SESSION['role']) && $_SESSION['role'] === 'employee';
 }
 
 /**
@@ -108,5 +116,17 @@ function getUserRoleLabel()
     if ($_SESSION['role'] === 'hr') {
         return 'HR MANAGER';
     }
+    if ($_SESSION['role'] === 'employee') {
+        $custom = trim((string) ($_SESSION['custom_role_name'] ?? ''));
+        return $custom !== '' ? strtoupper($custom) : 'EMPLOYEE';
+    }
     return strtoupper((string) $_SESSION['role']);
+}
+
+/**
+ * Linked employee id for employee portal users
+ */
+function getSessionEmployeeId()
+{
+    return (int) ($_SESSION['employee_id'] ?? 0);
 }

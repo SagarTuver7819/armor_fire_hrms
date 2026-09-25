@@ -29,9 +29,13 @@ CREATE TABLE IF NOT EXISTS users (
     full_name VARCHAR(100) NOT NULL,
     role ENUM('admin', 'hr', 'employee') NOT NULL DEFAULT 'hr',
     department_id INT NULL,
+    custom_role_id INT NULL,
+    employee_id INT NULL,
     status TINYINT(1) NOT NULL DEFAULT 1 COMMENT '1=Active, 0=Inactive',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (department_id) REFERENCES departments(id) ON DELETE SET NULL
+    FOREIGN KEY (department_id) REFERENCES departments(id) ON DELETE SET NULL,
+    INDEX idx_users_custom_role (custom_role_id),
+    INDEX idx_users_employee (employee_id)
 ) ENGINE=InnoDB;
 
 -- -----------------------------------------------------
@@ -166,6 +170,58 @@ CREATE TABLE IF NOT EXISTS policy_reads (
     PRIMARY KEY (policy_id, user_id),
     INDEX idx_pr_user (user_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- -----------------------------------------------------
+-- Custom Roles & Permissions (Admin configures)
+-- department_id = 0 means All Departments
+-- -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS roles (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    code VARCHAR(50) DEFAULT NULL,
+    description TEXT DEFAULT NULL,
+    status TINYINT(1) NOT NULL DEFAULT 1,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY uq_roles_name (name),
+    INDEX idx_roles_status (status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS role_permissions (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    role_id INT NOT NULL,
+    module_key VARCHAR(50) NOT NULL,
+    department_id INT NOT NULL DEFAULT 0 COMMENT '0 = All Departments',
+    can_view TINYINT(1) NOT NULL DEFAULT 0,
+    can_add TINYINT(1) NOT NULL DEFAULT 0,
+    can_edit TINYINT(1) NOT NULL DEFAULT 0,
+    can_delete TINYINT(1) NOT NULL DEFAULT 0,
+    UNIQUE KEY uq_role_mod_dept (role_id, module_key, department_id),
+    INDEX idx_rp_role (role_id),
+    INDEX idx_rp_module (module_key),
+    INDEX idx_rp_dept (department_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- users.custom_role_id / employee_id added via db_sync / ensureRoleTables (ALTER)
+
+-- -----------------------------------------------------
+-- Department Heads (1 employee per department)
+-- -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS department_heads (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    department_id INT NOT NULL,
+    employee_id INT NOT NULL,
+    status TINYINT(1) NOT NULL DEFAULT 1,
+    set_by INT DEFAULT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY uq_dh_department (department_id),
+    INDEX idx_dh_employee (employee_id),
+    INDEX idx_dh_status (status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Seeded roles (via ensureDepartmentHeadTables / seedStandardRoles):
+-- HR_HEAD, PAYROLL_HEAD, DEPT_HEAD, OFFICE_STAFF
 
 -- -----------------------------------------------------
 -- Default Users

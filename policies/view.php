@@ -10,6 +10,8 @@ require_once __DIR__ . '/../includes/policy_helper.php';
 
 requireStaff();
 ensurePolicyTables();
+require_once __DIR__ . '/../includes/permission_helper.php';
+requireAccess('policies', 'view');
 
 $id = (int) ($_GET['id'] ?? 0);
 $row = getPolicyById($id);

@@ -11,6 +11,9 @@ require_once __DIR__ . '/../includes/master_helper.php';
 require_once __DIR__ . '/../includes/leave_helper.php';
 
 requireLogin();
+require_once __DIR__ . '/../includes/permission_helper.php';
+$deptId = (int) ($_GET['department_id'] ?? 0);
+requireAccess('leave', 'view', $deptId);
 ensureLeaveTables();
 
 $deptId = (int) ($_GET['department_id'] ?? 0);

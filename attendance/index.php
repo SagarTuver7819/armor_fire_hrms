@@ -9,6 +9,8 @@ require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/attendance_helper.php';
 
 requireLogin();
+require_once __DIR__ . '/../includes/permission_helper.php';
+requireAccess('attendance', 'view');
 ensureAttendanceTables();
 
 $pageTitle = 'Attendance';

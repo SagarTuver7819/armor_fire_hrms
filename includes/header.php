@@ -18,7 +18,20 @@ if ($logoSrc && strpos($logoSrc, 'http') !== 0 && strpos($logoSrc, '/') !== 0) {
 
 $headerNotifyItems = [];
 $headerNotifyUnread = 0;
-if (function_exists('isStaffUser') && isStaffUser()) {
+$headerEmpPhotoUrl = '';
+$headerEmpProfileUrl = '';
+$headerSessionEmpId = (int) ($_SESSION['employee_id'] ?? 0);
+if ($headerSessionEmpId > 0) {
+    if (!function_exists('getEmployeeById')) {
+        require_once __DIR__ . '/employee_helper.php';
+    }
+    $headerEmpRow = getEmployeeById($headerSessionEmpId);
+    if ($headerEmpRow) {
+        $headerEmpPhotoUrl = employeeDocumentPublicUrl($headerEmpRow['photo_file'] ?? '');
+        $headerEmpProfileUrl = app_url('employees/view.php?id=' . $headerSessionEmpId);
+    }
+}
+if (function_exists('isPortalUser') && isPortalUser()) {
     $uid = (int) ($_SESSION['user_id'] ?? 0);
     require_once __DIR__ . '/circular_helper.php';
     require_once __DIR__ . '/policy_helper.php';
@@ -169,9 +182,21 @@ if (function_exists('isStaffUser') && isStaffUser()) {
             </div>
 
             <div class="user-info">
+                <?php if ($headerEmpProfileUrl !== ''): ?>
+                <a href="<?php echo htmlspecialchars($headerEmpProfileUrl); ?>"
+                   class="user-avatar<?php echo $headerEmpPhotoUrl !== '' ? ' has-photo' : ''; ?>"
+                   title="<?php echo htmlspecialchars(getUserName() . ' · My Profile'); ?>">
+                    <?php if ($headerEmpPhotoUrl !== ''): ?>
+                        <img src="<?php echo htmlspecialchars($headerEmpPhotoUrl); ?>" alt="">
+                    <?php else: ?>
+                        <i class="fa-solid fa-user"></i>
+                    <?php endif; ?>
+                </a>
+                <?php else: ?>
                 <div class="user-avatar" title="<?php echo htmlspecialchars(getUserName() . ' · ' . getUserRoleLabel()); ?>">
                     <i class="fa-solid fa-user"></i>
                 </div>
+                <?php endif; ?>
                 <a href="<?php echo app_url('logout.php'); ?>" class="logout-btn" title="Logout">
                     <i class="fa-solid fa-right-from-bracket"></i>
                 </a>

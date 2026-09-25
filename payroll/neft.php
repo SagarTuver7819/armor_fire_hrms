@@ -11,8 +11,10 @@ require_once __DIR__ . '/../includes/payroll_reports_helper.php';
 require_once __DIR__ . '/../includes/settings.php';
 
 requireLogin();
+require_once __DIR__ . '/../includes/permission_helper.php';
 
 $deptId = (int) ($_GET['department_id'] ?? 0);
+requireAccess('payroll', 'view', $deptId);
 $month = (int) ($_GET['month'] ?? date('n'));
 $year = (int) ($_GET['year'] ?? date('Y'));
 $type = (string) ($_GET['type'] ?? 'salary');

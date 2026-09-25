@@ -9,8 +9,12 @@ require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/employee_helper.php';
 require_once __DIR__ . '/../includes/leave_helper.php';
 require_once __DIR__ . '/../includes/attendance_helper.php';
+require_once __DIR__ . '/../includes/auth.php';
+require_once __DIR__ . '/../includes/permission_helper.php';
+require_once __DIR__ . '/../includes/department_head_helper.php';
 
 ensureEmployeesTable();
+requireLogin();
 
 $id = isset($_GET['id']) ? (int) $_GET['id'] : 0;
 $emp = $id > 0 ? getEmployeeById($id) : null;
@@ -21,9 +25,37 @@ if (!$emp) {
 }
 
 $deptId = (int) $emp['department_id'];
+$sessionEmpId = (int) ($_SESSION['employee_id'] ?? 0);
+$isOwnProfile = $sessionEmpId > 0 && $sessionEmpId === $id;
+
+// Office Staff may only open their own profile
+if (isOfficeStaffRole() && !$isOwnProfile) {
+    header('Location: ' . app_url('employees/view.php?id=' . $sessionEmpId . '&msg=denied'));
+    exit;
+}
+
+if ($isOwnProfile) {
+    // Own profile always allowed for linked employee login
+} else {
+    requireAccess('employees', 'view', $deptId);
+}
+
+$canEditEmployee = canAccess('employees', 'edit', $deptId);
+$canSalaryManage = $canEditEmployee || canAccess('payroll', 'view', $deptId);
+$canEmpPdf = $canEditEmployee || isAdmin() || isHR();
+$showAdminActions = $canEditEmployee || $canSalaryManage || $canEmpPdf;
+// Employee login (own profile / Office Staff): hide salary amount, pay type, salary tab, bank/PF salary
+$showSalaryDetails = $canSalaryManage || isAdmin() || isHR();
+if ($isOwnProfile && isOfficeStaffRole()) {
+    $showSalaryDetails = false;
+}
+
 $isDeactive = isEmployeeDeactive($emp);
 $tab = strtolower(trim((string) ($_GET['tab'] ?? 'profile')));
 if (!in_array($tab, ['profile', 'family', 'leave', 'history', 'attendance', 'salary'], true)) {
+    $tab = 'profile';
+}
+if ($tab === 'salary' && !$showSalaryDetails) {
     $tab = 'profile';
 }
 
@@ -36,15 +68,23 @@ if ($month < 1 || $month > 12) {
     $month = (int) date('n');
 }
 
-$pageTitle = 'Employee Details' . ($isDeactive ? ' (Deactive)' : '');
+$pageTitle = $isOwnProfile
+    ? 'My Profile'
+    : ('Employee Details' . ($isDeactive ? ' (Deactive)' : ''));
 $extraCss = [
     'https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.css',
 ];
 
 $useSidebar = true;
-$sidebarMode = 'department';
-$sidebarDeptId = $deptId;
-$sidebarActive = $isDeactive ? 'exit_employee' : 'join_employee';
+if ($isOwnProfile && (isOfficeStaffRole() || !canAccess('employees', 'view', $deptId))) {
+    $sidebarMode = 'workspace';
+    $sidebarDeptId = 0;
+    $sidebarActive = 'my_profile';
+} else {
+    $sidebarMode = 'department';
+    $sidebarDeptId = $deptId;
+    $sidebarActive = $isDeactive ? 'exit_employee' : 'join_employee';
+}
 
 ensureLeaveTables();
 $familyMembers = getEmployeeFamilyMembers($id);
@@ -64,9 +104,21 @@ $conn->close();
 require_once __DIR__ . '/../includes/header.php';
 
 $toastMsg = '';
-if (isset($_GET['msg']) && $_GET['msg'] === 'updated') {
-    $toastMsg = 'Employee updated successfully.';
+$toastType = 'success';
+if (isset($_GET['msg'])) {
+    if ($_GET['msg'] === 'updated') {
+        $toastMsg = 'Employee updated successfully.';
+    } elseif ($_GET['msg'] === 'photo_updated') {
+        $toastMsg = 'Profile photo updated successfully.';
+    } elseif ($_GET['msg'] === 'photo_missing') {
+        $toastMsg = 'Please choose a photo to upload.';
+        $toastType = 'error';
+    } elseif ($_GET['msg'] === 'photo_error') {
+        $toastMsg = 'Could not update photo. Use JPG, PNG or WEBP (max 5MB).';
+        $toastType = 'error';
+    }
 }
+$canEditOwnPhoto = $isOwnProfile && $sessionEmpId > 0;
 
 function showVal($v)
 {
@@ -96,7 +148,10 @@ $shiftClass = (strtolower((string) $emp['shift_type']) === 'night') ? 'is-night'
 $photoUrl = employeeDocumentPublicUrl($emp['photo_file'] ?? '');
 
 $from = (string) ($_GET['from'] ?? '');
-if ($from === 'exit') {
+if ($isOwnProfile && (isOfficeStaffRole() || $from === 'self')) {
+    $backUrl = app_url('employee/dashboard.php');
+    $backText = 'Back to Home';
+} elseif ($from === 'exit') {
     $backUrl = app_url('employees/exit_list.php' . ($deptId > 0 ? '?department_id=' . $deptId : ''));
     $backText = 'Back to Exit Employee List';
 } elseif ($from === 'all') {
@@ -131,7 +186,7 @@ $tabUrl = function ($t) use ($baseQs, $year, $month) {
         <a href="<?php echo htmlspecialchars($backUrl); ?>" class="back-link">
             <i class="fa-solid fa-arrow-left"></i> <?php echo htmlspecialchars($backText); ?>
         </a>
-        <?php if (!isset($_GET['from']) || $_GET['from'] !== 'all'): ?>
+        <?php if (!$isOwnProfile && (!isset($_GET['from']) || $_GET['from'] !== 'all')): ?>
         <a href="<?php echo app_url('department.php?id=' . $deptId); ?>" class="btn-secondary">
             <i class="fa-solid fa-puzzle-piece"></i> Module Boxes
         </a>
@@ -141,6 +196,23 @@ $tabUrl = function ($t) use ($baseQs, $year, $month) {
     <section class="emp-id-card">
         <div class="emp-id-top">
             <div class="emp-id-identity">
+                <?php if ($canEditOwnPhoto): ?>
+                <form action="<?php echo app_url('employee/photo_save.php'); ?>" method="post" enctype="multipart/form-data" class="emp-avatar-form" id="empOwnPhotoForm">
+                    <label class="emp-avatar emp-avatar-editable" title="Change photo">
+                        <?php if ($photoUrl !== ''): ?>
+                            <img src="<?php echo htmlspecialchars($photoUrl); ?>" alt="" id="empOwnPhotoPreview">
+                        <?php else: ?>
+                            <span id="empOwnPhotoInitials"><?php echo htmlspecialchars(empInitials($emp['employee_name'])); ?></span>
+                            <img src="" alt="" id="empOwnPhotoPreview" hidden>
+                        <?php endif; ?>
+                        <span class="emp-avatar-camera"><i class="fa-solid fa-camera"></i></span>
+                        <input type="file" name="photo_file" id="empOwnPhotoInput" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" hidden>
+                    </label>
+                    <button type="submit" class="emp-avatar-save-btn" id="empOwnPhotoSave" hidden>
+                        <i class="fa-solid fa-check"></i> Save Photo
+                    </button>
+                </form>
+                <?php else: ?>
                 <div class="emp-avatar" aria-hidden="true">
                     <?php if ($photoUrl !== ''): ?>
                         <img src="<?php echo htmlspecialchars($photoUrl); ?>" alt="">
@@ -148,6 +220,7 @@ $tabUrl = function ($t) use ($baseQs, $year, $month) {
                         <span><?php echo htmlspecialchars(empInitials($emp['employee_name'])); ?></span>
                     <?php endif; ?>
                 </div>
+                <?php endif; ?>
                 <div class="emp-id-copy">
                     <div class="emp-id-tags">
                         <?php if ($isDeactive): ?>
@@ -166,27 +239,37 @@ $tabUrl = function ($t) use ($baseQs, $year, $month) {
                         <span><i class="fa-solid fa-briefcase"></i> <?php echo showVal($emp['designation']); ?></span>
                         <span class="sep">|</span>
                         <span><i class="fa-solid fa-building"></i> <?php echo showVal($emp['department_name']); ?></span>
+                        <?php if ($showSalaryDetails): ?>
                         <span class="sep">|</span>
                         <span class="pay-pill <?php echo payTypeCssClass($emp['pay_type'] ?? 'Salary'); ?>">
                             <?php echo htmlspecialchars(payTypeLabel($emp['pay_type'] ?? 'Salary')); ?>
                         </span>
+                        <?php endif; ?>
                     </p>
                 </div>
             </div>
+            <?php if ($showAdminActions): ?>
             <div class="emp-id-actions">
+                <?php if ($canEmpPdf): ?>
                 <a href="<?php echo app_url('employees/pdf.php?id=' . (int) $emp['id'] . '&lang=en'); ?>" target="_blank" class="btn-ghost">
                     <i class="fa-solid fa-file-pdf"></i> PDF EN
                 </a>
                 <a href="<?php echo app_url('employees/pdf.php?id=' . (int) $emp['id'] . '&lang=hi'); ?>" target="_blank" class="btn-ghost">
                     <i class="fa-solid fa-file-pdf"></i> PDF HI
                 </a>
+                <?php endif; ?>
+                <?php if ($canSalaryManage): ?>
                 <a href="<?php echo app_url('employees/salary.php?id=' . (int) $emp['id']); ?>" class="btn-ghost">
                     <i class="fa-solid fa-indian-rupee-sign"></i> Salary Details
                 </a>
+                <?php endif; ?>
+                <?php if ($canEditEmployee): ?>
                 <a href="<?php echo app_url('employees/edit.php?id=' . (int) $emp['id'] . '&department_id=' . $deptId); ?>" class="btn-primary">
                     <i class="fa-solid fa-pen"></i> Edit Employee
                 </a>
+                <?php endif; ?>
             </div>
+            <?php endif; ?>
         </div>
 
         <div class="emp-id-stats">
@@ -234,6 +317,7 @@ $tabUrl = function ($t) use ($baseQs, $year, $month) {
                     <strong><?php echo showVal($emp['mobile_number']); ?></strong>
                 </div>
             </div>
+            <?php if ($showSalaryDetails): ?>
             <div class="emp-stat-item">
                 <div class="emp-stat-icon"><i class="fa-solid fa-indian-rupee-sign"></i></div>
                 <div>
@@ -241,6 +325,7 @@ $tabUrl = function ($t) use ($baseQs, $year, $month) {
                     <strong><?php echo $salaryShow; ?></strong>
                 </div>
             </div>
+            <?php endif; ?>
         </div>
     </section>
 
@@ -267,10 +352,12 @@ $tabUrl = function ($t) use ($baseQs, $year, $month) {
             <span class="emp-tab-ico"><i class="fa-solid fa-user-check"></i></span>
             <span class="emp-tab-label">Attendance</span>
         </a>
+        <?php if ($showSalaryDetails): ?>
         <a class="emp-activity-tab <?php echo $tab === 'salary' ? 'active' : ''; ?>" href="<?php echo htmlspecialchars($tabUrl('salary')); ?>">
             <span class="emp-tab-ico"><i class="fa-solid fa-indian-rupee-sign"></i></span>
             <span class="emp-tab-label">Salary</span>
         </a>
+        <?php endif; ?>
     </nav>
 
     <?php if ($tab === 'family'): ?>
@@ -281,18 +368,24 @@ $tabUrl = function ($t) use ($baseQs, $year, $month) {
                     <h3>Family Details</h3>
                     <p><?php echo count($familyMembers); ?> member<?php echo count($familyMembers) === 1 ? '' : 's'; ?> linked to this employee</p>
                 </div>
+                <?php if ($canEditEmployee): ?>
                 <a class="btn-ghost view-card-action" href="<?php echo app_url('employees/edit.php?id=' . (int) $emp['id'] . '&department_id=' . $deptId); ?>">
                     <i class="fa-solid fa-pen"></i> Edit
                 </a>
+                <?php endif; ?>
             </div>
             <?php if (!$familyMembers): ?>
                 <div class="family-empty-state">
                     <div class="family-empty-icon"><i class="fa-solid fa-people-roof"></i></div>
                     <h4>No family members added</h4>
+                    <?php if ($canEditEmployee): ?>
                     <p>Add family details from Edit Employee → Family Details section.</p>
                     <a class="btn-primary" href="<?php echo app_url('employees/edit.php?id=' . (int) $emp['id'] . '&department_id=' . $deptId); ?>">
                         <i class="fa-solid fa-plus"></i> Add Family Members
                     </a>
+                    <?php else: ?>
+                    <p>Family details have not been added yet. Contact HR if an update is needed.</p>
+                    <?php endif; ?>
                 </div>
             <?php else: ?>
                 <div class="family-view-grid">
@@ -455,6 +548,7 @@ $tabUrl = function ($t) use ($baseQs, $year, $month) {
                             </select>
                         </div>
                         <div class="form-group" style="display:flex;align-items:flex-end;gap:8px;">
+                            <?php if (canAccess('attendance', 'view', $deptId) && !isOfficeStaffRole()): ?>
                             <a class="btn-secondary" href="<?php echo app_url('attendance/report.php?' . http_build_query([
                                 'show' => 1,
                                 'department_id' => $deptId,
@@ -462,12 +556,15 @@ $tabUrl = function ($t) use ($baseQs, $year, $month) {
                                 'month' => $month,
                                 'year' => $year,
                             ])); ?>">Full Report</a>
+                            <?php endif; ?>
+                            <?php if (canAccess('attendance', 'add', $deptId) || canAccess('attendance', 'edit', $deptId)): ?>
                             <a class="btn-primary" href="<?php echo app_url('attendance/manual.php?' . http_build_query([
                                 'department_id' => $deptId,
                                 'month' => $month,
                                 'year' => $year,
                                 'show' => 1,
                             ])); ?>">Manual Entry</a>
+                            <?php endif; ?>
                         </div>
                     </div>
                 </form>
@@ -479,16 +576,18 @@ $tabUrl = function ($t) use ($baseQs, $year, $month) {
             <?php endif; ?>
         </div>
 
-    <?php elseif ($tab === 'salary'): ?>
+    <?php elseif ($tab === 'salary' && $showSalaryDetails): ?>
         <div class="form-page-card">
             <div class="form-page-header flex-between" style="align-items:center;">
                 <div>
                     <h3 style="margin:0;">Salary Overview</h3>
-                    <p style="margin:4px 0 0;">Quick view · open full salary details to edit</p>
+                    <p style="margin:4px 0 0;"><?php echo $canSalaryManage ? 'Quick view · open full salary details to edit' : 'Quick view of pay details'; ?></p>
                 </div>
+                <?php if ($canSalaryManage): ?>
                 <a class="btn-primary" href="<?php echo app_url('employees/salary.php?id=' . $id); ?>">
                     <i class="fa-solid fa-indian-rupee-sign"></i> Open Salary Details
                 </a>
+                <?php endif; ?>
             </div>
             <dl class="info-list">
                 <div class="info-row"><dt>Pay Type</dt><dd><?php echo showVal(payTypeLabel($emp['pay_type'] ?? 'Salary')); ?></dd></div>
@@ -578,7 +677,7 @@ $tabUrl = function ($t) use ($baseQs, $year, $month) {
                 <dl class="info-list">
                     <div class="info-row"><dt>Mobile Number</dt><dd><?php echo showVal($emp['mobile_number']); ?></dd></div>
                     <div class="info-row"><dt>Emergency Mobile</dt><dd><?php echo showVal($emp['emergency_mobile']); ?></dd></div>
-                    <div class="info-row"><dt>Office Mail ID</dt><dd><?php echo showVal($emp['office_email'] ?? ''); ?></dd></div>
+                    <div class="info-row"><dt>Office Mail ID</dt><dd class="is-email"><?php echo showVal($emp['office_email'] ?? ''); ?></dd></div>
                     <div class="info-row"><dt>Office Mobile</dt><dd><?php echo showVal($emp['office_mobile'] ?? ''); ?></dd></div>
                 </dl>
                 <div class="view-subhead">Documents</div>
@@ -627,6 +726,7 @@ $tabUrl = function ($t) use ($baseQs, $year, $month) {
                 </div>
                 <dl class="info-list">
                     <div class="info-row"><dt>Department</dt><dd><?php echo showVal($emp['department_name']); ?></dd></div>
+                    <div class="info-row"><dt>Emp Desk No</dt><dd><?php echo showVal($emp['desk_no'] ?? ''); ?></dd></div>
                     <?php if (isSalesOnFieldDepartment($emp)): ?>
                     <div class="info-row"><dt>Assigned State</dt><dd><?php echo showVal($emp['assigned_state_name'] ?? ''); ?></dd></div>
                     <div class="info-row"><dt>Assigned Location</dt><dd><?php echo showVal($emp['assigned_location_name'] ?? ''); ?></dd></div>
@@ -669,7 +769,9 @@ $tabUrl = function ($t) use ($baseQs, $year, $month) {
                     </div>
                     <?php endif; ?>
                     <?php endif; ?>
+                    <?php if ($showSalaryDetails): ?>
                     <div class="info-row"><dt>Pay Type</dt><dd><?php echo showVal(payTypeLabel($emp['pay_type'] ?? 'Salary')); ?></dd></div>
+                    <?php endif; ?>
                     <div class="info-row"><dt>Designation</dt><dd><?php echo showVal($emp['designation']); ?></dd></div>
                 </dl>
                 <div class="view-subhead">Joining &amp; status</div>
@@ -682,6 +784,7 @@ $tabUrl = function ($t) use ($baseQs, $year, $month) {
                     <div class="info-row"><dt>Shift Type</dt><dd><span class="shift-pill <?php echo $shiftClass; ?>"><?php echo showVal($emp['shift_type']); ?></span></dd></div>
                     <div class="info-row"><dt>Shift Time</dt><dd><?php echo showVal($emp['shift_time']); ?></dd></div>
                 </dl>
+                <?php if ($showSalaryDetails): ?>
                 <div class="view-subhead">PF &amp; salary</div>
                 <dl class="info-list">
                     <div class="info-row"><dt>PF Deduction</dt><dd><?php echo showVal($emp['pf_deduction']); ?></dd></div>
@@ -694,8 +797,16 @@ $tabUrl = function ($t) use ($baseQs, $year, $month) {
                     <div class="info-row"><dt>Reporting Head</dt><dd><?php echo showVal($emp['reporting_head']); ?></dd></div>
                     <div class="info-row"><dt>Decided Salary</dt><dd><?php echo $salaryShow; ?></dd></div>
                 </dl>
+                <?php else: ?>
+                <div class="view-subhead">Other</div>
+                <dl class="info-list">
+                    <div class="info-row"><dt>Reporting Head</dt><dd><?php echo showVal($emp['reporting_head']); ?></dd></div>
+                    <div class="info-row"><dt>UAN Number</dt><dd><?php echo showVal($emp['uan_number']); ?></dd></div>
+                </dl>
+                <?php endif; ?>
             </div>
 
+            <?php if ($showSalaryDetails): ?>
             <div class="view-card">
                 <div class="view-card-head">
                     <i class="fa-solid fa-building-columns"></i>
@@ -711,6 +822,7 @@ $tabUrl = function ($t) use ($baseQs, $year, $month) {
                     <div class="info-row"><dt>Branch Address</dt><dd><?php echo nl2br(showVal($emp['bank_branch_address'])); ?></dd></div>
                 </dl>
             </div>
+            <?php endif; ?>
 
             <div class="view-card">
                 <div class="view-card-head">
@@ -734,7 +846,31 @@ $tabUrl = function ($t) use ($baseQs, $year, $month) {
 
 <script>
     window.EMP_TOAST_MSG  = <?php echo json_encode($toastMsg); ?>;
-    window.EMP_TOAST_TYPE = 'success';
+    window.EMP_TOAST_TYPE = <?php echo json_encode($toastType); ?>;
+    (function () {
+        var input = document.getElementById('empOwnPhotoInput');
+        var preview = document.getElementById('empOwnPhotoPreview');
+        var initials = document.getElementById('empOwnPhotoInitials');
+        var saveBtn = document.getElementById('empOwnPhotoSave');
+        if (!input || !preview) return;
+        input.addEventListener('change', function () {
+            var file = input.files && input.files[0];
+            if (!file) return;
+            if (!/^image\/(jpeg|png|webp)$/i.test(file.type) && !/\.(jpe?g|png|webp)$/i.test(file.name)) {
+                alert('Photo must be JPG, PNG, or WEBP.');
+                input.value = '';
+                return;
+            }
+            var reader = new FileReader();
+            reader.onload = function (e) {
+                preview.src = e.target.result;
+                preview.hidden = false;
+                if (initials) initials.hidden = true;
+                if (saveBtn) saveBtn.hidden = false;
+            };
+            reader.readAsDataURL(file);
+        });
+    })();
 </script>
 
 <?php

@@ -1,6 +1,6 @@
 <?php
 /**
- * Apply Leave
+ * Apply Leave — staff pick employee, or employee self-apply
  */
 
 require_once __DIR__ . '/../config/app.php';
@@ -9,18 +9,54 @@ require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/employee_helper.php';
 require_once __DIR__ . '/../includes/master_helper.php';
 require_once __DIR__ . '/../includes/leave_helper.php';
+require_once __DIR__ . '/../includes/permission_helper.php';
+require_once __DIR__ . '/../includes/department_head_helper.php';
 
 requireLogin();
 ensureLeaveTables();
 
+if (empty($_SESSION['role_code'])) {
+    refreshHeadedDepartmentsSession();
+}
+
 $deptId = (int) ($_GET['department_id'] ?? $_POST['department_id'] ?? 0);
+$sessionEmpId = (int) ($_SESSION['employee_id'] ?? 0);
+$selfApply = function_exists('isEmployee') && isEmployee() && $sessionEmpId > 0
+    && !canAccess('leave', 'edit', 0) && !isDeptHeadRole();
+
+requireAccess('leave', 'add', $deptId);
+
 $preEmp = (int) ($_GET['employee_id'] ?? 0);
 $year = (int) date('Y');
-$employees = leaveEmployeesForSelect($deptId);
 $leaveTypes = getActiveLeaveTypes();
+
+$selfEmployee = null;
+if ($selfApply) {
+    $selfEmployee = getEmployeeById($sessionEmpId);
+    if (!$selfEmployee) {
+        header('Location: ' . app_url('leave/index.php?msg=error&err=' . rawurlencode('Employee profile not linked.')));
+        exit;
+    }
+    $deptId = (int) ($selfEmployee['department_id'] ?? 0);
+    $preEmp = $sessionEmpId;
+    $employees = [$selfEmployee];
+} else {
+    if (isDeptHeadRole()) {
+        $headed = array_map('intval', $_SESSION['headed_department_ids'] ?? []);
+        if ($deptId <= 0 && count($headed) === 1) {
+            $deptId = $headed[0];
+        }
+        if ($deptId > 0 && !in_array($deptId, $headed, true)) {
+            header('Location: ' . app_url('hr/dashboard.php') . '?msg=denied');
+            exit;
+        }
+    }
+    $employees = leaveEmployeesForSelect($deptId);
+}
+
 $department = $deptId > 0 ? getDepartmentById($deptId) : null;
 
-$pageTitle = 'Apply Leave';
+$pageTitle = $selfApply ? 'Apply My Leave' : 'Apply Leave';
 $useSidebar = true;
 $sidebarMode = $deptId > 0 ? 'department' : 'workspace';
 $sidebarDeptId = $deptId;
@@ -39,9 +75,15 @@ require_once __DIR__ . '/../includes/header.php';
     <div class="form-page-card">
         <div class="form-page-header">
             <div>
-                <h1>Apply Leave</h1>
+                <h1><?php echo $selfApply ? 'Apply My Leave' : 'Apply Leave'; ?></h1>
                 <p>
-                    <?php echo $department ? htmlspecialchars($department['department_name']) : 'Select employee'; ?>
+                    <?php
+                    if ($selfApply && $selfEmployee) {
+                        echo htmlspecialchars(($selfEmployee['employee_code'] ?? '') . ' — ' . ($selfEmployee['employee_name'] ?? ''));
+                    } else {
+                        echo $department ? htmlspecialchars($department['department_name']) : 'Select employee';
+                    }
+                    ?>
                     · Working days only (week-off &amp; holiday excluded) · Checks employee balance
                 </p>
             </div>
@@ -49,7 +91,11 @@ require_once __DIR__ . '/../includes/header.php';
 
         <form method="POST" action="<?php echo app_url('leave/save.php'); ?>" class="employee-form">
             <input type="hidden" name="department_id" value="<?php echo $deptId; ?>">
+            <?php if ($selfApply): ?>
+                <input type="hidden" name="employee_id" value="<?php echo $sessionEmpId; ?>">
+            <?php endif; ?>
             <div class="form-grid form-grid-3">
+                <?php if (!$selfApply): ?>
                 <div class="form-group" style="grid-column: span 2;">
                     <label>Employee <span class="req">*</span></label>
                     <select name="employee_id" class="form-control" required>
@@ -61,6 +107,13 @@ require_once __DIR__ . '/../includes/header.php';
                         <?php endforeach; ?>
                     </select>
                 </div>
+                <?php else: ?>
+                <div class="form-group" style="grid-column: span 2;">
+                    <label>Employee</label>
+                    <input type="text" class="form-control" readonly
+                           value="<?php echo htmlspecialchars(($selfEmployee['employee_code'] ?? '') . ' — ' . ($selfEmployee['employee_name'] ?? '')); ?>">
+                </div>
+                <?php endif; ?>
                 <div class="form-group">
                     <label>Leave Type <span class="req">*</span></label>
                     <select name="leave_type_id" class="form-control" required>
@@ -80,49 +133,35 @@ require_once __DIR__ . '/../includes/header.php';
                     </select>
                 </div>
                 <div class="form-group">
-                    <label>From Date <span class="req">*</span> <small>(DD-MM-YYYY)</small></label>
-                    <input type="text" name="from_date" id="leaveFromDate" class="form-control js-date" required placeholder="DD-MM-YYYY"
-                           value="<?php echo htmlspecialchars(dateInputValue(date('Y-m-d'))); ?>">
+                    <label>From Date <span class="req">*</span></label>
+                    <input type="date" name="from_date" class="form-control" required>
                 </div>
                 <div class="form-group">
-                    <label>To Date <span class="req">*</span> <small>(DD-MM-YYYY)</small></label>
-                    <input type="text" name="to_date" id="leaveToDate" class="form-control js-date" required placeholder="DD-MM-YYYY"
-                           value="<?php echo htmlspecialchars(dateInputValue(date('Y-m-d'))); ?>">
+                    <label>To Date <span class="req">*</span></label>
+                    <input type="date" name="to_date" class="form-control" required>
                 </div>
                 <div class="form-group">
-                    <label>Leave Duration <span class="req">*</span></label>
-                    <select name="leave_half" id="leaveHalf" class="form-control" required>
+                    <label>Half Day</label>
+                    <select name="leave_half" class="form-control">
                         <option value="FULL">Full Day</option>
-                        <option value="FHL">FHL (First Half)</option>
-                        <option value="SHL">SHL (Second Half)</option>
+                        <option value="FHL">First Half</option>
+                        <option value="SHL">Second Half</option>
                     </select>
-                    <small class="form-hint">FHL/SHL = 0.5 day per working day (date range allowed, e.g. 5–8 FHL)</small>
                 </div>
-                <div class="form-group" style="grid-column: span 3;">
+                <div class="form-group" style="grid-column: 1 / -1;">
                     <label>Reason</label>
-                    <textarea name="reason" class="form-control" rows="3" placeholder="Optional reason"></textarea>
+                    <textarea name="reason" class="form-control" rows="2" placeholder="Optional"></textarea>
                 </div>
             </div>
+
             <div class="form-actions sticky-actions">
-                <button type="submit" class="btn-primary"><i class="fa-solid fa-paper-plane"></i> Submit Request</button>
+                <button type="submit" class="btn-primary">
+                    <i class="fa-solid fa-paper-plane"></i> Submit Leave Request
+                </button>
                 <a href="<?php echo app_url('leave/index.php?department_id=' . $deptId); ?>" class="btn-secondary">Cancel</a>
             </div>
         </form>
     </div>
 </main>
-<script>
-(function () {
-    var from = document.getElementById('leaveFromDate');
-    var to = document.getElementById('leaveToDate');
-    if (!from || !to) return;
-    from.addEventListener('change', function () {
-        if (to.value && to.value < from.value) {
-            to.value = from.value;
-        }
-        if (!to.value) {
-            to.value = from.value;
-        }
-    });
-})();
-</script>
+
 <?php require_once __DIR__ . '/../includes/footer.php'; ?>

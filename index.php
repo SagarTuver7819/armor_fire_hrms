@@ -1,28 +1,48 @@
 <?php
 /**
- * Login Page — Admin & HR only (centered, animated)
+ * Login Page — Admin, HR & Employee portals
  */
 
 require_once __DIR__ . '/config/app.php';
 require_once __DIR__ . '/config/database.php';
 require_once __DIR__ . '/includes/auth.php';
 require_once __DIR__ . '/includes/settings.php';
+require_once __DIR__ . '/includes/permission_helper.php';
+require_once __DIR__ . '/includes/department_head_helper.php';
 
 $companyName = getCompanyName();
 $companyLogo = getLoginLogo();
 $hasCustomLogo = isCustomLogo($companyLogo);
 
 if (isLoggedIn()) {
-    header('Location: ' . app_url('dashboard.php'));
+    require_once __DIR__ . '/includes/department_head_helper.php';
+    if (empty($_SESSION['role_code']) && !empty($_SESSION['custom_role_id'])) {
+        refreshHeadedDepartmentsSession();
+    }
+    if (function_exists('isOfficeStaffRole') && isOfficeStaffRole()) {
+        header('Location: ' . app_url('employee/dashboard.php'));
+    } elseif (isHR()) {
+        header('Location: ' . app_url('hr/dashboard.php'));
+    } elseif (isEmployee()) {
+        header('Location: ' . app_url('employee/dashboard.php'));
+    } else {
+        header('Location: ' . app_url('dashboard.php'));
+    }
     exit;
 }
 
 $error = '';
-$allowedRoles = ['admin', 'hr'];
+$allowedRoles = ['admin', 'hr', 'employee'];
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $username = trim($_POST['username'] ?? '');
     $password = trim($_POST['password'] ?? '');
+    // Username always UPPERCASE (same as Employee Login / Staff Users save)
+    if (function_exists('mb_strtoupper')) {
+        $username = mb_strtoupper($username, 'UTF-8');
+    } else {
+        $username = strtoupper($username);
+    }
     $loginAs  = strtolower(trim($_POST['login_as'] ?? 'admin'));
 
     if (!in_array($loginAs, $allowedRoles, true)) {
@@ -32,9 +52,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($username === '' || $password === '') {
         $error = 'Please enter username and password.';
     } else {
+        ensureRoleTables();
         $conn = getDBConnection();
         $stmt = $conn->prepare(
-            "SELECT id, username, password, full_name, role, department_id, status
+            "SELECT id, username, password, full_name, role, department_id, custom_role_id, employee_id, status
              FROM users WHERE username = ? AND status = 1 LIMIT 1"
         );
         $stmt->bind_param('s', $username);
@@ -42,21 +63,51 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $result = $stmt->get_result();
         $user   = $result->fetch_assoc();
         $stmt->close();
+
+        $roleName = '';
+        if ($user && !empty($user['custom_role_id'])) {
+            $rs = $conn->prepare('SELECT name FROM roles WHERE id = ? AND status = 1 LIMIT 1');
+            $rid = (int) $user['custom_role_id'];
+            $rs->bind_param('i', $rid);
+            $rs->execute();
+            $rr = $rs->get_result()->fetch_assoc();
+            $rs->close();
+            $roleName = (string) ($rr['name'] ?? '');
+        }
         $conn->close();
 
         if (!$user || $user['password'] !== $password) {
             $error = 'Invalid username or password.';
         } elseif (!in_array($user['role'], $allowedRoles, true)) {
-            $error = 'This account cannot sign in here. Use Admin or HR login.';
+            $error = 'This account cannot sign in here.';
         } elseif ($user['role'] !== $loginAs) {
             $error = 'You selected "' . strtoupper($loginAs) . '" but this account is "' . strtoupper($user['role']) . '".';
+        } elseif ($user['role'] === 'employee' && (empty($user['custom_role_id']) || $roleName === '')) {
+            $error = 'No active role assigned. Contact Admin.';
         } else {
-            $_SESSION['user_id']       = $user['id'];
-            $_SESSION['username']      = $user['username'];
-            $_SESSION['full_name']     = $user['full_name'];
-            $_SESSION['role']          = $user['role'];
-            $_SESSION['department_id'] = $user['department_id'];
-            if ($user['role'] === 'hr') {
+            $_SESSION['user_id']        = $user['id'];
+            $_SESSION['username']       = $user['username'];
+            $_SESSION['full_name']      = $user['full_name'];
+            $_SESSION['role']           = $user['role'];
+            $_SESSION['department_id']  = $user['department_id'];
+            $_SESSION['employee_id']    = !empty($user['employee_id']) ? (int) $user['employee_id'] : 0;
+            $_SESSION['custom_role_id'] = !empty($user['custom_role_id']) ? (int) $user['custom_role_id'] : 0;
+            $_SESSION['custom_role_name'] = $roleName;
+            unset($_SESSION['permissions'], $_SESSION['permissions_role_id']);
+            if ($_SESSION['custom_role_id'] > 0) {
+                loadUserPermissionsIntoSession($_SESSION['custom_role_id'], true);
+            } else {
+                $_SESSION['permissions'] = [];
+                $_SESSION['permissions_role_id'] = 0;
+            }
+            refreshHeadedDepartmentsSession();
+            $roleCode = strtoupper((string) ($_SESSION['role_code'] ?? ''));
+            if ($roleCode === 'OFFICE_STAFF') {
+                header('Location: ' . app_url('employee/dashboard.php'));
+            } elseif ($roleCode === 'DEPT_HEAD') {
+                $hd = $_SESSION['headed_department_ids'][0] ?? 0;
+                header('Location: ' . app_url($hd > 0 ? ('employees/index.php?department_id=' . (int) $hd) : 'hr/dashboard.php'));
+            } elseif ($user['role'] === 'hr' || $user['role'] === 'employee') {
                 header('Location: ' . app_url('hr/dashboard.php'));
             } else {
                 header('Location: ' . app_url('dashboard.php'));
@@ -156,6 +207,14 @@ $selectedRole = isset($_POST['login_as']) && in_array($_POST['login_as'], $allow
                             <small>People &amp; workforce</small>
                         </span>
                     </label>
+                    <label class="login-role">
+                        <input type="radio" name="login_as" value="employee" <?php echo $selectedRole === 'employee' ? 'checked' : ''; ?>>
+                        <span class="login-role-box employee">
+                            <span class="login-role-icon"><i class="fa-solid fa-id-badge"></i></span>
+                            <b>Employee Login</b>
+                            <small>Role-based access</small>
+                        </span>
+                    </label>
                 </div>
             </div>
 
@@ -209,7 +268,7 @@ $selectedRole = isset($_POST['login_as']) && in_array($_POST['login_as'], $allow
 
         <footer class="login-card-foot">
             <i class="fa-solid fa-shield-halved"></i>
-            Admin &amp; HR secure portals only
+            Admin · HR · Employee secure portals
         </footer>
     </div>
 
@@ -218,6 +277,7 @@ $selectedRole = isset($_POST['login_as']) && in_array($_POST['login_as'], $allow
     </p>
 </div>
 
+<script src="assets/js/case_force.js"></script>
 <script src="assets/js/login.js"></script>
 </body>
 </html>

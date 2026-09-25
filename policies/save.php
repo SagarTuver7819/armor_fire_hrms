@@ -9,6 +9,7 @@ require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/policy_helper.php';
 
 requireStaff();
+require_once __DIR__ . '/../includes/permission_helper.php';
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     header('Location: ' . app_url('policies/index.php'));
@@ -16,6 +17,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 }
 
 $id = (int) ($_POST['id'] ?? 0);
+requireAccess('policies', $id > 0 ? 'edit' : 'add');
 $editUrl = app_url('policies/edit.php' . ($id > 0 ? ('?id=' . $id) : ''));
 
 $contentLen = (int) ($_SERVER['CONTENT_LENGTH'] ?? 0);

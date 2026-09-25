@@ -10,6 +10,8 @@ require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/employee_helper.php';
 require_once __DIR__ . '/../includes/master_helper.php';
 require_once __DIR__ . '/../includes/payroll_helper.php';
+require_once __DIR__ . '/../includes/auth.php';
+require_once __DIR__ . '/../includes/permission_helper.php';
 
 $id = isset($_GET['id']) ? (int) $_GET['id'] : 0;
 $emp = $id > 0 ? getEmployeeById($id) : null;
@@ -21,6 +23,10 @@ if (!$emp) {
 ensurePayrollTables();
 $payType = normalizePayType($emp['pay_type'] ?? 'Salary');
 $deptId = (int) $emp['department_id'];
+requireLogin();
+if (!canAccess('employees', 'edit', $deptId) && !canAccess('payroll', 'view', $deptId)) {
+    requireAccess('employees', 'edit', $deptId);
+}
 $saved = getEmployeeSalaryDetails($id);
 $components = getActiveMasterRows('salary_components', 'id ASC');
 $slabs = getActiveMasterRows('salary_slabs', 'min_amount ASC');

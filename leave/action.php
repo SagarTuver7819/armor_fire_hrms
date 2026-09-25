@@ -1,12 +1,13 @@
 <?php
 /**
- * Approve / Reject / Cancel leave
+ * Approve / Reject / Cancel leave — requires leave edit (Payroll Head / HR Head)
  */
 
 require_once __DIR__ . '/../config/app.php';
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/leave_helper.php';
+require_once __DIR__ . '/../includes/permission_helper.php';
 
 requireLogin();
 
@@ -26,6 +27,29 @@ $redirect = app_url('leave/index.php?' . $qs);
 $conn = getDBConnection();
 ensureLeaveTables($conn);
 $userId = (int) ($_SESSION['user_id'] ?? 0);
+
+$row = null;
+if ($id > 0) {
+    $stmt = $conn->prepare(
+        "SELECT lr.id, e.department_id
+         FROM leave_requests lr
+         INNER JOIN employees e ON e.id = lr.employee_id
+         WHERE lr.id = ? LIMIT 1"
+    );
+    $stmt->bind_param('i', $id);
+    $stmt->execute();
+    $row = $stmt->get_result()->fetch_assoc();
+    $stmt->close();
+}
+
+if (!$row) {
+    $conn->close();
+    header('Location: ' . $redirect . '&msg=error&err=' . rawurlencode('Leave request not found.'));
+    exit;
+}
+
+$requestDeptId = (int) ($row['department_id'] ?? 0);
+requireAccess('leave', 'edit', $requestDeptId);
 
 try {
     if ($do === 'approve') {

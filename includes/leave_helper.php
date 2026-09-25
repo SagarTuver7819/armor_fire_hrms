@@ -117,6 +117,81 @@ function leaveBalanceRemaining(array $row)
     );
 }
 
+/**
+ * Sum of Approved leave days for employee + type + year (balance used = this only).
+ * Pending / Rejected / Cancelled never count toward used_days.
+ */
+function leaveSumApprovedDays($conn, $employeeId, $leaveTypeId, $year)
+{
+    $employeeId = (int) $employeeId;
+    $leaveTypeId = (int) $leaveTypeId;
+    $year = (int) $year;
+    if ($employeeId <= 0 || $leaveTypeId <= 0 || $year <= 0) {
+        return 0.0;
+    }
+    $stmt = $conn->prepare(
+        "SELECT COALESCE(SUM(days), 0) AS days_c
+         FROM leave_requests
+         WHERE employee_id = ?
+           AND leave_type_id = ?
+           AND status = 'Approved'
+           AND YEAR(from_date) = ?"
+    );
+    $stmt->bind_param('iii', $employeeId, $leaveTypeId, $year);
+    $stmt->execute();
+    $row = $stmt->get_result()->fetch_assoc();
+    $stmt->close();
+    return round((float) ($row['days_c'] ?? 0), 2);
+}
+
+/**
+ * Rebuild used_days from Approved requests only (Pending does not reduce balance).
+ */
+function leaveSyncUsedDaysFromApproved($conn, $employeeId, $leaveTypeId, $year)
+{
+    $employeeId = (int) $employeeId;
+    $leaveTypeId = (int) $leaveTypeId;
+    $year = (int) $year;
+    leaveEnsureBalanceRow($conn, $employeeId, $leaveTypeId, $year);
+    $used = leaveSumApprovedDays($conn, $employeeId, $leaveTypeId, $year);
+    $bal = leaveGetBalance($conn, $employeeId, $leaveTypeId, $year);
+    $balId = (int) ($bal['id'] ?? 0);
+    if ($balId <= 0) {
+        return $used;
+    }
+    $upd = $conn->prepare('UPDATE employee_leave_balances SET used_days = ? WHERE id = ?');
+    $upd->bind_param('di', $used, $balId);
+    $upd->execute();
+    $upd->close();
+    return $used;
+}
+
+/**
+ * Pending days already applied (not yet approved) — for availability check only.
+ */
+function leaveSumPendingDays($conn, $employeeId, $leaveTypeId, $year, $excludeId = 0)
+{
+    $employeeId = (int) $employeeId;
+    $leaveTypeId = (int) $leaveTypeId;
+    $year = (int) $year;
+    $excludeId = (int) $excludeId;
+    $sql = "SELECT COALESCE(SUM(days), 0) AS days_c
+            FROM leave_requests
+            WHERE employee_id = ?
+              AND leave_type_id = ?
+              AND status = 'Pending'
+              AND YEAR(from_date) = ?";
+    if ($excludeId > 0) {
+        $sql .= ' AND id <> ' . $excludeId;
+    }
+    $stmt = $conn->prepare($sql);
+    $stmt->bind_param('iii', $employeeId, $leaveTypeId, $year);
+    $stmt->execute();
+    $row = $stmt->get_result()->fetch_assoc();
+    $stmt->close();
+    return round((float) ($row['days_c'] ?? 0), 2);
+}
+
 function leaveDiaryBucket($leaveCode, $isPaid = 'Yes')
 {
     $code = strtoupper(trim((string) $leaveCode));
@@ -921,7 +996,7 @@ function getLeaveRequestById($id, $conn = null)
     return $row ?: null;
 }
 
-function fetchLeaveRequests($departmentId = 0, $status = '', $year = 0, $conn = null, $employeeId = 0)
+function fetchLeaveRequests($departmentId = 0, $status = '', $year = 0, $conn = null, $employeeId = 0, $departmentIds = null)
 {
     $closeAfter = false;
     if ($conn === null) {
@@ -933,6 +1008,11 @@ function fetchLeaveRequests($departmentId = 0, $status = '', $year = 0, $conn = 
     $year = (int) $year;
     $employeeId = (int) $employeeId;
     $status = trim((string) $status);
+    if (is_array($departmentIds)) {
+        $departmentIds = array_values(array_unique(array_filter(array_map('intval', $departmentIds))));
+    } else {
+        $departmentIds = null;
+    }
 
     $sql = "SELECT lr.*, e.employee_code, e.employee_name, e.department_id,
                    d.department_name, lt.code, lt.leave_type, lt.is_paid
@@ -952,6 +1032,15 @@ function fetchLeaveRequests($departmentId = 0, $status = '', $year = 0, $conn = 
         $sql .= ' AND e.department_id = ?';
         $types .= 'i';
         $params[] = $departmentId;
+    } elseif (is_array($departmentIds) && $departmentIds !== []) {
+        $ph = implode(',', array_fill(0, count($departmentIds), '?'));
+        $sql .= " AND e.department_id IN ({$ph})";
+        $types .= str_repeat('i', count($departmentIds));
+        foreach ($departmentIds as $did) {
+            $params[] = $did;
+        }
+    } elseif (is_array($departmentIds) && $departmentIds === []) {
+        $sql .= ' AND 1=0';
     }
     if ($status !== '' && $status !== 'All') {
         $sql .= ' AND lr.status = ?';

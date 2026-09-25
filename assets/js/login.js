@@ -36,7 +36,7 @@
             var role = el.getAttribute('data-role');
 
             if (username) {
-                username.value = user;
+                username.value = String(user || '').toUpperCase();
                 username.focus();
             }
             if (password) {

@@ -8,8 +8,11 @@ require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/employee_helper.php';
 require_once __DIR__ . '/../includes/master_helper.php';
 require_once __DIR__ . '/../includes/payroll_helper.php';
+require_once __DIR__ . '/../includes/auth.php';
+require_once __DIR__ . '/../includes/permission_helper.php';
 
 $deptId = isset($_GET['department_id']) ? (int) $_GET['department_id'] : 0;
+requireAccess('payroll', 'edit', $deptId);
 $department = $deptId > 0 ? getDepartmentById($deptId) : null;
 if (!$department) {
     header('Location: ' . app_url('dashboard.php'));

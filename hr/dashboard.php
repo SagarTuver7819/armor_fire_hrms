@@ -14,6 +14,14 @@ require_once __DIR__ . '/../includes/master_helper.php';
 
 requireStaff();
 
+if (!function_exists('isOfficeStaffRole')) {
+    require_once __DIR__ . '/../includes/department_head_helper.php';
+}
+if (function_exists('isOfficeStaffRole') && isOfficeStaffRole()) {
+    header('Location: ' . app_url('employee/dashboard.php'));
+    exit;
+}
+
 $pageTitle = 'HR Dashboard';
 $useSidebar = true;
 $sidebarActive = 'hr_dashboard';

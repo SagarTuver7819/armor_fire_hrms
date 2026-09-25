@@ -325,8 +325,8 @@ html, body { height: 100%; }
 
 .login-roles {
     display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 12px;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 10px;
 }
 
 .login-role { cursor: pointer; }
@@ -367,6 +367,11 @@ html, body { height: 100%; }
     color: #94a3b8;
     font-size: 16px;
     transition: all 0.25s;
+}
+
+.login-role-box.employee .login-role-icon {
+    background: #ecfdf5;
+    color: #059669;
 }
 
 .login-role-box b {

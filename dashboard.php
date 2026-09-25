@@ -5,7 +5,21 @@
 
 require_once __DIR__ . '/config/app.php';
 require_once __DIR__ . '/config/database.php';
+require_once __DIR__ . '/includes/auth.php';
+require_once __DIR__ . '/includes/permission_helper.php';
+require_once __DIR__ . '/includes/department_head_helper.php';
 require_once __DIR__ . '/includes/masters_config.php';
+
+requireLogin();
+if (empty($_SESSION['role_code']) && !empty($_SESSION['custom_role_id'])) {
+    refreshHeadedDepartmentsSession();
+}
+// Office Staff → dedicated employee dashboard (not Admin workspace)
+if (function_exists('isOfficeStaffRole') && isOfficeStaffRole()) {
+    $q = isset($_GET['msg']) ? ('?msg=' . rawurlencode((string) $_GET['msg'])) : '';
+    header('Location: ' . app_url('employee/dashboard.php' . $q));
+    exit;
+}
 
 $pageTitle = 'Dashboard';
 // Main workspace: no sidebar (card hub layout, like before)

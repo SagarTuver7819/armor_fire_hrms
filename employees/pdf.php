@@ -12,6 +12,8 @@ require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/employee_helper.php';
 require_once __DIR__ . '/../includes/settings.php';
+require_once __DIR__ . '/../includes/permission_helper.php';
+require_once __DIR__ . '/../includes/department_head_helper.php';
 
 requireLogin();
 
@@ -21,6 +23,18 @@ $lang = (isset($_GET['lang']) && $_GET['lang'] === 'hi') ? 'hi' : 'en';
 $emp = $id > 0 ? getEmployeeById($id) : null;
 if (!$emp) {
     die('Employee not found.');
+}
+
+$deptId = (int) ($emp['department_id'] ?? 0);
+$sessionEmpId = (int) ($_SESSION['employee_id'] ?? 0);
+$isOwn = $sessionEmpId > 0 && $sessionEmpId === $id;
+if (isOfficeStaffRole() && $isOwn) {
+    // Office Staff: no PDF download from admin tools
+    header('Location: ' . app_url('employees/view.php?id=' . $id . '&msg=denied'));
+    exit;
+}
+if (!canAccess('employees', 'edit', $deptId) && !isAdmin() && !isHR()) {
+    requireAccess('employees', 'edit', $deptId);
 }
 
 $companyName = getCompanyName();

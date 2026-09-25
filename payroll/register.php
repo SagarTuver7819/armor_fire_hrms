@@ -11,10 +11,12 @@ require_once __DIR__ . '/../includes/salary_register_helper.php';
 require_once __DIR__ . '/../includes/payroll_reports_helper.php';
 require_once __DIR__ . '/../includes/settings.php';
 require_once __DIR__ . '/../includes/auth.php';
+require_once __DIR__ . '/../includes/permission_helper.php';
 
 requireLogin();
 
 $deptId = isset($_GET['department_id']) ? (int) $_GET['department_id'] : 0;
+requireAccess('payroll', 'view', $deptId);
 $employeeId = isset($_GET['employee_id']) ? (int) $_GET['employee_id'] : 0;
 $month = (int) ($_GET['month'] ?? date('n'));
 $year = (int) ($_GET['year'] ?? date('Y'));

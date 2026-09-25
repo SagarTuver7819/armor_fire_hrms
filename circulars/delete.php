@@ -9,6 +9,8 @@ require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/circular_helper.php';
 
 requireStaff();
+require_once __DIR__ . '/../includes/permission_helper.php';
+requireAccess('circulars', 'delete');
 
 $id = (int) ($_GET['id'] ?? 0);
 $result = deleteCircular($id);

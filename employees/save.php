@@ -9,6 +9,7 @@ require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/employee_helper.php';
 require_once __DIR__ . '/../includes/master_helper.php';
+require_once __DIR__ . '/../includes/permission_helper.php';
 
 requireLogin();
 
@@ -19,6 +20,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 
 $id            = (int) ($_POST['id'] ?? 0);
 $departmentId  = (int) ($_POST['department_id'] ?? 0);
+requireAccess('employees', $id > 0 ? 'edit' : 'add', $departmentId);
 $subDeptId     = (int) ($_POST['sub_department_id'] ?? 0);
 if ($subDeptId > 0 && getSubDepartmentNameById($subDeptId, $departmentId) === '') {
     $subDeptId = 0;
@@ -28,17 +30,18 @@ $mainContractorId = (int) ($_POST['main_contractor_id'] ?? 0);
 if ($payType !== 'Jobwork') {
     $mainContractorId = 0;
 }
-$empCode       = strtoupper(trim($_POST['employee_code'] ?? ''));
-$biometricId   = trim($_POST['biometric_user_id'] ?? '');
+$empCode       = forceDetailUpper($_POST['employee_code'] ?? '');
+$biometricId   = forceDetailUpper($_POST['biometric_user_id'] ?? '');
 
-$employeeName  = trim($_POST['employee_name'] ?? '');
-$fatherName    = trim($_POST['father_husband_name'] ?? '');
-$permanentAddr = trim($_POST['permanent_address'] ?? '');
-$presentAddr   = trim($_POST['present_address'] ?? '');
-$mobile        = trim($_POST['mobile_number'] ?? '');
-$emergency     = trim($_POST['emergency_mobile'] ?? '');
-$officeEmail   = trim($_POST['office_email'] ?? '');
-$officeMobile  = trim($_POST['office_mobile'] ?? '');
+$employeeName  = forceDetailUpper($_POST['employee_name'] ?? '');
+$fatherName    = forceDetailUpper($_POST['father_husband_name'] ?? '');
+$permanentAddr = forceDetailUpper($_POST['permanent_address'] ?? '');
+$presentAddr   = forceDetailUpper($_POST['present_address'] ?? '');
+$mobile        = forceDetailUpper($_POST['mobile_number'] ?? '');
+$emergency     = forceDetailUpper($_POST['emergency_mobile'] ?? '');
+$officeEmail   = forceEmailLower($_POST['office_email'] ?? '');
+$officeMobile  = forceDetailUpper($_POST['office_mobile'] ?? '');
+$deskNo        = forceDetailUpper($_POST['desk_no'] ?? '');
 $gender        = trim($_POST['gender'] ?? '');
 if (!in_array($gender, ['Male', 'Female'], true)) {
     $gender = '';
@@ -47,11 +50,11 @@ $maritalStatus = trim($_POST['marital_status'] ?? '');
 if (!in_array($maritalStatus, ['Married', 'Unmarried', 'Other'], true)) {
     $maritalStatus = '';
 }
-$maritalRemark = ($maritalStatus === 'Other') ? trim($_POST['marital_remark'] ?? '') : '';
-$aadhar        = trim($_POST['aadhar_number'] ?? '');
-$pan           = trim($_POST['pan_number'] ?? '');
+$maritalRemark = ($maritalStatus === 'Other') ? forceDetailUpper($_POST['marital_remark'] ?? '') : '';
+$aadhar        = forceDetailUpper($_POST['aadhar_number'] ?? '');
+$pan           = forceDetailUpper($_POST['pan_number'] ?? '');
 $dob           = normalizeDatePost($_POST['date_of_birth'] ?? '', false);
-$designation   = trim($_POST['designation'] ?? '');
+$designation   = forceDetailUpper($_POST['designation'] ?? '');
 $doj           = normalizeDatePost($_POST['date_of_joining'] ?? '', false);
 $doe           = normalizeDatePost($_POST['date_of_exit'] ?? '', false);
 $statusPosted  = isset($_POST['status']) ? ((int) $_POST['status'] === 0 ? 0 : 1) : 1;
@@ -78,15 +81,15 @@ $pfDeduction   = ($_POST['pf_deduction'] ?? 'No') === 'Yes' ? 'Yes' : 'No';
 $pfStartDate   = normalizeDatePost($_POST['pf_start_date'] ?? '', false);
 $pfEmpContrib  = trim((string) ($_POST['pf_employee_contribution'] ?? ''));
 $pfEmpContrib  = ($pfEmpContrib === '') ? null : (float) $pfEmpContrib;
-$uan           = trim($_POST['uan_number'] ?? '');
-$bankName      = trim($_POST['bank_name'] ?? '');
-$bankAccount   = trim($_POST['bank_account_number'] ?? '');
-$bankAccountConfirm = trim($_POST['bank_account_number_confirm'] ?? '');
-$ifsc          = trim($_POST['ifsc_code'] ?? '');
-$bankBranch    = trim($_POST['bank_branch_address'] ?? '');
+$uan           = forceDetailUpper($_POST['uan_number'] ?? '');
+$bankName      = forceDetailUpper($_POST['bank_name'] ?? '');
+$bankAccount   = forceDetailUpper($_POST['bank_account_number'] ?? '');
+$bankAccountConfirm = forceDetailUpper($_POST['bank_account_number_confirm'] ?? '');
+$ifsc          = forceDetailUpper($_POST['ifsc_code'] ?? '');
+$bankBranch    = forceDetailUpper($_POST['bank_branch_address'] ?? '');
 $salary        = trim($_POST['decided_salary'] ?? '');
-$reportingHead = trim($_POST['reporting_head'] ?? '');
-$extraNote     = trim($_POST['extra_note'] ?? '');
+$reportingHead = forceDetailUpper($_POST['reporting_head'] ?? '');
+$extraNote     = forceDetailUpper($_POST['extra_note'] ?? '');
 $weekOffDay    = trim($_POST['week_off_day'] ?? '');
 $weekOffBen    = ($_POST['week_off_benefits'] ?? 'No') === 'Yes' ? 'Yes' : 'No';
 $holidayBen    = ($_POST['holiday_benefits'] ?? 'No') === 'Yes' ? 'Yes' : 'No';
@@ -293,13 +296,14 @@ if (!$ok) {
 if ($savedId > 0) {
     $pfEmpBind = $pfEmpContrib === null ? '' : (string) $pfEmpContrib;
     $extraStmt = $conn->prepare(
-        'UPDATE employees SET office_email = ?, office_mobile = ?, gender = ?, marital_status = ?, marital_remark = ?,
+        'UPDATE employees SET office_email = ?, office_mobile = ?, desk_no = ?, gender = ?, marital_status = ?, marital_remark = ?,
          pf_start_date = NULLIF(?, \'\'), pf_employee_contribution = NULLIF(?, \'\'), pf_employer_contribution = NULL WHERE id = ?'
     );
     $extraStmt->bind_param(
-        'sssssssi',
+        'ssssssssi',
         $officeEmail,
         $officeMobile,
+        $deskNo,
         $gender,
         $maritalStatus,
         $maritalRemark,

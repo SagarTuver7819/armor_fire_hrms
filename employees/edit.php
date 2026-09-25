@@ -7,12 +7,15 @@ require_once __DIR__ . '/../config/app.php';
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/employee_helper.php';
 require_once __DIR__ . '/../includes/master_helper.php';
+require_once __DIR__ . '/../includes/auth.php';
+require_once __DIR__ . '/../includes/permission_helper.php';
 
 ensureEmployeesTable();
 ensureMasterTables();
 
 $deptId = isset($_GET['department_id']) ? (int) $_GET['department_id'] : 0;
 $empId  = isset($_GET['id']) ? (int) $_GET['id'] : 0;
+requireAccess('employees', $empId > 0 ? 'edit' : 'add', $deptId);
 $fromContractor = (($_GET['from'] ?? '') === 'contractor');
 
 function empField($employee, $key, $default = '')
@@ -50,6 +53,7 @@ $sidebarActive = $fromContractor ? 'contractor_employees' : 'join_employee';
 $extraCss = ['https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.css'];
 $extraJs = [
     'https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.js',
+    'assets/js/case_force.js',
     'assets/js/employee_form.js',
     'assets/js/subdept_cascade.js',
 ];
@@ -345,7 +349,7 @@ $ob = empField($employee, 'overtime_benefits', 'No');
                     </div>
                 </div>
 
-                <div class="emp-subhead">Department &amp; role</div>
+                <div class="emp-subhead">Job Description</div>
                 <div class="form-grid form-grid-3">
                     <div class="form-group">
                         <label>19. Department</label>
@@ -385,6 +389,12 @@ $ob = empField($employee, 'overtime_benefits', 'No');
                                 </option>
                             <?php endif; ?>
                         </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Emp Desk No</label>
+                        <input type="text" name="desk_no" class="form-control" maxlength="50"
+                               placeholder="e.g. D-101"
+                               value="<?php echo htmlspecialchars(empField($employee, 'desk_no')); ?>">
                     </div>
                 </div>
 

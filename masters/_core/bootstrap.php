@@ -15,6 +15,8 @@ require_once __DIR__ . '/../../includes/auth.php';
 require_once __DIR__ . '/../../includes/master_helper.php';
 
 requireLogin();
+require_once __DIR__ . '/../../includes/permission_helper.php';
+requireAccess('masters', 'view');
 
 $master = getMasterConfig($masterKey);
 if (!$master) {

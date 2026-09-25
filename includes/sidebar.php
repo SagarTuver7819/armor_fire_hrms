@@ -11,10 +11,49 @@
 
 require_once __DIR__ . '/../config/app.php';
 require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/auth.php';
+if (!function_exists('canAccess')) {
+    require_once __DIR__ . '/permission_helper.php';
+}
+if (!function_exists('refreshHeadedDepartmentsSession')) {
+    require_once __DIR__ . '/department_head_helper.php';
+}
+if (empty($_SESSION['role_code']) && !empty($_SESSION['custom_role_id'])) {
+    refreshHeadedDepartmentsSession();
+}
 
 $sidebarMode = $sidebarMode ?? 'workspace';
 $sidebarDeptId = isset($sidebarDeptId) ? (int) $sidebarDeptId : 0;
 $sidebarActive = $sidebarActive ?? '';
+
+$canEmp = canAccess('employees', 'view');
+$canCirc = canAccess('circulars', 'view');
+$canPol = canAccess('policies', 'view');
+$canAtt = canAccess('attendance', 'view');
+$canLeave = canAccess('leave', 'view');
+$canPay = canAccess('payroll', 'view');
+$canMasters = canAccess('masters', 'view');
+$canContractor = canAccess('contractor', 'view');
+$canDepts = canAccess('departments', 'view');
+$allowedDeptIds = allowedDepartmentsFor('departments', 'view');
+$allowedEmpDepts = allowedDepartmentsFor('employees', 'view');
+
+$isOfficeStaffNav = function_exists('isOfficeStaffRole') && isOfficeStaffRole();
+$isDeptHeadNav = function_exists('isDeptHeadRole') && isDeptHeadRole();
+$sessionEmpIdNav = (int) ($_SESSION['employee_id'] ?? 0);
+$headedDeptsNav = array_map('intval', $_SESSION['headed_department_ids'] ?? []);
+$primaryHeadDept = $headedDeptsNav[0] ?? 0;
+
+// Office Staff: never show company-wide HR menus
+if ($isOfficeStaffNav) {
+    $canEmp = false;
+    $canAtt = false;
+    $canPay = false;
+    $canMasters = false;
+    $canContractor = false;
+    $canDepts = false;
+    $allowedDeptIds = [];
+}
 
 $sidebarDepartments = [];
 $connSb = getDBConnection();
@@ -25,6 +64,13 @@ $resSb = $connSb->query(
 );
 if ($resSb) {
     while ($r = $resSb->fetch_assoc()) {
+        $did = (int) $r['id'];
+        if ($allowedDeptIds !== null && $allowedDeptIds !== [] && !in_array($did, $allowedDeptIds, true)) {
+            continue;
+        }
+        if ($allowedDeptIds === []) {
+            continue;
+        }
         $sidebarDepartments[] = $r;
     }
 }
@@ -83,26 +129,103 @@ $openAttendance = ($sidebarMode === 'attendance' || strpos((string) $sidebarActi
         <div class="sidebar-section">
             <div class="sidebar-section-title">Main</div>
             <nav class="sidebar-nav">
-                <a href="<?php echo app_url('dashboard.php'); ?>"
-                   class="sidebar-link <?php echo $sidebarActive === 'dashboard' ? 'active' : ''; ?>">
+                <?php if ($isOfficeStaffNav): ?>
+                <a href="<?php echo app_url('employee/dashboard.php'); ?>"
+                   class="sidebar-link <?php echo $sidebarActive === 'emp_home' ? 'active' : ''; ?>">
                     <i class="fa-solid fa-house"></i>
-                    <span>Dashboard</span>
+                    <span>Home</span>
                 </a>
-                <a href="<?php echo app_url('hr/dashboard.php'); ?>"
-                   class="sidebar-link <?php echo $sidebarActive === 'hr_dashboard' ? 'active' : ''; ?>">
-                    <i class="fa-solid fa-user-tie"></i>
-                    <span>HR Dashboard</span>
+                <?php if ($sessionEmpIdNav > 0): ?>
+                <a href="<?php echo app_url('employees/view.php?id=' . $sessionEmpIdNav); ?>"
+                   class="sidebar-link <?php echo $sidebarActive === 'my_profile' ? 'active' : ''; ?>">
+                    <i class="fa-solid fa-id-card"></i>
+                    <span>My Profile</span>
                 </a>
+                <?php endif; ?>
+                <?php if ($canCirc): ?>
                 <a href="<?php echo app_url('circulars/index.php'); ?>"
                    class="sidebar-link <?php echo $sidebarActive === 'circulars' ? 'active' : ''; ?>">
                     <i class="fa-solid fa-file-circle-plus"></i>
                     <span>Circulars</span>
                 </a>
+                <?php endif; ?>
+                <?php if ($canPol): ?>
                 <a href="<?php echo app_url('policies/index.php'); ?>"
                    class="sidebar-link <?php echo $sidebarActive === 'policies' ? 'active' : ''; ?>">
                     <i class="fa-solid fa-scroll"></i>
                     <span>Policies</span>
                 </a>
+                <?php endif; ?>
+                <?php if ($canLeave): ?>
+                <a href="<?php echo app_url('leave/index.php'); ?>"
+                   class="sidebar-link <?php echo $sidebarActive === 'leave_request' ? 'active' : ''; ?>">
+                    <i class="fa-solid fa-plane-departure"></i>
+                    <span>My Leave</span>
+                </a>
+                <a href="<?php echo app_url('leave/apply.php'); ?>"
+                   class="sidebar-link <?php echo $sidebarActive === 'leave_apply' ? 'active' : ''; ?>">
+                    <i class="fa-solid fa-plus"></i>
+                    <span>Apply Leave</span>
+                </a>
+                <?php endif; ?>
+                <a href="<?php echo app_url('employee/attendance.php'); ?>"
+                   class="sidebar-link <?php echo $sidebarActive === 'my_attendance' ? 'active' : ''; ?>">
+                    <i class="fa-solid fa-calendar-check"></i>
+                    <span>My Attendance</span>
+                </a>
+                <a href="<?php echo app_url('employee/salary_slips.php'); ?>"
+                   class="sidebar-link <?php echo $sidebarActive === 'my_salary_slip' ? 'active' : ''; ?>">
+                    <i class="fa-solid fa-file-invoice-dollar"></i>
+                    <span>My Salary Slip</span>
+                </a>
+                <?php else: ?>
+                <a href="<?php echo app_url('dashboard.php'); ?>"
+                   class="sidebar-link <?php echo $sidebarActive === 'dashboard' ? 'active' : ''; ?>">
+                    <i class="fa-solid fa-house"></i>
+                    <span>Dashboard</span>
+                </a>
+                <?php if ($sessionEmpIdNav > 0 && function_exists('isEmployee') && isEmployee()): ?>
+                <a href="<?php echo app_url('employee/salary_slips.php'); ?>"
+                   class="sidebar-link <?php echo $sidebarActive === 'my_salary_slip' ? 'active' : ''; ?>">
+                    <i class="fa-solid fa-file-invoice-dollar"></i>
+                    <span>My Salary Slip</span>
+                </a>
+                <?php endif; ?>
+                <?php if (function_exists('isStaffUser') && isStaffUser()): ?>
+                <a href="<?php echo app_url('hr/dashboard.php'); ?>"
+                   class="sidebar-link <?php echo $sidebarActive === 'hr_dashboard' ? 'active' : ''; ?>">
+                    <i class="fa-solid fa-user-tie"></i>
+                    <span>HR Dashboard</span>
+                </a>
+                <?php elseif (!$isDeptHeadNav && (canAccess('leave', 'edit', 0) || canAccess('payroll', 'view', 0))): ?>
+                <a href="<?php echo app_url('hr/dashboard.php'); ?>"
+                   class="sidebar-link <?php echo $sidebarActive === 'hr_dashboard' ? 'active' : ''; ?>">
+                    <i class="fa-solid fa-user-tie"></i>
+                    <span>Workspace</span>
+                </a>
+                <?php endif; ?>
+                <?php if ($canCirc): ?>
+                <a href="<?php echo app_url('circulars/index.php'); ?>"
+                   class="sidebar-link <?php echo $sidebarActive === 'circulars' ? 'active' : ''; ?>">
+                    <i class="fa-solid fa-file-circle-plus"></i>
+                    <span>Circulars</span>
+                </a>
+                <?php endif; ?>
+                <?php if ($canPol): ?>
+                <a href="<?php echo app_url('policies/index.php'); ?>"
+                   class="sidebar-link <?php echo $sidebarActive === 'policies' ? 'active' : ''; ?>">
+                    <i class="fa-solid fa-scroll"></i>
+                    <span>Policies</span>
+                </a>
+                <?php endif; ?>
+                <?php if ($canEmp): ?>
+                <?php if ($isDeptHeadNav && $primaryHeadDept > 0): ?>
+                <a href="<?php echo app_url('employees/index.php?department_id=' . $primaryHeadDept); ?>"
+                   class="sidebar-link <?php echo $sidebarActive === 'join_employee' || $sidebarActive === 'all_employees' ? 'active' : ''; ?>">
+                    <i class="fa-solid fa-users"></i>
+                    <span>Department Employees</span>
+                </a>
+                <?php else: ?>
                 <a href="<?php echo app_url('employees/index.php'); ?>"
                    class="sidebar-link <?php echo $sidebarActive === 'all_employees' ? 'active' : ''; ?>">
                     <i class="fa-solid fa-users"></i>
@@ -113,6 +236,16 @@ $openAttendance = ($sidebarMode === 'attendance' || strpos((string) $sidebarActi
                     <i class="fa-solid fa-user-xmark"></i>
                     <span>Exit Employee List</span>
                 </a>
+                <?php endif; ?>
+                <?php endif; ?>
+                <?php if ($canLeave): ?>
+                <a href="<?php echo app_url('leave/index.php' . ($isDeptHeadNav && $primaryHeadDept > 0 ? ('?department_id=' . $primaryHeadDept) : '')); ?>"
+                   class="sidebar-link <?php echo $sidebarActive === 'leave_request' ? 'active' : ''; ?>">
+                    <i class="fa-solid fa-plane-departure"></i>
+                    <span>Leave Requests</span>
+                </a>
+                <?php endif; ?>
+                <?php if ($canPay): ?>
                 <a href="<?php echo app_url('payroll/register.php'); ?>"
                    class="sidebar-link <?php echo $sidebarActive === 'salary_register' ? 'active' : ''; ?>">
                     <i class="fa-solid fa-table"></i>
@@ -133,16 +266,35 @@ $openAttendance = ($sidebarMode === 'attendance' || strpos((string) $sidebarActi
                     <i class="fa-solid fa-building-columns"></i>
                     <span>NEFT Sheet</span>
                 </a>
+                <?php endif; ?>
                 <?php if (function_exists('isAdmin') && isAdmin()): ?>
+                <a href="<?php echo app_url('roles/index.php'); ?>"
+                   class="sidebar-link <?php echo $sidebarActive === 'roles' ? 'active' : ''; ?>">
+                    <i class="fa-solid fa-user-shield"></i>
+                    <span>Roles &amp; Access</span>
+                </a>
+                <a href="<?php echo app_url('users/index.php'); ?>"
+                   class="sidebar-link <?php echo $sidebarActive === 'staff_users' ? 'active' : ''; ?>">
+                    <i class="fa-solid fa-user-gear"></i>
+                    <span>Staff Users</span>
+                </a>
                 <a href="<?php echo app_url('company_settings.php'); ?>"
                    class="sidebar-link <?php echo $sidebarActive === 'settings' ? 'active' : ''; ?>">
                     <i class="fa-solid fa-image"></i>
                     <span>Company Settings</span>
                 </a>
+                <?php elseif (function_exists('canManageDepartmentHeads') && canManageDepartmentHeads()): ?>
+                <a href="<?php echo app_url('roles/department_heads.php'); ?>"
+                   class="sidebar-link <?php echo $sidebarActive === 'dept_heads' ? 'active' : ''; ?>">
+                    <i class="fa-solid fa-user-tie"></i>
+                    <span>Department Heads</span>
+                </a>
+                <?php endif; ?>
                 <?php endif; ?>
             </nav>
         </div>
 
+        <?php if ($canAtt): ?>
         <!-- Attendance accordion -->
         <div class="sidebar-section">
             <div class="sidebar-section-title">Attendance</div>
@@ -183,7 +335,9 @@ $openAttendance = ($sidebarMode === 'attendance' || strpos((string) $sidebarActi
                 </div>
             </div>
         </div>
+        <?php endif; ?>
 
+        <?php if ($canMasters): ?>
         <!-- Masters accordion -->
         <div class="sidebar-section">
             <div class="sidebar-section-title">Masters</div>
@@ -211,7 +365,9 @@ $openAttendance = ($sidebarMode === 'attendance' || strpos((string) $sidebarActi
                 </div>
             </div>
         </div>
+        <?php endif; ?>
 
+        <?php if ($canContractor): ?>
         <!-- Contractor Manage -->
         <div class="sidebar-section">
             <div class="sidebar-section-title">Contractor</div>
@@ -262,7 +418,9 @@ $openAttendance = ($sidebarMode === 'attendance' || strpos((string) $sidebarActi
                 </div>
             </div>
         </div>
+        <?php endif; ?>
 
+        <?php if ($canDepts): ?>
         <!-- Departments accordion → opens department boxes page -->
         <div class="sidebar-section">
             <div class="sidebar-section-title">Departments</div>
@@ -291,8 +449,9 @@ $openAttendance = ($sidebarMode === 'attendance' || strpos((string) $sidebarActi
                 </div>
             </div>
         </div>
+        <?php endif; ?>
 
-        <?php if ($sidebarDept): ?>
+        <?php if ($sidebarDept && $canDepts): ?>
             <div class="sidebar-section">
                 <div class="sidebar-section-title">Current Department</div>
                 <div class="sidebar-dept-card">
@@ -386,9 +545,14 @@ $openAttendance = ($sidebarMode === 'attendance' || strpos((string) $sidebarActi
     </div>
 
     <div class="sidebar-footer-mini">
-        <a href="<?php echo app_url('dashboard.php'); ?>" class="sidebar-link">
+        <?php
+        $footerHome = (function_exists('isOfficeStaffRole') && isOfficeStaffRole())
+            ? app_url('employee/dashboard.php')
+            : app_url('dashboard.php');
+        ?>
+        <a href="<?php echo $footerHome; ?>" class="sidebar-link">
             <i class="fa-solid fa-house"></i>
-            <span>Dashboard</span>
+            <span>Home</span>
         </a>
     </div>
 </aside>
