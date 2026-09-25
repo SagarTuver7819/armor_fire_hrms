@@ -96,8 +96,9 @@ function ensureBiometricTables($conn = null)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
     );
 
-    seedArmorBiometricMachines($conn);
     seedBiometricSyncDefaults($conn);
+    // Do NOT auto-seed machines here — that recreated deleted machines on every page load.
+    // Defaults are seeded once only via seedArmorBiometricMachinesOnce() from db_sync.
 
     if ($closeAfter) {
         $conn->close();
@@ -125,10 +126,38 @@ function seedBiometricSyncDefaults($conn)
 
 function seedArmorBiometricMachines($conn)
 {
-    // Only seed defaults on first install — never recreate after user deletes
+    seedArmorBiometricMachinesOnce($conn);
+}
+
+/**
+ * Seed default Armor machines ONCE only.
+ * After first seed (or if any machine already exists / user deleted), never recreate.
+ */
+function seedArmorBiometricMachinesOnce($conn)
+{
+    seedBiometricSyncDefaults($conn);
+
+    $flag = '';
+    $st = $conn->prepare(
+        "SELECT setting_value FROM biometric_sync_settings WHERE setting_key = 'biometric_machines_seeded' LIMIT 1"
+    );
+    if ($st) {
+        $st->execute();
+        $row = $st->get_result()->fetch_assoc();
+        $st->close();
+        $flag = (string) ($row['setting_value'] ?? '');
+    }
+    if ($flag === '1') {
+        return;
+    }
+
     $cntRes = $conn->query('SELECT COUNT(*) AS c FROM biometric_machines');
     $cntRow = $cntRes ? $cntRes->fetch_assoc() : null;
-    if ((int) ($cntRow['c'] ?? 0) > 0) {
+    $count = (int) ($cntRow['c'] ?? 0);
+
+    // Already have machines (or user manages list) — lock seed forever
+    if ($count > 0) {
+        biometricMarkMachinesSeeded($conn);
         return;
     }
 
@@ -184,56 +213,55 @@ function seedArmorBiometricMachines($conn)
         $chk->execute();
         $exist = $chk->get_result()->fetch_assoc();
         $chk->close();
-
         if ($exist) {
-            $up = $conn->prepare(
-                "UPDATE biometric_machines SET
-                    machine_name=?, provider_type=?, api_url=?, api_username=?,
-                    corporate_id=?, ip_address=?, port=?, ocean_machine_id=?,
-                    sync_interval_minutes=?, remarks=?, is_active=1
-                 WHERE machine_code=?"
-            );
-            $up->bind_param(
-                'sssssssiiss',
-                $m['machine_name'],
-                $m['provider_type'],
-                $m['api_url'],
-                $m['api_username'],
-                $m['corporate_id'],
-                $m['ip_address'],
-                $m['port'],
-                $m['ocean_machine_id'],
-                $m['sync_interval_minutes'],
-                $m['remarks'],
-                $code
-            );
-            $up->execute();
-            $up->close();
-        } else {
-            $ins = $conn->prepare(
-                "INSERT INTO biometric_machines
-                    (machine_code, machine_name, provider_type, api_url, auth_type, api_username, api_password,
-                     corporate_id, ip_address, port, ocean_machine_id, sync_interval_minutes, is_active, remarks)
-                 VALUES (?, ?, ?, ?, 'basic', ?, ?, ?, ?, ?, ?, ?, 1, ?)"
-            );
-            $ins->bind_param(
-                'sssssssssiis',
-                $m['machine_code'],
-                $m['machine_name'],
-                $m['provider_type'],
-                $m['api_url'],
-                $m['api_username'],
-                $m['api_password'],
-                $m['corporate_id'],
-                $m['ip_address'],
-                $m['port'],
-                $m['ocean_machine_id'],
-                $m['sync_interval_minutes'],
-                $m['remarks']
-            );
-            $ins->execute();
-            $ins->close();
+            continue;
         }
+        $ins = $conn->prepare(
+            "INSERT INTO biometric_machines
+                (machine_code, machine_name, provider_type, api_url, auth_type, api_username, api_password,
+                 corporate_id, ip_address, port, ocean_machine_id, sync_interval_minutes, is_active, remarks)
+             VALUES (?, ?, ?, ?, 'basic', ?, ?, ?, ?, ?, ?, ?, 1, ?)"
+        );
+        $ins->bind_param(
+            'sssssssssiis',
+            $m['machine_code'],
+            $m['machine_name'],
+            $m['provider_type'],
+            $m['api_url'],
+            $m['api_username'],
+            $m['api_password'],
+            $m['corporate_id'],
+            $m['ip_address'],
+            $m['port'],
+            $m['ocean_machine_id'],
+            $m['sync_interval_minutes'],
+            $m['remarks']
+        );
+        $ins->execute();
+        $ins->close();
+    }
+
+    biometricMarkMachinesSeeded($conn);
+}
+
+function biometricMarkMachinesSeeded($conn = null)
+{
+    $closeAfter = false;
+    if ($conn === null) {
+        $conn = getDBConnection();
+        $closeAfter = true;
+    }
+    $key = 'biometric_machines_seeded';
+    $val = '1';
+    $st = $conn->prepare(
+        "INSERT INTO biometric_sync_settings (setting_key, setting_value) VALUES (?, ?)
+         ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)"
+    );
+    $st->bind_param('ss', $key, $val);
+    $st->execute();
+    $st->close();
+    if ($closeAfter) {
+        $conn->close();
     }
 }
 
@@ -1023,16 +1051,20 @@ function deleteBiometricMachine($id)
     }
     $conn = getDBConnection();
     ensureBiometricTables($conn);
+    // Lock seed forever so deleted machine is never auto-recreated
+    biometricMarkMachinesSeeded($conn);
     $st = $conn->prepare('DELETE FROM biometric_machines WHERE id = ?');
     $st->bind_param('i', $id);
     $ok = $st->execute();
+    $affected = (int) $st->affected_rows;
     $st->close();
     // Keep logs; just unlink machine_id
     $conn->query('UPDATE machine_attendance_logs SET machine_id = NULL WHERE machine_id = ' . $id);
     $conn->close();
-    return $ok
-        ? ['ok' => true, 'message' => 'Machine deleted. Logs kept (unlinked).']
-        : ['ok' => false, 'message' => 'Delete failed.'];
+    if (!$ok || $affected < 1) {
+        return ['ok' => false, 'message' => 'Delete failed or machine not found.'];
+    }
+    return ['ok' => true, 'message' => 'Machine deleted. Logs kept (unlinked).'];
 }
 
 function toggleBiometricMachine($id)

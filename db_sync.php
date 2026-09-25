@@ -83,7 +83,8 @@ try {
     $log[] = 'Attendance tables ready (punches, day status, import batches, biometric_user_id).';
 
     ensureBiometricTables($conn);
-    $log[] = 'Biometric machines ready (3 Armor Fire machines seeded + machine_attendance_logs).';
+    seedArmorBiometricMachinesOnce($conn);
+    $log[] = 'Biometric machines ready (tables + one-time default seed if empty; delete will not recreate).';
 
     ensureLeaveTables($conn);
     $log[] = 'Leave tables ready (employee leave balances, leave requests).';

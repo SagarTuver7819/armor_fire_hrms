@@ -12,6 +12,10 @@ require_once __DIR__ . '/../includes/biometric_helper.php';
 requireLogin();
 requireAccess('attendance', 'view');
 ensureBiometricTables();
+// Lock one-time seed (so delete never comes back, even after db_sync)
+$__bioLock = getDBConnection();
+seedArmorBiometricMachinesOnce($__bioLock);
+$__bioLock->close();
 
 $toast = '';
 $toastType = 'success';
