@@ -328,6 +328,9 @@ html, body { height: 100%; }
     grid-template-columns: 1fr 1fr 1fr;
     gap: 10px;
 }
+.login-roles.login-roles-2 {
+    grid-template-columns: 1fr 1fr;
+}
 
 .login-role { cursor: pointer; }
 .login-role input { display: none; }
@@ -618,6 +621,7 @@ html, body { height: 100%; }
     }
     .login-company { font-size: 24px; }
     .login-roles { grid-template-columns: 1fr; }
+    .login-roles.login-roles-2 { grid-template-columns: 1fr; }
     .login-role-box { min-height: auto; }
     .login-ring-1, .login-ring-2 { display: none; }
 }

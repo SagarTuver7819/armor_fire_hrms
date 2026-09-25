@@ -1,6 +1,6 @@
 <?php
 /**
- * Login Page — Admin, HR & Employee portals
+ * Login Page — Admin & Employee portals
  */
 
 require_once __DIR__ . '/config/app.php';
@@ -32,25 +32,27 @@ if (isLoggedIn()) {
 }
 
 $error = '';
-$allowedRoles = ['admin', 'hr', 'employee'];
+// UI has 2 choices; Admin covers staff (admin + hr accounts)
+$uiRoles = ['admin', 'employee'];
+$dbRoles = ['admin', 'hr', 'employee'];
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $username = trim($_POST['username'] ?? '');
+    $usernameInput = trim($_POST['username'] ?? '');
     $password = trim($_POST['password'] ?? '');
-    // Username always UPPERCASE (same as Employee Login / Staff Users save)
+    // Match DB usernames case-insensitively (do not force capitals in the form UI)
     if (function_exists('mb_strtoupper')) {
-        $username = mb_strtoupper($username, 'UTF-8');
+        $username = mb_strtoupper($usernameInput, 'UTF-8');
     } else {
-        $username = strtoupper($username);
+        $username = strtoupper($usernameInput);
     }
-    $loginAs  = strtolower(trim($_POST['login_as'] ?? 'admin'));
-
-    if (!in_array($loginAs, $allowedRoles, true)) {
+    $loginAs = strtolower(trim($_POST['login_as'] ?? 'admin'));
+    if (!in_array($loginAs, $uiRoles, true)) {
         $loginAs = 'admin';
     }
 
-    if ($username === '' || $password === '') {
+    if ($usernameInput === '' || $password === '') {
         $error = 'Please enter username and password.';
+        $username = $usernameInput;
     } else {
         ensureRoleTables();
         $conn = getDBConnection();
@@ -61,7 +63,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $stmt->bind_param('s', $username);
         $stmt->execute();
         $result = $stmt->get_result();
-        $user   = $result->fetch_assoc();
+        $user = $result->fetch_assoc();
         $stmt->close();
 
         $roleName = '';
@@ -76,21 +78,34 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         $conn->close();
 
+        $userRole = strtolower((string) ($user['role'] ?? ''));
+        $roleOk = false;
+        if ($loginAs === 'admin') {
+            // Admin portal: Admin + HR staff accounts
+            $roleOk = in_array($userRole, ['admin', 'hr'], true);
+        } else {
+            $roleOk = ($userRole === 'employee');
+        }
+
         if (!$user || $user['password'] !== $password) {
             $error = 'Invalid username or password.';
-        } elseif (!in_array($user['role'], $allowedRoles, true)) {
+        } elseif (!in_array($userRole, $dbRoles, true)) {
             $error = 'This account cannot sign in here.';
-        } elseif ($user['role'] !== $loginAs) {
-            $error = 'You selected "' . strtoupper($loginAs) . '" but this account is "' . strtoupper($user['role']) . '".';
-        } elseif ($user['role'] === 'employee' && (empty($user['custom_role_id']) || $roleName === '')) {
+        } elseif (!$roleOk) {
+            if ($loginAs === 'admin') {
+                $error = 'Use Employee Login for this account.';
+            } else {
+                $error = 'Use Admin Login for this account.';
+            }
+        } elseif ($userRole === 'employee' && (empty($user['custom_role_id']) || $roleName === '')) {
             $error = 'No active role assigned. Contact Admin.';
         } else {
-            $_SESSION['user_id']        = $user['id'];
-            $_SESSION['username']       = $user['username'];
-            $_SESSION['full_name']      = $user['full_name'];
-            $_SESSION['role']           = $user['role'];
-            $_SESSION['department_id']  = $user['department_id'];
-            $_SESSION['employee_id']    = !empty($user['employee_id']) ? (int) $user['employee_id'] : 0;
+            $_SESSION['user_id'] = $user['id'];
+            $_SESSION['username'] = $user['username'];
+            $_SESSION['full_name'] = $user['full_name'];
+            $_SESSION['role'] = $user['role'];
+            $_SESSION['department_id'] = $user['department_id'];
+            $_SESSION['employee_id'] = !empty($user['employee_id']) ? (int) $user['employee_id'] : 0;
             $_SESSION['custom_role_id'] = !empty($user['custom_role_id']) ? (int) $user['custom_role_id'] : 0;
             $_SESSION['custom_role_name'] = $roleName;
             unset($_SESSION['permissions'], $_SESSION['permissions_role_id']);
@@ -107,17 +122,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             } elseif ($roleCode === 'DEPT_HEAD') {
                 $hd = $_SESSION['headed_department_ids'][0] ?? 0;
                 header('Location: ' . app_url($hd > 0 ? ('employees/index.php?department_id=' . (int) $hd) : 'hr/dashboard.php'));
-            } elseif ($user['role'] === 'hr' || $user['role'] === 'employee') {
+            } elseif ($userRole === 'hr' || $userRole === 'employee') {
                 header('Location: ' . app_url('hr/dashboard.php'));
             } else {
                 header('Location: ' . app_url('dashboard.php'));
             }
             exit;
         }
+        // Keep what the user typed in the form (no capital force on login UI)
+        $username = $usernameInput;
     }
 }
 
-$selectedRole = isset($_POST['login_as']) && in_array($_POST['login_as'], $allowedRoles, true)
+$selectedRole = isset($_POST['login_as']) && in_array($_POST['login_as'], $uiRoles, true)
     ? $_POST['login_as']
     : 'admin';
 ?>
@@ -190,21 +207,13 @@ $selectedRole = isset($_POST['login_as']) && in_array($_POST['login_as'], $allow
         <form method="POST" action="" id="loginForm" class="login-form" autocomplete="off">
             <div class="login-field">
                 <label>Login as</label>
-                <div class="login-roles" role="radiogroup" aria-label="Login role">
+                <div class="login-roles login-roles-2" role="radiogroup" aria-label="Login role">
                     <label class="login-role">
                         <input type="radio" name="login_as" value="admin" <?php echo $selectedRole === 'admin' ? 'checked' : ''; ?>>
                         <span class="login-role-box admin">
                             <span class="login-role-icon"><i class="fa-solid fa-user-shield"></i></span>
                             <b>Admin Login</b>
-                            <small>System &amp; full control</small>
-                        </span>
-                    </label>
-                    <label class="login-role">
-                        <input type="radio" name="login_as" value="hr" <?php echo $selectedRole === 'hr' ? 'checked' : ''; ?>>
-                        <span class="login-role-box hr">
-                            <span class="login-role-icon"><i class="fa-solid fa-users-gear"></i></span>
-                            <b>HR Login</b>
-                            <small>People &amp; workforce</small>
+                            <small>Admin &amp; HR staff</small>
                         </span>
                     </label>
                     <label class="login-role">
@@ -212,7 +221,7 @@ $selectedRole = isset($_POST['login_as']) && in_array($_POST['login_as'], $allow
                         <span class="login-role-box employee">
                             <span class="login-role-icon"><i class="fa-solid fa-id-badge"></i></span>
                             <b>Employee Login</b>
-                            <small>Role-based access</small>
+                            <small>Staff portal access</small>
                         </span>
                     </label>
                 </div>
@@ -223,6 +232,7 @@ $selectedRole = isset($_POST['login_as']) && in_array($_POST['login_as'], $allow
                 <div class="login-input-wrap">
                     <i class="fa-solid fa-user"></i>
                     <input type="text" id="username" name="username" placeholder="Enter your username" required
+                           autocomplete="username"
                            value="<?php echo isset($username) ? htmlspecialchars($username) : ''; ?>">
                 </div>
             </div>
@@ -231,10 +241,8 @@ $selectedRole = isset($_POST['login_as']) && in_array($_POST['login_as'], $allow
                 <label for="password">Password</label>
                 <div class="login-input-wrap">
                     <i class="fa-solid fa-lock"></i>
-                    <input type="password" id="password" name="password" placeholder="Enter your password" required>
-                    <button type="button" class="login-eye" id="togglePass" aria-label="Show password">
-                        <i class="fa-solid fa-eye"></i>
-                    </button>
+                    <input type="password" id="password" name="password" placeholder="Enter your password" required
+                           autocomplete="current-password">
                 </div>
             </div>
 
@@ -250,25 +258,9 @@ $selectedRole = isset($_POST['login_as']) && in_array($_POST['login_as'], $allow
             </button>
         </form>
 
-        <div class="login-demo">
-            <p class="login-demo-label">Quick demo access</p>
-            <div class="login-demo-row">
-                <button type="button" class="login-demo-chip" data-user="admin" data-pass="password123" data-role="admin">
-                    <i class="fa-solid fa-user-shield"></i>
-                    <span>Admin</span>
-                    <code>admin</code>
-                </button>
-                <button type="button" class="login-demo-chip" data-user="hr" data-pass="password123" data-role="hr">
-                    <i class="fa-solid fa-users-gear"></i>
-                    <span>HR</span>
-                    <code>hr</code>
-                </button>
-            </div>
-        </div>
-
         <footer class="login-card-foot">
             <i class="fa-solid fa-shield-halved"></i>
-            Admin · HR · Employee secure portals
+            Admin · Employee secure portals
         </footer>
     </div>
 
@@ -277,7 +269,6 @@ $selectedRole = isset($_POST['login_as']) && in_array($_POST['login_as'], $allow
     </p>
 </div>
 
-<script src="assets/js/case_force.js"></script>
 <script src="assets/js/login.js"></script>
 </body>
 </html>

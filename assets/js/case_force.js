@@ -77,14 +77,10 @@
 
     function boot() {
         document.querySelectorAll(
-            'form.employee-form, #roleAssignForm, #staffUserForm, form.login-form, #loginForm'
+            'form.employee-form, #roleAssignForm, #staffUserForm'
         ).forEach(bindRoot);
 
-        // Login page may use different form id
-        var loginUser = document.getElementById('username');
-        if (loginUser && loginUser.closest('form')) {
-            bindRoot(loginUser.closest('form'));
-        }
+        // Login page: do NOT force uppercase / lowercase
     }
 
     if (document.readyState === 'loading') {

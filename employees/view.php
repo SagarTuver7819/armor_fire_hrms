@@ -58,6 +58,10 @@ if (!in_array($tab, ['profile', 'family', 'leave', 'history', 'attendance', 'sal
 if ($tab === 'salary' && !$showSalaryDetails) {
     $tab = 'profile';
 }
+if ($isOwnProfile && isOfficeStaffRole() && in_array($tab, ['leave', 'history'], true)) {
+    header('Location: ' . app_url('leave/index.php'));
+    exit;
+}
 
 $year = (int) ($_GET['year'] ?? date('Y'));
 $month = (int) ($_GET['month'] ?? date('n'));
@@ -339,6 +343,7 @@ $tabUrl = function ($t) use ($baseQs, $year, $month) {
             <span class="emp-tab-label">Family</span>
             <span class="emp-tab-badge"><?php echo count($familyMembers); ?></span>
         </a>
+        <?php if (!($isOwnProfile && isOfficeStaffRole())): ?>
         <a class="emp-activity-tab <?php echo $tab === 'leave' ? 'active' : ''; ?>" href="<?php echo htmlspecialchars($tabUrl('leave')); ?>">
             <span class="emp-tab-ico"><i class="fa-solid fa-scale-balanced"></i></span>
             <span class="emp-tab-label">Leave Balance</span>
@@ -348,6 +353,7 @@ $tabUrl = function ($t) use ($baseQs, $year, $month) {
             <span class="emp-tab-label">Leave History</span>
             <span class="emp-tab-badge"><?php echo count($leaveHistory); ?></span>
         </a>
+        <?php endif; ?>
         <a class="emp-activity-tab <?php echo $tab === 'attendance' ? 'active' : ''; ?>" href="<?php echo htmlspecialchars($tabUrl('attendance')); ?>">
             <span class="emp-tab-ico"><i class="fa-solid fa-user-check"></i></span>
             <span class="emp-tab-label">Attendance</span>
