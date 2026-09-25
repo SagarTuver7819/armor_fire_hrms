@@ -1,6 +1,6 @@
 /* =====================================================
    Armor Fire HRMS - Main Stylesheet
-   Professional ERP look ÃÂ· Brand orange #F58220
+   Professional ERP look ÃÂÃÂ· Brand orange #F58220
    ===================================================== */
 
 :root {
@@ -1793,7 +1793,7 @@ input.js-date,
     letter-spacing: 0.02em;
 }
 
-/* Flatpickr Ã¢ÂÂ month dropdown + year must stay clickable (no Select2 / no arrow overlap) */
+/* Flatpickr ÃÂ¢ÃÂÃÂ month dropdown + year must stay clickable (no Select2 / no arrow overlap) */
 .flatpickr-calendar {
     font-family: inherit;
     box-shadow: 0 12px 28px rgba(15, 23, 42, 0.18);
@@ -1840,7 +1840,7 @@ input.js-date,
     z-index: 5;
 }
 
-/* Native month <select> Ã¢ÂÂ never hide / never Select2 */
+/* Native month <select> ÃÂ¢ÃÂÃÂ never hide / never Select2 */
 .flatpickr-current-month .flatpickr-monthDropdown-months,
 .flatpickr-calendar select.flatpickr-monthDropdown-months {
     display: inline-block !important;
@@ -2513,7 +2513,7 @@ input.js-date,
     display: none !important;
 }
 
-/* Keep save bar in flow Ã¢ÂÂ sticky overlay was covering last grid rows */
+/* Keep save bar in flow ÃÂ¢ÃÂÃÂ sticky overlay was covering last grid rows */
 .sticky-actions {
     position: relative;
     bottom: auto;
@@ -2612,7 +2612,7 @@ input.js-date,
     background: #ffedd5;
 }
 
-/* Round MDTimePicker Ã¢ÂÂ full screen center */
+/* Round MDTimePicker ÃÂ¢ÃÂÃÂ full screen center */
 .mdtimepicker {
     z-index: 120000 !important;
     display: flex !important;
@@ -2970,7 +2970,7 @@ body > .select2-container--open {
 }
 
 /* =====================================================
-   Employee Profile Ã¢ÂÂ Professional ID Card
+   Employee Profile ÃÂ¢ÃÂÃÂ Professional ID Card
    ===================================================== */
 
 .toolbar-actions {
@@ -3949,7 +3949,7 @@ body.confirm-modal-open {
 }
 
 /* =====================================================
-   App Sidebar Ã¢ÂÂ scrollable + toggle
+   App Sidebar ÃÂ¢ÃÂÃÂ scrollable + toggle
    ===================================================== */
 
 .has-app-sidebar {
@@ -4435,7 +4435,7 @@ body.confirm-modal-open {
 }
 
 /*
- * Body-attached open dropdowns must NEVER be width:100% Ã¢ÂÂ
+ * Body-attached open dropdowns must NEVER be width:100% ÃÂ¢ÃÂÃÂ
  * that paints a full-viewport white layer (looks like blank page).
  */
 body > .select2-container {
@@ -4776,7 +4776,7 @@ body > .select2-container .select2-dropdown {
     max-width: 100% !important;
 }
 
-/* Native select hidden Ã¢ÂÂ custom combo trigger shown instead (Select2 removed from grid) */
+/* Native select hidden ÃÂ¢ÃÂÃÂ custom combo trigger shown instead (Select2 removed from grid) */
 .ops-grid select.ops-combo-native,
 .ops-grid select.product-select.no-select2,
 .ops-grid select.grade-select.no-select2 {
@@ -5153,7 +5153,7 @@ body > .select2-container .select2-dropdown {
     z-index: 2;
 }
 
-/* Crosshair Ã¢ÂÂ row (horizontal) + column (vertical) like reference */
+/* Crosshair ÃÂ¢ÃÂÃÂ row (horizontal) + column (vertical) like reference */
 .ops-grid tbody tr.cross-row > td {
     background: #fff7ed !important;
 }
@@ -5176,7 +5176,7 @@ body > .select2-container .select2-dropdown {
 .ops-grid tbody td.cross-cell {
     background: #fdba74 !important;
     box-shadow: inset 0 0 0 2px #F58220;
-    /* DO NOT set position:relative Ã¢ÂÂ it overrides sticky and shifts Process sideways */
+    /* DO NOT set position:relative ÃÂ¢ÃÂÃÂ it overrides sticky and shifts Process sideways */
     z-index: 8;
 }
 
@@ -6224,7 +6224,7 @@ body.confirm-modal-open .flatpickr-calendar {
 }
 .header-notify-meta small { font-size: 11px; color: #64748b; line-height: 1.35; }
 
-/* Circular form Ã¢ÂÂ Select2 multi departments (proper design) */
+/* Circular form ÃÂ¢ÃÂÃÂ Select2 multi departments (proper design) */
 .circ-dept-field {
     padding: 14px 16px;
     border: 1px solid #e2e8f0;
@@ -6720,16 +6720,38 @@ a.emp-dash-row:hover {
     color: #0f172a;
     font-weight: 800;
 }
+.emp-dash-avatar {
+    width: 88px !important;
+    height: 88px !important;
+    border-radius: 20px !important;
+    font-size: 28px !important;
+}
 .emp-dash-greet {
     margin: 0 !important;
     font-size: 1.15rem !important;
     font-weight: 750 !important;
-    line-height: 1.3 !important;
+    line-height: 1.45 !important;
     letter-spacing: 0.01em;
+}
+.emp-dash-greet-name {
+    display: inline;
+    background: linear-gradient(180deg, #fde68a 0%, #fbbf24 100%);
+    color: #0f172a;
+    font-weight: 800;
+    padding: 2px 8px;
+    border-radius: 6px;
+    box-decoration-break: clone;
+    -webkit-box-decoration-break: clone;
 }
 @media (max-width: 700px) {
     .emp-dash-greet {
         font-size: 1.05rem !important;
+    }
+    .emp-dash-avatar {
+        width: 72px !important;
+        height: 72px !important;
+        border-radius: 16px !important;
+        font-size: 24px !important;
     }
 }
 
@@ -6922,7 +6944,7 @@ a.emp-dash-row:hover {
     color: #BE185D;
 }
 
-/* Monthly Join / Left Ã¢ÂÂ same card family as leave balance */
+/* Monthly Join / Left ÃÂ¢ÃÂÃÂ same card family as leave balance */
 .emp-leave-bal-card.is-join {
     border-color: #93C5FD;
     background: linear-gradient(145deg, #EFF6FF 0%, #FFFFFF 55%);
@@ -7078,7 +7100,7 @@ a.emp-dash-row:hover {
     .emp-leave-bal-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
-/* Employee Matrix Ã¢ÂÂ Heads directory */
+/* Employee Matrix ÃÂ¢ÃÂÃÂ Heads directory */
 .emp-matrix-card {
     margin-top: 16px;
     padding: 0;

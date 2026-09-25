@@ -171,8 +171,7 @@ $userLabel = getUserName();
 $empCode = $emp ? trim((string) ($emp['employee_code'] ?? '')) : '';
 $empName = $emp ? trim((string) ($emp['employee_name'] ?? '')) : $userLabel;
 $designationLabel = $emp ? trim((string) ($emp['designation'] ?? '')) : '';
-$greetLine = $greet . ', '
-    . ($empCode !== '' ? $empCode . ' - ' : '')
+$greetName = ($empCode !== '' ? $empCode . ' – ' : '')
     . ($empName !== '' ? $empName : $userLabel);
 $photoUrl = $emp ? employeeDocumentPublicUrl($emp['photo_file'] ?? '') : '';
 $empInitials = '';
@@ -355,77 +354,52 @@ $connPeople = getDBConnection();
 $todayMd = date('m-d');
 $todayYmd = date('Y-m-d');
 
-// Work anniversaries from Join Date — show from 30 days before completing next year
+// Work anniversaries: Join Date → show from 30 days before next anniversary through the day
+// Example: join 2025-09-25 → show 2026-08-26 … 2026-09-25 (1st year), then each year after
 $stAnn = $connPeople->query(
     "SELECT e.id, e.employee_code, e.employee_name, e.date_of_joining, e.designation, e.photo_file,
             d.department_name,
-            DATE_FORMAT(e.date_of_joining, '%m-%d') AS md
+            t.next_on,
+            DATEDIFF(t.next_on, CURDATE()) AS in_days,
+            TIMESTAMPDIFF(YEAR, e.date_of_joining, t.next_on) AS years
      FROM employees e
      LEFT JOIN departments d ON d.id = e.department_id
+     INNER JOIN (
+         SELECT id,
+                DATE_ADD(
+                    date_of_joining,
+                    INTERVAL (
+                        TIMESTAMPDIFF(YEAR, date_of_joining, CURDATE())
+                        + IF(
+                            DATE_ADD(
+                                date_of_joining,
+                                INTERVAL TIMESTAMPDIFF(YEAR, date_of_joining, CURDATE()) YEAR
+                            ) < CURDATE(),
+                            1,
+                            0
+                        )
+                    ) YEAR
+                ) AS next_on
+         FROM employees
+         WHERE status = 1
+           AND date_of_joining IS NOT NULL
+           AND date_of_joining != ''
+           AND date_of_joining != '0000-00-00'
+           AND date_of_joining < CURDATE()
+     ) t ON t.id = e.id
      WHERE e.status = 1
-       AND e.date_of_joining IS NOT NULL
-       AND e.date_of_joining != ''
-       AND e.date_of_joining != '0000-00-00'
-       AND e.date_of_joining <= DATE_SUB(CURDATE(), INTERVAL 335 DAY)
-     ORDER BY e.employee_name ASC
-     LIMIT 500"
+       AND t.next_on BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 30 DAY)
+       AND TIMESTAMPDIFF(YEAR, e.date_of_joining, t.next_on) >= 1
+     ORDER BY t.next_on ASC, e.employee_name ASC"
 );
 $annCandidates = [];
-$cutoff = new DateTime('today');
-$annLimitDt = (clone $cutoff)->modify('+30 days');
 if ($stAnn) {
     while ($row = $stAnn->fetch_assoc()) {
-        $doj = substr((string) ($row['date_of_joining'] ?? ''), 0, 10);
-        if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $doj)) {
-            continue;
-        }
-        $joinDt = DateTime::createFromFormat('Y-m-d', $doj);
-        if (!$joinDt) {
-            continue;
-        }
-        $md = (string) ($row['md'] ?? '');
-        // Leap-day joiners: use Feb 28 in non-leap years
-        if ($md === '02-29') {
-            $yCheck = (int) $cutoff->format('Y');
-            $mdUse = checkdate(2, 29, $yCheck) ? '02-29' : '02-28';
-        } else {
-            $mdUse = $md;
-        }
-        if (!preg_match('/^\d{2}-\d{2}$/', $mdUse)) {
-            continue;
-        }
-        $y = (int) $cutoff->format('Y');
-        $candidate = DateTime::createFromFormat('Y-m-d', $y . '-' . $mdUse);
-        if (!$candidate) {
-            continue;
-        }
-        $candidate->setTime(0, 0, 0);
-        if ($candidate < $cutoff) {
-            $candidate->modify('+1 year');
-            if ($md === '02-29') {
-                $y2 = (int) $candidate->format('Y');
-                $md2 = checkdate(2, 29, $y2) ? '02-29' : '02-28';
-                $candidate = DateTime::createFromFormat('Y-m-d', $y2 . '-' . $md2) ?: $candidate;
-                $candidate->setTime(0, 0, 0);
-            }
-        }
-        if ($candidate > $annLimitDt) {
-            continue;
-        }
-        $years = (int) $candidate->format('Y') - (int) $joinDt->format('Y');
-        // Only show when completing at least 1 year
-        if ($years < 1) {
-            continue;
-        }
-        $row['next_on'] = $candidate->format('Y-m-d');
-        $row['in_days'] = (int) $cutoff->diff($candidate)->days;
-        $row['years'] = $years;
+        $row['in_days'] = (int) ($row['in_days'] ?? 0);
+        $row['years'] = (int) ($row['years'] ?? 0);
         $annCandidates[] = $row;
     }
 }
-usort($annCandidates, static function ($a, $b) {
-    return [$a['in_days'], $a['employee_name']] <=> [$b['in_days'], $b['employee_name']];
-});
 $workAnniversariesTotal = count($annCandidates);
 $workAnniversaries = array_slice($annCandidates, 0, $expand === 'anniv' ? 50 : $panelLimit);
 
@@ -444,6 +418,7 @@ $stBday = $connPeople->query(
      LIMIT 500"
 );
 $bdayCandidates = [];
+$cutoff = new DateTime('today');
 $bdayLimitDt = (clone $cutoff)->modify('+45 days');
 if ($stBday) {
     while ($row = $stBday->fetch_assoc()) {
@@ -546,7 +521,7 @@ $denied = isset($_GET['msg']) && $_GET['msg'] === 'denied';
         <div class="form-page-header" style="margin-bottom:0;">
             <div class="master-list-title" style="width:100%;align-items:flex-start;flex-wrap:wrap;gap:16px;">
                 <div style="display:flex;align-items:center;gap:14px;min-width:220px;flex:1;">
-                    <div class="emp-avatar" style="width:64px;height:64px;border-radius:16px;font-size:22px;" aria-hidden="true">
+                    <div class="emp-avatar emp-dash-avatar" aria-hidden="true">
                         <?php if ($photoUrl !== ''): ?>
                             <img src="<?php echo htmlspecialchars($photoUrl); ?>" alt="">
                         <?php else: ?>
@@ -554,7 +529,10 @@ $denied = isset($_GET['msg']) && $_GET['msg'] === 'denied';
                         <?php endif; ?>
                     </div>
                     <div>
-                        <h1 class="emp-dash-greet"><?php echo htmlspecialchars($greetLine); ?></h1>
+                        <h1 class="emp-dash-greet">
+                            <?php echo htmlspecialchars($greet); ?>,
+                            <span class="emp-dash-greet-name"><?php echo htmlspecialchars($greetName); ?></span>
+                        </h1>
                         <p>
                             Employee Portal
                             <?php if ($deptName !== ''): ?>
@@ -794,7 +772,7 @@ $denied = isset($_GET['msg']) && $_GET['msg'] === 'denied';
             <div class="emp-dash-panel-head">
                 <div>
                     <h3><i class="fa-solid fa-award" style="color:#B45309;"></i> Work Anniversaries</h3>
-                    <p>Join date · Next 30 days (1+ year)</p>
+                    <p>Join date · 30 days before anniversary</p>
                 </div>
                 <?php if ($workAnniversariesTotal > $panelLimit && $expand !== 'anniv'): ?>
                     <a class="btn-ghost emp-dash-more" href="<?php echo app_url('employee/dashboard.php?expand=anniv#panel-anniv'); ?>">More</a>

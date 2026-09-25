@@ -169,30 +169,52 @@ while ($row = $res->fetch_assoc()) {
 }
 $st->close();
 
-// ── Work anniversaries this month ──────────────────────
+// ── Work anniversaries: next 30 days from Join Date (1+ year) ──
 $anniversaries = [];
-$st = $conn->prepare(
+$stAnnHr = $conn->query(
     "SELECT e.id, e.employee_code, e.employee_name, e.date_of_joining, e.designation,
-            d.department_name
+            d.department_name,
+            t.next_on,
+            DATEDIFF(t.next_on, CURDATE()) AS in_days,
+            TIMESTAMPDIFF(YEAR, e.date_of_joining, t.next_on) AS years
      FROM employees e
      LEFT JOIN departments d ON d.id = e.department_id
+     INNER JOIN (
+         SELECT id,
+                DATE_ADD(
+                    date_of_joining,
+                    INTERVAL (
+                        TIMESTAMPDIFF(YEAR, date_of_joining, CURDATE())
+                        + IF(
+                            DATE_ADD(
+                                date_of_joining,
+                                INTERVAL TIMESTAMPDIFF(YEAR, date_of_joining, CURDATE()) YEAR
+                            ) < CURDATE(),
+                            1,
+                            0
+                        )
+                    ) YEAR
+                ) AS next_on
+         FROM employees
+         WHERE status = 1
+           AND date_of_joining IS NOT NULL
+           AND date_of_joining != ''
+           AND date_of_joining != '0000-00-00'
+           AND date_of_joining < CURDATE()
+     ) t ON t.id = e.id
      WHERE e.status = 1
-       AND e.date_of_joining IS NOT NULL
-       AND e.date_of_joining != '0000-00-00'
-       AND MONTH(e.date_of_joining) = ?
-       AND YEAR(e.date_of_joining) < ?
-     ORDER BY DAY(e.date_of_joining) ASC
-     LIMIT 12"
+       AND t.next_on BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 30 DAY)
+       AND TIMESTAMPDIFF(YEAR, e.date_of_joining, t.next_on) >= 1
+     ORDER BY t.next_on ASC, e.employee_name ASC
+     LIMIT 20"
 );
-$st->bind_param('ii', $month, $year);
-$st->execute();
-$res = $st->get_result();
-while ($row = $res->fetch_assoc()) {
-    $joinY = (int) date('Y', strtotime($row['date_of_joining']));
-    $row['years'] = max(0, $year - $joinY);
-    $anniversaries[] = $row;
+if ($stAnnHr) {
+    while ($row = $stAnnHr->fetch_assoc()) {
+        $row['years'] = (int) ($row['years'] ?? 0);
+        $row['in_days'] = (int) ($row['in_days'] ?? 0);
+        $anniversaries[] = $row;
+    }
 }
-$st->close();
 
 // ── Department-wise attendance today ───────────────────
 $deptAttendance = [];
@@ -610,20 +632,25 @@ require_once __DIR__ . '/../includes/header.php';
                 <div class="hr-panel-head">
                     <div>
                         <h2><i class="fa-solid fa-award"></i> Work Anniversaries</h2>
-                        <p><?php echo htmlspecialchars(date('F')); ?></p>
+                        <p>Next 30 days</p>
                     </div>
                 </div>
                 <?php if (!$anniversaries): ?>
-                    <div class="hr-empty soft">No work anniversaries this month.</div>
+                    <div class="hr-empty soft">No upcoming work anniversaries.</div>
                 <?php else: ?>
                     <ul class="hr-stack-list">
-                        <?php foreach ($anniversaries as $a): ?>
+                        <?php foreach ($anniversaries as $a):
+                            $when = ((int) ($a['in_days'] ?? 0) === 0)
+                                ? 'Today'
+                                : (((int) $a['in_days'] === 1) ? 'Tomorrow' : ('In ' . (int) $a['in_days'] . ' days'));
+                            ?>
                             <li>
                                 <a href="<?php echo app_url('employees/view.php?id=' . (int) $a['id']); ?>">
                                     <strong><?php echo htmlspecialchars($a['employee_name']); ?></strong>
                                     <span>
-                                        <?php echo htmlspecialchars(formatDateDisplay($a['date_of_joining'])); ?>
+                                        <?php echo htmlspecialchars(formatDateDisplay($a['next_on'] ?? $a['date_of_joining'])); ?>
                                         · <?php echo (int) $a['years']; ?> yr<?php echo ((int) $a['years'] === 1) ? '' : 's'; ?>
+                                        · <?php echo htmlspecialchars($when); ?>
                                     </span>
                                 </a>
                             </li>
