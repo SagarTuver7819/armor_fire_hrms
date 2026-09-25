@@ -178,6 +178,11 @@ $openAttendance = ($sidebarMode === 'attendance' || strpos((string) $sidebarActi
                     <i class="fa-solid fa-file-invoice-dollar"></i>
                     <span>My Salary Slip</span>
                 </a>
+                <a href="<?php echo app_url('employee/change_password.php'); ?>"
+                   class="sidebar-link <?php echo $sidebarActive === 'change_password' ? 'active' : ''; ?>">
+                    <i class="fa-solid fa-key"></i>
+                    <span>Change Password</span>
+                </a>
                 <?php else: ?>
                 <a href="<?php echo app_url('dashboard.php'); ?>"
                    class="sidebar-link <?php echo $sidebarActive === 'dashboard' ? 'active' : ''; ?>">
@@ -189,6 +194,11 @@ $openAttendance = ($sidebarMode === 'attendance' || strpos((string) $sidebarActi
                    class="sidebar-link <?php echo $sidebarActive === 'my_salary_slip' ? 'active' : ''; ?>">
                     <i class="fa-solid fa-file-invoice-dollar"></i>
                     <span>My Salary Slip</span>
+                </a>
+                <a href="<?php echo app_url('employee/change_password.php'); ?>"
+                   class="sidebar-link <?php echo $sidebarActive === 'change_password' ? 'active' : ''; ?>">
+                    <i class="fa-solid fa-key"></i>
+                    <span>Change Password</span>
                 </a>
                 <?php endif; ?>
                 <?php if (function_exists('isStaffUser') && isStaffUser()): ?>
@@ -328,9 +338,24 @@ $openAttendance = ($sidebarMode === 'attendance' || strpos((string) $sidebarActi
                         <span>Attendance Report</span>
                     </a>
                     <a href="<?php echo app_url('attendance/history.php'); ?>"
-                       class="sidebar-link sidebar-sublink <?php echo $sidebarActive === 'attendance_import' ? '' : ''; ?>">
+                       class="sidebar-link sidebar-sublink <?php echo $sidebarActive === 'attendance_history' ? 'active' : ''; ?>">
                         <i class="fa-solid fa-clock-rotate-left"></i>
                         <span>Import History</span>
+                    </a>
+                    <a href="<?php echo app_url('attendance/machines.php'); ?>"
+                       class="sidebar-link sidebar-sublink <?php echo $sidebarActive === 'attendance_machines' ? 'active' : ''; ?>">
+                        <i class="fa-solid fa-server"></i>
+                        <span>Biometric Machines</span>
+                    </a>
+                    <a href="<?php echo app_url('attendance/machine_logs.php'); ?>"
+                       class="sidebar-link sidebar-sublink <?php echo $sidebarActive === 'attendance_machine_logs' ? 'active' : ''; ?>">
+                        <i class="fa-solid fa-fingerprint"></i>
+                        <span>Old Attendance (Machine Wise)</span>
+                    </a>
+                    <a href="<?php echo app_url('attendance/machine_report.php'); ?>"
+                       class="sidebar-link sidebar-sublink <?php echo $sidebarActive === 'attendance_machine_report' ? 'active' : ''; ?>">
+                        <i class="fa-solid fa-table"></i>
+                        <span>Machine Wise Report</span>
                     </a>
                 </div>
             </div>

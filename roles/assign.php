@@ -57,6 +57,9 @@ if ($selDept <= 0 && $editRow) {
 $selUser = array_key_exists('username', $formData)
     ? (string) $formData['username']
     : ($editRow['username'] ?? '');
+$selPass = array_key_exists('password', $formData)
+    ? (string) $formData['password']
+    : ($editRow['password'] ?? '');
 $selStatus = array_key_exists('status', $formData)
     ? (int) $formData['status']
     : ($editRow ? (int) $editRow['status'] : 1);
@@ -186,13 +189,15 @@ if (isset($_GET['msg'])) {
                 </div>
                 <div class="form-group">
                     <label for="assignPassword">Password <?php echo $editRow ? '' : '<span class="req" id="assignPassReq">*</span>'; ?></label>
-                    <input type="password" name="password" id="assignPassword" class="form-control" maxlength="100"
+                    <input type="text" name="password" id="assignPassword" class="form-control" maxlength="100"
                            <?php echo $editRow ? '' : 'required'; ?>
-                           placeholder="<?php echo $editRow ? 'Leave blank to keep current' : 'Set password (or leave blank if employee already has login)'; ?>"
-                           autocomplete="new-password">
+                           value="<?php echo htmlspecialchars($selPass); ?>"
+                           placeholder="<?php echo $editRow ? 'Current password shown · edit to change' : 'Set password (or leave blank if employee already has login)'; ?>"
+                           autocomplete="off"
+                           spellcheck="false">
                     <small class="form-hint" id="assignPassHint">
                         <?php echo $editRow
-                            ? 'Leave blank to keep current password'
+                            ? 'Password is visible for Admin · change and Save to update'
                             : 'If employee already has login, password is optional — role will be updated'; ?>
                     </small>
                 </div>
@@ -232,6 +237,7 @@ if (isset($_GET['msg'])) {
                         <th>Employee</th>
                         <th>Code</th>
                         <th>Username</th>
+                        <th>Password</th>
                         <th>Role</th>
                         <th>Department</th>
                         <th>Status</th>
@@ -241,7 +247,7 @@ if (isset($_GET['msg'])) {
                 <tbody>
                 <?php if (empty($assignments)): ?>
                     <tr>
-                        <td colspan="8" class="text-muted" style="text-align:center;padding:24px;">
+                        <td colspan="9" class="text-muted" style="text-align:center;padding:24px;">
                             No employee logins assigned yet.
                         </td>
                     </tr>
@@ -252,6 +258,7 @@ if (isset($_GET['msg'])) {
                             <td><strong><?php echo htmlspecialchars($a['employee_name'] ?? $a['full_name'] ?? '—'); ?></strong></td>
                             <td><?php echo htmlspecialchars($a['employee_code'] ?? '—'); ?></td>
                             <td><code><?php echo htmlspecialchars($a['username']); ?></code></td>
+                            <td><code class="assign-pass-show"><?php echo htmlspecialchars((string) ($a['password'] ?? '')); ?></code></td>
                             <td><?php echo htmlspecialchars($a['role_name'] ?? '—'); ?></td>
                             <td><?php echo htmlspecialchars($a['department_name'] ?? '—'); ?></td>
                             <td>

@@ -35,6 +35,7 @@ if (function_exists('isPortalUser') && isPortalUser()) {
     $uid = (int) ($_SESSION['user_id'] ?? 0);
     require_once __DIR__ . '/circular_helper.php';
     require_once __DIR__ . '/policy_helper.php';
+    require_once __DIR__ . '/leave_helper.php';
     if (function_exists('ensureCircularTables')) {
         ensureCircularTables();
         foreach (fetchUnreadCircularNotifications($uid, 8) as $n) {
@@ -56,6 +57,25 @@ if (function_exists('isPortalUser') && isPortalUser()) {
             $n['_url'] = app_url('policies/mark_read.php?id=' . (int) $n['id'] . '&go=view');
             $n['_icon'] = 'fa-scroll';
             $n['_label'] = 'Policy';
+            $headerNotifyItems[] = $n;
+        }
+    }
+    if (function_exists('ensureLeaveTables')) {
+        ensureLeaveTables();
+        foreach (fetchUnreadLeaveNotifications($uid, 8) as $n) {
+            $event = (string) ($n['event_type'] ?? '');
+            $n['_type'] = 'leave';
+            $n['_date'] = $n['notify_date'] ?? substr((string) ($n['created_at'] ?? ''), 0, 10);
+            $n['_dept_label'] = (string) ($n['body'] ?? '');
+            $n['_url'] = app_url('leave/mark_read.php?id=' . (int) $n['id']);
+            if ($event === 'Approved') {
+                $n['_icon'] = 'fa-circle-check';
+            } elseif ($event === 'Rejected') {
+                $n['_icon'] = 'fa-circle-xmark';
+            } else {
+                $n['_icon'] = 'fa-ban';
+            }
+            $n['_label'] = 'Leave · ' . ($event !== '' ? $event : 'Update');
             $headerNotifyItems[] = $n;
         }
     }
@@ -151,12 +171,14 @@ if (function_exists('isPortalUser') && isPortalUser()) {
                                 <a href="<?php echo app_url('circulars/mark_read.php?all=1'); ?>">Read circulars</a>
                                 ·
                                 <a href="<?php echo app_url('policies/mark_read.php?all=1'); ?>">Read policies</a>
+                                ·
+                                <a href="<?php echo app_url('leave/mark_read.php?all=1'); ?>">Read leave</a>
                             </span>
                         <?php endif; ?>
                     </div>
                     <div class="header-notify-body">
                         <?php if (!$headerNotifyItems): ?>
-                            <div class="header-notify-empty">No new circulars or policies</div>
+                            <div class="header-notify-empty">No new notifications</div>
                         <?php else: ?>
                             <?php foreach ($headerNotifyItems as $n): ?>
                                 <a class="header-notify-item" href="<?php echo htmlspecialchars($n['_url']); ?>">
@@ -166,7 +188,9 @@ if (function_exists('isPortalUser') && isPortalUser()) {
                                         <small>
                                             <?php echo htmlspecialchars($n['_label']); ?>
                                             · <?php echo htmlspecialchars(formatDateDisplay($n['_date'] ?? '')); ?>
-                                            · <?php echo htmlspecialchars($n['_dept_label'] ?? ''); ?>
+                                            <?php if (!empty($n['_dept_label'])): ?>
+                                                · <?php echo htmlspecialchars($n['_dept_label']); ?>
+                                            <?php endif; ?>
                                         </small>
                                     </span>
                                 </a>
@@ -177,6 +201,8 @@ if (function_exists('isPortalUser') && isPortalUser()) {
                         <a href="<?php echo app_url('circulars/index.php'); ?>">Circulars</a>
                         <span aria-hidden="true">·</span>
                         <a href="<?php echo app_url('policies/index.php'); ?>">Policies</a>
+                        <span aria-hidden="true">·</span>
+                        <a href="<?php echo app_url('leave/index.php'); ?>">My Leave</a>
                     </div>
                 </div>
             </div>

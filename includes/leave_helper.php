@@ -70,6 +70,23 @@ function ensureLeaveTables($conn = null)
         $conn->query("ALTER TABLE leave_requests ADD COLUMN leave_half VARCHAR(10) NOT NULL DEFAULT 'FULL' AFTER days");
     }
 
+    $conn->query(
+        "CREATE TABLE IF NOT EXISTS leave_notifications (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            leave_request_id INT NOT NULL,
+            user_id INT NOT NULL,
+            employee_id INT NOT NULL,
+            event_type VARCHAR(20) NOT NULL,
+            title VARCHAR(255) NOT NULL,
+            body VARCHAR(500) DEFAULT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            read_at DATETIME DEFAULT NULL,
+            INDEX idx_ln_user_unread (user_id, read_at),
+            INDEX idx_ln_request (leave_request_id),
+            INDEX idx_ln_employee (employee_id)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+    );
+
     if ($closeAfter) {
         $conn->close();
     }
@@ -866,6 +883,7 @@ function leaveApproveRequest($conn, $requestId, $userId, $remarks = '')
         leaveSyncDiaryBuckets($conn, $employeeId, $req['from_date'], $req['to_date']);
 
         $conn->commit();
+        leaveCreateStatusNotification($conn, $requestId, 'Approved');
     } catch (Throwable $e) {
         $conn->rollback();
         throw $e;
@@ -896,6 +914,7 @@ function leaveRejectRequest($conn, $requestId, $userId, $remarks = '')
     $st->bind_param('isi', $userId, $remarks, $requestId);
     $st->execute();
     $st->close();
+    leaveCreateStatusNotification($conn, $requestId, 'Rejected');
 }
 
 function leaveCancelApproved($conn, $requestId, $userId, $remarks = '')
@@ -962,6 +981,7 @@ function leaveCancelApproved($conn, $requestId, $userId, $remarks = '')
         }
         leaveSyncDiaryBuckets($conn, $employeeId, $req['from_date'], $req['to_date']);
         $conn->commit();
+        leaveCreateStatusNotification($conn, $requestId, 'Cancelled');
     } catch (Throwable $e) {
         $conn->rollback();
         throw $e;
@@ -1100,4 +1120,171 @@ function leaveEmployeesForSelect($departmentId = 0, $conn = null)
         $conn->close();
     }
     return $rows;
+}
+
+/**
+ * Create bell notification for the employee's portal login after leave action.
+ */
+function leaveCreateStatusNotification($conn, $requestId, $eventType)
+{
+    ensureLeaveTables($conn);
+    $requestId = (int) $requestId;
+    $eventType = trim((string) $eventType);
+    if ($requestId <= 0 || !in_array($eventType, ['Approved', 'Rejected', 'Cancelled'], true)) {
+        return false;
+    }
+
+    $stmt = $conn->prepare(
+        "SELECT lr.id, lr.employee_id, lr.from_date, lr.to_date, lr.days, lr.leave_half,
+                lt.code, lt.name AS leave_type_name,
+                e.employee_name
+         FROM leave_requests lr
+         INNER JOIN leave_types lt ON lt.id = lr.leave_type_id
+         INNER JOIN employees e ON e.id = lr.employee_id
+         WHERE lr.id = ?
+         LIMIT 1"
+    );
+    $stmt->bind_param('i', $requestId);
+    $stmt->execute();
+    $req = $stmt->get_result()->fetch_assoc();
+    $stmt->close();
+    if (!$req) {
+        return false;
+    }
+
+    $employeeId = (int) ($req['employee_id'] ?? 0);
+    if ($employeeId <= 0) {
+        return false;
+    }
+
+    $ust = $conn->prepare(
+        "SELECT id FROM users
+         WHERE employee_id = ? AND role = 'employee' AND status = 1
+         ORDER BY id DESC
+         LIMIT 1"
+    );
+    $ust->bind_param('i', $employeeId);
+    $ust->execute();
+    $userRow = $ust->get_result()->fetch_assoc();
+    $ust->close();
+    if (!$userRow) {
+        return false;
+    }
+    $notifyUserId = (int) $userRow['id'];
+
+    $code = trim((string) ($req['code'] ?? ''));
+    $typeName = trim((string) ($req['leave_type_name'] ?? ''));
+    $typeLabel = $code !== '' ? $code : ($typeName !== '' ? $typeName : 'Leave');
+    $from = (string) ($req['from_date'] ?? '');
+    $to = (string) ($req['to_date'] ?? '');
+    $fromShow = function_exists('formatDateDisplay') ? formatDateDisplay($from) : $from;
+    $toShow = function_exists('formatDateDisplay') ? formatDateDisplay($to) : $to;
+    $days = (float) ($req['days'] ?? 0);
+    $daysLabel = rtrim(rtrim(number_format($days, 2, '.', ''), '0'), '.');
+    $datePart = ($from === $to || $to === '')
+        ? $fromShow
+        : ($fromShow . ' to ' . $toShow);
+
+    if ($eventType === 'Approved') {
+        $title = 'Leave approved · ' . $typeLabel;
+        $body = $datePart . ' · ' . $daysLabel . ' day(s)';
+    } elseif ($eventType === 'Rejected') {
+        $title = 'Leave rejected · ' . $typeLabel;
+        $body = $datePart . ' · ' . $daysLabel . ' day(s)';
+    } else {
+        $title = 'Leave cancelled · ' . $typeLabel;
+        $body = $datePart . ' · ' . $daysLabel . ' day(s)';
+    }
+
+    $ins = $conn->prepare(
+        "INSERT INTO leave_notifications
+            (leave_request_id, user_id, employee_id, event_type, title, body, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, NOW())"
+    );
+    $ins->bind_param(
+        'iiisss',
+        $requestId,
+        $notifyUserId,
+        $employeeId,
+        $eventType,
+        $title,
+        $body
+    );
+    $ok = $ins->execute();
+    $ins->close();
+    return (bool) $ok;
+}
+
+/**
+ * @return array<int,array>
+ */
+function fetchUnreadLeaveNotifications($userId, $limit = 12)
+{
+    $userId = (int) $userId;
+    if ($userId <= 0) {
+        return [];
+    }
+    $conn = getDBConnection();
+    ensureLeaveTables($conn);
+    $limit = max(1, min(30, (int) $limit));
+    $st = $conn->prepare(
+        "SELECT id, leave_request_id, event_type, title, body, created_at,
+                DATE(created_at) AS notify_date
+         FROM leave_notifications
+         WHERE user_id = ?
+           AND read_at IS NULL
+         ORDER BY created_at DESC, id DESC
+         LIMIT {$limit}"
+    );
+    $st->bind_param('i', $userId);
+    $st->execute();
+    $res = $st->get_result();
+    $rows = [];
+    while ($row = $res->fetch_assoc()) {
+        $rows[] = $row;
+    }
+    $st->close();
+    $conn->close();
+    return $rows;
+}
+
+function markLeaveNotificationRead($notificationId, $userId)
+{
+    $notificationId = (int) $notificationId;
+    $userId = (int) $userId;
+    if ($notificationId <= 0 || $userId <= 0) {
+        return false;
+    }
+    $conn = getDBConnection();
+    ensureLeaveTables($conn);
+    $st = $conn->prepare(
+        "UPDATE leave_notifications
+         SET read_at = NOW()
+         WHERE id = ? AND user_id = ? AND read_at IS NULL"
+    );
+    $st->bind_param('ii', $notificationId, $userId);
+    $ok = $st->execute();
+    $st->close();
+    $conn->close();
+    return (bool) $ok;
+}
+
+function markAllLeaveNotificationsRead($userId)
+{
+    $userId = (int) $userId;
+    if ($userId <= 0) {
+        return false;
+    }
+    $conn = getDBConnection();
+    ensureLeaveTables($conn);
+    $st = $conn->prepare(
+        "UPDATE leave_notifications
+         SET read_at = NOW()
+         WHERE user_id = ? AND read_at IS NULL"
+    );
+    $st->bind_param('i', $userId);
+    $ok = $st->execute();
+    $st->close();
+    $conn->close();
+    return (bool) $ok;
 }

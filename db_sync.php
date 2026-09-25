@@ -17,6 +17,7 @@ require_once __DIR__ . '/includes/contractor_helper.php';
 require_once __DIR__ . '/includes/payroll_helper.php';
 require_once __DIR__ . '/includes/payroll_reports_helper.php';
 require_once __DIR__ . '/includes/attendance_helper.php';
+require_once __DIR__ . '/includes/biometric_helper.php';
 require_once __DIR__ . '/includes/department_icons.php';
 require_once __DIR__ . '/includes/department_helper.php';
 require_once __DIR__ . '/includes/leave_helper.php';
@@ -80,6 +81,9 @@ try {
 
     ensureAttendanceTables($conn);
     $log[] = 'Attendance tables ready (punches, day status, import batches, biometric_user_id).';
+
+    ensureBiometricTables($conn);
+    $log[] = 'Biometric machines ready (3 Armor Fire machines seeded + machine_attendance_logs).';
 
     ensureLeaveTables($conn);
     $log[] = 'Leave tables ready (employee leave balances, leave requests).';

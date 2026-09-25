@@ -818,7 +818,7 @@ function fetchEmployeePortalAssignments($roleId = 0)
     ensureRoleTables();
     $conn = getDBConnection();
     $roleId = (int) $roleId;
-    $sql = "SELECT u.id, u.username, u.full_name, u.custom_role_id, u.employee_id, u.department_id, u.status,
+    $sql = "SELECT u.id, u.username, u.password, u.full_name, u.custom_role_id, u.employee_id, u.department_id, u.status,
                    r.name AS role_name, e.employee_code, e.employee_name, d.department_name
             FROM users u
             LEFT JOIN roles r ON r.id = u.custom_role_id

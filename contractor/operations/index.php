@@ -37,8 +37,11 @@ if (isset($_GET['msg'])) {
             <a href="#" id="btnOpsPrint" class="btn-secondary" title="Print / PDF">
                 <i class="fa-solid fa-print"></i> Print PDF
             </a>
-            <a href="#" id="btnOpsExcel" class="btn-secondary" title="Excel">
-                <i class="fa-solid fa-file-excel"></i> Excel
+            <a href="#" id="btnOpsExcel" class="btn-secondary" title="Excel — all employees day-wise">
+                <i class="fa-solid fa-file-excel"></i> Excel (All Employees)
+            </a>
+            <a href="#" id="btnOpsExcelSummary" class="btn-secondary" title="Excel — product-wise summary">
+                <i class="fa-solid fa-table"></i> Excel Summary
             </a>
             <a href="<?php echo app_url('contractor/operations/edit.php'); ?>" class="btn-primary"><i class="fa-solid fa-plus"></i> Add</a>
         </div>
@@ -48,7 +51,7 @@ if (isset($_GET['msg'])) {
             <div class="master-list-icon" style="background:#F58220;"><i class="fa-solid fa-table"></i></div>
             <div>
                 <h1>Operations Rate List</h1>
-                <p>Search by operation, employee, month or year. Click Add to enter daily qty.</p>
+                <p>Filter by operation / month / year, then Excel (All Employees) for day-wise sheets of everyone together.</p>
             </div>
         </div>
     </div>
@@ -140,6 +143,13 @@ if (isset($_GET['msg'])) {
         e.preventDefault();
         window.location.href = window.C_OPS_EXCEL_URL + '?' + opsExportQs();
     });
+    var btnSum = document.getElementById('btnOpsExcelSummary');
+    if (btnSum) {
+        btnSum.addEventListener('click', function (e) {
+            e.preventDefault();
+            window.location.href = window.C_OPS_EXCEL_URL + '?' + opsExportQs() + '&mode=summary';
+        });
+    }
 </script>
 <?php
 $extraJs = [

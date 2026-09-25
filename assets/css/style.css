@@ -1,6 +1,6 @@
 /* =====================================================
    Armor Fire HRMS - Main Stylesheet
-   Professional ERP look ÃÂÃÂÃÂÃÂ· Brand orange #F58220
+   Professional ERP look ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ· Brand orange #F58220
    ===================================================== */
 
 :root {
@@ -1793,7 +1793,7 @@ input.js-date,
     letter-spacing: 0.02em;
 }
 
-/* Flatpickr ÃÂÃÂ¢ÃÂÃÂÃÂÃÂ month dropdown + year must stay clickable (no Select2 / no arrow overlap) */
+/* Flatpickr ÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ month dropdown + year must stay clickable (no Select2 / no arrow overlap) */
 .flatpickr-calendar {
     font-family: inherit;
     box-shadow: 0 12px 28px rgba(15, 23, 42, 0.18);
@@ -1840,7 +1840,7 @@ input.js-date,
     z-index: 5;
 }
 
-/* Native month <select> ÃÂÃÂ¢ÃÂÃÂÃÂÃÂ never hide / never Select2 */
+/* Native month <select> ÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ never hide / never Select2 */
 .flatpickr-current-month .flatpickr-monthDropdown-months,
 .flatpickr-calendar select.flatpickr-monthDropdown-months {
     display: inline-block !important;
@@ -2513,7 +2513,7 @@ input.js-date,
     display: none !important;
 }
 
-/* Keep save bar in flow ÃÂÃÂ¢ÃÂÃÂÃÂÃÂ sticky overlay was covering last grid rows */
+/* Keep save bar in flow ÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ sticky overlay was covering last grid rows */
 .sticky-actions {
     position: relative;
     bottom: auto;
@@ -2612,7 +2612,7 @@ input.js-date,
     background: #ffedd5;
 }
 
-/* Round MDTimePicker ÃÂÃÂ¢ÃÂÃÂÃÂÃÂ full screen center */
+/* Round MDTimePicker ÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ full screen center */
 .mdtimepicker {
     z-index: 120000 !important;
     display: flex !important;
@@ -2970,7 +2970,7 @@ body > .select2-container--open {
 }
 
 /* =====================================================
-   Employee Profile ÃÂÃÂ¢ÃÂÃÂÃÂÃÂ Professional ID Card
+   Employee Profile ÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ Professional ID Card
    ===================================================== */
 
 .toolbar-actions {
@@ -3126,12 +3126,14 @@ body > .select2-container--open {
     background: #0d9488;
 }
 
-.emp-photo-view-btn {
-    border: 0;
-    padding: 0;
-    cursor: zoom-in;
-    font: inherit;
-    color: inherit;
+.assign-pass-show {
+    font-size: 12px;
+    font-weight: 700;
+    color: #0f172a;
+    background: #fef3c7;
+    padding: 2px 8px;
+    border-radius: 6px;
+    letter-spacing: 0.02em;
 }
 button.emp-photo-view-btn.emp-avatar,
 button.emp-dash-avatar {
@@ -4155,7 +4157,7 @@ body.confirm-modal-open {
 }
 
 /* =====================================================
-   App Sidebar ÃÂÃÂ¢ÃÂÃÂÃÂÃÂ scrollable + toggle
+   App Sidebar ÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ scrollable + toggle
    ===================================================== */
 
 .has-app-sidebar {
@@ -4641,7 +4643,7 @@ body.confirm-modal-open {
 }
 
 /*
- * Body-attached open dropdowns must NEVER be width:100% ÃÂÃÂ¢ÃÂÃÂÃÂÃÂ
+ * Body-attached open dropdowns must NEVER be width:100% ÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ
  * that paints a full-viewport white layer (looks like blank page).
  */
 body > .select2-container {
@@ -4982,7 +4984,7 @@ body > .select2-container .select2-dropdown {
     max-width: 100% !important;
 }
 
-/* Native select hidden ÃÂÃÂ¢ÃÂÃÂÃÂÃÂ custom combo trigger shown instead (Select2 removed from grid) */
+/* Native select hidden ÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ custom combo trigger shown instead (Select2 removed from grid) */
 .ops-grid select.ops-combo-native,
 .ops-grid select.product-select.no-select2,
 .ops-grid select.grade-select.no-select2 {
@@ -5359,7 +5361,7 @@ body > .select2-container .select2-dropdown {
     z-index: 2;
 }
 
-/* Crosshair ÃÂÃÂ¢ÃÂÃÂÃÂÃÂ row (horizontal) + column (vertical) like reference */
+/* Crosshair ÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ row (horizontal) + column (vertical) like reference */
 .ops-grid tbody tr.cross-row > td {
     background: #fff7ed !important;
 }
@@ -5382,7 +5384,7 @@ body > .select2-container .select2-dropdown {
 .ops-grid tbody td.cross-cell {
     background: #fdba74 !important;
     box-shadow: inset 0 0 0 2px #F58220;
-    /* DO NOT set position:relative ÃÂÃÂ¢ÃÂÃÂÃÂÃÂ it overrides sticky and shifts Process sideways */
+    /* DO NOT set position:relative ÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ it overrides sticky and shifts Process sideways */
     z-index: 8;
 }
 
@@ -6430,7 +6432,7 @@ body.confirm-modal-open .flatpickr-calendar {
 }
 .header-notify-meta small { font-size: 11px; color: #64748b; line-height: 1.35; }
 
-/* Circular form ÃÂÃÂ¢ÃÂÃÂÃÂÃÂ Select2 multi departments (proper design) */
+/* Circular form ÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ Select2 multi departments (proper design) */
 .circ-dept-field {
     padding: 14px 16px;
     border: 1px solid #e2e8f0;
@@ -7156,7 +7158,7 @@ a.emp-dash-row:hover {
     color: #BE185D;
 }
 
-/* Monthly Join / Left ÃÂÃÂ¢ÃÂÃÂÃÂÃÂ same card family as leave balance */
+/* Monthly Join / Left ÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ same card family as leave balance */
 .emp-leave-bal-card.is-join {
     border-color: #93C5FD;
     background: linear-gradient(145deg, #EFF6FF 0%, #FFFFFF 55%);
@@ -7312,7 +7314,7 @@ a.emp-dash-row:hover {
     .emp-leave-bal-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
-/* Employee Matrix ÃÂÃÂ¢ÃÂÃÂÃÂÃÂ Heads directory */
+/* Employee Matrix ÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ Heads directory */
 .emp-matrix-card {
     margin-top: 16px;
     padding: 0;
@@ -7498,3 +7500,336 @@ a.emp-dash-row:hover {
     color: #C2410C;
     font-weight: 700;
 }
+
+/* —— Biometric Machines (Armor Fire) —— */
+.bio-stat-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 12px;
+    margin: 0 0 18px;
+}
+.bio-stat-grid-3 {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+.bio-stat {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 14px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+.bio-stat-label {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.4px;
+    text-transform: uppercase;
+    color: #64748b;
+}
+.bio-stat-value {
+    font-size: 22px;
+    font-weight: 800;
+    color: #0f172a;
+    line-height: 1.2;
+}
+.bio-stat-value-sm {
+    font-size: 15px;
+    font-weight: 700;
+}
+.bio-stat-sub {
+    font-size: 12px;
+    color: #94a3b8;
+}
+.bio-table-wrap {
+    margin-top: 4px;
+}
+.bio-machines-table td,
+.bio-logs-table td {
+    vertical-align: top;
+    font-size: 13px;
+}
+.bio-machine-name {
+    font-weight: 700;
+    color: #0f172a;
+}
+.bio-machine-code {
+    font-size: 11px;
+    color: #64748b;
+    margin-top: 2px;
+    font-family: ui-monospace, Consolas, monospace;
+}
+.bio-machine-note {
+    font-size: 11px;
+    color: #94a3b8;
+    margin-top: 4px;
+}
+.bio-provider {
+    display: inline-block;
+    padding: 3px 8px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 700;
+    background: #f1f5f9;
+    color: #334155;
+    border: 1px solid #e2e8f0;
+}
+.bio-provider-etimeoffice {
+    background: #ecfdf5;
+    color: #047857;
+    border-color: #a7f3d0;
+}
+.bio-provider-old_crm {
+    background: #eff6ff;
+    color: #1d4ed8;
+    border-color: #bfdbfe;
+}
+.bio-conn {
+    max-width: 280px;
+}
+.bio-url {
+    font-size: 11px;
+    color: #475569;
+    word-break: break-all;
+    line-height: 1.35;
+}
+.bio-meta {
+    font-size: 11px;
+    color: #94a3b8;
+    margin-top: 3px;
+}
+.bio-meta i {
+    width: 12px;
+    margin-right: 2px;
+}
+.bio-pwd-ok { color: #047857; }
+.bio-pwd-miss { color: #dc2626; }
+.bio-row-off {
+    opacity: 0.72;
+    background: #fafafa;
+}
+.bio-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    align-items: center;
+}
+.bio-inline-form {
+    display: inline;
+    margin: 0;
+}
+.bio-btn {
+    padding: 6px 9px !important;
+    min-width: 34px;
+    text-align: center;
+}
+.bio-btn-danger {
+    color: #dc2626 !important;
+    border-color: #fecaca !important;
+}
+.bio-btn-danger:hover {
+    background: #fef2f2 !important;
+}
+.bio-empty {
+    text-align: center;
+    padding: 28px 16px !important;
+    color: #64748b;
+}
+.bio-empty a {
+    color: #c2410c;
+    font-weight: 700;
+}
+.bio-section-title {
+    margin: 0;
+    font-size: 1.15rem;
+}
+.bio-check-label {
+    display: inline-flex !important;
+    align-items: center;
+    gap: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    margin-top: 8px;
+}
+.bio-check-label input {
+    width: 16px;
+    height: 16px;
+}
+.bio-sync-summary {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14px;
+    margin-top: 8px;
+    font-size: 13px;
+}
+.bio-sync-tips {
+    background: #fff7ed;
+    border: 1px solid #fed7aa;
+    border-radius: 8px;
+    padding: 12px 14px;
+    margin-top: 8px;
+    font-size: 13px;
+    color: #9a3412;
+}
+.bio-sync-tips ol {
+    margin: 8px 0 0;
+    padding-left: 18px;
+    line-height: 1.65;
+    color: #7c2d12;
+}
+.bio-filter-bar {
+    display: grid;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 10px;
+    align-items: end;
+    margin-bottom: 16px;
+    padding: 14px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+}
+.bio-filter-bar .form-group {
+    margin-bottom: 0;
+}
+.bio-filter-search {
+    grid-column: span 2;
+}
+.bio-filter-btns {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+.bio-punch {
+    display: inline-block;
+    min-width: 42px;
+    text-align: center;
+    padding: 3px 8px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.4px;
+}
+.bio-punch-in {
+    background: #ecfdf5;
+    color: #047857;
+    border: 1px solid #a7f3d0;
+}
+.bio-punch-out {
+    background: #fff7ed;
+    color: #c2410c;
+    border: 1px solid #fed7aa;
+}
+.bio-time {
+    font-variant-numeric: tabular-nums;
+    font-weight: 600;
+}
+.bio-emp-code {
+    font-weight: 700;
+    color: #0f172a;
+}
+.bio-emp-name {
+    font-size: 12px;
+    color: #64748b;
+    margin-top: 2px;
+}
+.bio-unmatched {
+    display: inline-block;
+    margin-top: 4px;
+    font-size: 10px;
+    font-weight: 700;
+    color: #dc2626;
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+    border-radius: 4px;
+    padding: 1px 6px;
+}
+.bio-pager {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 14px;
+    font-size: 13px;
+    color: #64748b;
+}
+.bio-pager-links {
+    display: flex;
+    gap: 8px;
+}
+@media (max-width: 1100px) {
+    .bio-stat-grid,
+    .bio-stat-grid-3 {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    .bio-filter-bar {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    .bio-filter-search {
+        grid-column: span 2;
+    }
+}
+@media (max-width: 640px) {
+    .bio-stat-grid,
+    .bio-stat-grid-3,
+    .bio-filter-bar {
+        grid-template-columns: 1fr;
+    }
+    .bio-filter-search {
+        grid-column: auto;
+    }
+}
+
+.bio-link-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 14px;
+    padding: 10px 12px;
+    background: #fff7ed;
+    border: 1px solid #fed7aa;
+    border-radius: 8px;
+}
+.bio-link-form {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+.bio-link-select {
+    font-size: 12px !important;
+    padding: 4px 8px !important;
+    min-width: 200px;
+}
+.bio-link-actions {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+}
+.bio-linked-ok {
+    display: inline-block;
+    margin-top: 4px;
+    font-size: 10px;
+    font-weight: 700;
+    color: #047857;
+    background: #ecfdf5;
+    border: 1px solid #a7f3d0;
+    border-radius: 4px;
+    padding: 1px 6px;
+}
+.machine-att-table td.machine-has-punch {
+    min-width: 88px;
+}
+.machine-punch-count {
+    display: block;
+    font-size: 9px;
+    font-weight: 700;
+    color: #c2410c;
+    margin-top: 2px;
+}
+.machine-att-table .att-cell-time {
+    display: block;
+    line-height: 1.25;
+    white-space: nowrap;
+}
+
