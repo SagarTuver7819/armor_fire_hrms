@@ -72,6 +72,29 @@ function ensureAttendanceTables($conn = null)
         $conn->query("ALTER TABLE attendance_day_status ADD COLUMN remarks VARCHAR(255) DEFAULT NULL AFTER source");
     }
 
+    // Late / early flex tracking (1 hour window · 2 flex / month · penalty → Half PL / LWP)
+    $colLate = $conn->query("SHOW COLUMNS FROM attendance_day_status LIKE 'is_late'");
+    if ($colLate && $colLate->num_rows === 0) {
+        $conn->query(
+            "ALTER TABLE attendance_day_status
+             ADD COLUMN is_late TINYINT(1) NOT NULL DEFAULT 0 AFTER remarks,
+             ADD COLUMN late_minutes INT NOT NULL DEFAULT 0 AFTER is_late,
+             ADD COLUMN late_seq INT NOT NULL DEFAULT 0 AFTER late_minutes,
+             ADD COLUMN shift_start TIME DEFAULT NULL AFTER late_seq"
+        );
+    }
+    $colEarly = $conn->query("SHOW COLUMNS FROM attendance_day_status LIKE 'is_early'");
+    if ($colEarly && $colEarly->num_rows === 0) {
+        $conn->query(
+            "ALTER TABLE attendance_day_status
+             ADD COLUMN is_early TINYINT(1) NOT NULL DEFAULT 0 AFTER shift_start,
+             ADD COLUMN early_minutes INT NOT NULL DEFAULT 0 AFTER is_early,
+             ADD COLUMN shift_end TIME DEFAULT NULL AFTER early_minutes,
+             ADD COLUMN flex_seq INT NOT NULL DEFAULT 0 AFTER shift_end,
+             ADD COLUMN penalty_leave VARCHAR(10) DEFAULT NULL AFTER flex_seq"
+        );
+    }
+
     $ready = true;
     if ($closeAfter) {
         $conn->close();
@@ -433,7 +456,10 @@ function attendanceRebuildDayStatus($conn, $employeeId, $month, $year)
     $to = sprintf('%04d-%02d-%02d', $year, $month, $monthDays);
 
     $emp = null;
-    $st = $conn->prepare('SELECT id, week_off_day, date_of_joining, date_of_exit, department_id FROM employees WHERE id = ? LIMIT 1');
+    $st = $conn->prepare(
+        'SELECT id, week_off_day, date_of_joining, date_of_exit, department_id, shift_type, shift_time
+         FROM employees WHERE id = ? LIMIT 1'
+    );
     $st->bind_param('i', $employeeId);
     $st->execute();
     $emp = $st->get_result()->fetch_assoc();
@@ -453,6 +479,25 @@ function attendanceRebuildDayStatus($conn, $employeeId, $month, $year)
         $exitDate = substr((string) $emp['date_of_exit'], 0, 10);
     }
 
+    $shifts = [];
+    if (function_exists('getActiveMasterRows')) {
+        if (!function_exists('ensureMasterTables') && is_file(__DIR__ . '/master_helper.php')) {
+            require_once __DIR__ . '/master_helper.php';
+        }
+        if (function_exists('getActiveMasterRows')) {
+            $shifts = getActiveMasterRows('shifts', 'name ASC');
+        }
+    }
+    $shiftResolved = attendanceResolveEmployeeShiftTimes($emp, $shifts);
+    $shiftStartHms = attendanceNormalizeInputTime($shiftResolved['in'] ?? '9:00 AM') ?: '09:00:00';
+    $shiftEndHms = attendanceNormalizeInputTime($shiftResolved['out'] ?? '6:00 PM') ?: '18:00:00';
+    $flexWindow = attendanceFlexWindowMinutes();
+    $flexAllowed = attendanceFlexAllowedPerMonth();
+    $flexUsedMonth = 0;
+
+    // PL remaining for flex penalties (exclude this month's auto_flex — rebuilt below)
+    $plRemain = attendanceFlexPlRemaining($conn, $employeeId, $year, $month);
+
     $punchesByDate = [];
     $st = $conn->prepare(
         "SELECT attendance_date, punch_time, punch_type
@@ -469,26 +514,63 @@ function attendanceRebuildDayStatus($conn, $employeeId, $month, $year)
     }
     $st->close();
 
+    // Preserve approved leave days (DL / PL / etc.) — biometric often missing on Duty Leave
+    $leaveProtected = [];
+    $lp = $conn->prepare(
+        "SELECT attendance_date, day_status, punch_in, punch_out, working_minutes, remarks
+         FROM attendance_day_status
+         WHERE employee_id = ?
+           AND attendance_date BETWEEN ? AND ?
+           AND source = 'leave'
+           AND day_status IN ('Leave', 'Half Day')"
+    );
+    $lp->bind_param('iss', $employeeId, $from, $to);
+    $lp->execute();
+    $lpRes = $lp->get_result();
+    while ($lr = $lpRes->fetch_assoc()) {
+        $leaveProtected[$lr['attendance_date']] = $lr;
+    }
+    $lp->close();
+
     $summary = [
         'present' => 0.0,
         'half_day' => 0.0,
         'week_off' => 0.0,
         'holiday' => 0.0,
         'leave' => 0.0,
+        'lwp' => 0.0,
         'absent' => 0.0,
         'working_minutes' => 0,
+        'late_count' => 0,
+        'early_count' => 0,
+        'flex_used' => 0,
+        'flex_penalty_pl' => 0.0,
+        'flex_penalty_lwp' => 0.0,
+        'late_half_days' => 0,
     ];
 
     $upsert = $conn->prepare(
         "INSERT INTO attendance_day_status
-            (employee_id, attendance_date, day_status, punch_in, punch_out, working_minutes, source)
-         VALUES (?, ?, ?, ?, ?, ?, 'import')
+            (employee_id, attendance_date, day_status, punch_in, punch_out, working_minutes,
+             source, remarks, is_late, late_minutes, late_seq, shift_start,
+             is_early, early_minutes, shift_end, flex_seq, penalty_leave)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
          ON DUPLICATE KEY UPDATE
             day_status = VALUES(day_status),
             punch_in = VALUES(punch_in),
             punch_out = VALUES(punch_out),
             working_minutes = VALUES(working_minutes),
-            source = VALUES(source)"
+            source = VALUES(source),
+            remarks = VALUES(remarks),
+            is_late = VALUES(is_late),
+            late_minutes = VALUES(late_minutes),
+            late_seq = VALUES(late_seq),
+            shift_start = VALUES(shift_start),
+            is_early = VALUES(is_early),
+            early_minutes = VALUES(early_minutes),
+            shift_end = VALUES(shift_end),
+            flex_seq = VALUES(flex_seq),
+            penalty_leave = VALUES(penalty_leave)"
     );
 
     for ($day = 1; $day <= $monthDays; $day++) {
@@ -498,13 +580,60 @@ function attendanceRebuildDayStatus($conn, $employeeId, $month, $year)
         $isHoliday = isset($holidays[$date]);
         $list = $punchesByDate[$date] ?? [];
 
-        // Outside joining → exit window: do not count present / week-off / holiday
+        // Keep leave-marked days (DL / PL / applied LWP etc.) — biometric may be missing
+        if (isset($leaveProtected[$date])) {
+            $prot = $leaveProtected[$date];
+            $stLeave = (string) ($prot['day_status'] ?? 'Leave');
+            $remLeave = strtoupper((string) ($prot['remarks'] ?? ''));
+            if ($stLeave === 'Half Day') {
+                $summary['half_day'] += 1;
+                $summary['leave'] += 0.5;
+            } elseif (strpos($remLeave, 'LWP') !== false) {
+                $summary['lwp'] += 1;
+            } else {
+                $summary['leave'] += 1;
+            }
+            continue;
+        }
+
+        $isLate = 0;
+        $lateMinutes = 0;
+        $lateSeq = 0;
+        $isEarly = 0;
+        $earlyMinutes = 0;
+        $flexSeq = 0;
+        $penaltyLeave = null;
+        $shiftStartStore = $shiftStartHms;
+        $shiftEndStore = $shiftEndHms;
+
+        // Outside joining → exit window: do not count present / week-off / holiday / LWP
         if (($joinDate !== '' && $date < $joinDate) || ($exitDate !== '' && $date > $exitDate)) {
             $status = 'Absent';
             $punchIn = null;
             $punchOut = null;
             $minutes = 0;
-            $upsert->bind_param('issssi', $employeeId, $date, $status, $punchIn, $punchOut, $minutes);
+            $source = 'import';
+            $remarks = null;
+            $upsert->bind_param(
+                'issssissiiisiisis',
+                $employeeId,
+                $date,
+                $status,
+                $punchIn,
+                $punchOut,
+                $minutes,
+                $source,
+                $remarks,
+                $isLate,
+                $lateMinutes,
+                $lateSeq,
+                $shiftStartStore,
+                $isEarly,
+                $earlyMinutes,
+                $shiftEndStore,
+                $flexSeq,
+                $penaltyLeave
+            );
             $upsert->execute();
             continue;
         }
@@ -531,9 +660,14 @@ function attendanceRebuildDayStatus($conn, $employeeId, $month, $year)
             $minutes = attendanceWorkingMinutes($date, $punchIn, $punchOut);
         }
 
+        $source = 'import';
+        $remarks = null;
+        $wasShortHalf = false;
+
         if ($list) {
             if ($minutes > 0 && $minutes < 240) {
                 $status = 'Half Day';
+                $wasShortHalf = true;
                 $summary['half_day'] += 1;
                 $summary['present'] += 0.5;
             } else {
@@ -541,6 +675,84 @@ function attendanceRebuildDayStatus($conn, $employeeId, $month, $year)
                 $summary['present'] += 1;
             }
             $summary['working_minutes'] += $minutes;
+
+            // Flex: ≤1h late OR ≤1h early, max 2/month total; both same day not allowed
+            $flex = attendanceEvaluateFlexDay($punchIn, $punchOut, $shiftStartHms, $shiftEndHms, $flexWindow);
+            $isLate = (int) ($flex['is_late'] ?? 0);
+            $lateMinutes = (int) ($flex['late_minutes'] ?? 0);
+            $isEarly = (int) ($flex['is_early'] ?? 0);
+            $earlyMinutes = (int) ($flex['early_minutes'] ?? 0);
+            if ($isLate) {
+                $summary['late_count'] += 1;
+            }
+            if ($isEarly) {
+                $summary['early_count'] += 1;
+            }
+
+            $needsPenalty = false;
+            $penaltyReason = '';
+            $halfTag = (string) ($flex['half'] ?? 'FHL');
+
+            if (!empty($flex['both_same_day'])) {
+                $needsPenalty = true;
+                $penaltyReason = 'Late + Early same day';
+            } elseif (!empty($flex['late_excess']) || !empty($flex['early_excess'])) {
+                $needsPenalty = true;
+                $parts = [];
+                if (!empty($flex['late_excess'])) {
+                    $parts[] = 'Late >' . $flexWindow . 'm';
+                }
+                if (!empty($flex['early_excess'])) {
+                    $parts[] = 'Early >' . $flexWindow . 'm';
+                }
+                $penaltyReason = implode(' · ', $parts);
+            } elseif (!empty($flex['uses_flex'])) {
+                $flexUsedMonth++;
+                $flexSeq = $flexUsedMonth;
+                $lateSeq = $isLate ? $flexUsedMonth : 0;
+                $summary['flex_used'] = $flexUsedMonth;
+                if ($flexUsedMonth > $flexAllowed) {
+                    $needsPenalty = true;
+                    $penaltyReason = 'Flex #' . $flexUsedMonth . ' (max ' . $flexAllowed . '/month)';
+                } else {
+                    $bits = [];
+                    if ($isLate) {
+                        $bits[] = 'Late ' . $lateMinutes . 'm';
+                    }
+                    if ($isEarly) {
+                        $bits[] = 'Early ' . $earlyMinutes . 'm';
+                    }
+                    $remarks = implode(' · ', $bits) . ' · Flex #' . $flexUsedMonth . '/' . $flexAllowed;
+                }
+            }
+
+            if ($needsPenalty) {
+                $leaveCode = ($plRemain >= 0.5) ? 'PL' : 'LWP';
+                $penaltyLeave = $leaveCode;
+                $source = 'auto_flex';
+                if ($status === 'Present') {
+                    $summary['present'] -= 1;
+                    $summary['present'] += 0.5;
+                    $summary['half_day'] += 1;
+                    $status = 'Half Day';
+                } elseif (!$wasShortHalf && $status !== 'Half Day') {
+                    $status = 'Half Day';
+                    $summary['half_day'] += 1;
+                    $summary['present'] += 0.5;
+                }
+                $remarks = $leaveCode . ' ' . $halfTag . ' · Flex penalty · ' . $penaltyReason;
+                $summary['late_half_days'] += 1;
+                if ($leaveCode === 'PL') {
+                    $plRemain = round($plRemain - 0.5, 2);
+                    $summary['flex_penalty_pl'] += 0.5;
+                    $summary['leave'] += 0.5;
+                } else {
+                    $summary['flex_penalty_lwp'] += 0.5;
+                    $summary['lwp'] += 0.5;
+                }
+            } elseif ($wasShortHalf && $remarks) {
+                $remarks = 'Half Day (<4h) · ' . $remarks;
+            }
         } elseif ($isHoliday) {
             $status = 'Holiday';
             $summary['holiday'] += 1;
@@ -548,14 +760,68 @@ function attendanceRebuildDayStatus($conn, $employeeId, $month, $year)
             $status = 'Week Off';
             $summary['week_off'] += 1;
         } else {
-            $status = 'Absent';
+            // No attendance + not holiday + not week-off + no leave → auto LWP (unpaid)
+            $status = 'Leave';
+            $source = 'auto_lwp';
+            $remarks = 'LWP';
+            $summary['lwp'] += 1;
             $summary['absent'] += 1;
         }
 
-        $upsert->bind_param('issssi', $employeeId, $date, $status, $punchIn, $punchOut, $minutes);
+        $upsert->bind_param(
+            'issssissiiisiisis',
+            $employeeId,
+            $date,
+            $status,
+            $punchIn,
+            $punchOut,
+            $minutes,
+            $source,
+            $remarks,
+            $isLate,
+            $lateMinutes,
+            $lateSeq,
+            $shiftStartStore,
+            $isEarly,
+            $earlyMinutes,
+            $shiftEndStore,
+            $flexSeq,
+            $penaltyLeave
+        );
         $upsert->execute();
     }
     $upsert->close();
+
+    // Mirror auto LWP + flex PL into leave balances
+    if (!function_exists('leaveSyncLwpUsedFromAttendance') && is_file(__DIR__ . '/leave_helper.php')) {
+        require_once __DIR__ . '/leave_helper.php';
+    }
+    if (function_exists('leaveSyncLwpUsedFromAttendance')) {
+        try {
+            leaveSyncLwpUsedFromAttendance($conn, $employeeId, $month, $year, (float) ($summary['lwp'] ?? 0));
+        } catch (Throwable $e) {
+            // non-fatal
+        }
+    }
+    if (function_exists('leaveSyncPlUsedFromAttendance')) {
+        try {
+            leaveSyncPlUsedFromAttendance($conn, $employeeId, $year);
+        } catch (Throwable $e) {
+            // non-fatal
+        }
+    }
+
+    // C-Off: calendar Week Off / Holiday work → 4h=0.5 day, 8h=1 day
+    if (function_exists('coffSyncFromAttendanceMonth') || is_file(__DIR__ . '/coff_helper.php')) {
+        if (!function_exists('coffSyncFromAttendanceMonth')) {
+            require_once __DIR__ . '/coff_helper.php';
+        }
+        try {
+            coffSyncFromAttendanceMonth($conn, $employeeId, $month, $year);
+        } catch (Throwable $e) {
+            // non-fatal — attendance rebuild should still succeed
+        }
+    }
 
     return $summary;
 }
@@ -571,7 +837,10 @@ function attendanceSyncSalaryDiary($conn, $employeeId, $month, $year, array $sum
     $weekOff = round((float) ($summary['week_off'] ?? 0), 2);
     $holidayDays = round((float) ($summary['holiday'] ?? 0), 2);
     $otHours = round(((int) ($summary['working_minutes'] ?? 0)) / 60, 2);
-    $hasLeaveFromAtt = array_key_exists('pl', $summary) || array_key_exists('sl', $summary) || array_key_exists('dl', $summary);
+    $hasPaidLeaveFromAtt = array_key_exists('pl', $summary)
+        || array_key_exists('sl', $summary)
+        || array_key_exists('dl', $summary);
+    $hasLwpFromAtt = array_key_exists('lwp', $summary);
 
     // Preserve leave / loan / advance / arrears if diary already exists (unless attendance supplied leave days)
     $existing = null;
@@ -581,23 +850,34 @@ function attendanceSyncSalaryDiary($conn, $employeeId, $month, $year, array $sum
     $existing = $st->get_result()->fetch_assoc();
     $st->close();
 
-    $pl = $hasLeaveFromAtt ? round((float) ($summary['pl'] ?? 0), 2) : ($existing ? (float) ($existing['pl_days'] ?? 0) : 0);
-    $sl = $hasLeaveFromAtt ? round((float) ($summary['sl'] ?? 0), 2) : ($existing ? (float) ($existing['sl_days'] ?? 0) : 0);
-    $dl = $hasLeaveFromAtt ? round((float) ($summary['dl'] ?? 0), 2) : ($existing ? (float) ($existing['dl_days'] ?? 0) : 0);
+    $pl = $hasPaidLeaveFromAtt ? round((float) ($summary['pl'] ?? 0), 2) : ($existing ? (float) ($existing['pl_days'] ?? 0) : 0);
+    $sl = $hasPaidLeaveFromAtt ? round((float) ($summary['sl'] ?? 0), 2) : ($existing ? (float) ($existing['sl_days'] ?? 0) : 0);
+    $dl = $hasPaidLeaveFromAtt ? round((float) ($summary['dl'] ?? 0), 2) : ($existing ? (float) ($existing['dl_days'] ?? 0) : 0);
+    $lwp = $hasLwpFromAtt ? round((float) ($summary['lwp'] ?? 0), 2) : ($existing ? (float) ($existing['lwp_days'] ?? 0) : 0);
     $loan = $existing ? (float) ($existing['loan_amount'] ?? 0) : 0;
     $advance = $existing ? (float) ($existing['advance_amount'] ?? 0) : 0;
     $arrears = $existing ? (float) ($existing['arrears_amount'] ?? 0) : 0;
     $remarks = $existing ? ($existing['remarks'] ?? null) : 'Synced from attendance';
+    if ($lwp > 0) {
+        $remarks = trim((string) $remarks);
+        if ($remarks === '' || $remarks === null) {
+            $remarks = 'LWP ' . $lwp . ' day(s) unpaid';
+        } elseif (stripos($remarks, 'LWP') === false) {
+            $remarks .= ' · LWP ' . $lwp . ' day(s) unpaid';
+        }
+    }
 
     if (function_exists('ensurePayrollColumn')) {
         ensurePayrollColumn($conn, 'salary_diary', 'holiday_days', 'holiday_days DECIMAL(6,2) NOT NULL DEFAULT 0 AFTER week_off_days');
+        ensurePayrollColumn($conn, 'salary_diary', 'lwp_days', 'lwp_days DECIMAL(6,2) NOT NULL DEFAULT 0 AFTER dl_days');
     }
 
     $stmt = $conn->prepare(
         "INSERT INTO salary_diary
-            (employee_id, month_no, year_no, working_days, present_days, week_off_days, holiday_days, pl_days, sl_days, dl_days,
+            (employee_id, month_no, year_no, working_days, present_days, week_off_days, holiday_days,
+             pl_days, sl_days, dl_days, lwp_days,
              overtime_hours, loan_amount, advance_amount, arrears_amount, remarks)
-         VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+         VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
          ON DUPLICATE KEY UPDATE
             working_days = VALUES(working_days),
             present_days = VALUES(present_days),
@@ -606,12 +886,13 @@ function attendanceSyncSalaryDiary($conn, $employeeId, $month, $year, array $sum
             pl_days = VALUES(pl_days),
             sl_days = VALUES(sl_days),
             dl_days = VALUES(dl_days),
+            lwp_days = VALUES(lwp_days),
             overtime_hours = VALUES(overtime_hours),
             remarks = VALUES(remarks)"
     );
     $working = (float) $monthDays;
     $stmt->bind_param(
-        'iiiddddddddddds',
+        'iiidddddddddddds',
         $employeeId,
         $month,
         $year,
@@ -622,6 +903,7 @@ function attendanceSyncSalaryDiary($conn, $employeeId, $month, $year, array $sum
         $pl,
         $sl,
         $dl,
+        $lwp,
         $otHours,
         $loan,
         $advance,
@@ -753,6 +1035,7 @@ function ensurePayrollDiaryFromAttendance($employeeId, $month, $year, $conn = nu
         'pl' => (float) $totals['PL'],
         'sl' => (float) $totals['SL'],
         'dl' => (float) $totals['DL'],
+        'lwp' => (float) $totals['LWP'],
         'working_minutes' => $workingMinutes,
     ];
 
@@ -1140,6 +1423,11 @@ function attendanceAddDayToLeaveTotals(array &$totals, $status, $leaveType = '',
             $leaveKey = 'PL';
         }
         $totals[$leaveKey] += $inc;
+        return;
+    }
+    if ($status === 'Absent') {
+        // Working-day absence without leave = LWP (unpaid)
+        $totals['LWP'] += 1.0;
     }
 }
 
@@ -1225,7 +1513,7 @@ function attendanceBuildEmployeeMonthTotals(array $emp, array &$dayMapByDate, $m
             continue;
         }
 
-        // No attendance mark → apply employee Week Off from calendar
+        // No attendance mark → Week Off, else auto LWP (unpaid)
         if ($status === '') {
             if ($isCalWeekOff) {
                 $status = 'Week Off';
@@ -1240,7 +1528,28 @@ function attendanceBuildEmployeeMonthTotals(array $emp, array &$dayMapByDate, $m
                     '_virtual' => 1,
                 ];
                 attendanceAddDayToLeaveTotals($totals, $status);
+            } elseif (!$isCalHoliday) {
+                $dayMapByDate[$date] = [
+                    'employee_id' => (int) ($emp['id'] ?? 0),
+                    'attendance_date' => $date,
+                    'day_status' => 'Leave',
+                    'punch_in' => null,
+                    'punch_out' => null,
+                    'remarks' => 'LWP',
+                    'working_minutes' => 0,
+                    '_virtual' => 1,
+                    '_auto_lwp' => 1,
+                ];
+                attendanceAddDayToLeaveTotals($totals, 'Leave', 'LWP');
             }
+            continue;
+        }
+
+        // Plain Absent on working day → LWP
+        if ($status === 'Absent' && !$isCalWeekOff && !$isCalHoliday) {
+            $dayMapByDate[$date]['remarks'] = 'LWP';
+            $dayMapByDate[$date]['day_status'] = 'Leave';
+            attendanceAddDayToLeaveTotals($totals, 'Leave', 'LWP');
             continue;
         }
 
@@ -1445,12 +1754,13 @@ function attendanceRenderExcelMonthTableHtml(array $grid, array $opts = [])
     $html .= '<th style="' . $sumStyle . '">DL</th>';
     $html .= '<th style="' . $sumStyle . '">C-Off</th>';
     $html .= '<th style="' . $sumStyle . '">Holiday</th>';
+    $html .= '<th style="' . $sumStyle . '">LWP</th>';
     $html .= '<th style="' . $sumStyle . '">Total Days</th>';
     $html .= '<th style="' . $sumStyle . '">Total Pay Days</th>';
     $html .= '</tr></thead><tbody>';
 
     if (!$employees) {
-        $cols = 5 + $monthDays + 9;
+        $cols = 5 + $monthDays + 10;
         $html .= '<tr><td colspan="' . $cols . '">No employees found.</td></tr>';
     }
 
@@ -1484,6 +1794,7 @@ function attendanceRenderExcelMonthTableHtml(array $grid, array $opts = [])
         $html .= '<td style="text-align:center;">' . htmlspecialchars(attendanceFormatLeaveTotal($totals['DL'] ?? 0)) . '</td>';
         $html .= '<td style="text-align:center;">' . htmlspecialchars(attendanceFormatLeaveTotal($totals['C-Off'] ?? 0)) . '</td>';
         $html .= '<td style="text-align:center;">' . htmlspecialchars(attendanceFormatLeaveTotal($totals['holiday'] ?? 0)) . '</td>';
+        $html .= '<td style="text-align:center;">' . htmlspecialchars(attendanceFormatLeaveTotal($totals['LWP'] ?? 0)) . '</td>';
         $html .= '<td style="text-align:center;">' . htmlspecialchars(attendanceFormatLeaveTotal($totals['total_days'] ?? 0) !== '' ? attendanceFormatLeaveTotal($totals['total_days'] ?? 0) : '0') . '</td>';
         $html .= '<td style="text-align:center;">' . htmlspecialchars(attendanceFormatLeaveTotal($totals['total_pay_days'] ?? 0) !== '' ? attendanceFormatLeaveTotal($totals['total_pay_days'] ?? 0) : '0') . '</td>';
         $html .= '</tr>';
@@ -1521,9 +1832,24 @@ function attendanceRenderDayCellTd($day, $export = false)
         $bg = '#fff7ed';
         $fg = '#c2410c';
     } elseif ($status === 'Leave') {
-        $cssClass .= ' is-leave';
-        $bg = '#fef2f2';
-        $fg = '#b91c1c';
+        $lt = strtoupper((string) ($parsed['leave_type'] ?? ''));
+        if ($lt === 'LWP') {
+            $cssClass .= ' is-lwp';
+            $bg = '#450a0a';
+            $fg = '#fecaca';
+            if (!$export) {
+                $bg = '#7f1d1d';
+                $fg = '#fee2e2';
+            }
+        } else {
+            $cssClass .= ' is-leave';
+            $bg = '#fef2f2';
+            $fg = '#b91c1c';
+        }
+    } elseif ($status === 'Absent') {
+        $cssClass .= ' is-lwp';
+        $bg = '#7f1d1d';
+        $fg = '#fee2e2';
     } elseif ($status === 'Week Off') {
         $cssClass .= ' is-weekoff';
         $bg = '#f1f5f9';
@@ -1532,10 +1858,6 @@ function attendanceRenderDayCellTd($day, $export = false)
         $cssClass .= ' is-holiday';
         $bg = '#eff6ff';
         $fg = '#1d4ed8';
-    } elseif ($status === 'Absent') {
-        $cssClass .= ' is-absent';
-        $bg = '#fee2e2';
-        $fg = '#991b1b';
     }
 
     $lines = $text !== '' ? preg_split("/\r\n|\n|\r/", $text) : [];
@@ -1621,7 +1943,7 @@ function attendanceExcelCellPreview($status, $punchIn, $punchOut, $leaveType = '
         return 'Holiday';
     }
     if ($status === 'Absent') {
-        return 'Absent';
+        return 'LWP';
     }
     if ($status === 'Leave' && ($leaveHalf === '' || $leaveHalf === 'FULL')) {
         return $leaveType !== '' ? $leaveType : 'Leave';
@@ -1818,4 +2140,328 @@ function attendanceSaveManualDay($conn, $employeeId, $date, $status, $punchIn, $
         ensurePayrollDiaryFromAttendance($employeeId, $m, $y, $conn);
     }
     return true;
+}
+
+/** Flex window after shift start / before shift end (1 hour). */
+function attendanceFlexWindowMinutes()
+{
+    return 60;
+}
+
+/** Shared late-or-early flex uses allowed per calendar month. */
+function attendanceFlexAllowedPerMonth()
+{
+    return 2;
+}
+
+/** @deprecated use attendanceFlexWindowMinutes */
+function attendanceGraceMinutes()
+{
+    return attendanceFlexWindowMinutes();
+}
+
+/** @deprecated use attendanceFlexAllowedPerMonth */
+function attendanceLateAllowedPerMonth()
+{
+    return attendanceFlexAllowedPerMonth();
+}
+
+/**
+ * Convert TIME / "9:00 AM" / "09:00" to minutes from midnight (0–1439), or null.
+ */
+function attendanceTimeToMinutes($time)
+{
+    $time = trim((string) $time);
+    if ($time === '') {
+        return null;
+    }
+    $norm = attendanceNormalizeInputTime($time);
+    if ($norm === null) {
+        $ts = strtotime($time);
+        if ($ts === false) {
+            return null;
+        }
+        $norm = date('H:i:s', $ts);
+    }
+    $parts = explode(':', $norm);
+    if (count($parts) < 2) {
+        return null;
+    }
+    return ((int) $parts[0] * 60) + (int) $parts[1];
+}
+
+/**
+ * How many minutes punch-in is after shift start (0 if on/early).
+ */
+function attendanceMinutesAfterShiftStart($punchIn, $shiftStart)
+{
+    $p = attendanceTimeToMinutes($punchIn);
+    $s = attendanceTimeToMinutes($shiftStart);
+    if ($p === null || $s === null) {
+        return 0;
+    }
+    $diff = $p - $s;
+    if ($diff < -720) {
+        $diff += 1440;
+    }
+    return max(0, $diff);
+}
+
+/**
+ * How many minutes punch-out is before shift end (0 if on time / stayed late).
+ */
+function attendanceMinutesBeforeShiftEnd($punchOut, $shiftEnd)
+{
+    $p = attendanceTimeToMinutes($punchOut);
+    $e = attendanceTimeToMinutes($shiftEnd);
+    if ($p === null || $e === null) {
+        return 0;
+    }
+    $diff = $e - $p;
+    if ($diff < -720) {
+        $diff += 1440;
+    }
+    return max(0, $diff);
+}
+
+/**
+ * Evaluate late arrival / early exit vs flex window.
+ *
+ * @return array{
+ *   is_late:int,late_minutes:int,is_early:int,early_minutes:int,
+ *   late_excess:bool,early_excess:bool,both_same_day:bool,uses_flex:bool,half:string
+ * }
+ */
+function attendanceEvaluateFlexDay($punchIn, $punchOut, $shiftStart, $shiftEnd, $windowMin = 60)
+{
+    $windowMin = max(1, (int) $windowMin);
+    $lateMin = $punchIn ? attendanceMinutesAfterShiftStart($punchIn, $shiftStart) : 0;
+    $earlyMin = $punchOut ? attendanceMinutesBeforeShiftEnd($punchOut, $shiftEnd) : 0;
+    $isLate = $lateMin > 0 ? 1 : 0;
+    $isEarly = $earlyMin > 0 ? 1 : 0;
+    $lateExcess = $lateMin > $windowMin;
+    $earlyExcess = $earlyMin > $windowMin;
+    $both = ($isLate === 1 && $isEarly === 1);
+    // Allowed flex use: late XOR early, within window (not excess, not both)
+    $usesFlex = !$both && (($isLate && !$lateExcess) || ($isEarly && !$earlyExcess));
+    $half = 'FHL';
+    if ($isEarly && !$isLate) {
+        $half = 'SHL';
+    } elseif ($both || $isLate) {
+        $half = 'FHL';
+    }
+
+    return [
+        'is_late' => $isLate,
+        'late_minutes' => $lateMin,
+        'is_early' => $isEarly,
+        'early_minutes' => $earlyMin,
+        'late_excess' => $lateExcess,
+        'early_excess' => $earlyExcess,
+        'both_same_day' => $both,
+        'uses_flex' => $usesFlex,
+        'half' => $half,
+    ];
+}
+
+/**
+ * PL days remaining for flex penalty (approved + other-month auto_flex already deducted).
+ * Excludes auto_flex in $excludeMonth so rebuild can re-apply.
+ */
+function attendanceFlexPlRemaining($conn, $employeeId, $year, $excludeMonth = null)
+{
+    $employeeId = (int) $employeeId;
+    $year = (int) $year;
+    $excludeMonth = $excludeMonth !== null ? (int) $excludeMonth : 0;
+    if ($employeeId <= 0 || $year < 2000) {
+        return 0.0;
+    }
+    if (!function_exists('leaveEnsureBalanceRow') && is_file(__DIR__ . '/leave_helper.php')) {
+        require_once __DIR__ . '/leave_helper.php';
+    }
+    if (!function_exists('leaveEnsureBalanceRow')) {
+        return 0.0;
+    }
+    ensureLeaveTables($conn);
+    $ltRes = $conn->query("SELECT id FROM leave_types WHERE status = 1 AND UPPER(TRIM(code)) = 'PL' LIMIT 1");
+    $lt = $ltRes ? $ltRes->fetch_assoc() : null;
+    $ltId = $lt ? (int) $lt['id'] : 0;
+    if ($ltId <= 0) {
+        return 0.0;
+    }
+    leaveEnsureBalanceRow($conn, $employeeId, $ltId, $year);
+    if (function_exists('leaveRefreshMonthlyAccrual')) {
+        leaveRefreshMonthlyAccrual($conn, $employeeId, $ltId, $year);
+    }
+    $bal = leaveGetBalance($conn, $employeeId, $ltId, $year);
+    $credit = round(
+        (float) ($bal['opening_days'] ?? 0)
+        + (float) ($bal['credited_days'] ?? 0)
+        + (float) ($bal['adjusted_days'] ?? 0),
+        2
+    );
+    $approved = leaveSumApprovedDays($conn, $employeeId, $ltId, $year);
+    $flexOther = leaveSumFlexPlHalfDays($conn, $employeeId, $year, $excludeMonth);
+    return max(0.0, round($credit - $approved - $flexOther, 2));
+}
+
+/**
+ * Late / Early flex report.
+ *
+ * @return array{rows:array,summary_rows:array,totals:array,policy:array}
+ */
+function attendanceLatePunchReport($year, $month, $deptId = 0, $employeeId = 0, $conn = null)
+{
+    $closeAfter = false;
+    if ($conn === null) {
+        $conn = getDBConnection();
+        $closeAfter = true;
+    }
+    ensureAttendanceTables($conn);
+
+    $year = (int) $year;
+    $month = (int) $month;
+    $deptId = (int) $deptId;
+    $employeeId = (int) $employeeId;
+    if ($month < 1 || $month > 12) {
+        $month = (int) date('n');
+    }
+    if ($year < 2000 || $year > 2100) {
+        $year = (int) date('Y');
+    }
+
+    $from = sprintf('%04d-%02d-01', $year, $month);
+    $to = sprintf('%04d-%02d-%02d', $year, $month, (int) date('t', strtotime($from)));
+
+    $sql = "SELECT a.attendance_date, a.day_status, a.punch_in, a.punch_out, a.remarks, a.source,
+                   a.is_late, a.late_minutes, a.late_seq, a.shift_start,
+                   a.is_early, a.early_minutes, a.shift_end, a.flex_seq, a.penalty_leave,
+                   a.working_minutes,
+                   e.id AS employee_id, e.employee_code, e.employee_name, e.department_id,
+                   d.department_name
+            FROM attendance_day_status a
+            INNER JOIN employees e ON e.id = a.employee_id
+            LEFT JOIN departments d ON d.id = e.department_id
+            WHERE a.attendance_date BETWEEN ? AND ?
+              AND (a.is_late = 1 OR a.is_early = 1 OR a.penalty_leave IS NOT NULL)
+              AND e.status = 1";
+    $types = 'ss';
+    $params = [$from, $to];
+    if ($deptId > 0) {
+        $sql .= ' AND e.department_id = ?';
+        $types .= 'i';
+        $params[] = $deptId;
+    }
+    if ($employeeId > 0) {
+        $sql .= ' AND e.id = ?';
+        $types .= 'i';
+        $params[] = $employeeId;
+    }
+    $sql .= ' ORDER BY d.department_name ASC, e.employee_code ASC, a.attendance_date ASC';
+
+    $stmt = $conn->prepare($sql);
+    $stmt->bind_param($types, ...$params);
+    $stmt->execute();
+    $res = $stmt->get_result();
+    $rows = [];
+    $byEmp = [];
+    $window = attendanceFlexWindowMinutes();
+    $allowed = attendanceFlexAllowedPerMonth();
+    $totEvents = 0;
+    $totPenalty = 0;
+    $totPl = 0.0;
+    $totLwp = 0.0;
+
+    while ($r = $res->fetch_assoc()) {
+        $eid = (int) $r['employee_id'];
+        $penalty = trim((string) ($r['penalty_leave'] ?? ''));
+        $isPenalty = $penalty !== '';
+        if ($isPenalty) {
+            $totPenalty++;
+            if (strtoupper($penalty) === 'PL') {
+                $totPl += 0.5;
+            } elseif (strtoupper($penalty) === 'LWP') {
+                $totLwp += 0.5;
+            }
+        }
+        $totEvents++;
+        $r['is_penalty_half'] = $isPenalty ? 1 : 0;
+        $r['beyond_grace'] = max(0, (int) ($r['late_minutes'] ?? 0) - $window);
+        $rows[] = $r;
+
+        if (!isset($byEmp[$eid])) {
+            $byEmp[$eid] = [
+                'employee_id' => $eid,
+                'employee_code' => $r['employee_code'],
+                'employee_name' => $r['employee_name'],
+                'department_name' => $r['department_name'],
+                'late_count' => 0,
+                'early_count' => 0,
+                'flex_used' => 0,
+                'allowed_used' => 0,
+                'penalty_half_days' => 0,
+                'penalty_pl' => 0.0,
+                'penalty_lwp' => 0.0,
+                'max_late_minutes' => 0,
+                'max_early_minutes' => 0,
+            ];
+        }
+        if ((int) ($r['is_late'] ?? 0) === 1) {
+            $byEmp[$eid]['late_count']++;
+        }
+        if ((int) ($r['is_early'] ?? 0) === 1) {
+            $byEmp[$eid]['early_count']++;
+        }
+        $fs = (int) ($r['flex_seq'] ?? 0);
+        if ($fs > 0 && $fs <= $allowed && !$isPenalty) {
+            $byEmp[$eid]['allowed_used']++;
+            $byEmp[$eid]['flex_used'] = max($byEmp[$eid]['flex_used'], $fs);
+        }
+        if ($isPenalty) {
+            $byEmp[$eid]['penalty_half_days']++;
+            if (strtoupper($penalty) === 'PL') {
+                $byEmp[$eid]['penalty_pl'] += 0.5;
+            } elseif (strtoupper($penalty) === 'LWP') {
+                $byEmp[$eid]['penalty_lwp'] += 0.5;
+            }
+        }
+        $byEmp[$eid]['max_late_minutes'] = max($byEmp[$eid]['max_late_minutes'], (int) ($r['late_minutes'] ?? 0));
+        $byEmp[$eid]['max_early_minutes'] = max($byEmp[$eid]['max_early_minutes'], (int) ($r['early_minutes'] ?? 0));
+    }
+    $stmt->close();
+
+    $summaryRows = array_values($byEmp);
+    usort($summaryRows, static function ($a, $b) {
+        $c = strcmp((string) ($a['department_name'] ?? ''), (string) ($b['department_name'] ?? ''));
+        if ($c !== 0) {
+            return $c;
+        }
+        return strcmp((string) ($a['employee_code'] ?? ''), (string) ($b['employee_code'] ?? ''));
+    });
+
+    $out = [
+        'rows' => $rows,
+        'summary_rows' => $summaryRows,
+        'totals' => [
+            'employees' => count($summaryRows),
+            'late_punches' => $totEvents,
+            'penalty_half_days' => $totPenalty,
+            'penalty_pl' => $totPl,
+            'penalty_lwp' => $totLwp,
+        ],
+        'policy' => [
+            'grace_minutes' => $window,
+            'flex_window_minutes' => $window,
+            'allowed_per_month' => $allowed,
+        ],
+        'from' => $from,
+        'to' => $to,
+        'year' => $year,
+        'month' => $month,
+    ];
+
+    if ($closeAfter) {
+        $conn->close();
+    }
+    return $out;
 }

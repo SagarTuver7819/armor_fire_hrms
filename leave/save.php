@@ -63,6 +63,7 @@ $conn = getDBConnection();
 ensureLeaveTables($conn);
 
 try {
+    $attachmentPath = leaveUploadAttachment($_FILES['attachment'] ?? null, $employeeId);
     leaveApplyRequest($conn, [
         'employee_id' => $employeeId,
         'leave_type_id' => (int) ($_POST['leave_type_id'] ?? 0),
@@ -70,6 +71,7 @@ try {
         'to_date' => (string) (parseDateInput($_POST['to_date'] ?? '') ?? ''),
         'leave_half' => (string) ($_POST['leave_half'] ?? 'FULL'),
         'reason' => (string) ($_POST['reason'] ?? ''),
+        'attachment_path' => $attachmentPath,
         'applied_by' => (int) ($_SESSION['user_id'] ?? 0),
     ]);
     $conn->close();

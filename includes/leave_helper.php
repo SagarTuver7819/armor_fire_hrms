@@ -69,6 +69,10 @@ function ensureLeaveTables($conn = null)
     if ($col && $col->num_rows === 0) {
         $conn->query("ALTER TABLE leave_requests ADD COLUMN leave_half VARCHAR(10) NOT NULL DEFAULT 'FULL' AFTER days");
     }
+    $colAtt = $conn->query("SHOW COLUMNS FROM leave_requests LIKE 'attachment_path'");
+    if ($colAtt && $colAtt->num_rows === 0) {
+        $conn->query("ALTER TABLE leave_requests ADD COLUMN attachment_path VARCHAR(255) DEFAULT NULL AFTER reason");
+    }
 
     $conn->query(
         "CREATE TABLE IF NOT EXISTS leave_notifications (
@@ -86,6 +90,104 @@ function ensureLeaveTables($conn = null)
             INDEX idx_ln_employee (employee_id)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
     );
+
+    // Ensure leave_types policy columns exist (also created in master_helper)
+    if (function_exists('ensureMasterTables')) {
+        ensureMasterTables($conn);
+    }
+
+    // Default PL policy: 24/year, monthly CF, max 6 concurrent, year-end encashment
+    @$conn->query(
+        "UPDATE leave_types SET
+            days_allowed = IF(days_allowed <= 0, 24, days_allowed),
+            accrual_type = 'monthly',
+            monthly_carry_forward = 1,
+            max_concurrent_applicants = 6,
+            allow_encashment = 1,
+            is_paid = 'Yes'
+         WHERE UPPER(TRIM(code)) = 'PL'"
+    );
+
+    // Sick Leave (SL): 2 days / month, no carry-forward (unused wipes each month)
+    $slChk = $conn->query("SELECT id FROM leave_types WHERE UPPER(TRIM(code)) = 'SL' LIMIT 1");
+    if ($slChk && $slChk->num_rows === 0) {
+        $conn->query(
+            "INSERT INTO leave_types
+                (code, leave_type, days_allowed, is_paid, description, accrual_type,
+                 monthly_carry_forward, max_concurrent_applicants, allow_encashment, status)
+             VALUES
+                ('SL', 'Sick Leave', 24, 'Yes',
+                 '2 days every month. Unused balance wipes at month end (no carry-forward). Attachment optional on request.',
+                 'monthly', 0, 0, 0, 1)"
+        );
+    } else {
+        @$conn->query(
+            "UPDATE leave_types SET
+                leave_type = 'Sick Leave',
+                days_allowed = 24,
+                is_paid = 'Yes',
+                description = '2 days every month. Unused balance wipes at month end (no carry-forward). Attachment optional on request.',
+                accrual_type = 'monthly',
+                monthly_carry_forward = 0,
+                allow_encashment = 0,
+                status = 1
+             WHERE UPPER(TRIM(code)) = 'SL'"
+        );
+    }
+
+    // Duty Leave (DL): no balance / no carry-forward — use anytime, paid, usage counted for report
+    $dlChk = $conn->query("SELECT id FROM leave_types WHERE UPPER(TRIM(code)) = 'DL' LIMIT 1");
+    if ($dlChk && $dlChk->num_rows === 0) {
+        $conn->query(
+            "INSERT INTO leave_types
+                (code, leave_type, days_allowed, is_paid, description, accrual_type,
+                 monthly_carry_forward, max_concurrent_applicants, allow_encashment, status)
+             VALUES
+                ('DL', 'Duty Leave', 0, 'Yes',
+                 'Official duty outside company premises. No balance / no carry-forward. Paid. Biometric not expected.',
+                 'yearly', 0, 0, 0, 1)"
+        );
+    } else {
+        @$conn->query(
+            "UPDATE leave_types SET
+                leave_type = 'Duty Leave',
+                days_allowed = 0,
+                is_paid = 'Yes',
+                description = 'Official duty outside company premises. No balance / no carry-forward. Paid. Biometric not expected.',
+                accrual_type = 'yearly',
+                monthly_carry_forward = 0,
+                allow_encashment = 0,
+                status = 1
+             WHERE UPPER(TRIM(code)) = 'DL'"
+        );
+    }
+
+    // LWP: unpaid — auto-counts when no attendance, not WO/Holiday, and no other leave
+    $lwpChk = $conn->query("SELECT id FROM leave_types WHERE UPPER(TRIM(code)) = 'LWP' LIMIT 1");
+    if ($lwpChk && $lwpChk->num_rows === 0) {
+        $conn->query(
+            "INSERT INTO leave_types
+                (code, leave_type, days_allowed, is_paid, description, accrual_type,
+                 monthly_carry_forward, max_concurrent_applicants, allow_encashment, status)
+             VALUES
+                ('LWP', 'Leave Without Pay', 0, 'No',
+                 'Auto when absent on working day (no punch, not holiday/week-off, no other leave). Unpaid. Affects attendance & salary.',
+                 'yearly', 0, 0, 0, 1)"
+        );
+    } else {
+        @$conn->query(
+            "UPDATE leave_types SET
+                leave_type = 'Leave Without Pay',
+                days_allowed = 0,
+                is_paid = 'No',
+                description = 'Auto when absent on working day (no punch, not holiday/week-off, no other leave). Unpaid. Affects attendance & salary.',
+                accrual_type = 'yearly',
+                monthly_carry_forward = 0,
+                allow_encashment = 0,
+                status = 1
+             WHERE UPPER(TRIM(code)) = 'LWP'"
+        );
+    }
 
     if ($closeAfter) {
         $conn->close();
@@ -163,6 +265,7 @@ function leaveSumApprovedDays($conn, $employeeId, $leaveTypeId, $year)
 
 /**
  * Rebuild used_days from Approved requests only (Pending does not reduce balance).
+ * PL also includes auto flex penalties (Half PL from late/early policy).
  */
 function leaveSyncUsedDaysFromApproved($conn, $employeeId, $leaveTypeId, $year)
 {
@@ -171,6 +274,11 @@ function leaveSyncUsedDaysFromApproved($conn, $employeeId, $leaveTypeId, $year)
     $year = (int) $year;
     leaveEnsureBalanceRow($conn, $employeeId, $leaveTypeId, $year);
     $used = leaveSumApprovedDays($conn, $employeeId, $leaveTypeId, $year);
+    $lt = getLeaveTypeById($leaveTypeId, $conn);
+    $code = strtoupper(trim((string) ($lt['code'] ?? '')));
+    if ($code === 'PL') {
+        $used = round($used + leaveSumFlexPlHalfDays($conn, $employeeId, $year, 0), 2);
+    }
     $bal = leaveGetBalance($conn, $employeeId, $leaveTypeId, $year);
     $balId = (int) ($bal['id'] ?? 0);
     if ($balId <= 0) {
@@ -184,7 +292,59 @@ function leaveSyncUsedDaysFromApproved($conn, $employeeId, $leaveTypeId, $year)
 }
 
 /**
+ * Half-day PL auto-deducted from late/early flex penalties (source=auto_flex).
+ * Pass $excludeMonth > 0 to skip that calendar month (for rebuild).
+ */
+function leaveSumFlexPlHalfDays($conn, $employeeId, $year, $excludeMonth = 0)
+{
+    $employeeId = (int) $employeeId;
+    $year = (int) $year;
+    $excludeMonth = (int) $excludeMonth;
+    if ($employeeId <= 0 || $year < 2000) {
+        return 0.0;
+    }
+    ensureAttendanceTables($conn);
+    $from = sprintf('%04d-01-01', $year);
+    $to = sprintf('%04d-12-31', $year);
+    $sql = "SELECT COALESCE(SUM(0.5), 0) AS d
+            FROM attendance_day_status
+            WHERE employee_id = ?
+              AND attendance_date BETWEEN ? AND ?
+              AND day_status = 'Half Day'
+              AND source = 'auto_flex'
+              AND UPPER(COALESCE(penalty_leave, '')) = 'PL'";
+    if ($excludeMonth >= 1 && $excludeMonth <= 12) {
+        $sql .= ' AND MONTH(attendance_date) <> ' . $excludeMonth;
+    }
+    $st = $conn->prepare($sql);
+    $st->bind_param('iss', $employeeId, $from, $to);
+    $st->execute();
+    $d = (float) ($st->get_result()->fetch_assoc()['d'] ?? 0);
+    $st->close();
+    return round($d, 2);
+}
+
+/** Sync PL used_days = approved requests + auto flex Half PL. */
+function leaveSyncPlUsedFromAttendance($conn, $employeeId, $year)
+{
+    ensureLeaveTables($conn);
+    $employeeId = (int) $employeeId;
+    $year = (int) $year;
+    if ($employeeId <= 0 || $year < 2000) {
+        return 0.0;
+    }
+    $ltRes = $conn->query("SELECT id FROM leave_types WHERE status = 1 AND UPPER(TRIM(code)) = 'PL' LIMIT 1");
+    $lt = $ltRes ? $ltRes->fetch_assoc() : null;
+    $ltId = $lt ? (int) $lt['id'] : 0;
+    if ($ltId <= 0) {
+        return 0.0;
+    }
+    return leaveSyncUsedDaysFromApproved($conn, $employeeId, $ltId, $year);
+}
+
+/**
  * Pending days already applied (not yet approved) — for availability check only.
+ * Pass $year = 0 to sum pending across all years (used by C-Off).
  */
 function leaveSumPendingDays($conn, $employeeId, $leaveTypeId, $year, $excludeId = 0)
 {
@@ -196,17 +356,55 @@ function leaveSumPendingDays($conn, $employeeId, $leaveTypeId, $year, $excludeId
             FROM leave_requests
             WHERE employee_id = ?
               AND leave_type_id = ?
-              AND status = 'Pending'
-              AND YEAR(from_date) = ?";
+              AND status = 'Pending'";
+    if ($year > 0) {
+        $sql .= ' AND YEAR(from_date) = ' . $year;
+    }
     if ($excludeId > 0) {
         $sql .= ' AND id <> ' . $excludeId;
     }
     $stmt = $conn->prepare($sql);
-    $stmt->bind_param('iii', $employeeId, $leaveTypeId, $year);
+    $stmt->bind_param('ii', $employeeId, $leaveTypeId);
     $stmt->execute();
     $row = $stmt->get_result()->fetch_assoc();
     $stmt->close();
     return round((float) ($row['days_c'] ?? 0), 2);
+}
+
+function leaveTypeIsCoff($lt)
+{
+    if (!$lt || !is_array($lt)) {
+        return false;
+    }
+    $code = strtoupper(trim((string) ($lt['code'] ?? '')));
+    return in_array($code, ['C-OFF', 'COFF', 'C OFF'], true);
+}
+
+/** Duty Leave — no balance quota; paid; usage tracked for report only. */
+function leaveTypeIsDutyLeave($lt)
+{
+    if (!$lt || !is_array($lt)) {
+        return false;
+    }
+    $code = strtoupper(trim((string) ($lt['code'] ?? '')));
+    return $code === 'DL';
+}
+
+/**
+ * No-balance leave types that can be used freely (still counted when approved).
+ * DL = Duty Leave (paid), LWP = unpaid.
+ */
+function leaveTypeIsUnlimitedUse($lt)
+{
+    if (!$lt || !is_array($lt)) {
+        return false;
+    }
+    $code = strtoupper(trim((string) ($lt['code'] ?? '')));
+    if ($code === 'DL' || $code === 'LWP') {
+        return true;
+    }
+    // Legacy: unpaid with 0 days allowed
+    return (float) ($lt['days_allowed'] ?? 0) <= 0 && ($lt['is_paid'] ?? '') === 'No';
 }
 
 function leaveDiaryBucket($leaveCode, $isPaid = 'Yes')
@@ -219,7 +417,10 @@ function leaveDiaryBucket($leaveCode, $isPaid = 'Yes')
         return 'sl';
     }
     if ($code === 'DL') {
-        return 'dl';
+        return 'dl'; // Duty Leave — paid (salary diary dl_days)
+    }
+    if ($code === 'C-OFF' || $code === 'COFF' || $code === 'C OFF') {
+        return 'none'; // C-Off tracked via coff ledger; diary marked via attendance leave remarks
     }
     return 'pl'; // CL, EL, ML, PL, etc.
 }
@@ -234,7 +435,8 @@ function getActiveLeaveTypes($conn = null)
     }
     $rows = [];
     $res = $conn->query(
-        "SELECT id, code, leave_type, days_allowed, is_paid, description
+        "SELECT id, code, leave_type, days_allowed, is_paid, description,
+                accrual_type, monthly_carry_forward, max_concurrent_applicants, allow_encashment
          FROM leave_types WHERE status = 1
          ORDER BY leave_type ASC"
     );
@@ -258,7 +460,8 @@ function getLeaveTypeById($id, $conn = null)
     }
     $id = (int) $id;
     $stmt = $conn->prepare(
-        'SELECT id, code, leave_type, days_allowed, is_paid, description, status
+        'SELECT id, code, leave_type, days_allowed, is_paid, description, status,
+                accrual_type, monthly_carry_forward, max_concurrent_applicants, allow_encashment
          FROM leave_types WHERE id = ? LIMIT 1'
     );
     $stmt->bind_param('i', $id);
@@ -285,12 +488,15 @@ function leaveEnsureBalanceRow($conn, $employeeId, $leaveTypeId, $year, $opening
     $existing = $stmt->get_result()->fetch_assoc();
     $stmt->close();
     if ($existing) {
+        leaveRefreshMonthlyAccrual($conn, $employeeId, $leaveTypeId, $year);
         return (int) $existing['id'];
     }
 
     if ($opening === null) {
         $lt = getLeaveTypeById($leaveTypeId, $conn);
-        $opening = $lt ? (float) ($lt['days_allowed'] ?? 0) : 0;
+        $isMonthly = leaveTypeIsMonthlyAccrual($lt);
+        // Monthly types start at 0; credit accrues via leaveRefreshMonthlyAccrual
+        $opening = $isMonthly ? 0 : ($lt ? (float) ($lt['days_allowed'] ?? 0) : 0);
     }
     $opening = (float) $opening;
     $ins = $conn->prepare(
@@ -302,7 +508,211 @@ function leaveEnsureBalanceRow($conn, $employeeId, $leaveTypeId, $year, $opening
     $ins->execute();
     $id = (int) $conn->insert_id;
     $ins->close();
+    if ($id > 0) {
+        leaveRefreshMonthlyAccrual($conn, $employeeId, $leaveTypeId, $year);
+    }
     return $id;
+}
+
+function leaveTypeIsMonthlyAccrual($lt)
+{
+    if (!$lt || !is_array($lt)) {
+        return false;
+    }
+    $accrual = strtolower(trim((string) ($lt['accrual_type'] ?? 'yearly')));
+    return $accrual === 'monthly';
+}
+
+/** Monthly leave that does NOT carry unused days (e.g. Sick Leave — wipe each month). */
+function leaveTypeHasMonthlyWipe($lt)
+{
+    if (!$lt || !leaveTypeIsMonthlyAccrual($lt)) {
+        return false;
+    }
+    return (int) ($lt['monthly_carry_forward'] ?? 0) === 0;
+}
+
+function leaveTypeIsSickLeave($lt)
+{
+    if (!$lt || !is_array($lt)) {
+        return false;
+    }
+    return strtoupper(trim((string) ($lt['code'] ?? ''))) === 'SL';
+}
+
+function leaveMonthlyCreditRate($daysAllowed)
+{
+    $daysAllowed = (float) $daysAllowed;
+    if ($daysAllowed <= 0) {
+        return 0.0;
+    }
+    return round($daysAllowed / 12, 2);
+}
+
+/** Approved days in a specific calendar month (for monthly-wipe leave like SL). */
+function leaveSumApprovedDaysInMonth($conn, $employeeId, $leaveTypeId, $year, $month)
+{
+    $employeeId = (int) $employeeId;
+    $leaveTypeId = (int) $leaveTypeId;
+    $year = (int) $year;
+    $month = (int) $month;
+    if ($employeeId <= 0 || $leaveTypeId <= 0 || $year <= 0 || $month < 1 || $month > 12) {
+        return 0.0;
+    }
+    $stmt = $conn->prepare(
+        "SELECT COALESCE(SUM(days), 0) AS days_c
+         FROM leave_requests
+         WHERE employee_id = ?
+           AND leave_type_id = ?
+           AND status = 'Approved'
+           AND YEAR(from_date) = ?
+           AND MONTH(from_date) = ?"
+    );
+    $stmt->bind_param('iiii', $employeeId, $leaveTypeId, $year, $month);
+    $stmt->execute();
+    $row = $stmt->get_result()->fetch_assoc();
+    $stmt->close();
+    return round((float) ($row['days_c'] ?? 0), 2);
+}
+
+function leaveSumPendingDaysInMonth($conn, $employeeId, $leaveTypeId, $year, $month, $excludeId = 0)
+{
+    $employeeId = (int) $employeeId;
+    $leaveTypeId = (int) $leaveTypeId;
+    $year = (int) $year;
+    $month = (int) $month;
+    $excludeId = (int) $excludeId;
+    if ($employeeId <= 0 || $leaveTypeId <= 0 || $year <= 0 || $month < 1 || $month > 12) {
+        return 0.0;
+    }
+    $sql = "SELECT COALESCE(SUM(days), 0) AS days_c
+            FROM leave_requests
+            WHERE employee_id = ?
+              AND leave_type_id = ?
+              AND status = 'Pending'
+              AND YEAR(from_date) = ?
+              AND MONTH(from_date) = ?";
+    if ($excludeId > 0) {
+        $sql .= ' AND id <> ' . $excludeId;
+    }
+    $stmt = $conn->prepare($sql);
+    $stmt->bind_param('iiii', $employeeId, $leaveTypeId, $year, $month);
+    $stmt->execute();
+    $row = $stmt->get_result()->fetch_assoc();
+    $stmt->close();
+    return round((float) ($row['days_c'] ?? 0), 2);
+}
+
+/**
+ * Monthly accrual:
+ * - Carry-forward Yes (PL): cumulative credit months × rate, unused stays
+ * - Carry-forward No (SL): only current month quota (e.g. 2 days); unused wipes
+ */
+function leaveRefreshMonthlyAccrual($conn, $employeeId, $leaveTypeId, $year, $asOfMonth = null)
+{
+    $employeeId = (int) $employeeId;
+    $leaveTypeId = (int) $leaveTypeId;
+    $year = (int) $year;
+    $lt = getLeaveTypeById($leaveTypeId, $conn);
+    if (!$lt || !leaveTypeIsMonthlyAccrual($lt)) {
+        return;
+    }
+
+    $nowY = (int) date('Y');
+    $nowM = (int) date('n');
+    if ($asOfMonth === null) {
+        if ($year < $nowY) {
+            $asOfMonth = 12;
+        } elseif ($year > $nowY) {
+            $asOfMonth = 0;
+        } else {
+            $asOfMonth = $nowM;
+        }
+    }
+    $asOfMonth = max(0, min(12, (int) $asOfMonth));
+
+    $quota = (float) ($lt['days_allowed'] ?? 0);
+    $perMonth = leaveMonthlyCreditRate($quota);
+    $wipe = leaveTypeHasMonthlyWipe($lt);
+
+    if ($wipe) {
+        // Sick Leave style: only this month's 2 days; unused prior months wiped
+        $targetCredit = ($asOfMonth >= 1) ? $perMonth : 0.0;
+        $usedMonth = ($asOfMonth >= 1)
+            ? leaveSumApprovedDaysInMonth($conn, $employeeId, $leaveTypeId, $year, $asOfMonth)
+            : 0.0;
+    } else {
+        // PL style: cumulative within year
+        $targetCredit = min($quota, round($perMonth * $asOfMonth, 2));
+        $usedMonth = null;
+    }
+
+    $stmt = $conn->prepare(
+        'SELECT id, credited_days, used_days FROM employee_leave_balances
+         WHERE employee_id = ? AND leave_type_id = ? AND year_no = ? LIMIT 1'
+    );
+    $stmt->bind_param('iii', $employeeId, $leaveTypeId, $year);
+    $stmt->execute();
+    $row = $stmt->get_result()->fetch_assoc();
+    $stmt->close();
+    if (!$row) {
+        $zero = 0.0;
+        $usedIns = $wipe ? $usedMonth : $zero;
+        $ins = $conn->prepare(
+            'INSERT INTO employee_leave_balances
+                (employee_id, leave_type_id, year_no, opening_days, credited_days, used_days, adjusted_days)
+             VALUES (?, ?, ?, ?, ?, ?, 0)'
+        );
+        $ins->bind_param('iiiddd', $employeeId, $leaveTypeId, $year, $zero, $targetCredit, $usedIns);
+        $ins->execute();
+        $ins->close();
+        return;
+    }
+
+    $balId = (int) $row['id'];
+    if ($wipe) {
+        $upd = $conn->prepare(
+            'UPDATE employee_leave_balances
+             SET opening_days = 0, credited_days = ?, used_days = ?, adjusted_days = 0
+             WHERE id = ?'
+        );
+        $upd->bind_param('ddi', $targetCredit, $usedMonth, $balId);
+        $upd->execute();
+        $upd->close();
+        return;
+    }
+
+    $current = (float) ($row['credited_days'] ?? 0);
+    if ($targetCredit > $current + 0.001) {
+        $upd = $conn->prepare('UPDATE employee_leave_balances SET credited_days = ? WHERE id = ?');
+        $upd->bind_param('di', $targetCredit, $balId);
+        $upd->execute();
+        $upd->close();
+    }
+}
+
+/**
+ * Count other employees with overlapping Pending/Approved leave of same type.
+ */
+function leaveCountConcurrentApplicants($conn, $leaveTypeId, $fromDate, $toDate, $excludeEmployeeId = 0)
+{
+    $leaveTypeId = (int) $leaveTypeId;
+    $excludeEmployeeId = (int) $excludeEmployeeId;
+    $sql = "SELECT COUNT(DISTINCT employee_id) AS c
+            FROM leave_requests
+            WHERE leave_type_id = ?
+              AND status IN ('Pending', 'Approved')
+              AND from_date <= ?
+              AND to_date >= ?";
+    if ($excludeEmployeeId > 0) {
+        $sql .= ' AND employee_id <> ' . $excludeEmployeeId;
+    }
+    $st = $conn->prepare($sql);
+    $st->bind_param('iss', $leaveTypeId, $toDate, $fromDate);
+    $st->execute();
+    $row = $st->get_result()->fetch_assoc();
+    $st->close();
+    return (int) ($row['c'] ?? 0);
 }
 
 /**
@@ -332,7 +742,15 @@ function leaveAllocateYearlyBalances($year, $departmentId = 0, $overwriteUnused 
         $empId = (int) $emp['id'];
         foreach ($types as $lt) {
             $ltId = (int) $lt['id'];
-            $days = (float) ($lt['days_allowed'] ?? 0);
+            // C-Off / DL / LWP: never allocate yearly opening balance
+            if (leaveTypeIsCoff($lt) || leaveTypeIsDutyLeave($lt) || strtoupper(trim((string) ($lt['code'] ?? ''))) === 'LWP') {
+                leaveEnsureBalanceRow($conn, $empId, $ltId, $year, 0);
+                leaveSyncUsedDaysFromApproved($conn, $empId, $ltId, $year);
+                $created++;
+                continue;
+            }
+            $isMonthly = leaveTypeIsMonthlyAccrual($lt);
+            $days = $isMonthly ? 0.0 : (float) ($lt['days_allowed'] ?? 0);
             $stmt = $conn->prepare(
                 'SELECT id, used_days, opening_days, credited_days, adjusted_days
                  FROM employee_leave_balances
@@ -347,7 +765,7 @@ function leaveAllocateYearlyBalances($year, $departmentId = 0, $overwriteUnused 
                 $created++;
                 continue;
             }
-            if ($overwriteUnused && (float) ($row['used_days'] ?? 0) <= 0) {
+            if ($overwriteUnused && (float) ($row['used_days'] ?? 0) <= 0 && !$isMonthly) {
                 $upd = $conn->prepare(
                     'UPDATE employee_leave_balances SET opening_days = ? WHERE id = ?'
                 );
@@ -355,6 +773,10 @@ function leaveAllocateYearlyBalances($year, $departmentId = 0, $overwriteUnused 
                 $upd->bind_param('di', $days, $balId);
                 $upd->execute();
                 $upd->close();
+                $updated++;
+            }
+            if ($isMonthly) {
+                leaveRefreshMonthlyAccrual($conn, $empId, $ltId, $year);
                 $updated++;
             }
         }
@@ -376,6 +798,20 @@ function getEmployeeLeaveBalances($employeeId, $year, $conn = null)
     }
     $employeeId = (int) $employeeId;
     $year = (int) $year;
+
+    // Keep C-Off balance row in sync with ledger (2-month expiry)
+    if (is_file(__DIR__ . '/coff_helper.php')) {
+        if (!function_exists('coffMirrorLeaveBalance')) {
+            require_once __DIR__ . '/coff_helper.php';
+        }
+        try {
+            coffExpireOverdue($conn, $employeeId);
+            coffMirrorLeaveBalance($conn, $employeeId);
+        } catch (Throwable $e) {
+            // ignore mirror failures on balance view
+        }
+    }
+
     $rows = [];
     $stmt = $conn->prepare(
         "SELECT b.*, lt.code, lt.leave_type, lt.is_paid, lt.days_allowed
@@ -388,7 +824,27 @@ function getEmployeeLeaveBalances($employeeId, $year, $conn = null)
     $stmt->execute();
     $res = $stmt->get_result();
     while ($row = $res->fetch_assoc()) {
-        $row['remaining_days'] = leaveBalanceRemaining($row);
+        $code = strtoupper(trim((string) ($row['code'] ?? '')));
+        if ($code === 'DL' || $code === 'LWP') {
+            // No balance quota — only usage is tracked
+            $row['opening_days'] = 0;
+            $row['credited_days'] = 0;
+            $row['adjusted_days'] = 0;
+            $row['remaining_days'] = 0;
+        } elseif ($code === 'SL') {
+            // Refresh this-month wipe balance for display
+            leaveRefreshMonthlyAccrual($conn, $employeeId, (int) $row['leave_type_id'], $year);
+            $fresh = leaveGetBalance($conn, $employeeId, (int) $row['leave_type_id'], $year);
+            if ($fresh) {
+                $row['opening_days'] = $fresh['opening_days'] ?? 0;
+                $row['credited_days'] = $fresh['credited_days'] ?? 0;
+                $row['used_days'] = $fresh['used_days'] ?? 0;
+                $row['adjusted_days'] = $fresh['adjusted_days'] ?? 0;
+            }
+            $row['remaining_days'] = leaveBalanceRemaining($row);
+        } else {
+            $row['remaining_days'] = leaveBalanceRemaining($row);
+        }
         $rows[] = $row;
     }
     $stmt->close();
@@ -438,7 +894,18 @@ function getDepartmentLeaveBalanceRows($departmentId, $year, $conn = null)
     $stmt->execute();
     $res = $stmt->get_result();
     while ($row = $res->fetch_assoc()) {
-        $row['remaining_days'] = leaveBalanceRemaining($row);
+        $code = strtoupper(trim((string) ($row['code'] ?? '')));
+        if ($code === 'DL' || $code === 'LWP') {
+            $row['opening_days'] = 0;
+            $row['credited_days'] = 0;
+            $row['adjusted_days'] = 0;
+            $row['remaining_days'] = 0;
+        } elseif ($code === 'C-OFF' || $code === 'COFF') {
+            $row['opening_days'] = 0;
+            $row['remaining_days'] = leaveBalanceRemaining($row);
+        } else {
+            $row['remaining_days'] = leaveBalanceRemaining($row);
+        }
         $rows[] = $row;
     }
     $stmt->close();
@@ -567,25 +1034,95 @@ function leaveApplyRequest($conn, array $data)
         throw new RuntimeException('Overlapping leave already exists for these dates.');
     }
 
-    $year = (int) date('Y', strtotime($fromDate));
-    $isUnlimited = strtoupper((string) ($lt['code'] ?? '')) === 'LWP' || (float) ($lt['days_allowed'] ?? 0) <= 0 && ($lt['is_paid'] ?? '') === 'No';
-    if (!$isUnlimited) {
-        $bal = leaveGetBalance($conn, $employeeId, $leaveTypeId, $year);
-        if (leaveBalanceRemaining($bal) + 0.0001 < $days) {
+    // Max concurrent employees (PL = 6 at same dates)
+    $maxConcurrent = (int) ($lt['max_concurrent_applicants'] ?? 0);
+    if ($maxConcurrent > 0) {
+        $others = leaveCountConcurrentApplicants($conn, $leaveTypeId, $fromDate, $toDate, $employeeId);
+        if ($others >= $maxConcurrent) {
             throw new RuntimeException(
-                'Insufficient leave balance. Remaining: ' . leaveBalanceRemaining($bal) . ' day(s).'
+                'Maximum ' . $maxConcurrent . ' employees can take '
+                . (($lt['code'] ?? 'this') . ' leave') . ' on overlapping dates. Currently '
+                . $others . ' already applied/approved.'
+            );
+        }
+    }
+
+    $year = (int) date('Y', strtotime($fromDate));
+    $month = (int) date('n', strtotime($fromDate));
+    $isCoff = leaveTypeIsCoff($lt);
+    $isDuty = leaveTypeIsDutyLeave($lt);
+    $isUnlimited = leaveTypeIsUnlimitedUse($lt);
+    $isWipe = leaveTypeHasMonthlyWipe($lt);
+    $attachmentPath = trim((string) ($data['attachment_path'] ?? ''));
+    if ($attachmentPath === '') {
+        $attachmentPath = null;
+    }
+
+    if ($isCoff) {
+        if (!function_exists('coffAvailableBalance')) {
+            require_once __DIR__ . '/coff_helper.php';
+        }
+        coffExpireOverdue($conn, $employeeId);
+        $coffBal = coffAvailableBalance($conn, $employeeId);
+        $pendingAll = leaveSumPendingDays($conn, $employeeId, $leaveTypeId, 0);
+        $available = round($coffBal - $pendingAll, 2);
+        if ($available + 0.0001 < $days) {
+            throw new RuntimeException(
+                'Insufficient C-Off balance. Available: ' . max(0, $available)
+                . ' day(s). Earn by working on Week Off / Holiday (4 hrs = 0.5 day, 8 hrs = 1 day). Use within 2 months.'
+            );
+        }
+        leaveEnsureBalanceRow($conn, $employeeId, $leaveTypeId, $year, 0);
+    } elseif ($isDuty || $isUnlimited) {
+        // DL / LWP: no balance check — opening always 0; usage counted on approval
+        leaveEnsureBalanceRow($conn, $employeeId, $leaveTypeId, $year, 0);
+    } elseif ($isWipe) {
+        // SL: 2 days this month only — unused prior months wiped
+        leaveEnsureBalanceRow($conn, $employeeId, $leaveTypeId, $year, 0);
+        leaveRefreshMonthlyAccrual($conn, $employeeId, $leaveTypeId, $year, $month);
+        $bal = leaveGetBalance($conn, $employeeId, $leaveTypeId, $year);
+        $remaining = leaveBalanceRemaining($bal);
+        $pending = leaveSumPendingDaysInMonth($conn, $employeeId, $leaveTypeId, $year, $month);
+        $available = round($remaining - $pending, 2);
+        if ($available + 0.0001 < $days) {
+            $rate = leaveMonthlyCreditRate((float) ($lt['days_allowed'] ?? 0));
+            throw new RuntimeException(
+                'Insufficient Sick Leave for this month. Available: ' . max(0, $available)
+                . ' day(s) (quota ' . $rate . ' / month, unused days wipe each month).'
             );
         }
     } else {
-        leaveEnsureBalanceRow($conn, $employeeId, $leaveTypeId, $year, 0);
+        leaveEnsureBalanceRow($conn, $employeeId, $leaveTypeId, $year);
+        leaveRefreshMonthlyAccrual($conn, $employeeId, $leaveTypeId, $year, $month);
+
+        $bal = leaveGetBalance($conn, $employeeId, $leaveTypeId, $year);
+        $remaining = leaveBalanceRemaining($bal);
+        $pending = leaveSumPendingDays($conn, $employeeId, $leaveTypeId, $year);
+        $available = round($remaining - $pending, 2);
+        if ($available + 0.0001 < $days) {
+            throw new RuntimeException(
+                'Insufficient leave balance. Available: ' . $available . ' day(s) (after pending).'
+            );
+        }
     }
 
     $stmt = $conn->prepare(
         "INSERT INTO leave_requests
-            (employee_id, leave_type_id, from_date, to_date, days, leave_half, reason, status, applied_by)
-         VALUES (?, ?, ?, ?, ?, ?, ?, 'Pending', ?)"
+            (employee_id, leave_type_id, from_date, to_date, days, leave_half, reason, attachment_path, status, applied_by)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'Pending', ?)"
     );
-    $stmt->bind_param('iissdssi', $employeeId, $leaveTypeId, $fromDate, $toDate, $days, $leaveHalf, $reason, $appliedBy);
+    $stmt->bind_param(
+        'iissdsssi',
+        $employeeId,
+        $leaveTypeId,
+        $fromDate,
+        $toDate,
+        $days,
+        $leaveHalf,
+        $reason,
+        $attachmentPath,
+        $appliedBy
+    );
     if (!$stmt->execute()) {
         $err = $stmt->error;
         $stmt->close();
@@ -725,8 +1262,7 @@ function leaveSyncDiaryBuckets($conn, $employeeId, $fromDate, $toDate)
         }
         $stmt->close();
 
-        // LWP/unpaid (dl) should not count as paid in salary — store but payroll may still include dl.
-        // Keep mapping: unpaid goes to dl_days; paid CL/EL → pl; SL → sl.
+        // LWP unpaid → none; DL (Duty Leave) → dl_days (paid); SL → sl; else PL bucket.
 
         $existing = null;
         $st = $conn->prepare(
@@ -797,7 +1333,8 @@ function leaveApproveRequest($conn, $requestId, $userId, $remarks = '')
     $userId = (int) $userId;
 
     $stmt = $conn->prepare(
-        "SELECT lr.*, lt.code, lt.is_paid, lt.days_allowed
+        "SELECT lr.*, lt.code, lt.is_paid, lt.days_allowed, lt.max_concurrent_applicants,
+                lt.accrual_type, lt.monthly_carry_forward
          FROM leave_requests lr
          INNER JOIN leave_types lt ON lt.id = lr.leave_type_id
          WHERE lr.id = ? LIMIT 1"
@@ -817,12 +1354,62 @@ function leaveApproveRequest($conn, $requestId, $userId, $remarks = '')
     $leaveTypeId = (int) $req['leave_type_id'];
     $days = (float) $req['days'];
     $year = (int) date('Y', strtotime($req['from_date']));
+    $month = (int) date('n', strtotime($req['from_date']));
     $code = strtoupper((string) ($req['code'] ?? ''));
-    $isUnlimited = $code === 'LWP' || ((float) ($req['days_allowed'] ?? 0) <= 0 && ($req['is_paid'] ?? '') === 'No');
+    $isCoff = leaveTypeIsCoff($req);
+    $isUnlimited = leaveTypeIsUnlimitedUse($req);
+    $isWipe = leaveTypeHasMonthlyWipe($req);
 
+    $maxConcurrent = (int) ($req['max_concurrent_applicants'] ?? 0);
+    if ($maxConcurrent > 0) {
+        $others = leaveCountConcurrentApplicants(
+            $conn,
+            $leaveTypeId,
+            $req['from_date'],
+            $req['to_date'],
+            $employeeId
+        );
+        if ($others >= $maxConcurrent) {
+            throw new RuntimeException(
+                'Cannot approve: already ' . $others . ' employees on overlapping '
+                . ($code !== '' ? $code : 'leave') . ' (max ' . $maxConcurrent . ').'
+            );
+        }
+    }
+
+    if ($isCoff) {
+        if (!function_exists('coffConsumeForLeave')) {
+            require_once __DIR__ . '/coff_helper.php';
+        }
+    } elseif (!$isUnlimited) {
+        leaveRefreshMonthlyAccrual($conn, $employeeId, $leaveTypeId, $year, $month);
+    }
     $conn->begin_transaction();
     try {
-        if (!$isUnlimited) {
+        if ($isCoff) {
+            coffConsumeForLeave($conn, $employeeId, $requestId, $days, $req['from_date']);
+        } elseif ($isWipe) {
+            leaveEnsureBalanceRow($conn, $employeeId, $leaveTypeId, $year, 0);
+            leaveRefreshMonthlyAccrual($conn, $employeeId, $leaveTypeId, $year, $month);
+            $bal = leaveGetBalance($conn, $employeeId, $leaveTypeId, $year);
+            // Pending will become Approved — remaining must cover this request
+            // used_days currently = approved only; remaining = credit - approved
+            if (leaveBalanceRemaining($bal) + 0.0001 < $days) {
+                throw new RuntimeException(
+                    'Insufficient Sick Leave for this month at approval time. Available: '
+                    . leaveBalanceRemaining($bal) . ' day(s).'
+                );
+            }
+            // Mark approved first then refresh used from month (includes this request after status update)
+            // So bump used temporarily; refresh after status update below
+            $upd = $conn->prepare(
+                'UPDATE employee_leave_balances SET used_days = used_days + ? WHERE id = ?'
+            );
+            $balId = (int) $bal['id'];
+            $upd->bind_param('di', $days, $balId);
+            $upd->execute();
+            $upd->close();
+        } elseif (!$isUnlimited) {
             $bal = leaveGetBalance($conn, $employeeId, $leaveTypeId, $year);
             if (leaveBalanceRemaining($bal) + 0.0001 < $days) {
                 throw new RuntimeException('Insufficient leave balance at approval time.');
@@ -835,10 +1422,11 @@ function leaveApproveRequest($conn, $requestId, $userId, $remarks = '')
             $upd->execute();
             $upd->close();
         } else {
+            // DL / LWP: track usage count only (opening stays 0)
             leaveEnsureBalanceRow($conn, $employeeId, $leaveTypeId, $year, 0);
             $bal = leaveGetBalance($conn, $employeeId, $leaveTypeId, $year);
             $upd = $conn->prepare(
-                'UPDATE employee_leave_balances SET used_days = used_days + ? WHERE id = ?'
+                'UPDATE employee_leave_balances SET opening_days = 0, credited_days = 0, used_days = used_days + ? WHERE id = ?'
             );
             $balId = (int) $bal['id'];
             $upd->bind_param('di', $days, $balId);
@@ -854,6 +1442,10 @@ function leaveApproveRequest($conn, $requestId, $userId, $remarks = '')
         $st->bind_param('isi', $userId, $remarks, $requestId);
         $st->execute();
         $st->close();
+
+        if ($isWipe) {
+            leaveRefreshMonthlyAccrual($conn, $employeeId, $leaveTypeId, $year, $month);
+        }
 
         leaveMarkAttendanceDays(
             $conn,
@@ -923,7 +1515,7 @@ function leaveCancelApproved($conn, $requestId, $userId, $remarks = '')
     $requestId = (int) $requestId;
     $userId = (int) $userId;
     $stmt = $conn->prepare(
-        "SELECT lr.*, lt.code, lt.is_paid
+        "SELECT lr.*, lt.code, lt.is_paid, lt.accrual_type, lt.monthly_carry_forward
          FROM leave_requests lr
          INNER JOIN leave_types lt ON lt.id = lr.leave_type_id
          WHERE lr.id = ? LIMIT 1"
@@ -940,18 +1532,41 @@ function leaveCancelApproved($conn, $requestId, $userId, $remarks = '')
     $leaveTypeId = (int) $req['leave_type_id'];
     $days = (float) $req['days'];
     $year = (int) date('Y', strtotime($req['from_date']));
+    $month = (int) date('n', strtotime($req['from_date']));
+    $isCoff = leaveTypeIsCoff($req);
+    $isWipe = leaveTypeHasMonthlyWipe($req);
+
+    if ($isCoff && !function_exists('coffRestoreForLeave')) {
+        require_once __DIR__ . '/coff_helper.php';
+    }
 
     $conn->begin_transaction();
     try {
-        $bal = leaveGetBalance($conn, $employeeId, $leaveTypeId, $year);
-        $upd = $conn->prepare(
-            'UPDATE employee_leave_balances
-             SET used_days = GREATEST(0, used_days - ?) WHERE id = ?'
-        );
-        $balId = (int) $bal['id'];
-        $upd->bind_param('di', $days, $balId);
-        $upd->execute();
-        $upd->close();
+        if ($isCoff) {
+            coffRestoreForLeave($conn, $requestId);
+        } elseif ($isWipe) {
+            // Status update first then refresh month used from remaining Approved
+            // Temporarily reduce; refresh after cancel status
+            $bal = leaveGetBalance($conn, $employeeId, $leaveTypeId, $year);
+            $upd = $conn->prepare(
+                'UPDATE employee_leave_balances
+                 SET used_days = GREATEST(0, used_days - ?) WHERE id = ?'
+            );
+            $balId = (int) $bal['id'];
+            $upd->bind_param('di', $days, $balId);
+            $upd->execute();
+            $upd->close();
+        } else {
+            $bal = leaveGetBalance($conn, $employeeId, $leaveTypeId, $year);
+            $upd = $conn->prepare(
+                'UPDATE employee_leave_balances
+                 SET used_days = GREATEST(0, used_days - ?) WHERE id = ?'
+            );
+            $balId = (int) $bal['id'];
+            $upd->bind_param('di', $days, $balId);
+            $upd->execute();
+            $upd->close();
+        }
 
         $st = $conn->prepare(
             "UPDATE leave_requests
@@ -961,6 +1576,10 @@ function leaveCancelApproved($conn, $requestId, $userId, $remarks = '')
         $st->bind_param('isi', $userId, $remarks, $requestId);
         $st->execute();
         $st->close();
+
+        if ($isWipe) {
+            leaveRefreshMonthlyAccrual($conn, $employeeId, $leaveTypeId, $year, $month);
+        }
 
         leaveClearAttendanceDays($conn, $employeeId, $req['from_date'], $req['to_date']);
         $fromTs = strtotime($req['from_date']);
@@ -1288,3 +1907,490 @@ function markAllLeaveNotificationsRead($userId)
     $conn->close();
     return (bool) $ok;
 }
+
+/**
+ * Daily encashment rate from decided salary (salary ÷ 30).
+ */
+function leaveEncashmentDailyRate($monthlySalary)
+{
+    $monthlySalary = (float) $monthlySalary;
+    if ($monthlySalary <= 0) {
+        return 0.0;
+    }
+    return round($monthlySalary / 30, 2);
+}
+
+/**
+ * Employee-wise year-end PL (or any encashable type) report.
+ * Remaining days × (decided_salary ÷ 30).
+ *
+ * @return array{leave_type:array|null,year:int,rows:array,totals:array}
+ */
+function leaveEncashmentReport($year, $leaveTypeId = 0, $departmentId = 0, $conn = null)
+{
+    $closeAfter = false;
+    if ($conn === null) {
+        $conn = getDBConnection();
+        $closeAfter = true;
+    }
+    ensureLeaveTables($conn);
+    $year = (int) $year;
+    $leaveTypeId = (int) $leaveTypeId;
+    $departmentId = (int) $departmentId;
+    if ($year < 2000) {
+        $year = (int) date('Y');
+    }
+
+    $lt = null;
+    if ($leaveTypeId > 0) {
+        $lt = getLeaveTypeById($leaveTypeId, $conn);
+    } else {
+        // Default: PL
+        $res = $conn->query(
+            "SELECT id, code, leave_type, days_allowed, is_paid, accrual_type,
+                    monthly_carry_forward, max_concurrent_applicants, allow_encashment, status
+             FROM leave_types
+             WHERE status = 1 AND UPPER(TRIM(code)) = 'PL'
+             LIMIT 1"
+        );
+        $lt = $res ? $res->fetch_assoc() : null;
+        if ($lt) {
+            $leaveTypeId = (int) $lt['id'];
+        }
+    }
+
+    $rows = [];
+    $totals = [
+        'employees' => 0,
+        'quota' => 0,
+        'accrued' => 0,
+        'used' => 0,
+        'remaining' => 0,
+        'encashment' => 0,
+    ];
+
+    if (!$lt || $leaveTypeId <= 0) {
+        if ($closeAfter) {
+            $conn->close();
+        }
+        return ['leave_type' => null, 'year' => $year, 'rows' => [], 'totals' => $totals];
+    }
+
+    $asOfMonth = ($year < (int) date('Y')) ? 12 : (($year > (int) date('Y')) ? 0 : (int) date('n'));
+
+    $sql = "SELECT e.id, e.employee_code, e.employee_name, e.decided_salary, e.department_id,
+                   d.department_name
+            FROM employees e
+            LEFT JOIN departments d ON d.id = e.department_id
+            WHERE e.status = 1";
+    if ($departmentId > 0) {
+        $sql .= ' AND e.department_id = ' . $departmentId;
+    }
+    $sql .= ' ORDER BY d.department_name ASC, e.employee_code ASC, e.employee_name ASC';
+    $empRes = $conn->query($sql);
+    while ($emp = $empRes->fetch_assoc()) {
+        $empId = (int) $emp['id'];
+        leaveEnsureBalanceRow($conn, $empId, $leaveTypeId, $year);
+        leaveRefreshMonthlyAccrual($conn, $empId, $leaveTypeId, $year, $asOfMonth);
+        leaveSyncUsedDaysFromApproved($conn, $empId, $leaveTypeId, $year);
+        $bal = leaveGetBalance($conn, $empId, $leaveTypeId, $year);
+        $opening = (float) ($bal['opening_days'] ?? 0);
+        $credited = (float) ($bal['credited_days'] ?? 0);
+        $adjusted = (float) ($bal['adjusted_days'] ?? 0);
+        $used = (float) ($bal['used_days'] ?? 0);
+        $accrued = round($opening + $credited + $adjusted, 2);
+        $remaining = leaveBalanceRemaining($bal);
+        if ($remaining < 0) {
+            $remaining = 0;
+        }
+        $salary = (float) ($emp['decided_salary'] ?? 0);
+        $rate = leaveEncashmentDailyRate($salary);
+        $amount = round($remaining * $rate, 2);
+
+        $rows[] = [
+            'employee_id' => $empId,
+            'employee_code' => (string) ($emp['employee_code'] ?? ''),
+            'employee_name' => (string) ($emp['employee_name'] ?? ''),
+            'department_name' => (string) ($emp['department_name'] ?? ''),
+            'decided_salary' => $salary,
+            'quota' => (float) ($lt['days_allowed'] ?? 0),
+            'accrued' => $accrued,
+            'used' => $used,
+            'remaining' => $remaining,
+            'daily_rate' => $rate,
+            'encashment_amount' => $amount,
+        ];
+        $totals['employees']++;
+        $totals['quota'] += (float) ($lt['days_allowed'] ?? 0);
+        $totals['accrued'] += $accrued;
+        $totals['used'] += $used;
+        $totals['remaining'] += $remaining;
+        $totals['encashment'] += $amount;
+    }
+
+    if ($closeAfter) {
+        $conn->close();
+    }
+
+    return [
+        'leave_type' => $lt,
+        'year' => $year,
+        'as_of_month' => $asOfMonth,
+        'rows' => $rows,
+        'totals' => $totals,
+    ];
+}
+
+/**
+ * Duty Leave (DL) usage report — no balance / no carry-forward.
+ * Paid days counted via salary diary dl_days when approved.
+ *
+ * @return array{leave_type:array|null,year:int,month:int,rows:array,detail:array,totals:array}
+ */
+function leaveDutyLeaveReport($year = 0, $month = 0, $departmentId = 0, $conn = null)
+{
+    $closeAfter = false;
+    if ($conn === null) {
+        $conn = getDBConnection();
+        $closeAfter = true;
+    }
+    ensureLeaveTables($conn);
+    $year = (int) $year;
+    $month = (int) $month;
+    $departmentId = (int) $departmentId;
+    if ($year < 2000) {
+        $year = (int) date('Y');
+    }
+
+    $ltRes = $conn->query(
+        "SELECT id, code, leave_type, days_allowed, is_paid, description
+         FROM leave_types WHERE status = 1 AND UPPER(TRIM(code)) = 'DL' LIMIT 1"
+    );
+    $lt = $ltRes ? $ltRes->fetch_assoc() : null;
+    $ltId = $lt ? (int) $lt['id'] : 0;
+
+    $totals = [
+        'employees' => 0,
+        'requests' => 0,
+        'days' => 0.0,
+        'pending_days' => 0.0,
+        'approved_days' => 0.0,
+    ];
+    $rows = [];
+    $detail = [];
+
+    if ($ltId <= 0) {
+        if ($closeAfter) {
+            $conn->close();
+        }
+        return ['leave_type' => null, 'year' => $year, 'month' => $month, 'rows' => [], 'detail' => [], 'totals' => $totals];
+    }
+
+    // Employee-wise approved usage
+    $sql = "SELECT e.id, e.employee_code, e.employee_name, d.department_name,
+                   COALESCE(SUM(CASE WHEN lr.status = 'Approved' THEN lr.days ELSE 0 END), 0) AS approved_days,
+                   COALESCE(SUM(CASE WHEN lr.status = 'Pending' THEN lr.days ELSE 0 END), 0) AS pending_days,
+                   COUNT(CASE WHEN lr.status = 'Approved' THEN 1 END) AS approved_count,
+                   COUNT(CASE WHEN lr.status = 'Pending' THEN 1 END) AS pending_count
+            FROM employees e
+            LEFT JOIN departments d ON d.id = e.department_id
+            LEFT JOIN leave_requests lr
+              ON lr.employee_id = e.id
+             AND lr.leave_type_id = {$ltId}
+             AND YEAR(lr.from_date) = {$year}";
+    if ($month >= 1 && $month <= 12) {
+        $sql .= " AND MONTH(lr.from_date) = {$month}";
+    }
+    $sql .= ' WHERE e.status = 1';
+    if ($departmentId > 0) {
+        $sql .= ' AND e.department_id = ' . $departmentId;
+    }
+    $sql .= ' GROUP BY e.id, e.employee_code, e.employee_name, d.department_name
+              HAVING approved_days > 0 OR pending_days > 0
+              ORDER BY d.department_name ASC, e.employee_code ASC';
+
+    $res = $conn->query($sql);
+    if ($res) {
+        while ($r = $res->fetch_assoc()) {
+            $approved = (float) ($r['approved_days'] ?? 0);
+            $pending = (float) ($r['pending_days'] ?? 0);
+            $rows[] = $r;
+            $totals['employees']++;
+            $totals['approved_days'] += $approved;
+            $totals['pending_days'] += $pending;
+            $totals['days'] += $approved;
+            $totals['requests'] += (int) ($r['approved_count'] ?? 0) + (int) ($r['pending_count'] ?? 0);
+        }
+    }
+
+    // Detail ledger of requests
+    $dsql = "SELECT lr.*, e.employee_code, e.employee_name, d.department_name, lt.code, lt.leave_type
+             FROM leave_requests lr
+             INNER JOIN employees e ON e.id = lr.employee_id
+             LEFT JOIN departments d ON d.id = e.department_id
+             INNER JOIN leave_types lt ON lt.id = lr.leave_type_id
+             WHERE lr.leave_type_id = {$ltId}
+               AND YEAR(lr.from_date) = {$year}";
+    if ($month >= 1 && $month <= 12) {
+        $dsql .= " AND MONTH(lr.from_date) = {$month}";
+    }
+    if ($departmentId > 0) {
+        $dsql .= ' AND e.department_id = ' . $departmentId;
+    }
+    $dsql .= " AND lr.status IN ('Approved','Pending','Cancelled','Rejected')
+               ORDER BY lr.from_date DESC, lr.id DESC
+               LIMIT 1000";
+    $dres = $conn->query($dsql);
+    if ($dres) {
+        while ($r = $dres->fetch_assoc()) {
+            $detail[] = $r;
+        }
+    }
+
+    if ($closeAfter) {
+        $conn->close();
+    }
+
+    return [
+        'leave_type' => $lt,
+        'year' => $year,
+        'month' => $month,
+        'rows' => $rows,
+        'detail' => $detail,
+        'totals' => $totals,
+    ];
+}
+
+/**
+ * Sync LWP used_days for the year from attendance auto marks + approved LWP requests.
+ * Opening stays 0 (no balance).
+ */
+function leaveSyncLwpUsedFromAttendance($conn, $employeeId, $month, $year, $monthLwpDays = null)
+{
+    ensureLeaveTables($conn);
+    $employeeId = (int) $employeeId;
+    $year = (int) $year;
+    if ($employeeId <= 0 || $year < 2000) {
+        return 0.0;
+    }
+    $ltRes = $conn->query("SELECT id FROM leave_types WHERE status = 1 AND UPPER(TRIM(code)) = 'LWP' LIMIT 1");
+    $lt = $ltRes ? $ltRes->fetch_assoc() : null;
+    $ltId = $lt ? (int) $lt['id'] : 0;
+    if ($ltId <= 0) {
+        return 0.0;
+    }
+
+    // Count auto LWP days in attendance for the year
+    $from = sprintf('%04d-01-01', $year);
+    $to = sprintf('%04d-12-31', $year);
+    $st = $conn->prepare(
+        "SELECT COALESCE(SUM(
+            CASE
+              WHEN day_status = 'Half Day' AND UPPER(COALESCE(remarks,'')) LIKE '%LWP%' THEN 0.5
+              WHEN (day_status = 'Leave' OR day_status = 'Absent')
+                   AND (source = 'auto_lwp' OR UPPER(COALESCE(remarks,'')) LIKE '%LWP%') THEN 1
+              ELSE 0
+            END
+         ), 0) AS lwp_c
+         FROM attendance_day_status
+         WHERE employee_id = ? AND attendance_date BETWEEN ? AND ?"
+    );
+    $st->bind_param('iss', $employeeId, $from, $to);
+    $st->execute();
+    $attLwp = (float) ($st->get_result()->fetch_assoc()['lwp_c'] ?? 0);
+    $st->close();
+
+    // Approved applied LWP (source leave) — avoid double count if already in attendance with remarks LWP
+    // Attendance already has leave-protected LWP from leaveMarkAttendanceDays, so att count covers both.
+    $used = round($attLwp, 2);
+    leaveEnsureBalanceRow($conn, $employeeId, $ltId, $year, 0);
+    $bal = leaveGetBalance($conn, $employeeId, $ltId, $year);
+    $balId = (int) ($bal['id'] ?? 0);
+    if ($balId > 0) {
+        $upd = $conn->prepare(
+            'UPDATE employee_leave_balances SET opening_days = 0, credited_days = 0, adjusted_days = 0, used_days = ? WHERE id = ?'
+        );
+        $upd->bind_param('di', $used, $balId);
+        $upd->execute();
+        $upd->close();
+    }
+    return $used;
+}
+
+/**
+ * LWP report — unpaid days from attendance (auto) + leave requests.
+ */
+function leaveLwpReport($year = 0, $month = 0, $departmentId = 0, $conn = null)
+{
+    $closeAfter = false;
+    if ($conn === null) {
+        $conn = getDBConnection();
+        $closeAfter = true;
+    }
+    ensureLeaveTables($conn);
+    ensureAttendanceTables($conn);
+    if (function_exists('ensurePayrollTables')) {
+        ensurePayrollTables($conn);
+    }
+    $year = (int) $year;
+    $month = (int) $month;
+    $departmentId = (int) $departmentId;
+    if ($year < 2000) {
+        $year = (int) date('Y');
+    }
+
+    $ltRes = $conn->query(
+        "SELECT id, code, leave_type, days_allowed, is_paid, description
+         FROM leave_types WHERE status = 1 AND UPPER(TRIM(code)) = 'LWP' LIMIT 1"
+    );
+    $lt = $ltRes ? $ltRes->fetch_assoc() : null;
+
+    $from = ($month >= 1 && $month <= 12)
+        ? sprintf('%04d-%02d-01', $year, $month)
+        : sprintf('%04d-01-01', $year);
+    $to = ($month >= 1 && $month <= 12)
+        ? date('Y-m-t', strtotime($from))
+        : sprintf('%04d-12-31', $year);
+
+    $totals = [
+        'employees' => 0,
+        'lwp_days' => 0.0,
+        'salary_impact' => 0.0,
+    ];
+    $rows = [];
+    $detail = [];
+
+    $sql = "SELECT e.id, e.employee_code, e.employee_name, e.decided_salary, d.department_name,
+                   COALESCE(SUM(
+                     CASE
+                       WHEN a.day_status = 'Half Day' AND UPPER(COALESCE(a.remarks,'')) LIKE '%LWP%' THEN 0.5
+                       WHEN (a.day_status IN ('Leave','Absent'))
+                            AND (a.source = 'auto_lwp' OR UPPER(COALESCE(a.remarks,'')) LIKE '%LWP%') THEN 1
+                       ELSE 0
+                     END
+                   ), 0) AS lwp_days
+            FROM employees e
+            LEFT JOIN departments d ON d.id = e.department_id
+            LEFT JOIN attendance_day_status a
+              ON a.employee_id = e.id
+             AND a.attendance_date BETWEEN '{$from}' AND '{$to}'
+            WHERE e.status = 1";
+    if ($departmentId > 0) {
+        $sql .= ' AND e.department_id = ' . $departmentId;
+    }
+    $sql .= ' GROUP BY e.id, e.employee_code, e.employee_name, e.decided_salary, d.department_name
+              HAVING lwp_days > 0
+              ORDER BY d.department_name ASC, e.employee_code ASC';
+
+    $res = $conn->query($sql);
+    if ($res) {
+        while ($r = $res->fetch_assoc()) {
+            $days = (float) ($r['lwp_days'] ?? 0);
+            $salary = (float) ($r['decided_salary'] ?? 0);
+            $rate = $salary > 0 ? round($salary / 30, 2) : 0.0;
+            $impact = round($days * $rate, 2);
+            $r['daily_rate'] = $rate;
+            $r['salary_impact'] = $impact;
+            $rows[] = $r;
+            $totals['employees']++;
+            $totals['lwp_days'] += $days;
+            $totals['salary_impact'] += $impact;
+        }
+    }
+
+    $dsql = "SELECT a.attendance_date, a.day_status, a.source, a.remarks, a.working_minutes,
+                    e.employee_code, e.employee_name, d.department_name
+             FROM attendance_day_status a
+             INNER JOIN employees e ON e.id = a.employee_id
+             LEFT JOIN departments d ON d.id = e.department_id
+             WHERE a.attendance_date BETWEEN '{$from}' AND '{$to}'
+               AND (
+                    a.source = 'auto_lwp'
+                    OR UPPER(COALESCE(a.remarks,'')) LIKE '%LWP%'
+                    OR a.day_status = 'Absent'
+               )
+               AND e.status = 1";
+    if ($departmentId > 0) {
+        $dsql .= ' AND e.department_id = ' . $departmentId;
+    }
+    $dsql .= ' ORDER BY a.attendance_date DESC, e.employee_code ASC LIMIT 2000';
+    $dres = $conn->query($dsql);
+    if ($dres) {
+        while ($r = $dres->fetch_assoc()) {
+            // Skip week-off / holiday mis-tags
+            $detail[] = $r;
+        }
+    }
+
+    if ($closeAfter) {
+        $conn->close();
+    }
+
+    return [
+        'leave_type' => $lt,
+        'year' => $year,
+        'month' => $month,
+        'from' => $from,
+        'to' => $to,
+        'rows' => $rows,
+        'detail' => $detail,
+        'totals' => $totals,
+    ];
+}
+
+function leaveAttachmentUploadDir()
+{
+    return dirname(__DIR__) . '/assets/uploads/leave_attachments';
+}
+
+/**
+ * Optional leave request attachment (PDF / image). Returns relative path or null.
+ */
+function leaveUploadAttachment($file, $employeeId = 0)
+{
+    if (!is_array($file) || (int) ($file['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_NO_FILE) {
+        return null;
+    }
+    if ((int) ($file['error'] ?? 0) !== UPLOAD_ERR_OK) {
+        throw new RuntimeException('Attachment upload failed.');
+    }
+    $tmp = (string) ($file['tmp_name'] ?? '');
+    if ($tmp === '' || !is_uploaded_file($tmp)) {
+        throw new RuntimeException('Invalid attachment upload.');
+    }
+    $size = (int) ($file['size'] ?? 0);
+    if ($size <= 0 || $size > 5 * 1024 * 1024) {
+        throw new RuntimeException('Attachment must be under 5 MB.');
+    }
+    $orig = (string) ($file['name'] ?? 'file');
+    $ext = strtolower(pathinfo($orig, PATHINFO_EXTENSION));
+    $allowed = ['pdf', 'jpg', 'jpeg', 'png', 'webp', 'gif'];
+    if (!in_array($ext, $allowed, true)) {
+        throw new RuntimeException('Attachment allowed types: PDF, JPG, PNG, WEBP, GIF.');
+    }
+    $dir = leaveAttachmentUploadDir();
+    if (!is_dir($dir) && !mkdir($dir, 0755, true) && !is_dir($dir)) {
+        throw new RuntimeException('Could not create attachment folder.');
+    }
+    $safe = 'leave_' . (int) $employeeId . '_' . date('YmdHis') . '_' . bin2hex(random_bytes(4)) . '.' . $ext;
+    $dest = $dir . DIRECTORY_SEPARATOR . $safe;
+    if (!move_uploaded_file($tmp, $dest)) {
+        throw new RuntimeException('Could not save attachment.');
+    }
+    return 'assets/uploads/leave_attachments/' . $safe;
+}
+
+function leaveAttachmentUrl($relativePath)
+{
+    $relativePath = trim((string) $relativePath);
+    if ($relativePath === '' || strpos($relativePath, 'assets/uploads/leave_attachments/') !== 0) {
+        return '';
+    }
+    if (strpos($relativePath, '..') !== false) {
+        return '';
+    }
+    return function_exists('app_url') ? app_url($relativePath) : '/' . ltrim($relativePath, '/');
+}
+
+
+

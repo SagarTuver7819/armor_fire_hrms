@@ -241,6 +241,11 @@ $openAttendance = ($sidebarMode === 'attendance' || strpos((string) $sidebarActi
                     <i class="fa-solid fa-users"></i>
                     <span>All Employees</span>
                 </a>
+                <a href="<?php echo app_url('employees/visiting_card.php'); ?>"
+                   class="sidebar-link <?php echo $sidebarActive === 'visiting_card' ? 'active' : ''; ?>">
+                    <i class="fa-solid fa-id-card"></i>
+                    <span>Visiting Card</span>
+                </a>
                 <a href="<?php echo app_url('employees/exit_list.php'); ?>"
                    class="sidebar-link <?php echo $sidebarActive === 'exit_employee' ? 'active' : ''; ?>">
                     <i class="fa-solid fa-user-xmark"></i>
@@ -253,6 +258,31 @@ $openAttendance = ($sidebarMode === 'attendance' || strpos((string) $sidebarActi
                    class="sidebar-link <?php echo $sidebarActive === 'leave_request' ? 'active' : ''; ?>">
                     <i class="fa-solid fa-plane-departure"></i>
                     <span>Leave Requests</span>
+                </a>
+                <a href="<?php echo app_url('leave/encashment.php'); ?>"
+                   class="sidebar-link <?php echo $sidebarActive === 'leave_encashment' ? 'active' : ''; ?>">
+                    <i class="fa-solid fa-money-bill-wave"></i>
+                    <span>Leave Encashment</span>
+                </a>
+                <a href="<?php echo app_url('leave/coff_history.php'); ?>"
+                   class="sidebar-link <?php echo $sidebarActive === 'coff_history' ? 'active' : ''; ?>">
+                    <i class="fa-solid fa-clock-rotate-left"></i>
+                    <span>C-Off History</span>
+                </a>
+                <a href="<?php echo app_url('leave/coff_report.php'); ?>"
+                   class="sidebar-link <?php echo $sidebarActive === 'coff_report' ? 'active' : ''; ?>">
+                    <i class="fa-solid fa-file-invoice"></i>
+                    <span>C-Off Report</span>
+                </a>
+                <a href="<?php echo app_url('leave/dl_report.php'); ?>"
+                   class="sidebar-link <?php echo $sidebarActive === 'dl_report' ? 'active' : ''; ?>">
+                    <i class="fa-solid fa-briefcase"></i>
+                    <span>Duty Leave Report</span>
+                </a>
+                <a href="<?php echo app_url('leave/lwp_report.php'); ?>"
+                   class="sidebar-link <?php echo $sidebarActive === 'lwp_report' ? 'active' : ''; ?>">
+                    <i class="fa-solid fa-user-xmark"></i>
+                    <span>LWP Report</span>
                 </a>
                 <?php endif; ?>
                 <?php if ($canPay): ?>
@@ -336,6 +366,11 @@ $openAttendance = ($sidebarMode === 'attendance' || strpos((string) $sidebarActi
                        class="sidebar-link sidebar-sublink <?php echo $sidebarActive === 'attendance_report' ? 'active' : ''; ?>">
                         <i class="fa-solid fa-chart-simple"></i>
                         <span>Attendance Report</span>
+                    </a>
+                    <a href="<?php echo app_url('attendance/late_report.php'); ?>"
+                       class="sidebar-link sidebar-sublink <?php echo $sidebarActive === 'attendance_late' ? 'active' : ''; ?>">
+                        <i class="fa-solid fa-user-clock"></i>
+                        <span>Late / Early Report</span>
                     </a>
                     <a href="<?php echo app_url('attendance/history.php'); ?>"
                        class="sidebar-link sidebar-sublink <?php echo $sidebarActive === 'attendance_history' ? 'active' : ''; ?>">
@@ -499,6 +534,11 @@ $openAttendance = ($sidebarMode === 'attendance' || strpos((string) $sidebarActi
                         <i class="fa-solid fa-user-plus"></i>
                         <span>Join Employee</span>
                     </a>
+                    <a href="<?php echo app_url('employees/visiting_card.php?department_id=' . $sidebarDeptId . '&show=1'); ?>"
+                       class="sidebar-link <?php echo $sidebarActive === 'visiting_card' ? 'active' : ''; ?>">
+                        <i class="fa-solid fa-id-card"></i>
+                        <span>Visiting Card</span>
+                    </a>
                     <a href="<?php echo app_url('employees/exit_list.php?department_id=' . $sidebarDeptId); ?>"
                        class="sidebar-link <?php echo $sidebarActive === 'exit_employee' ? 'active' : ''; ?>">
                         <i class="fa-solid fa-user-xmark"></i>
@@ -558,6 +598,26 @@ $openAttendance = ($sidebarMode === 'attendance' || strpos((string) $sidebarActi
                        class="sidebar-link <?php echo $sidebarActive === 'leave_balance' ? 'active' : ''; ?>">
                         <i class="fa-solid fa-scale-balanced"></i>
                         <span>Leave Balance</span>
+                    </a>
+                    <a href="<?php echo app_url('leave/coff_history.php?department_id=' . $sidebarDeptId); ?>"
+                       class="sidebar-link <?php echo $sidebarActive === 'coff_history' ? 'active' : ''; ?>">
+                        <i class="fa-solid fa-clock-rotate-left"></i>
+                        <span>C-Off History</span>
+                    </a>
+                    <a href="<?php echo app_url('leave/coff_report.php?department_id=' . $sidebarDeptId); ?>"
+                       class="sidebar-link <?php echo $sidebarActive === 'coff_report' ? 'active' : ''; ?>">
+                        <i class="fa-solid fa-file-invoice"></i>
+                        <span>C-Off Report</span>
+                    </a>
+                    <a href="<?php echo app_url('leave/dl_report.php?department_id=' . $sidebarDeptId); ?>"
+                       class="sidebar-link <?php echo $sidebarActive === 'dl_report' ? 'active' : ''; ?>">
+                        <i class="fa-solid fa-briefcase"></i>
+                        <span>Duty Leave Report</span>
+                    </a>
+                    <a href="<?php echo app_url('leave/lwp_report.php?department_id=' . $sidebarDeptId); ?>"
+                       class="sidebar-link <?php echo $sidebarActive === 'lwp_report' ? 'active' : ''; ?>">
+                        <i class="fa-solid fa-user-xmark"></i>
+                        <span>LWP Report</span>
                     </a>
                     <a href="<?php echo app_url('masters/holidays/index.php?department_id=' . $sidebarDeptId); ?>"
                        class="sidebar-link <?php echo $sidebarActive === 'holidays' ? 'active' : ''; ?>">

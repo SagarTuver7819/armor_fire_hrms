@@ -245,18 +245,20 @@ $canAddLeave = canAccess('leave', 'add', $deptId);
                         <th>Days</th>
                         <th>Status</th>
                         <th>Reason</th>
+                        <th>File</th>
                         <th>Applied</th>
                     </tr>
                 </thead>
                 <tbody>
                 <?php if (!$rows): ?>
-                    <tr><td colspan="9" class="empty-cell">No leave history for this year.</td></tr>
+                    <tr><td colspan="10" class="empty-cell">No leave history for this year.</td></tr>
                 <?php endif; ?>
                 <?php foreach ($rows as $i => $r): ?>
                     <?php
                     $half = leaveNormalizeHalf($r['leave_half'] ?? 'FULL');
                     $st = $r['status'];
                     $cls = $st === 'Approved' ? 'color:#047857' : ($st === 'Pending' ? 'color:#b45309' : ($st === 'Rejected' ? 'color:#b91c1c' : 'color:#64748b'));
+                    $attUrl = leaveAttachmentUrl($r['attachment_path'] ?? '');
                     ?>
                     <tr>
                         <td><?php echo $i + 1; ?></td>
@@ -267,6 +269,15 @@ $canAddLeave = canAccess('leave', 'add', $deptId);
                         <td><strong><?php echo number_format((float) $r['days'], 1); ?></strong></td>
                         <td><strong style="<?php echo $cls; ?>"><?php echo htmlspecialchars($st); ?></strong></td>
                         <td><?php echo htmlspecialchars($r['reason'] ?: '—'); ?></td>
+                        <td>
+                            <?php if ($attUrl !== ''): ?>
+                                <a href="<?php echo htmlspecialchars($attUrl); ?>" target="_blank" rel="noopener" class="btn-secondary" style="padding:4px 8px;font-size:12px;">
+                                    <i class="fa-solid fa-paperclip"></i> View
+                                </a>
+                            <?php else: ?>
+                                —
+                            <?php endif; ?>
+                        </td>
                         <td><?php echo htmlspecialchars(!empty($r['created_at']) ? date('d-m-Y', strtotime($r['created_at'])) : '—'); ?></td>
                     </tr>
                 <?php endforeach; ?>
@@ -331,14 +342,16 @@ $canAddLeave = canAccess('leave', 'add', $deptId);
                         <th>Days</th>
                         <th>Status</th>
                         <th>Reason</th>
+                        <th>File</th>
                         <th>Action</th>
                     </tr>
                 </thead>
                 <tbody>
                 <?php if (!$rows): ?>
-                    <tr><td colspan="10" class="empty-cell">No leave requests found.</td></tr>
+                    <tr><td colspan="11" class="empty-cell">No leave requests found.</td></tr>
                 <?php endif; ?>
                 <?php foreach ($rows as $i => $r): ?>
+                    <?php $attUrl = leaveAttachmentUrl($r['attachment_path'] ?? ''); ?>
                     <tr>
                         <td><?php echo $i + 1; ?></td>
                         <td>
@@ -369,6 +382,15 @@ $canAddLeave = canAccess('leave', 'add', $deptId);
                             <strong style="<?php echo $cls; ?>"><?php echo htmlspecialchars($st); ?></strong>
                         </td>
                         <td><?php echo htmlspecialchars($r['reason'] ?: '-'); ?></td>
+                        <td>
+                            <?php if ($attUrl !== ''): ?>
+                                <a href="<?php echo htmlspecialchars($attUrl); ?>" target="_blank" rel="noopener" title="Attachment">
+                                    <i class="fa-solid fa-paperclip"></i>
+                                </a>
+                            <?php else: ?>
+                                —
+                            <?php endif; ?>
+                        </td>
                         <td>
                             <?php
                             $rowDeptId = (int) ($r['department_id'] ?? 0);

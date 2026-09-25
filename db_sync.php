@@ -21,6 +21,7 @@ require_once __DIR__ . '/includes/biometric_helper.php';
 require_once __DIR__ . '/includes/department_icons.php';
 require_once __DIR__ . '/includes/department_helper.php';
 require_once __DIR__ . '/includes/leave_helper.php';
+require_once __DIR__ . '/includes/coff_helper.php';
 require_once __DIR__ . '/includes/circular_helper.php';
 require_once __DIR__ . '/includes/policy_helper.php';
 require_once __DIR__ . '/includes/permission_helper.php';
@@ -81,13 +82,29 @@ try {
 
     ensureAttendanceTables($conn);
     $log[] = 'Attendance tables ready (punches, day status, import batches, biometric_user_id).';
+    $log[] = 'Attendance flex: late/early columns (is_late, is_early, flex_seq, penalty_leave, shift_start/end) — 1h window, 2 flex/month, Half PL → Half LWP.';
 
     ensureBiometricTables($conn);
     seedArmorBiometricMachinesOnce($conn);
     $log[] = 'Biometric machines ready (tables + one-time default seed if empty; delete will not recreate).';
 
     ensureLeaveTables($conn);
-    $log[] = 'Leave tables ready (employee leave balances, leave requests).';
+    $log[] = 'Leave tables ready (balances, requests, attachment_path).';
+    $log[] = 'Leave types: PL (24/yr monthly CF), SL (2/month wipe), DL (duty), LWP (unpaid), C-OFF (via coff helper).';
+
+    ensureCoffTables($conn);
+    $log[] = 'C-Off tables ready (credits ledger, usage, C-OFF leave type; 4h=0.5 / 8h=1 on WO/Holiday, expire 2 months).';
+
+    // Seed / refresh current-year leave balances for all active employees
+    $yearNow = (int) date('Y');
+    try {
+        $alloc = leaveAllocateYearlyBalances($yearNow, 0, false, $conn);
+        $log[] = 'Leave balances year ' . $yearNow . ': created/refreshed '
+            . (int) ($alloc['created'] ?? 0) . ' + updated ' . (int) ($alloc['updated'] ?? 0)
+            . ' row(s) (PL monthly CF, SL monthly wipe, DL/LWP/C-Off tracked).';
+    } catch (Throwable $e) {
+        $log[] = 'Leave balance allocate warning: ' . $e->getMessage();
+    }
 
     ensureCircularTables($conn);
     $log[] = 'Circulars table ready (scanned PDF circulars for HR/Admin).';
@@ -145,6 +162,7 @@ try {
         'employees.pf_employee_contribution' => dbSyncHasColumn($conn, 'employees', 'pf_employee_contribution'),
         'employees.pf_employer_contribution' => dbSyncHasColumn($conn, 'employees', 'pf_employer_contribution'),
         'employees.office_email' => dbSyncHasColumn($conn, 'employees', 'office_email'),
+        'employees.office_mobile' => dbSyncHasColumn($conn, 'employees', 'office_mobile'),
         'employees.photo_file' => dbSyncHasColumn($conn, 'employees', 'photo_file'),
         'employee_family_members table' => dbSyncHasTable($conn, 'employee_family_members'),
         'holidays.department_id' => dbSyncHasColumn($conn, 'holidays', 'department_id'),
@@ -156,9 +174,26 @@ try {
         'contractor_operation_sheets table' => dbSyncHasTable($conn, 'contractor_operation_sheets'),
         'attendance_punches table' => dbSyncHasTable($conn, 'attendance_punches'),
         'attendance_day_status table' => dbSyncHasTable($conn, 'attendance_day_status'),
+        'attendance_day_status.is_late' => dbSyncHasColumn($conn, 'attendance_day_status', 'is_late'),
+        'attendance_day_status.is_early' => dbSyncHasColumn($conn, 'attendance_day_status', 'is_early'),
+        'attendance_day_status.flex_seq' => dbSyncHasColumn($conn, 'attendance_day_status', 'flex_seq'),
+        'attendance_day_status.penalty_leave' => dbSyncHasColumn($conn, 'attendance_day_status', 'penalty_leave'),
+        'attendance_day_status.shift_start' => dbSyncHasColumn($conn, 'attendance_day_status', 'shift_start'),
+        'attendance_day_status.shift_end' => dbSyncHasColumn($conn, 'attendance_day_status', 'shift_end'),
         'employees.biometric_user_id' => dbSyncHasColumn($conn, 'employees', 'biometric_user_id'),
         'employee_leave_balances table' => dbSyncHasTable($conn, 'employee_leave_balances'),
         'leave_requests table' => dbSyncHasTable($conn, 'leave_requests'),
+        'leave_requests.attachment_path' => dbSyncHasColumn($conn, 'leave_requests', 'attachment_path'),
+        'leave_types.PL' => dbSyncCount($conn, "SELECT COUNT(*) AS c FROM leave_types WHERE status=1 AND UPPER(TRIM(code))='PL'") > 0,
+        'leave_types.SL (2/mo wipe)' => dbSyncCount($conn, "SELECT COUNT(*) AS c FROM leave_types WHERE status=1 AND UPPER(TRIM(code))='SL'") > 0,
+        'leave_types.DL' => dbSyncCount($conn, "SELECT COUNT(*) AS c FROM leave_types WHERE status=1 AND UPPER(TRIM(code))='DL'") > 0,
+        'leave_types.LWP' => dbSyncCount($conn, "SELECT COUNT(*) AS c FROM leave_types WHERE status=1 AND UPPER(TRIM(code))='LWP'") > 0,
+        'leave_types.C-OFF' => dbSyncCount($conn, "SELECT COUNT(*) AS c FROM leave_types WHERE status=1 AND (UPPER(TRIM(code))='C-OFF' OR UPPER(TRIM(code))='COFF')") > 0,
+        'coff_credits table' => dbSyncHasTable($conn, 'coff_credits'),
+        'coff_usage table' => dbSyncHasTable($conn, 'coff_usage'),
+        'salary_diary.lwp_days' => dbSyncHasColumn($conn, 'salary_diary', 'lwp_days'),
+        'salary_diary.sl_days' => dbSyncHasColumn($conn, 'salary_diary', 'sl_days'),
+        'salary_diary.dl_days' => dbSyncHasColumn($conn, 'salary_diary', 'dl_days'),
         'circulars table' => dbSyncHasTable($conn, 'circulars'),
         'circular_departments table' => dbSyncHasTable($conn, 'circular_departments'),
         'circular_reads table' => dbSyncHasTable($conn, 'circular_reads'),
@@ -182,8 +217,10 @@ try {
         'Operations Rate Lists' => dbSyncCount($conn, 'SELECT COUNT(*) AS c FROM contractor_operation_sheets WHERE status = 1'),
         'Attendance Day Rows' => dbSyncCount($conn, 'SELECT COUNT(*) AS c FROM attendance_day_status'),
         'Attendance Punches' => dbSyncCount($conn, 'SELECT COUNT(*) AS c FROM attendance_punches'),
+        'Leave Types (active)' => dbSyncCount($conn, 'SELECT COUNT(*) AS c FROM leave_types WHERE status = 1'),
         'Leave Balance Rows' => dbSyncCount($conn, 'SELECT COUNT(*) AS c FROM employee_leave_balances'),
         'Leave Requests' => dbSyncCount($conn, 'SELECT COUNT(*) AS c FROM leave_requests'),
+        'C-Off Credits' => dbSyncHasTable($conn, 'coff_credits') ? dbSyncCount($conn, 'SELECT COUNT(*) AS c FROM coff_credits') : 0,
         'Circulars' => dbSyncCount($conn, 'SELECT COUNT(*) AS c FROM circulars WHERE status = 1'),
         'Policies' => dbSyncCount($conn, 'SELECT COUNT(*) AS c FROM policies WHERE status = 1'),
         'Custom Roles' => dbSyncCount($conn, 'SELECT COUNT(*) AS c FROM roles WHERE status = 1'),
@@ -210,7 +247,10 @@ require_once __DIR__ . '/includes/header.php';
     <div class="form-page-card">
         <div class="form-page-header">
             <h1><?php echo $ok ? 'DB Sync complete' : 'DB Sync finished with issues'; ?></h1>
-            <p>Safe re-run. Tables / columns are created if missing. Product &amp; grade seed updates existing rows.</p>
+            <p>
+                Safe re-run for live. Creates missing tables/columns · seeds PL/SL/DL/LWP/C-Off ·
+                attendance late/early flex · leave attachments · leave balances for current year.
+            </p>
         </div>
 
         <div class="form-section">

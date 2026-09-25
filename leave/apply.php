@@ -89,7 +89,7 @@ require_once __DIR__ . '/../includes/header.php';
             </div>
         </div>
 
-        <form method="POST" action="<?php echo app_url('leave/save.php'); ?>" class="employee-form">
+        <form method="POST" action="<?php echo app_url('leave/save.php'); ?>" class="employee-form" enctype="multipart/form-data">
             <input type="hidden" name="department_id" value="<?php echo $deptId; ?>">
             <?php if ($selfApply): ?>
                 <input type="hidden" name="employee_id" value="<?php echo $sessionEmpId; ?>">
@@ -116,16 +116,27 @@ require_once __DIR__ . '/../includes/header.php';
                 <?php endif; ?>
                 <div class="form-group">
                     <label>Leave Type <span class="req">*</span></label>
-                    <select name="leave_type_id" class="form-control" required>
+                    <select name="leave_type_id" id="leave_type_id" class="form-control" required>
                         <option value="">Select type</option>
                         <?php foreach ($leaveTypes as $lt): ?>
-                            <option value="<?php echo (int) $lt['id']; ?>">
+                            <?php
+                            $code = strtoupper(trim((string) ($lt['code'] ?? '')));
+                            $hint = '';
+                            if ($code === 'SL') {
+                                $hint = ' · 2/month, unused wipes';
+                            } elseif ($code === 'PL') {
+                                $hint = ' · 24/yr monthly CF';
+                            }
+                            ?>
+                            <option value="<?php echo (int) $lt['id']; ?>"
+                                    data-code="<?php echo htmlspecialchars($code); ?>">
                                 <?php
                                 echo htmlspecialchars(
                                     ($lt['code'] ? $lt['code'] . ' · ' : '')
                                     . $lt['leave_type']
                                     . ' (' . (int) $lt['days_allowed'] . ' /yr, '
                                     . (($lt['is_paid'] ?? 'Yes') === 'Yes' ? 'Paid' : 'Unpaid') . ')'
+                                    . $hint
                                 );
                                 ?>
                             </option>
@@ -152,6 +163,11 @@ require_once __DIR__ . '/../includes/header.php';
                     <label>Reason</label>
                     <textarea name="reason" class="form-control" rows="2" placeholder="Optional"></textarea>
                 </div>
+                <div class="form-group" id="leave_attachment_group" style="grid-column: 1 / -1;">
+                    <label>Attachment <span style="font-weight:500;color:#64748b;">(Optional — recommended for Sick Leave)</span></label>
+                    <input type="file" name="attachment" class="form-control" accept=".pdf,.jpg,.jpeg,.png,.webp,.gif,application/pdf,image/*">
+                    <small class="form-hint">PDF / Image · Max 5 MB · Optional for all leave types</small>
+                </div>
             </div>
 
             <div class="form-actions sticky-actions">
@@ -163,5 +179,23 @@ require_once __DIR__ . '/../includes/header.php';
         </form>
     </div>
 </main>
+
+<script>
+(function () {
+    var sel = document.getElementById('leave_type_id');
+    var grp = document.getElementById('leave_attachment_group');
+    if (!sel || !grp) return;
+    function sync() {
+        var opt = sel.options[sel.selectedIndex];
+        var code = (opt && opt.getAttribute('data-code')) || '';
+        grp.style.outline = code === 'SL' ? '2px solid #fdba74' : 'none';
+        grp.style.borderRadius = '10px';
+        grp.style.padding = code === 'SL' ? '8px' : '0';
+        grp.style.background = code === 'SL' ? '#fff7ed' : 'transparent';
+    }
+    sel.addEventListener('change', sync);
+    sync();
+})();
+</script>
 
 <?php require_once __DIR__ . '/../includes/footer.php'; ?>

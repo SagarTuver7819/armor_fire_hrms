@@ -60,11 +60,36 @@ function ensureMasterTables($conn = null)
         days_allowed INT NOT NULL DEFAULT 0,
         is_paid ENUM('Yes','No') NOT NULL DEFAULT 'Yes',
         description TEXT,
+        accrual_type VARCHAR(20) NOT NULL DEFAULT 'yearly',
+        monthly_carry_forward TINYINT(1) NOT NULL DEFAULT 0,
+        max_concurrent_applicants INT NOT NULL DEFAULT 0,
+        allow_encashment TINYINT(1) NOT NULL DEFAULT 0,
         status TINYINT(1) NOT NULL DEFAULT 1,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
         INDEX idx_leave_types_status (status)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+
+    // Upgrade leave_types columns on older installs
+    $ltCols = [];
+    $ltc = $conn->query('SHOW COLUMNS FROM leave_types');
+    if ($ltc) {
+        while ($r = $ltc->fetch_assoc()) {
+            $ltCols[strtolower((string) $r['Field'])] = true;
+        }
+    }
+    if (!isset($ltCols['accrual_type'])) {
+        $conn->query("ALTER TABLE leave_types ADD COLUMN accrual_type VARCHAR(20) NOT NULL DEFAULT 'yearly' AFTER description");
+    }
+    if (!isset($ltCols['monthly_carry_forward'])) {
+        $conn->query("ALTER TABLE leave_types ADD COLUMN monthly_carry_forward TINYINT(1) NOT NULL DEFAULT 0 AFTER accrual_type");
+    }
+    if (!isset($ltCols['max_concurrent_applicants'])) {
+        $conn->query("ALTER TABLE leave_types ADD COLUMN max_concurrent_applicants INT NOT NULL DEFAULT 0 AFTER monthly_carry_forward");
+    }
+    if (!isset($ltCols['allow_encashment'])) {
+        $conn->query("ALTER TABLE leave_types ADD COLUMN allow_encashment TINYINT(1) NOT NULL DEFAULT 0 AFTER max_concurrent_applicants");
+    }
 
     $conn->query("CREATE TABLE IF NOT EXISTS holidays (
         id INT AUTO_INCREMENT PRIMARY KEY,

@@ -69,6 +69,7 @@ function ensurePayrollTables($conn = null)
     ensurePayrollColumn($conn, 'salary_diary', 'pl_days', 'pl_days DECIMAL(6,2) NOT NULL DEFAULT 0 AFTER holiday_days');
     ensurePayrollColumn($conn, 'salary_diary', 'sl_days', 'sl_days DECIMAL(6,2) NOT NULL DEFAULT 0 AFTER pl_days');
     ensurePayrollColumn($conn, 'salary_diary', 'dl_days', 'dl_days DECIMAL(6,2) NOT NULL DEFAULT 0 AFTER sl_days');
+    ensurePayrollColumn($conn, 'salary_diary', 'lwp_days', 'lwp_days DECIMAL(6,2) NOT NULL DEFAULT 0 AFTER dl_days');
     ensurePayrollColumn($conn, 'salary_diary', 'loan_amount', 'loan_amount DECIMAL(12,2) NOT NULL DEFAULT 0 AFTER overtime_hours');
     ensurePayrollColumn($conn, 'salary_diary', 'advance_amount', 'advance_amount DECIMAL(12,2) NOT NULL DEFAULT 0 AFTER loan_amount');
     ensurePayrollColumn($conn, 'salary_diary', 'arrears_amount', 'arrears_amount DECIMAL(12,2) NOT NULL DEFAULT 0 AFTER advance_amount');
@@ -779,9 +780,10 @@ function getPayrollAttendanceBundle(array $emp, $month, $year, $actualAmount)
     $pl = $hasDiary ? (float) ($diary['pl_days'] ?? 0) : 0;
     $sl = $hasDiary ? (float) ($diary['sl_days'] ?? 0) : 0;
     $dl = $hasDiary ? (float) ($diary['dl_days'] ?? 0) : 0;
+    $lwp = $hasDiary ? (float) ($diary['lwp_days'] ?? 0) : 0;
 
     if ($present >= $eligibleDays && ($weekOffRaw + $holidayRaw) > 0) {
-        $present = max(0, $eligibleDays - $weekOffRaw - $holidayRaw - $pl - $sl - $dl);
+        $present = max(0, $eligibleDays - $weekOffRaw - $holidayRaw - $pl - $sl - $dl - $lwp);
     }
 
     $weekOffPaid = (($emp['week_off_benefits'] ?? 'No') === 'Yes') ? $weekOffRaw : 0.0;
@@ -799,6 +801,7 @@ function getPayrollAttendanceBundle(array $emp, $month, $year, $actualAmount)
     $advance = $diary ? (float) ($diary['advance_amount'] ?? 0) : 0;
     $arrears = $diary ? (float) ($diary['arrears_amount'] ?? 0) : 0;
 
+    // LWP is unpaid — excluded from paid total days (salary reduced)
     $totalDays = $present + $weekOffPaid + $holidayPaid + $pl + $sl + $dl;
     if ($totalDays > $eligibleDays) {
         $totalDays = $eligibleDays;
@@ -838,6 +841,7 @@ function getPayrollAttendanceBundle(array $emp, $month, $year, $actualAmount)
         'pl' => $pl,
         'sl' => $sl,
         'dl' => $dl,
+        'lwp' => $lwp,
         'total_days' => $totalDays,
         'loan' => $loan,
         'advance' => $advance,
