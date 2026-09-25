@@ -470,6 +470,81 @@ function biometricParseOceanTime($value)
     return $ts ? date('H:i:s', $ts) : null;
 }
 
+/**
+ * Keep MySQL alive during long Ocean HTTP sync (fixes "MySQL server has gone away").
+ * @param mysqli|null $conn
+ * @return mysqli
+ */
+function biometricDbAlive(?mysqli &$conn)
+{
+    if ($conn instanceof mysqli) {
+        try {
+            if (@$conn->ping()) {
+                return $conn;
+            }
+        } catch (Throwable $e) {
+            // connection dropped
+        }
+        try {
+            @$conn->close();
+        } catch (Throwable $e) {
+        }
+        $conn = null;
+    }
+    $conn = getDBConnection();
+    // Best-effort longer idle timeout for sync (ignored if no privilege)
+    @$conn->query('SET SESSION wait_timeout = 600');
+    @$conn->query('SET SESSION interactive_timeout = 600');
+    return $conn;
+}
+
+/**
+ * Preload code → employee_id map so sync does not prepare() per row.
+ * @return array{map:array<string,int>,names:array<int,string>}
+ */
+function biometricLoadResolveCache(mysqli $conn)
+{
+    $map = [];
+    $names = [];
+    $r = @$conn->query('SELECT biometric_code, employee_id FROM biometric_employee_map');
+    if ($r) {
+        while ($row = $r->fetch_assoc()) {
+            $k = strtoupper(trim((string) $row['biometric_code']));
+            if ($k !== '') {
+                $map[$k] = (int) $row['employee_id'];
+            }
+        }
+    }
+    $r2 = @$conn->query(
+        "SELECT id, employee_code, biometric_user_id, employee_name
+         FROM employees WHERE status = 1"
+    );
+    if ($r2) {
+        while ($row = $r2->fetch_assoc()) {
+            $eid = (int) $row['id'];
+            $names[$eid] = (string) ($row['employee_name'] ?? '');
+            foreach ([(string) ($row['employee_code'] ?? ''), (string) ($row['biometric_user_id'] ?? '')] as $c) {
+                $k = strtoupper(trim($c));
+                if ($k !== '' && !isset($map[$k])) {
+                    $map[$k] = $eid;
+                }
+            }
+        }
+    }
+    return ['map' => $map, 'names' => $names];
+}
+
+function biometricResolveFromCache(array $cache, $employeeCode, $biometricId = '')
+{
+    foreach ([$employeeCode, $biometricId] as $c) {
+        $k = strtoupper(trim((string) $c));
+        if ($k !== '' && isset($cache['map'][$k])) {
+            return (int) $cache['map'][$k];
+        }
+    }
+    return 0;
+}
+
 function biometricResolveLocalEmployeeId($conn, $employeeCode, $biometricId = '')
 {
     $employeeCode = trim((string) $employeeCode);
@@ -489,6 +564,9 @@ function biometricResolveLocalEmployeeId($conn, $employeeCode, $biometricId = ''
              WHERE UPPER(TRIM(biometric_code)) = UPPER(TRIM(?))
              LIMIT 1"
         );
+        if (!$st) {
+            return 0;
+        }
         $st->bind_param('s', $key);
         $st->execute();
         $row = $st->get_result()->fetch_assoc();
@@ -504,6 +582,9 @@ function biometricResolveLocalEmployeeId($conn, $employeeCode, $biometricId = ''
              WHERE UPPER(TRIM(employee_code)) = UPPER(TRIM(?))
              LIMIT 1"
         );
+        if (!$st) {
+            return 0;
+        }
         $st->bind_param('s', $employeeCode);
         $st->execute();
         $row = $st->get_result()->fetch_assoc();
@@ -519,6 +600,9 @@ function biometricResolveLocalEmployeeId($conn, $employeeCode, $biometricId = ''
                 OR UPPER(TRIM(employee_code)) = UPPER(TRIM(?))
              LIMIT 1"
         );
+        if (!$st) {
+            return 0;
+        }
         $st->bind_param('ss', $biometricId, $biometricId);
         $st->execute();
         $row = $st->get_result()->fetch_assoc();
@@ -553,10 +637,15 @@ function biometricMatchMachineId(array $machines, $recordsSource, $deviceIp)
 
 /**
  * Sync punches from Ocean HRMS attendance store (already machine-pulled).
+ * Reconnects MySQL between HTTP pages to avoid "MySQL server has gone away".
  * @return array{ok:bool,inserted:int,updated:int,skipped:int,message:string}
  */
 function biometricSyncFromOcean($fromDate = '', $toDate = '', $machineIdFilter = 0)
 {
+    @set_time_limit(600);
+    @ini_set('max_execution_time', '600');
+    @ini_set('memory_limit', '512M');
+
     $conn = getDBConnection();
     ensureBiometricTables($conn);
     $machines = [];
@@ -564,6 +653,9 @@ function biometricSyncFromOcean($fromDate = '', $toDate = '', $machineIdFilter =
     while ($r = $resM->fetch_assoc()) {
         $machines[] = $r;
     }
+    // Close before long Ocean HTTP — connection would idle-timeout otherwise
+    @$conn->close();
+    $conn = null;
 
     if ($fromDate === '' && $toDate === '') {
         $toDate = date('Y-m-d');
@@ -573,11 +665,9 @@ function biometricSyncFromOcean($fromDate = '', $toDate = '', $machineIdFilter =
     try {
         [$cookieFile, $csrf, $base] = biometricOceanLogin();
     } catch (Throwable $e) {
-        $conn->close();
         return ['ok' => false, 'inserted' => 0, 'updated' => 0, 'skipped' => 0, 'message' => $e->getMessage()];
     }
 
-    // Optionally trigger machine sync(s) on Ocean first
     $triggerMsgs = [];
     $toTrigger = $machines;
     if ($machineIdFilter > 0) {
@@ -598,250 +688,305 @@ function biometricSyncFromOcean($fromDate = '', $toDate = '', $machineIdFilter =
     $updated = 0;
     $skipped = 0;
     $start = 0;
-    $page = 200;
+    $page = 100; // smaller pages = reconnect more often, safer on shared hosting
     $total = null;
+    $resolveCache = null;
 
-    while (true) {
-        $url = rtrim($base, '/') . '/attendance?draw=1&start=' . $start . '&length=' . $page
-            . '&company_id=' . rawurlencode($companyId);
-        [$code, $body] = biometricHttpRequest($url, $cookieFile, null, [
-            'X-Requested-With: XMLHttpRequest',
-            'Accept: application/json, text/javascript, */*; q=0.01',
-            'X-CSRF-TOKEN: ' . $csrf,
-            'Referer: ' . rtrim($base, '/') . '/attendance',
-        ]);
-        if ($code >= 400) {
-            $conn->close();
-            return [
-                'ok' => false,
-                'inserted' => $inserted,
-                'updated' => $updated,
-                'skipped' => $skipped,
-                'message' => 'Ocean attendance fetch HTTP ' . $code,
-            ];
-        }
-        $json = json_decode($body, true);
-        if (!is_array($json) || !isset($json['data'])) {
-            $conn->close();
-            return [
-                'ok' => false,
-                'inserted' => $inserted,
-                'updated' => $updated,
-                'skipped' => $skipped,
-                'message' => 'Invalid Ocean attendance JSON',
-            ];
-        }
-        if ($total === null) {
-            $total = (int) ($json['recordsTotal'] ?? 0);
-        }
-        $chunk = $json['data'];
-        if (!$chunk) {
-            break;
-        }
-
-        foreach ($chunk as $row) {
-            $empCode = '';
-            $empName = '';
-            $bioId = '';
-            if (!empty($row['employee']) && is_array($row['employee'])) {
-                $empCode = (string) ($row['employee']['employee_code'] ?? '');
-                $empName = (string) ($row['employee']['full_name'] ?? '');
-                $bioId = (string) ($row['employee']['biometric_user_id'] ?? '');
-            }
-            if ($empCode === '' && !empty($row['employee_name'])) {
-                // "CO72030 - NAME"
-                if (preg_match('/^(\\S+)\\s*-\\s*(.+)$/', (string) $row['employee_name'], $mm)) {
-                    $empCode = trim($mm[1]);
-                    $empName = trim($mm[2]);
+    try {
+        while (true) {
+            $url = rtrim($base, '/') . '/attendance?draw=1&start=' . $start . '&length=' . $page
+                . '&company_id=' . rawurlencode($companyId);
+            [$code, $body] = biometricHttpRequest($url, $cookieFile, null, [
+                'X-Requested-With: XMLHttpRequest',
+                'Accept: application/json, text/javascript, */*; q=0.01',
+                'X-CSRF-TOKEN: ' . $csrf,
+                'Referer: ' . rtrim($base, '/') . '/attendance',
+            ]);
+            if ($code >= 400) {
+                if ($conn) {
+                    @$conn->close();
                 }
+                @unlink($cookieFile);
+                return [
+                    'ok' => false,
+                    'inserted' => $inserted,
+                    'updated' => $updated,
+                    'skipped' => $skipped,
+                    'message' => 'Ocean attendance fetch HTTP ' . $code,
+                ];
+            }
+            $json = json_decode($body, true);
+            if (!is_array($json) || !isset($json['data'])) {
+                if ($conn) {
+                    @$conn->close();
+                }
+                @unlink($cookieFile);
+                return [
+                    'ok' => false,
+                    'inserted' => $inserted,
+                    'updated' => $updated,
+                    'skipped' => $skipped,
+                    'message' => 'Invalid Ocean attendance JSON',
+                ];
+            }
+            if ($total === null) {
+                $total = (int) ($json['recordsTotal'] ?? 0);
+            }
+            $chunk = $json['data'];
+            if (!$chunk) {
+                break;
             }
 
-            $date = biometricParseOceanDate($row['attendance_date'] ?? '');
-            $time = biometricParseOceanTime($row['punch_in_time'] ?? '');
-            if (!$date || !$time) {
-                $skipped++;
-                continue;
-            }
-            if ($fromDate !== '' && $date < $fromDate) {
-                $skipped++;
-                continue;
-            }
-            if ($toDate !== '' && $date > $toDate) {
-                $skipped++;
-                continue;
+            // Reconnect + cache before writing this page
+            biometricDbAlive($conn);
+            if ($resolveCache === null) {
+                $resolveCache = biometricLoadResolveCache($conn);
             }
 
-            $ptype = strtolower(trim((string) ($row['attendace_type'] ?? $row['attendance_type'] ?? 'in')));
-            if (!in_array($ptype, ['in', 'out'], true)) {
-                $ptype = (strpos($ptype, 'out') !== false) ? 'out' : 'in';
-            }
+            foreach ($chunk as $row) {
+                try {
+                    biometricDbAlive($conn);
 
-            $source = (string) ($row['records_source'] ?? '');
-            $deviceIp = (string) ($row['device_ip'] ?? '');
-            $mid = biometricMatchMachineId($machines, $source, $deviceIp);
-            if ($machineIdFilter > 0 && $mid !== (int) $machineIdFilter) {
-                // still allow if source/ip didn't match but filter set — skip unmatched
-                if ($mid === 0 || $mid !== (int) $machineIdFilter) {
-                    // If filter machine is etimeoffice and source matches, keep
-                    $filterMachine = null;
-                    foreach ($machines as $mx) {
-                        if ((int) $mx['id'] === (int) $machineIdFilter) {
-                            $filterMachine = $mx;
-                            break;
+                    $empCode = '';
+                    $empName = '';
+                    $bioId = '';
+                    if (!empty($row['employee']) && is_array($row['employee'])) {
+                        $empCode = (string) ($row['employee']['employee_code'] ?? '');
+                        $empName = (string) ($row['employee']['full_name'] ?? '');
+                        $bioId = (string) ($row['employee']['biometric_user_id'] ?? '');
+                    }
+                    if ($empCode === '' && !empty($row['employee_name'])) {
+                        if (preg_match('/^(\\S+)\\s*-\\s*(.+)$/', (string) $row['employee_name'], $mm)) {
+                            $empCode = trim($mm[1]);
+                            $empName = trim($mm[2]);
                         }
                     }
-                    if ($filterMachine) {
-                        $prov = strtolower((string) $filterMachine['provider_type']);
-                        $srcL = strtolower($source);
-                        $okMatch = ($prov === 'etimeoffice' && strpos($srcL, 'etime') !== false)
-                            || ($prov === 'old_crm' && (strpos($srcL, 'old') !== false || strpos($srcL, 'crm') !== false || $srcL === ''))
-                            || (trim((string) $filterMachine['ip_address']) !== '' && $deviceIp === trim((string) $filterMachine['ip_address']));
-                        if (!$okMatch) {
-                            $skipped++;
-                            continue;
-                        }
-                        $mid = (int) $machineIdFilter;
-                    } else {
+
+                    $date = biometricParseOceanDate($row['attendance_date'] ?? '');
+                    $time = biometricParseOceanTime($row['punch_in_time'] ?? '');
+                    if (!$date || !$time) {
                         $skipped++;
                         continue;
                     }
-                }
-            }
+                    if ($fromDate !== '' && $date < $fromDate) {
+                        $skipped++;
+                        continue;
+                    }
+                    if ($toDate !== '' && $date > $toDate) {
+                        $skipped++;
+                        continue;
+                    }
 
-            $localEmpId = biometricResolveLocalEmployeeId($conn, $empCode, $bioId !== '' ? $bioId : $empCode);
-            $oceanId = (int) ($row['id'] ?? 0);
-            $txn = trim((string) ($row['txn_id'] ?? ''));
-            if ($txn === '' && $oceanId > 0) {
-                $txn = 'ocean-' . $oceanId;
-            }
-            $remark = trim((string) ($row['remark'] ?? ''));
-            $serial = (string) ($row['device_serial'] ?? '');
-            $raw = json_encode([
-                'ocean_id' => $oceanId,
-                'records_source' => $source,
-                'device_ip' => $deviceIp,
-            ], JSON_UNESCAPED_UNICODE);
+                    $ptype = strtolower(trim((string) ($row['attendace_type'] ?? $row['attendance_type'] ?? 'in')));
+                    if (!in_array($ptype, ['in', 'out'], true)) {
+                        $ptype = (strpos($ptype, 'out') !== false) ? 'out' : 'in';
+                    }
 
-            $empIdBind = $localEmpId > 0 ? $localEmpId : null;
-            $machineBind = $mid > 0 ? $mid : null;
-            $oceanBind = $oceanId > 0 ? $oceanId : null;
+                    $source = (string) ($row['records_source'] ?? '');
+                    $deviceIp = (string) ($row['device_ip'] ?? '');
+                    $mid = biometricMatchMachineId($machines, $source, $deviceIp);
+                    if ($machineIdFilter > 0 && $mid !== (int) $machineIdFilter) {
+                        if ($mid === 0 || $mid !== (int) $machineIdFilter) {
+                            $filterMachine = null;
+                            foreach ($machines as $mx) {
+                                if ((int) $mx['id'] === (int) $machineIdFilter) {
+                                    $filterMachine = $mx;
+                                    break;
+                                }
+                            }
+                            if ($filterMachine) {
+                                $prov = strtolower((string) $filterMachine['provider_type']);
+                                $srcL = strtolower($source);
+                                $okMatch = ($prov === 'etimeoffice' && strpos($srcL, 'etime') !== false)
+                                    || ($prov === 'old_crm' && (strpos($srcL, 'old') !== false || strpos($srcL, 'crm') !== false || $srcL === ''))
+                                    || (trim((string) $filterMachine['ip_address']) !== '' && $deviceIp === trim((string) $filterMachine['ip_address']));
+                                if (!$okMatch) {
+                                    $skipped++;
+                                    continue;
+                                }
+                                $mid = (int) $machineIdFilter;
+                            } else {
+                                $skipped++;
+                                continue;
+                            }
+                        }
+                    }
 
-            // Upsert by ocean_log_id or txn_id
-            $existingId = 0;
-            if ($oceanBind) {
-                $f = $conn->prepare('SELECT id FROM machine_attendance_logs WHERE ocean_log_id = ? LIMIT 1');
-                $f->bind_param('i', $oceanBind);
-                $f->execute();
-                $ex = $f->get_result()->fetch_assoc();
-                $f->close();
-                $existingId = (int) ($ex['id'] ?? 0);
-            }
-            if ($existingId <= 0 && $txn !== '') {
-                $f = $conn->prepare('SELECT id FROM machine_attendance_logs WHERE txn_id = ? LIMIT 1');
-                $f->bind_param('s', $txn);
-                $f->execute();
-                $ex = $f->get_result()->fetch_assoc();
-                $f->close();
-                $existingId = (int) ($ex['id'] ?? 0);
-            }
+                    $localEmpId = biometricResolveFromCache(
+                        $resolveCache,
+                        $empCode,
+                        $bioId !== '' ? $bioId : $empCode
+                    );
+                    if ($localEmpId > 0 && $empName === '' && !empty($resolveCache['names'][$localEmpId])) {
+                        $empName = $resolveCache['names'][$localEmpId];
+                    }
 
-            if ($existingId > 0) {
-                $machineBindI = $machineBind ?: 0;
-                $empIdBindI = $empIdBind ?: 0;
-                $up = $conn->prepare(
-                    "UPDATE machine_attendance_logs SET
-                        machine_id = NULLIF(?, 0),
-                        employee_id = NULLIF(?, 0),
-                        employee_code=?, employee_name=?, biometric_user_id=?,
-                        attendance_date=?, punch_time=?, punch_type=?, records_source=?, device_ip=?,
-                        device_serial=?, remark=?, raw_json=?, synced_at=NOW()
-                     WHERE id=?"
-                );
-                $up->bind_param(
-                    'iisssssssssssi',
-                    $machineBindI,
-                    $empIdBindI,
-                    $empCode,
-                    $empName,
-                    $bioId,
-                    $date,
-                    $time,
-                    $ptype,
-                    $source,
-                    $deviceIp,
-                    $serial,
-                    $remark,
-                    $raw,
-                    $existingId
-                );
-                $up->execute();
-                $up->close();
-                $updated++;
-            } else {
-                $oceanBindI = $oceanBind ?: 0;
-                $machineBindI = $machineBind ?: 0;
-                $empIdBindI = $empIdBind ?: 0;
-                $ins = $conn->prepare(
-                    "INSERT INTO machine_attendance_logs
-                        (machine_id, ocean_log_id, employee_id, employee_code, employee_name, biometric_user_id,
-                         attendance_date, punch_time, punch_type, records_source, device_ip, device_serial,
-                         txn_id, remark, raw_json, synced_at)
-                     VALUES (NULLIF(?,0), NULLIF(?,0), NULLIF(?,0), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())"
-                );
-                $ins->bind_param(
-                    'iiissssssssssss',
-                    $machineBindI,
-                    $oceanBindI,
-                    $empIdBindI,
-                    $empCode,
-                    $empName,
-                    $bioId,
-                    $date,
-                    $time,
-                    $ptype,
-                    $source,
-                    $deviceIp,
-                    $serial,
-                    $txn,
-                    $remark,
-                    $raw
-                );
-                if ($ins->execute()) {
-                    $inserted++;
-                } else {
+                    $oceanId = (int) ($row['id'] ?? 0);
+                    $txn = trim((string) ($row['txn_id'] ?? ''));
+                    if ($txn === '' && $oceanId > 0) {
+                        $txn = 'ocean-' . $oceanId;
+                    }
+                    $remark = trim((string) ($row['remark'] ?? ''));
+                    $serial = (string) ($row['device_serial'] ?? '');
+                    $raw = json_encode([
+                        'ocean_id' => $oceanId,
+                        'records_source' => $source,
+                        'device_ip' => $deviceIp,
+                    ], JSON_UNESCAPED_UNICODE);
+
+                    $empIdBind = $localEmpId > 0 ? $localEmpId : null;
+                    $machineBind = $mid > 0 ? $mid : null;
+                    $oceanBind = $oceanId > 0 ? $oceanId : null;
+
+                    $existingId = 0;
+                    if ($oceanBind) {
+                        $f = $conn->prepare('SELECT id FROM machine_attendance_logs WHERE ocean_log_id = ? LIMIT 1');
+                        if ($f) {
+                            $f->bind_param('i', $oceanBind);
+                            $f->execute();
+                            $ex = $f->get_result()->fetch_assoc();
+                            $f->close();
+                            $existingId = (int) ($ex['id'] ?? 0);
+                        }
+                    }
+                    if ($existingId <= 0 && $txn !== '') {
+                        $f = $conn->prepare('SELECT id FROM machine_attendance_logs WHERE txn_id = ? LIMIT 1');
+                        if ($f) {
+                            $f->bind_param('s', $txn);
+                            $f->execute();
+                            $ex = $f->get_result()->fetch_assoc();
+                            $f->close();
+                            $existingId = (int) ($ex['id'] ?? 0);
+                        }
+                    }
+
+                    $machineBindI = $machineBind ?: 0;
+                    $empIdBindI = $empIdBind ?: 0;
+
+                    if ($existingId > 0) {
+                        $up = $conn->prepare(
+                            "UPDATE machine_attendance_logs SET
+                                machine_id = NULLIF(?, 0),
+                                employee_id = NULLIF(?, 0),
+                                employee_code=?, employee_name=?, biometric_user_id=?,
+                                attendance_date=?, punch_time=?, punch_type=?, records_source=?, device_ip=?,
+                                device_serial=?, remark=?, raw_json=?, synced_at=NOW()
+                             WHERE id=?"
+                        );
+                        if ($up) {
+                            $up->bind_param(
+                                'iisssssssssssi',
+                                $machineBindI,
+                                $empIdBindI,
+                                $empCode,
+                                $empName,
+                                $bioId,
+                                $date,
+                                $time,
+                                $ptype,
+                                $source,
+                                $deviceIp,
+                                $serial,
+                                $remark,
+                                $raw,
+                                $existingId
+                            );
+                            $up->execute();
+                            $up->close();
+                            $updated++;
+                        } else {
+                            $skipped++;
+                        }
+                    } else {
+                        $oceanBindI = $oceanBind ?: 0;
+                        $ins = $conn->prepare(
+                            "INSERT INTO machine_attendance_logs
+                                (machine_id, ocean_log_id, employee_id, employee_code, employee_name, biometric_user_id,
+                                 attendance_date, punch_time, punch_type, records_source, device_ip, device_serial,
+                                 txn_id, remark, raw_json, synced_at)
+                             VALUES (NULLIF(?,0), NULLIF(?,0), NULLIF(?,0), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())"
+                        );
+                        if ($ins) {
+                            $ins->bind_param(
+                                'iiissssssssssss',
+                                $machineBindI,
+                                $oceanBindI,
+                                $empIdBindI,
+                                $empCode,
+                                $empName,
+                                $bioId,
+                                $date,
+                                $time,
+                                $ptype,
+                                $source,
+                                $deviceIp,
+                                $serial,
+                                $txn,
+                                $remark,
+                                $raw
+                            );
+                            if ($ins->execute()) {
+                                $inserted++;
+                            } else {
+                                $skipped++;
+                            }
+                            $ins->close();
+                        } else {
+                            $skipped++;
+                        }
+                    }
+                } catch (Throwable $rowEx) {
+                    // One row / gone-away mid-batch — reconnect and skip this row
+                    $conn = null;
+                    biometricDbAlive($conn);
+                    $resolveCache = biometricLoadResolveCache($conn);
                     $skipped++;
                 }
-                $ins->close();
+            }
+
+            $start += count($chunk);
+            if ($start >= $total || count($chunk) < $page) {
+                break;
+            }
+            if ($start >= 20000) {
+                break;
             }
         }
 
-        $start += count($chunk);
-        if ($start >= $total || count($chunk) < $page) {
-            break;
+        biometricDbAlive($conn);
+        foreach ($toTrigger as $m) {
+            $mid = (int) $m['id'];
+            $msg = 'Ocean sync OK';
+            $st = $conn->prepare(
+                "UPDATE biometric_machines
+                 SET last_sync_at = NOW(), last_sync_status = 'success',
+                     last_sync_message = ?, last_sync_count = ?
+                 WHERE id = ?"
+            );
+            if ($st) {
+                $cnt = $inserted + $updated;
+                $st->bind_param('sii', $msg, $cnt, $mid);
+                $st->execute();
+                $st->close();
+            }
         }
-        // Safety cap for first sync run size — allow large, but stop runaway
-        if ($start >= 20000) {
-            break;
+    } catch (Throwable $e) {
+        if ($conn) {
+            @$conn->close();
         }
+        @unlink($cookieFile);
+        return [
+            'ok' => false,
+            'inserted' => $inserted,
+            'updated' => $updated,
+            'skipped' => $skipped,
+            'message' => 'Sync interrupted: ' . $e->getMessage(),
+        ];
     }
 
-    // Update machine sync stamps
-    foreach ($toTrigger as $m) {
-        $mid = (int) $m['id'];
-        $msg = 'Ocean sync OK';
-        $st = $conn->prepare(
-            "UPDATE biometric_machines
-             SET last_sync_at = NOW(), last_sync_status = 'success',
-                 last_sync_message = ?, last_sync_count = ?
-             WHERE id = ?"
-        );
-        $cnt = $inserted + $updated;
-        $st->bind_param('sii', $msg, $cnt, $mid);
-        $st->execute();
-        $st->close();
+    if ($conn) {
+        @$conn->close();
     }
-
-    $conn->close();
     @unlink($cookieFile);
 
     $msg = 'Synced from Ocean HRMS. Inserted ' . $inserted . ', updated ' . $updated . ', skipped ' . $skipped . '.';

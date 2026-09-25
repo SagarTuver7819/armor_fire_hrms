@@ -13,8 +13,9 @@ requireLogin();
 requireAccess('attendance', 'edit');
 ensureBiometricTables();
 
-@set_time_limit(300);
-ini_set('max_execution_time', '300');
+@set_time_limit(600);
+ini_set('max_execution_time', '600');
+ini_set('memory_limit', '512M');
 
 $machineId = (int) ($_GET['machine_id'] ?? $_POST['machine_id'] ?? 0);
 $fromDate = trim((string) ($_GET['from_date'] ?? $_POST['from_date'] ?? ''));
@@ -28,10 +29,20 @@ if ($toDate === '') {
 
 $result = null;
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && (string) ($_POST['action'] ?? '') === 'sync') {
-    if ($machineId > 0) {
-        $result = biometricSyncMachine($machineId, $fromDate, $toDate);
-    } else {
-        $result = biometricSyncFromOcean($fromDate, $toDate, 0);
+    try {
+        if ($machineId > 0) {
+            $result = biometricSyncMachine($machineId, $fromDate, $toDate);
+        } else {
+            $result = biometricSyncFromOcean($fromDate, $toDate, 0);
+        }
+    } catch (Throwable $e) {
+        $result = [
+            'ok' => false,
+            'inserted' => 0,
+            'updated' => 0,
+            'skipped' => 0,
+            'message' => 'Sync failed: ' . $e->getMessage(),
+        ];
     }
 }
 
