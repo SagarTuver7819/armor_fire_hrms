@@ -71,15 +71,15 @@ $monthNames = [
     <div class="form-page-card">
         <div class="form-page-header">
             <h1>LWP Report</h1>
-            <p>Leave Without Pay · Auto when no punch, not holiday/week-off, and no other leave · Unpaid · Salary &amp; attendance impact</p>
+            <p>Leave Without Pay · Auto only for past absences after 6-day grace (leave not applied) · Never in advance · Unpaid · Salary impact</p>
         </div>
 
         <?php require __DIR__ . '/_report_tabs.php'; ?>
 
         <div class="leave-rpt-rules">
-            <span class="leave-rpt-rule"><i class="fa-solid fa-user-xmark"></i> No attendance punch</span>
-            <span class="leave-rpt-rule"><i class="fa-solid fa-calendar-xmark"></i> Not holiday / week-off</span>
-            <span class="leave-rpt-rule"><i class="fa-solid fa-ban"></i> No other leave taken</span>
+            <span class="leave-rpt-rule"><i class="fa-solid fa-user-xmark"></i> Absent · no leave applied</span>
+            <span class="leave-rpt-rule"><i class="fa-solid fa-hourglass-half"></i> 6-day grace (then auto LWP)</span>
+            <span class="leave-rpt-rule"><i class="fa-solid fa-ban"></i> Never advance (today / future)</span>
             <span class="leave-rpt-rule"><i class="fa-solid fa-indian-rupee-sign"></i> Unpaid — salary reduced</span>
         </div>
 

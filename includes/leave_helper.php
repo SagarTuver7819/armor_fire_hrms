@@ -171,7 +171,7 @@ function ensureLeaveTables($conn = null)
                  monthly_carry_forward, max_concurrent_applicants, allow_encashment, status)
              VALUES
                 ('LWP', 'Leave Without Pay', 0, 'No',
-                 'Auto when absent on working day (no punch, not holiday/week-off, no other leave). Unpaid. Affects attendance & salary.',
+                 'Auto only for past absences after 6-day grace if leave not applied. Never marked in advance (today/future). Unpaid.',
                  'yearly', 0, 0, 0, 1)"
         );
     } else {
@@ -180,7 +180,7 @@ function ensureLeaveTables($conn = null)
                 leave_type = 'Leave Without Pay',
                 days_allowed = 0,
                 is_paid = 'No',
-                description = 'Auto when absent on working day (no punch, not holiday/week-off, no other leave). Unpaid. Affects attendance & salary.',
+                description = 'Auto only for past absences after 6-day grace if leave not applied. Never marked in advance (today/future). Unpaid.',
                 accrual_type = 'yearly',
                 monthly_carry_forward = 0,
                 allow_encashment = 0,

@@ -759,13 +759,18 @@ function attendanceRebuildDayStatus($conn, $employeeId, $month, $year)
         } elseif ($isWeekOff) {
             $status = 'Week Off';
             $summary['week_off'] += 1;
-        } else {
-            // No attendance + not holiday + not week-off + no leave → auto LWP (unpaid)
+        } elseif (attendanceDateEligibleForAutoLwp($date)) {
+            // Past absence (after grace) + no leave → auto LWP (unpaid)
             $status = 'Leave';
             $source = 'auto_lwp';
             $remarks = 'LWP';
             $summary['lwp'] += 1;
             $summary['absent'] += 1;
+        } else {
+            // Today / future / within grace — do not advance-count LWP (salary safe)
+            $status = 'Absent';
+            $source = 'pending';
+            $remarks = null;
         }
 
         $upsert->bind_param(
@@ -1256,6 +1261,39 @@ function attendanceTimeForInput($time)
     return date('H:i', strtotime($time));
 }
 
+/**
+ * Grace days after an absence before auto-LWP (employee can still apply leave).
+ */
+function attendanceLwpGraceDays()
+{
+    return 6;
+}
+
+/**
+ * Auto-LWP only for past working-day absences older than the grace window.
+ * Never for today / future (advance LWP must not cut salary).
+ */
+function attendanceDateEligibleForAutoLwp($date, $asOfDate = null)
+{
+    $date = substr(trim((string) $date), 0, 10);
+    $asOf = $asOfDate !== null && $asOfDate !== ''
+        ? substr(trim((string) $asOfDate), 0, 10)
+        : date('Y-m-d');
+    if ($date === '' || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) {
+        return false;
+    }
+    if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $asOf)) {
+        $asOf = date('Y-m-d');
+    }
+    // Future or today → never auto LWP
+    if ($date >= $asOf) {
+        return false;
+    }
+    $grace = max(0, (int) attendanceLwpGraceDays());
+    $cutoff = date('Y-m-d', strtotime($asOf . ' -' . $grace . ' days'));
+    return $date <= $cutoff;
+}
+
 function attendanceNormalizeInputTime($time)
 {
     $time = trim((string) $time);
@@ -1426,8 +1464,9 @@ function attendanceAddDayToLeaveTotals(array &$totals, $status, $leaveType = '',
         return;
     }
     if ($status === 'Absent') {
-        // Working-day absence without leave = LWP (unpaid)
-        $totals['LWP'] += 1.0;
+        // Only count as LWP when auto-LWP eligible (past + grace over)
+        // Callers that pass Absent for grace/future must not use this path for pay cut
+        return;
     }
 }
 
@@ -1494,6 +1533,19 @@ function attendanceBuildEmployeeMonthTotals(array $emp, array &$dayMapByDate, $m
         $dowName = date('l', strtotime($date));
         $isCalWeekOff = (strcasecmp($dowName, $weekOffName) === 0);
         $isCalHoliday = isset($holidaySet[$date]);
+        $cellSource = strtolower(trim((string) ($cell['source'] ?? '')));
+        $cellRemarks = (string) ($cell['remarks'] ?? '');
+
+        // Ignore advance / within-grace auto-LWP so it does not cut pay days
+        if (
+            $cellSource !== 'leave'
+            && ($status === 'Leave' || $status === 'Absent')
+            && (stripos($cellRemarks, 'LWP') !== false || $cellSource === 'auto_lwp' || !empty($cell['_auto_lwp']))
+            && !attendanceDateEligibleForAutoLwp($date)
+        ) {
+            unset($dayMapByDate[$date]);
+            continue;
+        }
 
         // Holiday wins over Week Off — same day must count only once
         if ($isCalHoliday && ($status === '' || $status === 'Week Off' || $status === 'Absent')) {
@@ -1513,7 +1565,7 @@ function attendanceBuildEmployeeMonthTotals(array $emp, array &$dayMapByDate, $m
             continue;
         }
 
-        // No attendance mark → Week Off, else auto LWP (unpaid)
+        // No attendance mark → Week Off, else auto LWP only when eligible (not advance)
         if ($status === '') {
             if ($isCalWeekOff) {
                 $status = 'Week Off';
@@ -1528,7 +1580,7 @@ function attendanceBuildEmployeeMonthTotals(array $emp, array &$dayMapByDate, $m
                     '_virtual' => 1,
                 ];
                 attendanceAddDayToLeaveTotals($totals, $status);
-            } elseif (!$isCalHoliday) {
+            } elseif (!$isCalHoliday && attendanceDateEligibleForAutoLwp($date)) {
                 $dayMapByDate[$date] = [
                     'employee_id' => (int) ($emp['id'] ?? 0),
                     'attendance_date' => $date,
@@ -1542,14 +1594,18 @@ function attendanceBuildEmployeeMonthTotals(array $emp, array &$dayMapByDate, $m
                 ];
                 attendanceAddDayToLeaveTotals($totals, 'Leave', 'LWP');
             }
+            // else: today/future/grace — leave blank (no advance LWP)
             continue;
         }
 
-        // Plain Absent on working day → LWP
+        // Plain Absent on working day → LWP only after grace (not advance)
         if ($status === 'Absent' && !$isCalWeekOff && !$isCalHoliday) {
-            $dayMapByDate[$date]['remarks'] = 'LWP';
-            $dayMapByDate[$date]['day_status'] = 'Leave';
-            attendanceAddDayToLeaveTotals($totals, 'Leave', 'LWP');
+            if (attendanceDateEligibleForAutoLwp($date)) {
+                $dayMapByDate[$date]['remarks'] = 'LWP';
+                $dayMapByDate[$date]['day_status'] = 'Leave';
+                attendanceAddDayToLeaveTotals($totals, 'Leave', 'LWP');
+            }
+            // Within grace / today / future: show Absent, do not count as LWP
             continue;
         }
 
