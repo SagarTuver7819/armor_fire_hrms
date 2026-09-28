@@ -22,24 +22,30 @@ $extraCss = [
 ];
 
 require_once __DIR__ . '/../includes/header.php';
+if (function_exists('navRemember')) {
+    navRemember('attendance');
+}
 ?>
 
 <main class="dashboard-main">
     <div class="page-toolbar flex-between">
-        <a href="<?php echo app_url('dashboard.php'); ?>" class="back-link">
-            <i class="fa-solid fa-arrow-left"></i> Back to Dashboard
+        <?php
+        $navBack = navResolveBack(['fallback' => 'dashboard', 'prefer_dept' => false]);
+        ?>
+        <a href="<?php echo htmlspecialchars($navBack['url']); ?>" class="back-link">
+            <i class="fa-solid fa-arrow-left"></i> <?php echo htmlspecialchars($navBack['label']); ?>
         </a>
         <div class="toolbar-actions">
-            <a href="<?php echo app_url('attendance/manual.php?show=1'); ?>" class="btn-primary">
+            <a href="<?php echo app_url('attendance/manual.php?show=1&from=attendance'); ?>" class="btn-primary">
                 <i class="fa-solid fa-pen-to-square"></i> Manual Entry (All)
             </a>
-            <a href="<?php echo app_url('attendance/import.php'); ?>" class="btn-secondary">
+            <a href="<?php echo app_url('attendance/import.php?from=attendance'); ?>" class="btn-secondary">
                 <i class="fa-solid fa-file-import"></i> Import Attendance
             </a>
-            <a href="<?php echo app_url('attendance/report.php'); ?>" class="btn-secondary">
+            <a href="<?php echo app_url('attendance/report.php?from=attendance'); ?>" class="btn-secondary">
                 <i class="fa-solid fa-chart-simple"></i> Attendance Report
             </a>
-            <a href="<?php echo app_url('attendance/muster.php'); ?>" class="btn-secondary">
+            <a href="<?php echo app_url('attendance/muster.php?from=attendance'); ?>" class="btn-secondary">
                 <i class="fa-solid fa-table-cells"></i> Muster Report
             </a>
         </div>

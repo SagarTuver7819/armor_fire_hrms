@@ -97,7 +97,9 @@ if ($selectedWeekOff === '' && !$employee) {
 $familyMembers = $empId > 0 ? getEmployeeFamilyMembers($empId) : [];
 $familyCount = count($familyMembers);
 $gender = empField($employee, 'gender');
+$bloodGroup = empField($employee, 'blood_group');
 $maritalStatus = empField($employee, 'marital_status');
+$bloodGroupOptions = employeeBloodGroupOptions();
 $photoFileUrl = employeeDocumentPublicUrl(empField($employee, 'photo_file'));
 $aadharFileUrl = employeeDocumentPublicUrl(empField($employee, 'aadhar_file'));
 $panFileUrl = employeeDocumentPublicUrl(empField($employee, 'pan_file'));
@@ -187,6 +189,17 @@ $ob = empField($employee, 'overtime_benefits', 'No');
                                 <span>Female</span>
                             </label>
                         </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Blood Group</label>
+                        <select name="blood_group" class="form-control" data-placeholder="Select Blood Group">
+                            <option value="">— Select —</option>
+                            <?php foreach ($bloodGroupOptions as $bgOpt): ?>
+                                <option value="<?php echo htmlspecialchars($bgOpt); ?>" <?php echo $bloodGroup === $bgOpt ? 'selected' : ''; ?>>
+                                    <?php echo htmlspecialchars($bgOpt); ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
                     </div>
                     <div class="form-group marital-status-row">
                         <label>5. Marital Status</label>

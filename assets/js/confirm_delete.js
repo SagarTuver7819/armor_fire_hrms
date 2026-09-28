@@ -51,6 +51,8 @@
         pendingCb = null;
         if (titleEl) titleEl.textContent = defaultTitle;
         if (yesBtn) yesBtn.innerHTML = defaultYesHtml;
+        var iconEl = modal.querySelector('.confirm-modal-icon i');
+        if (iconEl) iconEl.className = 'fa-solid fa-triangle-exclamation';
     }
 
     function openModal(opts) {
@@ -61,7 +63,15 @@
         if (titleEl) titleEl.textContent = opts.title || defaultTitle;
         if (msgEl) msgEl.textContent = opts.message || 'Are you sure you want to delete this record?';
         if (yesBtn) {
-            yesBtn.innerHTML = '<i class="fa-solid fa-trash-can"></i> ' + (opts.yesLabel || 'Yes, Delete');
+            if (opts.yesHtml) {
+                yesBtn.innerHTML = opts.yesHtml;
+            } else {
+                yesBtn.innerHTML = '<i class="fa-solid fa-trash-can"></i> ' + (opts.yesLabel || 'Yes, Delete');
+            }
+        }
+        var iconEl = modal.querySelector('.confirm-modal-icon i');
+        if (iconEl) {
+            iconEl.className = opts.iconClass || 'fa-solid fa-triangle-exclamation';
         }
 
         modal.hidden = false;
@@ -78,6 +88,8 @@
                 onConfirm: onConfirm,
                 title: options.title || 'Delete Row?',
                 yesLabel: options.yesLabel || 'Yes, Delete',
+                yesHtml: options.yesHtml || null,
+                iconClass: options.iconClass || null,
                 href: null
             });
         }
@@ -98,6 +110,24 @@
             message: 'Are you sure you want to delete "' + name + '"? This action cannot be undone.',
             title: 'Are you sure?',
             yesLabel: 'Yes, Delete'
+        });
+    }, true);
+
+    document.addEventListener('click', function (e) {
+        var btn = e.target.closest('a.logout-btn');
+        if (!btn) return;
+        e.preventDefault();
+        e.stopPropagation();
+
+        var href = btn.getAttribute('href');
+        if (!href) return;
+
+        openModal({
+            href: href,
+            title: 'Logout?',
+            message: 'Are you sure you want to Logout?',
+            yesHtml: '<i class="fa-solid fa-right-from-bracket"></i> Yes, Logout',
+            iconClass: 'fa-solid fa-right-from-bracket'
         });
     }, true);
 

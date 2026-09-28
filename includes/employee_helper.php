@@ -71,6 +71,7 @@ function ensureEmployeesTable($conn = null)
     ensureEmployeeColumn($conn, 'office_mobile', "office_mobile VARCHAR(15) DEFAULT NULL AFTER office_email");
     ensureEmployeeColumn($conn, 'desk_no', "desk_no VARCHAR(50) DEFAULT NULL AFTER office_mobile");
     ensureEmployeeColumn($conn, 'gender', "gender VARCHAR(20) DEFAULT NULL AFTER desk_no");
+    ensureEmployeeColumn($conn, 'blood_group', "blood_group VARCHAR(10) DEFAULT NULL AFTER gender");
     ensureEmployeeColumn($conn, 'marital_status', "marital_status VARCHAR(20) DEFAULT NULL AFTER date_of_birth");
     ensureEmployeeColumn($conn, 'marital_remark', "marital_remark VARCHAR(255) DEFAULT NULL AFTER marital_status");
     ensureEmployeeColumn($conn, 'photo_file', "photo_file VARCHAR(255) DEFAULT NULL AFTER pan_file");
@@ -641,6 +642,27 @@ function normalizePayType($value)
         return 'ContractorMain';
     }
     return 'Salary';
+}
+
+/**
+ * Standard blood group options for employee forms.
+ *
+ * @return string[]
+ */
+function employeeBloodGroupOptions()
+{
+    return ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
+}
+
+/**
+ * Normalize / validate blood group input.
+ */
+function normalizeBloodGroup($value)
+{
+    $value = strtoupper(trim((string) $value));
+    $value = preg_replace('/\s+/', '', $value);
+    $value = str_replace(['POSITIVE', 'NEGATIVE'], ['+', '-'], $value);
+    return in_array($value, employeeBloodGroupOptions(), true) ? $value : '';
 }
 
 function payTypeLabel($value)
@@ -1583,6 +1605,18 @@ function employeeImportFile($conn, $filePath, $originalName, $defaultDeptId = 0,
         );
 
         if ($stmt->execute()) {
+            $newId = (int) $conn->insert_id;
+            $bloodGroup = normalizeBloodGroup(employeeImportGet($row, ['blood_group', 'bloodgroup', 'blood']));
+            $genderImp = employeeImportGet($row, ['gender']);
+            if (!in_array($genderImp, ['Male', 'Female'], true)) {
+                $genderImp = '';
+            }
+            if ($newId > 0 && ($bloodGroup !== '' || $genderImp !== '')) {
+                $up = $conn->prepare('UPDATE employees SET blood_group = IF(? = \'\', blood_group, ?), gender = IF(? = \'\', gender, ?) WHERE id = ?');
+                $up->bind_param('ssssi', $bloodGroup, $bloodGroup, $genderImp, $genderImp, $newId);
+                $up->execute();
+                $up->close();
+            }
             $success++;
         } else {
             $errors++;

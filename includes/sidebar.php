@@ -181,16 +181,16 @@ $sidebarCompanyName = function_exists('getCompanyName') ? getCompanyName() : 'Ar
                     <i class="fa-solid fa-plane-departure"></i>
                     <span>My Leave</span>
                 </a>
-                <a href="<?php echo app_url('leave/apply.php'); ?>"
-                   class="sidebar-link <?php echo $sidebarActive === 'leave_apply' ? 'active' : ''; ?>">
-                    <i class="fa-solid fa-plus"></i>
-                    <span>Apply Leave</span>
-                </a>
                 <?php endif; ?>
                 <a href="<?php echo app_url('employee/attendance.php'); ?>"
                    class="sidebar-link <?php echo $sidebarActive === 'my_attendance' ? 'active' : ''; ?>">
                     <i class="fa-solid fa-calendar-check"></i>
                     <span>My Attendance</span>
+                </a>
+                <a href="<?php echo app_url('employee/kpi.php'); ?>"
+                   class="sidebar-link <?php echo $sidebarActive === 'my_kpi' ? 'active' : ''; ?>">
+                    <i class="fa-solid fa-clipboard-list"></i>
+                    <span>My KPI</span>
                 </a>
                 <a href="<?php echo app_url('employee/salary_slips.php'); ?>"
                    class="sidebar-link <?php echo $sidebarActive === 'my_salary_slip' ? 'active' : ''; ?>">
@@ -226,11 +226,21 @@ $sidebarCompanyName = function_exists('getCompanyName') ? getCompanyName() : 'Ar
                     <i class="fa-solid fa-user-tie"></i>
                     <span>HR Dashboard</span>
                 </a>
+                <a href="<?php echo app_url('hr/kpi.php'); ?>"
+                   class="sidebar-link <?php echo $sidebarActive === 'hr_kpi' ? 'active' : ''; ?>">
+                    <i class="fa-solid fa-clipboard-list"></i>
+                    <span>KPI Reports</span>
+                </a>
                 <?php elseif (!$isDeptHeadNav && (canAccess('leave', 'edit', 0) || canAccess('payroll', 'view', 0))): ?>
                 <a href="<?php echo app_url('hr/dashboard.php'); ?>"
                    class="sidebar-link <?php echo $sidebarActive === 'hr_dashboard' ? 'active' : ''; ?>">
                     <i class="fa-solid fa-user-tie"></i>
                     <span>Workspace</span>
+                </a>
+                <a href="<?php echo app_url('hr/kpi.php'); ?>"
+                   class="sidebar-link <?php echo $sidebarActive === 'hr_kpi' ? 'active' : ''; ?>">
+                    <i class="fa-solid fa-clipboard-list"></i>
+                    <span>KPI Reports</span>
                 </a>
                 <?php endif; ?>
                 <?php if ($canCirc): ?>

@@ -144,6 +144,8 @@
             ['Employee Name', e.employee_name, ''],
             ['Designation', e.designation, ''],
             ['Department', e.department, ''],
+            ['Gender', e.gender, ''],
+            ['Blood Group', e.blood_group, ''],
             ['Official Mobile', e.office_mobile, ''],
             ['Official Mail ID', e.office_email, ''],
             ['Desk Number', e.desk_no, 'is-desk'],

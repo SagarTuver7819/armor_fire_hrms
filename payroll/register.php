@@ -290,11 +290,11 @@ require_once __DIR__ . '/../includes/header.php';
                             <th colspan="3"></th>
                         </tr>
                         <tr>
-                            <th>Dept</th>
+                            <th class="sr-sticky sr-sticky-1">Emp Code</th>
+                            <th class="sr-sticky sr-sticky-2">Employee Name</th>
                             <th>Desig.</th>
                             <th>D.O.J.</th>
                             <th>UAN</th>
-                            <th>Employee Name</th>
                             <?php if ($isActual): ?>
                                 <th>Qty</th>
                                 <th>Actual Amt</th>
@@ -328,17 +328,16 @@ require_once __DIR__ . '/../includes/header.php';
                     <?php endif; ?>
                     <?php foreach ($rows as $r): ?>
                         <tr>
-                            <td><?php echo htmlspecialchars($r['department'] ?: '-'); ?></td>
-                            <td><?php echo htmlspecialchars($r['designation']); ?></td>
-                            <td><?php echo htmlspecialchars($r['doj']); ?></td>
-                            <td><?php echo htmlspecialchars($r['uan'] ?: '-'); ?></td>
-                            <td>
+                            <td class="sr-sticky sr-sticky-1"><?php echo htmlspecialchars($r['employee_code'] ?: '-'); ?></td>
+                            <td class="sr-sticky sr-sticky-2">
                                 <strong><?php echo htmlspecialchars($r['employee_name']); ?></strong>
-                                <div class="sr-code"><?php echo htmlspecialchars($r['employee_code']); ?></div>
                                 <?php if ($r['main_contractor']): ?>
                                     <div class="sr-code">Under: <?php echo htmlspecialchars($r['main_contractor']); ?></div>
                                 <?php endif; ?>
                             </td>
+                            <td><?php echo htmlspecialchars($r['designation']); ?></td>
+                            <td><?php echo htmlspecialchars($r['doj']); ?></td>
+                            <td><?php echo htmlspecialchars($r['uan'] ?: '-'); ?></td>
                             <?php if ($isActual): ?>
                                 <td class="num"><?php echo registerNum($r['qty'], 2); ?></td>
                                 <td class="num"><?php echo registerNum($r['actual']); ?></td>

@@ -8,6 +8,10 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
+if (!function_exists('navResolveBack')) {
+    require_once __DIR__ . '/nav_helper.php';
+}
+
 /**
  * Check if user is logged in
  */

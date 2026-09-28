@@ -69,9 +69,13 @@ $activeListUrl = app_url('employees/index.php' . ($deptId > 0 ? '?department_id=
 $exitListUrl   = app_url('employees/exit_list.php' . ($deptId > 0 ? '?department_id=' . $deptId : ''));
 
 $ajaxUrl = app_url('employees/ajax_list.php?view=' . $view . ($deptId > 0 ? ('&department_id=' . $deptId) : ''));
-$backUrl = $isAllReport
-    ? app_url('dashboard.php')
-    : app_url('department.php?id=' . $deptId);
+$navBack = navResolveBack([
+    'department_id' => $deptId,
+    'fallback' => $isAllReport ? 'dashboard' : 'modules',
+    'prefer_dept' => !$isAllReport,
+]);
+$backUrl = $navBack['url'];
+$backLabel = $navBack['label'];
 $addUrl = app_url('employees/edit.php' . ($deptId > 0 ? ('?department_id=' . $deptId) : ''));
 $excelUrl = app_url('employees/export_excel.php?view=' . $view . ($deptId > 0 ? ('&department_id=' . $deptId) : ''));
 ?>
@@ -80,7 +84,7 @@ $excelUrl = app_url('employees/export_excel.php?view=' . $view . ($deptId > 0 ? 
     <div class="page-toolbar flex-between">
         <a href="<?php echo htmlspecialchars($backUrl); ?>" class="back-link">
             <i class="fa-solid fa-arrow-left"></i>
-            <?php echo $isAllReport ? 'Back to Dashboard' : 'Back to Modules'; ?>
+            <?php echo htmlspecialchars($backLabel); ?>
         </a>
         <div class="toolbar-actions">
             <?php if (!$isAllReport): ?>

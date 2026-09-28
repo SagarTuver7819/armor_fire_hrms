@@ -227,11 +227,11 @@ foreach ($groups as $g) {
                         <th colspan="3"></th>
                     </tr>
                     <tr>
-                        <th>Dept</th>
+                        <th>Emp Code</th>
+                        <th>Employee Name</th>
                         <th>Desig.</th>
                         <th>D.O.J.</th>
                         <th>UAN</th>
-                        <th>Employee Name</th>
                         <?php if ($isActual): ?>
                             <th class="num">Qty</th>
                             <th class="num">Actual Amt</th>
@@ -265,38 +265,28 @@ foreach ($groups as $g) {
                 <?php endif; ?>
                 <?php foreach ($rows as $r): ?>
                     <?php
-                    $deptShow = trim((string) ($r['department'] ?: '-'));
                     $remarksShow = trim((string) ($r['remarks'] ?: '-'));
                     if (function_exists('mb_strlen')) {
-                        if (mb_strlen($deptShow) > 28) {
-                            $deptShow = mb_substr($deptShow, 0, 26) . '…';
-                        }
                         if (mb_strlen($remarksShow) > 24) {
                             $remarksShow = mb_substr($remarksShow, 0, 22) . '…';
                         }
                     } else {
-                        if (strlen($deptShow) > 28) {
-                            $deptShow = substr($deptShow, 0, 26) . '...';
-                        }
                         if (strlen($remarksShow) > 24) {
                             $remarksShow = substr($remarksShow, 0, 22) . '...';
                         }
                     }
                     $empLabel = trim((string) ($r['employee_name'] ?? ''));
-                    $empCode = trim((string) ($r['employee_code'] ?? ''));
-                    if ($empCode !== '') {
-                        $empLabel .= ' (' . $empCode . ')';
-                    }
                     if (!empty($r['main_contractor'])) {
                         $empLabel .= ' · ' . $r['main_contractor'];
                     }
+                    $empCode = trim((string) ($r['employee_code'] ?? ''));
                     ?>
                     <tr>
-                        <td class="dept-cell" title="<?php echo htmlspecialchars($r['department'] ?: '-'); ?>"><?php echo htmlspecialchars($deptShow); ?></td>
+                        <td><?php echo htmlspecialchars($empCode !== '' ? $empCode : '-'); ?></td>
+                        <td class="emp-cell" title="<?php echo htmlspecialchars($empLabel); ?>"><?php echo htmlspecialchars($empLabel); ?></td>
                         <td><?php echo htmlspecialchars($r['designation']); ?></td>
                         <td><?php echo htmlspecialchars($r['doj']); ?></td>
                         <td><?php echo htmlspecialchars($r['uan'] ?: '-'); ?></td>
-                        <td class="emp-cell" title="<?php echo htmlspecialchars($empLabel); ?>"><?php echo htmlspecialchars($empLabel); ?></td>
                         <?php if ($isActual): ?>
                             <td class="num"><?php echo registerNum($r['qty'], 2); ?></td>
                             <td class="num"><?php echo registerNum($r['actual']); ?></td>

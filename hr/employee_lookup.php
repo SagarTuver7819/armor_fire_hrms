@@ -41,6 +41,8 @@ if ($action === 'view') {
             'office_mobile' => (string) ($emp['office_mobile'] ?? ''),
             'office_email' => (string) ($emp['office_email'] ?? ''),
             'desk_no' => (string) ($emp['desk_no'] ?? ''),
+            'blood_group' => (string) ($emp['blood_group'] ?? ''),
+            'gender' => (string) ($emp['gender'] ?? ''),
         ],
     ]);
     exit;

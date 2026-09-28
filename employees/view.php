@@ -44,11 +44,13 @@ $canEditEmployee = canAccess('employees', 'edit', $deptId);
 $canSalaryManage = $canEditEmployee || canAccess('payroll', 'view', $deptId);
 $canEmpPdf = $canEditEmployee || isAdmin() || isHR();
 $showAdminActions = $canEditEmployee || $canSalaryManage || $canEmpPdf;
-// Employee login (own profile / Office Staff): hide salary amount, pay type, salary tab, bank/PF salary
+// Employee login (own profile / Office Staff): hide salary amount, pay type, salary tab, PF salary
 $showSalaryDetails = $canSalaryManage || isAdmin() || isHR();
 if ($isOwnProfile && isOfficeStaffRole()) {
     $showSalaryDetails = false;
 }
+// Own profile: always allow viewing own bank account details (not salary amount)
+$showBankDetails = $showSalaryDetails || $isOwnProfile;
 
 $isDeactive = isEmployeeDeactive($emp);
 $tab = strtolower(trim((string) ($_GET['tab'] ?? 'profile')));
@@ -683,6 +685,7 @@ $tabUrl = function ($t) use ($baseQs, $year, $month) {
                     <div class="info-row"><dt>Father / Husband Name</dt><dd><?php echo showVal($emp['father_husband_name']); ?></dd></div>
                     <div class="info-row"><dt>Date of Birth</dt><dd><?php echo showVal(formatDateDisplay($emp['date_of_birth'])); ?></dd></div>
                     <div class="info-row"><dt>Gender</dt><dd><?php echo showVal($emp['gender'] ?? ''); ?></dd></div>
+                    <div class="info-row"><dt>Blood Group</dt><dd><?php echo showVal($emp['blood_group'] ?? ''); ?></dd></div>
                     <div class="info-row">
                         <dt>Marital Status</dt>
                         <dd>
@@ -829,7 +832,7 @@ $tabUrl = function ($t) use ($baseQs, $year, $month) {
                 <?php endif; ?>
             </div>
 
-            <?php if ($showSalaryDetails): ?>
+            <?php if ($showBankDetails): ?>
             <div class="view-card">
                 <div class="view-card-head">
                     <i class="fa-solid fa-building-columns"></i>
@@ -840,7 +843,7 @@ $tabUrl = function ($t) use ($baseQs, $year, $month) {
                 </div>
                 <dl class="info-list">
                     <div class="info-row"><dt>Bank Name</dt><dd><?php echo showVal($emp['bank_name']); ?></dd></div>
-                    <div class="info-row"><dt>Account Number</dt><dd><?php echo showVal($emp['bank_account_number']); ?></dd></div>
+                    <div class="info-row is-highlight"><dt>Account Number</dt><dd><?php echo showVal($emp['bank_account_number']); ?></dd></div>
                     <div class="info-row"><dt>IFSC Code</dt><dd><?php echo showVal($emp['ifsc_code']); ?></dd></div>
                     <div class="info-row"><dt>Branch Address</dt><dd><?php echo nl2br(showVal($emp['bank_branch_address'])); ?></dd></div>
                 </dl>

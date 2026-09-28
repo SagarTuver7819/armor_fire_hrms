@@ -37,8 +37,8 @@ header('Cache-Control: max-age=0');
 
 $earnSpan = $isActual ? 3 : 7;
 $headers = $isActual
-    ? ['Department', 'Designation', 'D.O.J.', 'UAN Number', 'Employee Name', 'Qty', 'Actual Amount', 'Gross Salary']
-    : ['Department', 'Designation', 'D.O.J.', 'UAN Number', 'Employee Name', 'Salary', 'Present Days', 'Week Off', 'Holiday', 'P.L.', 'S.L.', 'D.L.', 'Total Days', 'Gross Salary'];
+    ? ['Employee Code', 'Employee Name', 'Designation', 'D.O.J.', 'UAN Number', 'Qty', 'Actual Amount', 'Gross Salary']
+    : ['Employee Code', 'Employee Name', 'Designation', 'D.O.J.', 'UAN Number', 'Salary', 'Present Days', 'Week Off', 'Holiday', 'P.L.', 'S.L.', 'D.L.', 'Total Days', 'Gross Salary'];
 $headers = array_merge($headers, [
     'Employee PF', 'P.T.', 'Loan', 'Advance', 'Total Deduction', 'Salary Arrears', 'Net Salary',
     'Account Number', 'IFSC Code', 'Remarks',
@@ -73,7 +73,7 @@ foreach ($groups as $g) {
     }
     foreach ($g['rows'] as $r) {
         $cells = [
-            $r['department'], $r['designation'], $r['doj'], $r['uan'], $r['employee_name'],
+            $r['employee_code'], $r['employee_name'], $r['designation'], $r['doj'], $r['uan'],
         ];
         if ($isActual) {
             $cells[] = $r['qty'];

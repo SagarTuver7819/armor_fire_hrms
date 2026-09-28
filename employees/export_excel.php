@@ -68,7 +68,7 @@ header('Cache-Control: max-age=0');
 
 $headers = [
     'Sr', 'Employee Code', 'Pay Type', 'Employee Name', 'Father / Husband Name',
-    'Department', 'Assigned State', 'Assigned Location', 'Designation', 'Date of Birth', 'Date of Joining', 'Exit Date',
+    'Department', 'Assigned State', 'Assigned Location', 'Designation', 'Date of Birth', 'Gender', 'Blood Group', 'Date of Joining', 'Exit Date',
     'Mobile', 'Emergency Mobile', 'Aadhar', 'PAN',
     'Permanent Address', 'Present Address',
     'Shift Type', 'Shift Time', 'PF Deduction', 'PF Start Date', 'Employee PF Contribution', 'UAN',
@@ -100,6 +100,8 @@ if ($result) {
             $row['assigned_location_name'] ?? '',
             $row['designation'] ?? '',
             formatDateDisplay($row['date_of_birth'] ?? ''),
+            $row['gender'] ?? '',
+            $row['blood_group'] ?? '',
             formatDateDisplay($row['date_of_joining'] ?? ''),
             formatDateDisplay($row['date_of_exit'] ?? ''),
             $row['mobile_number'] ?? '',

@@ -219,7 +219,8 @@ if (!empty($emp['reporting_head'])) {
         <tr>
             <td class="no">9.</td>
             <td class="label"><?php echo e($L['9']); ?></td>
-            <td class="val" colspan="2"><?php echo d($emp['date_of_birth']); ?></td>
+            <td class="val"><?php echo d($emp['date_of_birth']); ?></td>
+            <td class="val"><strong><?php echo $isHi ? 'रक्त समूह' : 'Blood Group'; ?>:</strong> <?php echo e(($emp['blood_group'] ?? '') !== '' ? $emp['blood_group'] : '-'); ?></td>
         </tr>
         <tr>
             <td class="no">10.</td>

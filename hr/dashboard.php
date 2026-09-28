@@ -57,6 +57,7 @@ $kpi = [
     'pending_leave' => 0,
     'present_today' => 0,
     'absent_today' => 0,
+    'kpi_submitted_today' => 0,
 ];
 
 $r = $conn->query("SELECT COUNT(*) AS c FROM employees WHERE status = 1");
@@ -97,6 +98,10 @@ $attToday = $st->get_result()->fetch_assoc() ?: [];
 $st->close();
 $kpi['present_today'] = (int) ($attToday['present_c'] ?? 0);
 $kpi['absent_today'] = (int) ($attToday['absent_c'] ?? 0);
+
+require_once __DIR__ . '/../includes/kpi_helper.php';
+ensureKpiTables($conn);
+$kpi['kpi_submitted_today'] = kpiCountSubmittedOnDate($today, $conn);
 
 // ── Birthdays: today + next 14 days ────────────────────
 $birthdaysToday = [];
@@ -357,6 +362,9 @@ require_once __DIR__ . '/../includes/header.php';
             <a class="btn-ghost" href="<?php echo app_url('leave/index.php'); ?>">
                 <i class="fa-solid fa-scale-balanced"></i> Leave Desk
             </a>
+            <a class="btn-ghost" href="<?php echo app_url('hr/kpi.php'); ?>">
+                <i class="fa-solid fa-clipboard-list"></i> KPI Reports
+            </a>
             <a class="btn-ghost" href="<?php echo app_url('circulars/edit.php'); ?>">
                 <i class="fa-solid fa-file-circle-plus"></i> Add Circular
             </a>
@@ -402,6 +410,13 @@ require_once __DIR__ . '/../includes/header.php';
                 <strong><?php echo number_format($kpi['joiners']); ?></strong>
             </div>
         </div>
+        <a class="hr-kpi" href="<?php echo app_url('hr/kpi.php'); ?>">
+            <div class="hr-kpi-ico" style="--kpi:#d2232a"><i class="fa-solid fa-clipboard-check"></i></div>
+            <div>
+                <span>KPI Submitted Today</span>
+                <strong><?php echo number_format($kpi['kpi_submitted_today']); ?></strong>
+            </div>
+        </a>
         <a class="hr-kpi" href="<?php echo app_url('employees/exit_list.php'); ?>">
             <div class="hr-kpi-ico" style="--kpi:#7c3aed"><i class="fa-solid fa-door-open"></i></div>
             <div>

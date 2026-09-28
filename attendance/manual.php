@@ -119,15 +119,16 @@ if (isset($_GET['msg']) && $_GET['msg'] === 'saved') {
 
 <main class="dashboard-main">
     <div class="page-toolbar flex-between">
-        <?php if ($deptId > 0): ?>
-            <a href="<?php echo app_url('department.php?id=' . $deptId); ?>" class="back-link">
-                <i class="fa-solid fa-arrow-left"></i> Back to Modules
-            </a>
-        <?php else: ?>
-            <a href="<?php echo app_url('attendance/index.php'); ?>" class="back-link">
-                <i class="fa-solid fa-arrow-left"></i> Back to Attendance
-            </a>
-        <?php endif; ?>
+        <?php
+        $navBack = navResolveBack([
+            'department_id' => $deptId,
+            'fallback' => 'attendance',
+            'prefer_dept' => false,
+        ]);
+        ?>
+        <a href="<?php echo htmlspecialchars($navBack['url']); ?>" class="back-link">
+            <i class="fa-solid fa-arrow-left"></i> <?php echo htmlspecialchars($navBack['label']); ?>
+        </a>
         <?php if ($show && $monthData): ?>
             <div class="toolbar-actions">
                 <a class="btn-secondary" href="<?php echo htmlspecialchars(app_url('attendance/report_excel.php?' . $excelQs)); ?>">

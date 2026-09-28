@@ -46,6 +46,7 @@ $gender        = trim($_POST['gender'] ?? '');
 if (!in_array($gender, ['Male', 'Female'], true)) {
     $gender = '';
 }
+$bloodGroup    = normalizeBloodGroup($_POST['blood_group'] ?? '');
 $maritalStatus = trim($_POST['marital_status'] ?? '');
 if (!in_array($maritalStatus, ['Married', 'Unmarried', 'Other'], true)) {
     $maritalStatus = '';
@@ -296,15 +297,16 @@ if (!$ok) {
 if ($savedId > 0) {
     $pfEmpBind = $pfEmpContrib === null ? '' : (string) $pfEmpContrib;
     $extraStmt = $conn->prepare(
-        'UPDATE employees SET office_email = ?, office_mobile = ?, desk_no = ?, gender = ?, marital_status = ?, marital_remark = ?,
+        'UPDATE employees SET office_email = ?, office_mobile = ?, desk_no = ?, gender = ?, blood_group = ?, marital_status = ?, marital_remark = ?,
          pf_start_date = NULLIF(?, \'\'), pf_employee_contribution = NULLIF(?, \'\'), pf_employer_contribution = NULL WHERE id = ?'
     );
     $extraStmt->bind_param(
-        'ssssssssi',
+        'sssssssssi',
         $officeEmail,
         $officeMobile,
         $deskNo,
         $gender,
+        $bloodGroup,
         $maritalStatus,
         $maritalRemark,
         $pfStartDate,

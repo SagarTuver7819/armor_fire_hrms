@@ -24,6 +24,7 @@ require_once __DIR__ . '/includes/leave_helper.php';
 require_once __DIR__ . '/includes/coff_helper.php';
 require_once __DIR__ . '/includes/circular_helper.php';
 require_once __DIR__ . '/includes/policy_helper.php';
+require_once __DIR__ . '/includes/kpi_helper.php';
 require_once __DIR__ . '/includes/permission_helper.php';
 require_once __DIR__ . '/includes/department_head_helper.php';
 require_once __DIR__ . '/sql/seed_contractor_masters.php';
@@ -66,7 +67,7 @@ $conn = getDBConnection();
 
 try {
     ensureEmployeesTable($conn);
-    $log[] = 'Employees table + extra columns ready (pay_type, office fields, gender, marital, photo, pf_start_date, pf contributions, family).';
+    $log[] = 'Employees table + extra columns ready (pay_type, office fields, gender, blood_group, marital, photo, pf_start_date, pf contributions, family).';
 
     ensureMasterTables($conn);
     $log[] = 'Masters tables ready (incl. holidays.from/to dates). Sub Department seeded from Department names where missing.';
@@ -111,6 +112,9 @@ try {
 
     ensurePolicyTables($conn);
     $log[] = 'Policies table ready (scanned PDF policies for HR/Admin).';
+
+    ensureKpiTables($conn);
+    $log[] = 'KPI tables ready (hourly employee sheets + entries).';
 
     ensureRoleTables($conn);
     $log[] = 'Roles & permissions tables ready (custom roles, role_permissions, users.custom_role_id, users.employee_id).';

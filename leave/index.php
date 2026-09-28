@@ -101,9 +101,13 @@ if (isset($_GET['msg'])) {
     }
 }
 
-$backUrl = $deptId > 0
-    ? app_url('department.php?id=' . $deptId)
-    : ($selfOnly ? app_url('employee/dashboard.php') : app_url('dashboard.php'));
+$navBack = navResolveBack([
+    'department_id' => $deptId,
+    'fallback' => $selfOnly ? 'employee' : 'hr',
+    'prefer_dept' => true,
+]);
+$backUrl = $navBack['url'];
+$backLabel = $navBack['label'];
 $qsBase = http_build_query([
     'department_id' => $deptId,
     'status' => $status,
@@ -116,13 +120,7 @@ $canAddLeave = canAccess('leave', 'add', $deptId);
     <div class="page-toolbar flex-between">
         <a href="<?php echo htmlspecialchars($backUrl); ?>" class="back-link">
             <i class="fa-solid fa-arrow-left"></i>
-            <?php
-            if ($selfOnly) {
-                echo 'Back to Home';
-            } else {
-                echo $deptId > 0 ? 'Back to Modules' : 'Back to Dashboard';
-            }
-            ?>
+            <?php echo htmlspecialchars($backLabel); ?>
         </a>
         <div class="toolbar-actions" style="display:flex;gap:8px;flex-wrap:wrap;">
             <?php if (!$selfOnly && canAccess('leave', 'view', $deptId)): ?>
