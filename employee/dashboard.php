@@ -657,6 +657,12 @@ $denied = isset($_GET['msg']) && $_GET['msg'] === 'denied';
                 <?php if (!$monthlyJoinEmployees): ?>
                     <div class="emp-move-empty">No employees joined this month.</div>
                 <?php else: ?>
+                    <div class="emp-move-head">
+                        <span>Employee Code</span>
+                        <span>Name</span>
+                        <span>Date of Joining</span>
+                        <span>Department</span>
+                    </div>
                     <?php foreach ($monthlyJoinEmployees as $je):
                         $joinDateRaw = trim((string) ($je['date_of_joining'] ?? ''));
                         $joinDateDisp = ($joinDateRaw !== '' && $joinDateRaw !== '0000-00-00' && function_exists('formatDateDisplay'))
@@ -664,12 +670,10 @@ $denied = isset($_GET['msg']) && $_GET['msg'] === 'denied';
                             : (($joinDateRaw !== '' && $joinDateRaw !== '0000-00-00') ? date('d-m-Y', strtotime($joinDateRaw)) : '—');
                     ?>
                         <div class="emp-move-chip is-join">
-                            <b><?php echo htmlspecialchars((string) ($je['employee_code'] ?? '—')); ?></b>
-                            <span>
-                                <strong class="emp-move-name"><?php echo htmlspecialchars((string) ($je['employee_name'] ?? '—')); ?></strong>
-                                <small class="emp-move-date">Date of Joining: <?php echo htmlspecialchars($joinDateDisp); ?></small>
-                            </span>
-                            <em><?php echo htmlspecialchars(trim((string) ($je['department_name'] ?? '')) !== '' ? $je['department_name'] : '—'); ?></em>
+                            <b class="emp-move-code"><?php echo htmlspecialchars((string) ($je['employee_code'] ?? '—')); ?></b>
+                            <span class="emp-move-name"><?php echo htmlspecialchars((string) ($je['employee_name'] ?? '—')); ?></span>
+                            <small class="emp-move-date"><?php echo htmlspecialchars($joinDateDisp); ?></small>
+                            <em class="emp-move-dept"><?php echo htmlspecialchars(trim((string) ($je['department_name'] ?? '')) !== '' ? $je['department_name'] : '—'); ?></em>
                         </div>
                     <?php endforeach; ?>
                 <?php endif; ?>
@@ -690,6 +694,12 @@ $denied = isset($_GET['msg']) && $_GET['msg'] === 'denied';
                 <?php if (!$monthlyLeftEmployees): ?>
                     <div class="emp-move-empty">No employees left this month.</div>
                 <?php else: ?>
+                    <div class="emp-move-head">
+                        <span>Employee Code</span>
+                        <span>Name</span>
+                        <span>Date of Left</span>
+                        <span>Department</span>
+                    </div>
                     <?php foreach ($monthlyLeftEmployees as $le):
                         $leftDateRaw = trim((string) ($le['date_of_exit'] ?? ''));
                         $leftDateDisp = ($leftDateRaw !== '' && $leftDateRaw !== '0000-00-00' && function_exists('formatDateDisplay'))
@@ -697,12 +707,10 @@ $denied = isset($_GET['msg']) && $_GET['msg'] === 'denied';
                             : (($leftDateRaw !== '' && $leftDateRaw !== '0000-00-00') ? date('d-m-Y', strtotime($leftDateRaw)) : '—');
                     ?>
                         <div class="emp-move-chip is-left">
-                            <b><?php echo htmlspecialchars((string) ($le['employee_code'] ?? '—')); ?></b>
-                            <span>
-                                <strong class="emp-move-name"><?php echo htmlspecialchars((string) ($le['employee_name'] ?? '—')); ?></strong>
-                                <small class="emp-move-date">Date of Left: <?php echo htmlspecialchars($leftDateDisp); ?></small>
-                            </span>
-                            <em><?php echo htmlspecialchars(trim((string) ($le['department_name'] ?? '')) !== '' ? $le['department_name'] : '—'); ?></em>
+                            <b class="emp-move-code"><?php echo htmlspecialchars((string) ($le['employee_code'] ?? '—')); ?></b>
+                            <span class="emp-move-name"><?php echo htmlspecialchars((string) ($le['employee_name'] ?? '—')); ?></span>
+                            <small class="emp-move-date"><?php echo htmlspecialchars($leftDateDisp); ?></small>
+                            <em class="emp-move-dept"><?php echo htmlspecialchars(trim((string) ($le['department_name'] ?? '')) !== '' ? $le['department_name'] : '—'); ?></em>
                         </div>
                     <?php endforeach; ?>
                 <?php endif; ?>
