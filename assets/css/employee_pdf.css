@@ -43,8 +43,8 @@
     font-weight: 600;
 }
 
-.tb-btn.active { background: #F58220; }
-.tb-btn.primary { background: #F58220; }
+.tb-btn.active { background: #d2232a; }
+.tb-btn.primary { background: #d2232a; }
 
 .pdf-sheet {
     width: 210mm;

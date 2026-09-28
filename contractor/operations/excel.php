@@ -87,11 +87,11 @@ if ($mode === 'summary') {
 
     echo '<html><head><meta charset="UTF-8"></head><body>';
     echo '<table border="1" cellspacing="0" cellpadding="4">';
-    echo '<tr><th colspan="' . count($headers) . '" style="background:#F58220;color:#fff;font-size:15px;">'
+    echo '<tr><th colspan="' . count($headers) . '" style="background:#d2232a;color:#fff;font-size:15px;">'
         . htmlspecialchars($company) . ' — Operations Rate List (Product Wise)</th></tr>';
     echo '<tr>';
     foreach ($headers as $h) {
-        echo '<th style="background:#fff4e8;">' . htmlspecialchars($h) . '</th>';
+        echo '<th style="background:#fde8e9;">' . htmlspecialchars($h) . '</th>';
     }
     echo '</tr>';
 
@@ -138,7 +138,7 @@ if ($mode === 'summary') {
     if ($sr === 0) {
         echo '<tr><td colspan="' . count($headers) . '">No records</td></tr>';
     } else {
-        echo '<tr style="font-weight:bold;background:#fff4e8;">';
+        echo '<tr style="font-weight:bold;background:#fde8e9;">';
         echo '<td colspan="5">TOTAL</td>';
         echo '<td>' . number_format($sumQty, 2) . '</td>';
         echo '<td></td>';
@@ -220,7 +220,7 @@ echo '<html><head><meta charset="UTF-8"></head><body>';
 echo '<table border="1" cellspacing="0" cellpadding="3">';
 
 if (!$sheets) {
-    echo '<tr><th style="background:#F58220;color:#fff;">'
+    echo '<tr><th style="background:#d2232a;color:#fff;">'
         . htmlspecialchars($company) . ' — Operations Rate Sheet</th></tr>';
     echo '<tr><td>No rate sheets found for selected filters.</td></tr>';
     echo '</table></body></html>';
@@ -245,7 +245,7 @@ foreach ($sheets as $sheet) {
 
     // Title once at top, then period break headers when period changes
     if ($lastPeriodKey === null) {
-        echo '<tr><th colspan="' . $colSpan . '" style="background:#F58220;color:#fff;font-size:15px;">'
+        echo '<tr><th colspan="' . $colSpan . '" style="background:#d2232a;color:#fff;font-size:15px;">'
             . htmlspecialchars($company) . ' — Operations Rate Sheet (All Employees)</th></tr>';
         echo '<tr><td colspan="' . $colSpan . '"><strong>'
             . htmlspecialchars(implode(' | ', $filterBits))
@@ -258,7 +258,7 @@ foreach ($sheets as $sheet) {
     $lastPeriodKey = $periodKey;
 
     // Employee block header
-    echo '<tr><td colspan="' . $colSpan . '" style="background:#fff4e8;font-weight:bold;">'
+    echo '<tr><td colspan="' . $colSpan . '" style="background:#fde8e9;font-weight:bold;">'
         . '<strong>Operation:</strong> ' . htmlspecialchars((string) ($sheet['operation'] ?? ''))
         . ' &nbsp;|&nbsp; <strong>Employee:</strong> ' . htmlspecialchars($empLabel)
         . ' &nbsp;|&nbsp; <strong>Period:</strong> ' . htmlspecialchars($monthLabel . ' ' . $year)
@@ -325,7 +325,7 @@ if ($filterMonth > 0 && $filterYear > 0) {
     $maxDays = daysInMonthNum((int) $sheets[0]['month_no'], (int) $sheets[0]['year_no']);
 }
 $footSpan = 5 + $maxDays;
-echo '<tr style="font-weight:bold;background:#F58220;color:#fff;">';
+echo '<tr style="font-weight:bold;background:#d2232a;color:#fff;">';
 echo '<td colspan="' . (3 + $maxDays) . '">DEPARTMENT TOTAL (' . (int) $empCount . ' employee sheet(s))</td>';
 echo '<td>' . number_format($grandQty, 2) . '</td>';
 echo '<td>' . number_format($grandAmt, 2) . '</td>';

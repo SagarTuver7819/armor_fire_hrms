@@ -129,10 +129,10 @@ function vc_photo(array $e)
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Visiting Card — <?php echo vc_h($companyName); ?></title>
     <style>
-        /* Armor FIRE brand: orange #F58220 · charcoal #1A1A1A · white */
+        /* Armor FIRE Brand: red #d2232a · charcoal #1A1A1A · white */
         :root {
-            --fire: #F58220;
-            --fire-dark: #d96a0f;
+            --fire: #d2232a;
+            --fire-dark: #b01c22;
             --fire-deep: #c45c12;
             --charcoal: #1A1A1A;
             --charcoal-2: #2a2a2a;
@@ -144,48 +144,48 @@ function vc_photo(array $e)
 
         /* Theme: Fire Orange */
         body.theme-fire {
-            --front-bg: linear-gradient(145deg, #F58220 0%, #e87312 45%, #c45c12 100%);
+            --front-bg: linear-gradient(145deg, #d2232a 0%, #e87312 45%, #c45c12 100%);
             --front-fg: #ffffff;
             --front-tag: rgba(255,255,255,.88);
             --front-logo-bg: rgba(255,255,255,.96);
             --back-name: #1A1A1A;
-            --back-code: #F58220;
+            --back-code: #d2232a;
             --back-role: #374151;
             --back-meta: #6b7280;
-            --back-photo-border: #F58220;
-            --back-photo-col: #fff7ed;
-            --accent: linear-gradient(90deg, #F58220, #1A1A1A);
+            --back-photo-border: #d2232a;
+            --back-photo-col: #fef2f2;
+            --accent: linear-gradient(90deg, #d2232a, #1A1A1A);
             --card-border: #f0a45a;
         }
         /* Theme: Charcoal + Orange */
         body.theme-charcoal {
             --front-bg: linear-gradient(145deg, #111111 0%, #1A1A1A 50%, #2a2a2a 100%);
             --front-fg: #ffffff;
-            --front-tag: rgba(245,130,32,.95);
+            --front-tag: rgba(210, 35, 42,.95);
             --front-logo-bg: rgba(255,255,255,.98);
             --back-name: #1A1A1A;
-            --back-code: #F58220;
+            --back-code: #d2232a;
             --back-role: #374151;
             --back-meta: #6b7280;
             --back-photo-border: #1A1A1A;
             --back-photo-col: #f3f4f6;
-            --accent: linear-gradient(90deg, #1A1A1A, #F58220);
+            --accent: linear-gradient(90deg, #1A1A1A, #d2232a);
             --card-border: #374151;
         }
         /* Theme: Clean White + Orange */
         body.theme-white {
-            --front-bg: linear-gradient(180deg, #ffffff 0%, #fff7ed 100%);
+            --front-bg: linear-gradient(180deg, #ffffff 0%, #fef2f2 100%);
             --front-fg: #1A1A1A;
-            --front-tag: #F58220;
+            --front-tag: #d2232a;
             --front-logo-bg: transparent;
             --back-name: #1A1A1A;
-            --back-code: #F58220;
+            --back-code: #d2232a;
             --back-role: #374151;
             --back-meta: #6b7280;
-            --back-photo-border: #F58220;
-            --back-photo-col: #fff7ed;
-            --accent: linear-gradient(90deg, #F58220, #F58220);
-            --card-border: #F58220;
+            --back-photo-border: #d2232a;
+            --back-photo-col: #fef2f2;
+            --accent: linear-gradient(90deg, #d2232a, #d2232a);
+            --card-border: #d2232a;
         }
 
         * { box-sizing: border-box; }
@@ -223,13 +223,13 @@ function vc_photo(array $e)
             background: #f3f4f6;
             border: 2px solid transparent;
         }
-        .vc-theme-switch a.is-active { border-color: var(--fire); background: #fff7ed; }
+        .vc-theme-switch a.is-active { border-color: var(--fire); background: #fef2f2; }
         .vc-dot {
             width: 12px; height: 12px; border-radius: 50%; display: inline-block;
         }
-        .vc-dot.fire { background: #F58220; }
+        .vc-dot.fire { background: #d2232a; }
         .vc-dot.charcoal { background: #1A1A1A; }
-        .vc-dot.white { background: #fff; border: 2px solid #F58220; }
+        .vc-dot.white { background: #fff; border: 2px solid #d2232a; }
         .vc-btn {
             display: inline-flex;
             align-items: center;
@@ -242,7 +242,7 @@ function vc_photo(array $e)
             cursor: pointer;
             text-decoration: none;
         }
-        .vc-btn-primary { background: #F58220; color: #fff; }
+        .vc-btn-primary { background: #d2232a; color: #fff; }
         .vc-btn-secondary { background: #f3f4f6; color: var(--ink); }
         .vc-sheet { max-width: 920px; margin: 20px auto 40px; padding: 0 12px; }
         .vc-pair { margin-bottom: 28px; page-break-inside: avoid; }
@@ -321,7 +321,7 @@ function vc_photo(array $e)
             position: absolute;
             left: 0; right: 0; bottom: 0;
             height: 3mm;
-            background: linear-gradient(90deg, #F58220, #1A1A1A);
+            background: linear-gradient(90deg, #d2232a, #1A1A1A);
         }
 
         /* BACK */
@@ -475,7 +475,7 @@ function vc_photo(array $e)
                                     <img src="<?php echo vc_h($logoUrl); ?>" alt="<?php echo vc_h($companyName); ?>">
                                 <?php else: ?>
                                     <div style="font-size:16px;font-weight:800;letter-spacing:.06em;color:#1A1A1A;">
-                                        Armor <span style="color:#F58220;">FIRE</span>
+                                        Armor <span style="color:#d2232a;">FIRE</span>
                                     </div>
                                 <?php endif; ?>
                             </div>

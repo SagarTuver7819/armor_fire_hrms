@@ -10,6 +10,11 @@ requireLogin();
 
 $companyName = getCompanyName();
 $companyLogo = getDashboardLogo();
+$loginLogo = getLoginLogo();
+// Prefer full brand mark (login logo) in header when available
+if (isCustomLogo($loginLogo)) {
+    $companyLogo = $loginLogo;
+}
 // Logo path may be relative - prefix with APP_BASE if needed
 $logoSrc = $companyLogo;
 if ($logoSrc && strpos($logoSrc, 'http') !== 0 && strpos($logoSrc, '/') !== 0) {
@@ -106,6 +111,11 @@ if (function_exists('isPortalUser') && isPortalUser()) {
     <?php endif; ?>
 </head>
 <body<?php echo !empty($useSidebar) ? ' class="has-app-sidebar"' : ''; ?>>
+<?php if (!empty($useSidebar)): ?>
+    <div class="app-shell" id="appShell">
+        <?php require_once __DIR__ . '/sidebar.php'; ?>
+        <div class="app-content">
+<?php endif; ?>
     <!-- Top Header Bar -->
     <header class="top-header anim-header">
         <div class="header-left">
@@ -113,15 +123,20 @@ if (function_exists('isPortalUser') && isPortalUser()) {
                 <button type="button" class="header-sidebar-btn" id="headerSidebarBtn" title="Toggle sidebar" aria-label="Toggle sidebar">
                     <i class="fa-solid fa-bars"></i>
                 </button>
+            <?php else: ?>
+                <a href="<?php echo app_url('dashboard.php'); ?>" class="brand">
+                    <img src="<?php echo htmlspecialchars($logoSrc); ?>"
+                         alt="<?php echo htmlspecialchars($companyName); ?>"
+                         class="brand-logo"
+                         onerror="this.src='<?php echo app_url('assets/images/logo-placeholder.svg'); ?>'">
+                    <span class="brand-text"><?php echo htmlspecialchars($companyName); ?></span>
+                </a>
             <?php endif; ?>
-            <a href="<?php echo app_url('dashboard.php'); ?>" class="brand">
-                <img src="<?php echo htmlspecialchars($logoSrc); ?>"
-                     alt="<?php echo htmlspecialchars($companyName); ?>"
-                     class="brand-logo"
-                     onerror="this.src='<?php echo app_url('assets/images/logo-placeholder.svg'); ?>'">
-                <span class="brand-text"><?php echo htmlspecialchars($companyName); ?></span>
-            </a>
         </div>
+        <?php
+        // Staff + Employee portal can search colleagues
+        $showHeaderEmpSearch = !empty($useSidebar);
+        ?>
         <div class="header-right">
             <div class="header-status" id="headerStatus" aria-live="polite">
                 <div class="header-status-item">
@@ -149,6 +164,22 @@ if (function_exists('isPortalUser') && isPortalUser()) {
                     </span>
                 </div>
             </div>
+
+            <?php if ($showHeaderEmpSearch): ?>
+            <div class="header-emp-search-wrap">
+                <div class="hr-emp-search header-emp-search" id="hrEmpSearch" data-lookup-url="<?php echo htmlspecialchars(app_url('hr/employee_lookup.php')); ?>">
+                    <label class="hr-emp-search-box" for="hrEmpSearchInput">
+                        <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
+                        <input type="search"
+                               id="hrEmpSearchInput"
+                               placeholder="Search employee name / code…"
+                               autocomplete="off"
+                               spellcheck="false">
+                    </label>
+                    <div class="hr-emp-search-drop" id="hrEmpSearchDrop" hidden></div>
+                </div>
+            </div>
+            <?php endif; ?>
 
             <div class="header-notify" id="headerNotify">
                 <button type="button"
@@ -229,8 +260,25 @@ if (function_exists('isPortalUser') && isPortalUser()) {
             </div>
         </div>
     </header>
-<?php if (!empty($useSidebar)): ?>
-    <div class="app-shell" id="appShell">
-        <?php require_once __DIR__ . '/sidebar.php'; ?>
-        <div class="app-content">
+<?php if (!empty($showHeaderEmpSearch)): ?>
+<div class="hr-emp-view-modal" id="hrEmpViewModal" hidden aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="hrEmpViewTitle">
+    <div class="hr-emp-view-backdrop" data-hr-emp-close></div>
+    <div class="hr-emp-view-dialog">
+        <div class="hr-emp-view-top">
+            <div>
+                <p class="hr-emp-view-eyebrow">Employee Info</p>
+                <h2 id="hrEmpViewTitle">Quick View</h2>
+            </div>
+            <button type="button" class="hr-emp-view-close" data-hr-emp-close aria-label="Close">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </div>
+        <div class="hr-emp-view-body"></div>
+        <div class="hr-emp-view-foot">
+            <span><i class="fa-solid fa-eye"></i> View only · No edit</span>
+            <button type="button" class="btn-secondary" data-hr-emp-close>Close</button>
+        </div>
+    </div>
+</div>
 <?php endif; ?>
+<?php // sidebar layout already opened above when $useSidebar ?>

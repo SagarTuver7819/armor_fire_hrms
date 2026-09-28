@@ -25,7 +25,7 @@
  *    Masters box → masters/index.php (hub boxes + sidebar)
  *
  * Brand colors (keep consistent):
- *    --brand: #F58220
+ *    --brand: #d2232a
  *    --ink:   #1a2332
  *    --page:  #f0f3f7
  */

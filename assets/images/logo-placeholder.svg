@@ -1,5 +1,7 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
-  <rect width="64" height="64" rx="14" fill="#C0392B"/>
-  <path d="M32 12c-2 8-8 14-8 24a8 8 0 0 0 16 0c0-10-6-16-8-24z" fill="#fff"/>
-  <path d="M32 28c-1 4-4 7-4 12a4 4 0 0 0 8 0c0-5-3-8-4-12z" fill="#F39C12"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" role="img" aria-label="Armor Fire">
+  <!-- Stylized A with flame (Armor brand mark) -->
+  <path fill="#d2232a" d="M60 8 L108 112 H88 L78 88 H42 L32 112 H12 Z"/>
+  <path fill="#111111" d="M60 28 L74 64 H46 Z"/>
+  <path fill="#d2232a" d="M60 42c-1.2 5-5 9-5 15a5 5 0 0 0 10 0c0-6-3.8-10-5-15z"/>
+  <path fill="#f87171" d="M60 52c-.7 2.8-2.6 4.8-2.6 8a2.6 2.6 0 0 0 5.2 0c0-3.2-1.9-5.2-2.6-8z"/>
 </svg>

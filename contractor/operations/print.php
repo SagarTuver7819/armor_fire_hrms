@@ -154,14 +154,14 @@ for ($i = 0; $i < $nRows; $i++) {
             font-weight: 700;
             margin: 6px 0 14px;
             padding: 8px 12px;
-            background: #fff4e8;
+            background: #fde8e9;
             border: 1px solid #f5c89a;
             border-radius: 6px;
-            color: #d96a0f;
+            color: #b01c22;
         }
         table { width: 100%; border-collapse: collapse; font-size: 9.5px; table-layout: fixed; }
         th, td { border: 1px solid #94a3b8; padding: 4px 4px; text-align: left; word-wrap: break-word; vertical-align: top; }
-        th { background: #fff4e8; font-weight: 700; color: #1a2332; }
+        th { background: #fde8e9; font-weight: 700; color: #1a2332; }
         td.num, th.num { text-align: right; }
         td.center, th.center { text-align: center; }
         td.merge-mid {
@@ -176,7 +176,7 @@ for ($i = 0; $i < $nRows; $i++) {
             display: inline-block; padding: 8px 14px; margin-right: 8px;
             border: 0; border-radius: 6px; text-decoration: none; cursor: pointer; font-size: 13px;
         }
-        .btn-print { background: #F58220; color: #fff; }
+        .btn-print { background: #d2232a; color: #fff; }
         .btn-back { background: #e2e8f0; color: #111; }
         @media print {
             .toolbar { display: none !important; }

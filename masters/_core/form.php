@@ -98,11 +98,11 @@ function masterFieldValue($row, $field)
                             <?php elseif ($field['type'] === 'color'): ?>
                                 <div class="color-input-row">
                                     <input type="color" class="form-control color-picker"
-                                           value="<?php echo htmlspecialchars($val ?: '#F58220'); ?>"
+                                           value="<?php echo htmlspecialchars($val ?: '#d2232a'); ?>"
                                            oninput="this.nextElementSibling.value=this.value">
                                     <input type="text" name="<?php echo htmlspecialchars($field['name']); ?>"
                                            class="form-control" <?php echo $req; ?>
-                                           value="<?php echo htmlspecialchars((string) ($val ?: '#F58220')); ?>">
+                                           value="<?php echo htmlspecialchars((string) ($val ?: '#d2232a')); ?>">
                                 </div>
 
                             <?php else: ?>

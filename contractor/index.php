@@ -13,7 +13,7 @@ $sidebarActive = 'contractor_hub';
 require_once __DIR__ . '/../includes/header.php';
 
 $modules = [
-    ['key' => 'employees', 'title' => 'Contractor Employee', 'icon' => 'fa-id-card', 'color' => '#F58220', 'url' => 'contractor/employees/index.php', 'meta' => 'Jobwork employees'],
+    ['key' => 'employees', 'title' => 'Contractor Employee', 'icon' => 'fa-id-card', 'color' => '#d2232a', 'url' => 'contractor/employees/index.php', 'meta' => 'Jobwork employees'],
     ['key' => 'employment', 'title' => 'Contractor Employment Details', 'icon' => 'fa-briefcase', 'color' => '#3498DB', 'url' => 'contractor/employment/index.php', 'meta' => 'Dept · Shift · PF / UAN'],
     ['key' => 'products', 'title' => 'Product Master', 'icon' => 'fa-box', 'color' => '#C0392B', 'url' => 'contractor/products/index.php', 'meta' => 'Operation · Rate · OT / R'],
     ['key' => 'grades', 'title' => 'Grade Master', 'icon' => 'fa-layer-group', 'color' => '#0F766E', 'url' => 'contractor/grades/index.php', 'meta' => 'Grade list'],

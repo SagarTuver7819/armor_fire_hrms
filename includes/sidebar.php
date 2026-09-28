@@ -96,14 +96,33 @@ $openMasters = ($sidebarMode === 'masters' || $sidebarActive === 'hub' || isset(
 $regType = (string) ($_GET['type'] ?? '');
 $openContractor = ($sidebarMode === 'contractor' || strpos((string) $sidebarActive, 'contractor') === 0 || $regType === 'jobwork_govt' || $regType === 'jobwork_actual' || $regType === 'contractor_main');
 $openAttendance = ($sidebarMode === 'attendance' || strpos((string) $sidebarActive, 'attendance') === 0);
+
+if (!function_exists('getDashboardLogo')) {
+    require_once __DIR__ . '/settings.php';
+}
+$sidebarLogoPath = function_exists('getLoginLogo') ? getLoginLogo() : getDashboardLogo();
+if (function_exists('getDashboardLogo')) {
+    $dashLogo = getDashboardLogo();
+    // Prefer login logo (full brand mark); fall back to dashboard logo
+    if (function_exists('isCustomLogo') && isCustomLogo($sidebarLogoPath) === false && isCustomLogo($dashLogo)) {
+        $sidebarLogoPath = $dashLogo;
+    }
+}
+$sidebarLogoSrc = $sidebarLogoPath;
+if ($sidebarLogoSrc && strpos($sidebarLogoSrc, 'http') !== 0 && strpos($sidebarLogoSrc, '/') !== 0) {
+    $sidebarLogoSrc = app_url($sidebarLogoSrc);
+}
+$sidebarCompanyName = function_exists('getCompanyName') ? getCompanyName() : 'Armor Fire';
 ?>
 
 <aside class="app-sidebar" id="appSidebar" aria-label="Sidebar navigation">
     <div class="sidebar-top">
-        <div class="sidebar-brand-mini">
-            <i class="fa-solid fa-bars-staggered"></i>
-            <span class="sidebar-brand-text">Menu</span>
-        </div>
+        <a href="<?php echo app_url('dashboard.php'); ?>" class="sidebar-logo-link" title="<?php echo htmlspecialchars($sidebarCompanyName); ?>">
+            <img src="<?php echo htmlspecialchars($sidebarLogoSrc); ?>"
+                 alt="<?php echo htmlspecialchars($sidebarCompanyName); ?>"
+                 class="sidebar-logo-img"
+                 onerror="this.src='<?php echo app_url('assets/images/logo-placeholder.svg'); ?>'">
+        </a>
         <button type="button" class="sidebar-toggle" id="sidebarToggle" title="Hide / Show sidebar" aria-label="Toggle sidebar">
             <i class="fa-solid fa-angles-left"></i>
         </button>

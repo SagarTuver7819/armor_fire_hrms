@@ -77,9 +77,9 @@ require_once __DIR__ . '/../includes/header.php';
         </div>
 
         <div class="leave-rpt-rules">
-            <span class="leave-rpt-rule"><i class="fa-solid fa-fire" style="color:#F58220;"></i> Fire Orange</span>
+            <span class="leave-rpt-rule"><i class="fa-solid fa-fire" style="color:#d2232a;"></i> Fire Orange</span>
             <span class="leave-rpt-rule"><i class="fa-solid fa-moon" style="color:#1a1a1a;"></i> Charcoal + Orange</span>
-            <span class="leave-rpt-rule"><i class="fa-solid fa-circle" style="color:#F58220;"></i> Clean White + Orange</span>
+            <span class="leave-rpt-rule"><i class="fa-solid fa-circle" style="color:#d2232a;"></i> Clean White + Orange</span>
         </div>
 
         <form method="GET" class="employee-form leave-rpt-filters" id="vcFilterForm">
@@ -150,13 +150,13 @@ require_once __DIR__ . '/../includes/header.php';
                         <a href="<?php echo htmlspecialchars(app_url('employees/visiting_card_pdf.php?' . $qs)); ?>"
                            target="_blank" rel="noopener"
                            class="btn-secondary"
-                           style="padding:8px 12px;font-size:12px;<?php echo $active ? 'outline:2px solid #F58220;' : ''; ?>">
+                           style="padding:8px 12px;font-size:12px;<?php echo $active ? 'outline:2px solid #d2232a;' : ''; ?>">
                             <?php if ($key === 'fire'): ?>
-                                <span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:#F58220;vertical-align:middle;margin-right:4px;"></span>
+                                <span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:#d2232a;vertical-align:middle;margin-right:4px;"></span>
                             <?php elseif ($key === 'charcoal'): ?>
                                 <span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:#1a1a1a;vertical-align:middle;margin-right:4px;"></span>
                             <?php else: ?>
-                                <span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:#fff;border:2px solid #F58220;vertical-align:middle;margin-right:4px;"></span>
+                                <span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:#fff;border:2px solid #d2232a;vertical-align:middle;margin-right:4px;"></span>
                             <?php endif; ?>
                             <?php echo htmlspecialchars(explode(' — ', $label)[0]); ?>
                         </a>

@@ -81,7 +81,7 @@ if ($department) {
             <div class="module-grid module-grid-sm">
                 <!-- Primary manufacturing action -->
                 <a href="<?php echo app_url('employees/index.php?department_id=' . (int) $department['id']); ?>" class="module-card masters-entry-card">
-                    <div class="module-icon" style="background-color: #F58220;">
+                    <div class="module-icon" style="background-color: #d2232a;">
                         <i class="fa-solid fa-user-plus"></i>
                     </div>
                     <div class="module-label">Join Employee</div>

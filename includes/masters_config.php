@@ -36,7 +36,7 @@ function getMastersConfig()
             'table'       => 'departments',
             'folder'      => 'departments',
             'icon'        => 'fa-building',
-            'color'       => '#F58220',
+            'color'       => '#d2232a',
             'name_field'  => 'department_name',
             'list_columns'=> [
                 ['key' => 'department_name', 'label' => 'Department'],
@@ -47,7 +47,7 @@ function getMastersConfig()
             'fields' => [
                 ['name' => 'department_name', 'label' => 'Department Name', 'type' => 'text', 'required' => true, 'span' => 2],
                 ['name' => 'icon_class', 'label' => 'Icon Class (Font Awesome)', 'type' => 'text', 'required' => false, 'span' => 1, 'default' => 'fa-building', 'help' => 'e.g. fa-users'],
-                ['name' => 'icon_color', 'label' => 'Icon Color', 'type' => 'color', 'required' => false, 'span' => 1, 'default' => '#F58220'],
+                ['name' => 'icon_color', 'label' => 'Icon Color', 'type' => 'color', 'required' => false, 'span' => 1, 'default' => '#d2232a'],
                 ['name' => 'sort_order', 'label' => 'Sort Order', 'type' => 'number', 'required' => false, 'span' => 1, 'default' => 0],
             ],
         ],

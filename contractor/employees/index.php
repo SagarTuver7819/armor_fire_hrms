@@ -28,7 +28,7 @@ if (isset($_GET['msg'])) {
     </div>
     <div class="list-header">
         <div class="master-list-title">
-            <div class="master-list-icon" style="background:#F58220;"><i class="fa-solid fa-id-card"></i></div>
+            <div class="master-list-icon" style="background:#d2232a;"><i class="fa-solid fa-id-card"></i></div>
             <div>
                 <h1>Contractor Employee</h1>
                 <p>Join Employee records with Pay Type = Jobwork</p>

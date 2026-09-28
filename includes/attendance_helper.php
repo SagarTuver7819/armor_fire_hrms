@@ -1815,7 +1815,7 @@ function attendanceRenderExcelMonthTableHtml(array $grid, array $opts = [])
         $html .= '<th style="' . $thStyle . '">' . $d . '<br><span style="font-weight:600;font-size:9px;opacity:0.95;">' . htmlspecialchars($dayNames[$d]) . '</span></th>';
     }
     $sumStyle = $formal
-        ? 'text-align:center;font-weight:700;background:#f58220;color:#fff;vertical-align:middle;padding:4px 2px;'
+        ? 'text-align:center;font-weight:700;background:#d2232a;color:#fff;vertical-align:middle;padding:4px 2px;'
         : 'text-align:center;font-weight:700;';
     $html .= '<th style="' . $sumStyle . '">Present Days</th>';
     $html .= '<th style="' . $sumStyle . '">Week Off</th>';

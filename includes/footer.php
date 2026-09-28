@@ -38,6 +38,9 @@ require_once __DIR__ . '/../config/app.php';
     <?php if (!empty($useSidebar)): ?>
         <script src="<?php echo app_url('assets/js/sidebar.js'); ?>?v=<?php echo (int) @filemtime(__DIR__ . '/../assets/js/sidebar.js'); ?>"></script>
     <?php endif; ?>
+    <?php if (!empty($showHeaderEmpSearch)): ?>
+        <script src="<?php echo app_url('assets/js/hr_employee_search.js'); ?>?v=<?php echo (int) @filemtime(__DIR__ . '/../assets/js/hr_employee_search.js'); ?>"></script>
+    <?php endif; ?>
     <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/js/select2.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>

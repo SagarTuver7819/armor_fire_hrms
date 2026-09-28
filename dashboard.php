@@ -86,7 +86,7 @@ if ($hour < 12) {
                 <i class="fa-solid fa-arrow-right dash-hub-go"></i>
             </a>
             <a href="<?php echo htmlspecialchars(app_url('masters/index.php')); ?>" class="dash-hub-card is-masters" title="All Masters">
-                <div class="dash-hub-icon" style="background:#F58220;"><i class="fa-solid fa-cubes"></i></div>
+                <div class="dash-hub-icon" style="background:#d2232a;"><i class="fa-solid fa-cubes"></i></div>
                 <div class="dash-hub-body">
                     <strong>All Masters</strong>
                     <span><?php echo (int) $masterCount; ?> Masters · CRUD</span>

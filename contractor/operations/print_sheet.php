@@ -63,7 +63,7 @@ if ($format === 'excel') {
     header('Cache-Control: max-age=0');
     echo '<html><head><meta charset="UTF-8"></head><body>';
     echo '<table border="1" cellspacing="0" cellpadding="3">';
-    echo '<tr><th colspan="' . (4 + $daysInMonth) . '" style="background:#F58220;color:#fff;">'
+    echo '<tr><th colspan="' . (4 + $daysInMonth) . '" style="background:#d2232a;color:#fff;">'
         . htmlspecialchars($company) . ' — Operations Rate Sheet</th></tr>';
     echo '<tr><td colspan="' . (4 + $daysInMonth) . '"><strong>Operation:</strong> '
         . htmlspecialchars($sheet['operation']) . ' | <strong>Employee:</strong> '
@@ -126,7 +126,7 @@ if ($format === 'excel') {
             display: inline-block; padding: 8px 12px; margin-right: 6px; border-radius: 6px;
             border: 0; text-decoration: none; cursor: pointer; font-size: 13px;
         }
-        .btn-print { background: #F58220; color: #fff; }
+        .btn-print { background: #d2232a; color: #fff; }
         .btn-excel { background: #16a34a; color: #fff; }
         .btn-back { background: #e2e8f0; color: #111; }
         .wrap {
@@ -149,7 +149,7 @@ if ($format === 'excel') {
             word-wrap: break-word;
             overflow: hidden;
         }
-        table.ops-print-table th { background: #fff4e8; font-weight: 700; }
+        table.ops-print-table th { background: #fde8e9; font-weight: 700; }
         table.ops-print-table td.name,
         table.ops-print-table th.name {
             text-align: left;

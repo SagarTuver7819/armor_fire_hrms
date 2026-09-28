@@ -509,7 +509,7 @@ require_once __DIR__ . '/../includes/header.php';
                             <tbody>
                             <?php foreach ($deptAttendance as $d): ?>
                                 <?php
-                                $color = $d['icon_color'] ?: '#F58220';
+                                $color = $d['icon_color'] ?: '#d2232a';
                                 $icon = $d['icon_class'] ?: 'fa-building';
                                 $pct = (int) $d['pct'];
                                 ?>

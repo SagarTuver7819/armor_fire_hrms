@@ -26,7 +26,8 @@ if (isLoggedIn()) {
     } elseif (isEmployee()) {
         header('Location: ' . app_url('employee/dashboard.php'));
     } else {
-        header('Location: ' . app_url('dashboard.php'));
+        // Admin / staff → HR Dashboard
+        header('Location: ' . app_url('hr/dashboard.php'));
     }
     exit;
 }
@@ -122,10 +123,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             } elseif ($roleCode === 'DEPT_HEAD') {
                 $hd = $_SESSION['headed_department_ids'][0] ?? 0;
                 header('Location: ' . app_url($hd > 0 ? ('employees/index.php?department_id=' . (int) $hd) : 'hr/dashboard.php'));
-            } elseif ($userRole === 'hr' || $userRole === 'employee') {
-                header('Location: ' . app_url('hr/dashboard.php'));
             } else {
-                header('Location: ' . app_url('dashboard.php'));
+                // Admin / HR / staff → HR Dashboard
+                header('Location: ' . app_url('hr/dashboard.php'));
             }
             exit;
         }
@@ -148,53 +148,49 @@ $selectedRole = isset($_POST['login_as']) && in_array($_POST['login_as'], $uiRol
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Sora:wght@600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="assets/css/login.css">
+    <link rel="stylesheet" href="assets/css/login.css?v=<?php echo filemtime(__DIR__ . '/assets/css/login.css'); ?>">
 </head>
 <body class="login-page">
 
 <div class="login-bg" aria-hidden="true">
-    <div class="login-bg-gradient"></div>
+    <div class="login-bg-glow login-bg-glow-a"></div>
+    <div class="login-bg-glow login-bg-glow-b"></div>
     <div class="login-bg-grid"></div>
-    <div class="login-orb login-orb-1"></div>
-    <div class="login-orb login-orb-2"></div>
-    <div class="login-orb login-orb-3"></div>
-    <div class="login-ring login-ring-1"></div>
-    <div class="login-ring login-ring-2"></div>
-    <div class="login-flame"></div>
-    <div class="login-particles">
-        <span></span><span></span><span></span><span></span><span></span>
-        <span></span><span></span><span></span><span></span><span></span>
-        <span></span><span></span><span></span><span></span><span></span>
-    </div>
 </div>
 
 <div class="login-center">
     <div class="login-card anim-in">
-        <div class="login-card-glow"></div>
-        <div class="login-card-shine"></div>
+        <span class="login-hub-badge">Command Hub</span>
 
         <header class="login-brand">
+            <p class="login-since">Since 2010</p>
+
             <?php if ($hasCustomLogo): ?>
-                <div class="login-logo-frame">
-                    <img src="<?php echo htmlspecialchars($companyLogo); ?>"
+                <div class="login-logo-wrap anim-logo">
+                    <img src="<?php echo htmlspecialchars($companyLogo); ?>?v=<?php echo @filemtime(__DIR__ . '/' . $companyLogo) ?: time(); ?>"
                          alt="<?php echo htmlspecialchars($companyName); ?>"
-                         class="login-logo">
+                         class="login-logo login-logo-custom">
                 </div>
             <?php else: ?>
-                <div class="login-logo-mark">
-                    <i class="fa-solid fa-fire-flame-curved"></i>
+                <div class="login-logo-wrap anim-logo">
+                    <div class="login-logo-mark" aria-hidden="true">
+                        <svg viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
+                            <path fill="#d2232a" d="M60 8 L108 112 H88 L78 88 H42 L32 112 H12 Z"/>
+                            <path fill="#111111" d="M60 28 L74 64 H46 Z"/>
+                            <path fill="#d2232a" d="M60 42c-1.2 5-5 9-5 15a5 5 0 0 0 10 0c0-6-3.8-10-5-15z"/>
+                            <path fill="#f87171" d="M60 52c-.7 2.8-2.6 4.8-2.6 8a2.6 2.6 0 0 0 5.2 0c0-3.2-1.9-5.2-2.6-8z"/>
+                        </svg>
+                    </div>
+                </div>
+                <div class="login-wordmark anim-wordmark">
+                    <span class="wm-armor">ARMOR</span>
+                    <span class="wm-fire">FIRE</span>
+                    <span class="wm-tag">Shield of Quality</span>
                 </div>
             <?php endif; ?>
-            <h1 class="login-company">
-                <?php
-                if (stripos($companyName, 'armor') !== false && stripos($companyName, 'fire') !== false) {
-                    echo 'ARMOR<span class="fire">FIRE</span>';
-                } else {
-                    echo htmlspecialchars($companyName);
-                }
-                ?>
-            </h1>
-            <p class="login-tagline">Shield of Quality · HRMS Portal</p>
+
+            <h1 class="login-portal-title">Human Resource Management</h1>
+            <p class="login-tagline">Engineered for Safety · Precision ERP Node</p>
         </header>
 
         <?php if ($error !== ''): ?>
@@ -228,28 +224,28 @@ $selectedRole = isset($_POST['login_as']) && in_array($_POST['login_as'], $uiRol
             </div>
 
             <div class="login-field">
-                <label for="username">Username</label>
+                <label for="username">Credential ID</label>
                 <div class="login-input-wrap">
-                    <i class="fa-solid fa-user"></i>
-                    <input type="text" id="username" name="username" placeholder="Enter your username" required
+                    <i class="fa-solid fa-shield-halved"></i>
+                    <input type="text" id="username" name="username" placeholder="Credential ID" required
                            autocomplete="username"
                            value="<?php echo isset($username) ? htmlspecialchars($username) : ''; ?>">
                 </div>
             </div>
 
             <div class="login-field">
-                <label for="password">Password</label>
+                <label for="password">Encryption Key</label>
                 <div class="login-input-wrap">
                     <i class="fa-solid fa-lock"></i>
-                    <input type="password" id="password" name="password" placeholder="Enter your password" required
+                    <input type="password" id="password" name="password" placeholder="Encryption Key" required
                            autocomplete="current-password">
                 </div>
             </div>
 
             <button type="submit" class="login-btn" id="btnLogin">
                 <span class="login-btn-text">
-                    Sign In to HRMS
-                    <i class="fa-solid fa-arrow-right"></i>
+                    Validate &amp; Initiate Session
+                    <i class="fa-solid fa-bolt"></i>
                 </span>
                 <span class="login-btn-load" hidden>
                     <i class="fa-solid fa-circle-notch fa-spin"></i>
@@ -259,13 +255,13 @@ $selectedRole = isset($_POST['login_as']) && in_array($_POST['login_as'], $uiRol
         </form>
 
         <footer class="login-card-foot">
-            <i class="fa-solid fa-shield-halved"></i>
-            Admin · Employee secure portals
+            <span class="foot-label">Designed &amp; Developed by</span>
+            <span class="foot-brand">Ocean Infotech</span>
         </footer>
     </div>
 
-    <p class="login-copy anim-in" style="--delay:.35s">
-        © <?php echo date('Y'); ?> <?php echo htmlspecialchars($companyName); ?> HRMS · Ocean Infotech
+    <p class="login-copy anim-in" style="--delay:.3s">
+        © <?php echo date('Y'); ?> <?php echo htmlspecialchars($companyName); ?> · Secure Admin &amp; Employee portals
     </p>
 </div>
 
