@@ -1803,8 +1803,8 @@ function attendanceRenderExcelMonthTableHtml(array $grid, array $opts = [])
     $metaTh = $formal
         ? 'text-align:center;font-weight:700;background:#1e3a5f;color:#fff;vertical-align:middle;padding:6px 4px;'
         : 'text-align:center;font-weight:700;';
-    $html .= '<th style="' . $metaTh . '">Employee Code</th>';
-    $html .= '<th style="' . $metaTh . '">Employee Name</th>';
+    $html .= '<th class="sticky-col"' . ($metaTh !== '' ? ' style="' . $metaTh . '"' : '') . '>Employee Code</th>';
+    $html .= '<th class="sticky-col-2"' . ($metaTh !== '' ? ' style="' . $metaTh . '"' : '') . '>Employee Name</th>';
     $html .= '<th style="' . $metaTh . '">Designation</th>';
     $html .= '<th style="' . $metaTh . '">Department</th>';
     $html .= '<th style="' . $metaTh . '">Date of Joining</th>';
@@ -1846,8 +1846,8 @@ function attendanceRenderExcelMonthTableHtml(array $grid, array $opts = [])
         $eid = (int) $emp['id'];
         $totals = $leaveTotals[$eid] ?? attendanceEmptyLeaveTotals();
         $html .= '<tr>';
-        $html .= '<td style="' . $metaTd . '">' . htmlspecialchars((string) ($emp['employee_code'] ?? '')) . '</td>';
-        $html .= '<td style="' . $metaTd . '">' . htmlspecialchars((string) ($emp['employee_name'] ?? '')) . '</td>';
+        $html .= '<td class="sticky-col" style="' . $metaTd . '">' . htmlspecialchars((string) ($emp['employee_code'] ?? '')) . '</td>';
+        $html .= '<td class="sticky-col-2" style="' . $metaTd . '">' . htmlspecialchars((string) ($emp['employee_name'] ?? '')) . '</td>';
         $html .= '<td style="' . $metaTd . '">' . htmlspecialchars((string) ($emp['designation'] ?? '')) . '</td>';
         $html .= '<td style="' . $metaTd . '">' . htmlspecialchars((string) ($emp['department_name'] ?? '')) . '</td>';
         $doj = '';

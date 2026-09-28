@@ -2026,21 +2026,36 @@ input.js-date,
 .excel-att-table .sticky-col,
 .excel-att-table .sticky-col-2 {
     position: sticky;
+    z-index: 3;
+    background: #fff !important;
+    white-space: nowrap;
+}
+
+.excel-att-table .sticky-col {
     left: 0;
-    z-index: 2;
-    background: #fff;
-    min-width: 90px;
+    min-width: 110px;
+    max-width: 130px;
+    box-shadow: 2px 0 0 rgba(15, 23, 42, 0.06);
 }
 
 .excel-att-table .sticky-col-2 {
-    left: 90px;
-    min-width: 140px;
+    left: 110px;
+    min-width: 180px;
+    max-width: 220px;
+    box-shadow: 4px 0 10px rgba(15, 23, 42, 0.12);
 }
 
 .excel-att-table thead .sticky-col,
 .excel-att-table thead .sticky-col-2 {
-    z-index: 4;
-    background: #f1f5f9;
+    z-index: 8;
+    background: #1e3a5f !important;
+    color: #fff !important;
+    box-shadow: 4px 0 10px rgba(0, 0, 0, 0.18);
+}
+
+.excel-att-table tbody tr:hover .sticky-col,
+.excel-att-table tbody tr:hover .sticky-col-2 {
+    background: var(--brand-hover, #fff5f5) !important;
 }
 
 .excel-att-wrap {
@@ -7722,12 +7737,37 @@ a.emp-dash-row:hover {
     text-overflow: ellipsis;
 }
 .emp-move-chip span {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
     font-weight: 700;
     color: #0f172a;
     min-width: 0;
     overflow: hidden;
+}
+.emp-move-name {
+    font-weight: 700;
+    color: inherit;
+    min-width: 0;
+    overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+}
+.emp-move-date {
+    display: block;
+    font-size: 11px;
+    font-weight: 600;
+    color: #64748b;
+    letter-spacing: 0.01em;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.emp-move-chip.is-join .emp-move-date {
+    color: #1D4ED8;
+}
+.emp-move-chip.is-left .emp-move-date {
+    color: #B91C1C;
 }
 .emp-move-chip em {
     font-style: normal;
