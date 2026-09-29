@@ -90,10 +90,12 @@ $isMismatch = ($type !== $trackType);
         .sheet {
             width: 210mm;
             max-width: 100%;
+            min-height: 297mm;
             margin: 0 auto;
             background: #fff;
-            border: 1px solid #111;
+            border: 2px solid #111;
             padding: 10mm 11mm 8mm;
+            box-sizing: border-box;
         }
         <?php echo companyDocPrintCss(); ?>
         .cdoc-header {
@@ -215,15 +217,29 @@ $isMismatch = ($type !== $trackType);
         }
 
         @media print {
-            body { background: #fff; padding: 0; }
+            html, body {
+                background: #fff !important;
+                padding: 0 !important;
+                margin: 0 !important;
+            }
             .bar { display: none !important; }
             .sheet {
-                width: auto;
+                width: 210mm;
                 max-width: none;
-                border: 0;
-                padding: 8mm 10mm;
+                min-height: 285mm;
+                height: auto;
+                margin: 0 auto;
+                border: 2.25pt solid #111 !important;
+                outline: none;
+                padding: 8mm 9mm 7mm;
+                box-sizing: border-box;
+                box-shadow: none;
+                page-break-inside: avoid;
             }
-            @page { size: A4 portrait; margin: 8mm; }
+            @page {
+                size: A4 portrait;
+                margin: 6mm;
+            }
         }
     </style>
 </head>
