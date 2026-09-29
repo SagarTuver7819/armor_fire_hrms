@@ -91,19 +91,21 @@ function companyDocPrintCss()
     min-width: 0;
 }
 .cdoc-header-text .cdoc-company {
-    margin: 0 0 4px;
-    font-size: 18px;
-    color: #d2232a;
-    font-family: Arial, Helvetica, sans-serif;
+    margin: 0 0 6px;
+    font-size: 22px;
+    color: #b91c1c;
+    font-family: Calibri, Candara, Segoe UI, Arial, Helvetica, sans-serif;
     font-weight: 800;
-    line-height: 1.25;
+    line-height: 1.2;
+    letter-spacing: .01em;
 }
 .cdoc-header-text .cdoc-header-details {
     margin: 0;
-    font-size: 11px;
-    line-height: 1.45;
-    color: #334155;
-    font-family: Arial, Helvetica, sans-serif;
+    font-size: 13px;
+    line-height: 1.5;
+    color: #1e293b;
+    font-family: Calibri, Candara, Segoe UI, Arial, Helvetica, sans-serif;
+    font-weight: 700;
     white-space: pre-wrap;
 }
 .cdoc-footer {

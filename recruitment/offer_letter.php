@@ -105,8 +105,23 @@ $workLocation = $companyShort . ', Rajkot, Gujarat';
             background: #fff;
         }
         <?php echo companyDocPrintCss(); ?>
-        .cdoc-header-text .cdoc-company,
-        .cdoc-header-text .cdoc-header-details,
+        .cdoc-header-logo {
+            width: 82px;
+            height: 82px;
+        }
+        .cdoc-header-text .cdoc-company {
+            font-size: 24px;
+            font-weight: 800;
+            color: #b91c1c;
+            font-family: Calibri, Candara, Segoe UI, Arial, sans-serif;
+        }
+        .cdoc-header-text .cdoc-header-details {
+            font-size: 13.5px;
+            font-weight: 700;
+            color: #1e293b;
+            font-family: Calibri, Candara, Segoe UI, Arial, sans-serif;
+            line-height: 1.5;
+        }
         .cdoc-footer {
             font-family: Calibri, Candara, Segoe UI, Optima, Arial, sans-serif;
         }
