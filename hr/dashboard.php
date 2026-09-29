@@ -24,10 +24,13 @@ if (function_exists('isOfficeStaffRole') && isOfficeStaffRole()) {
 $pageTitle = 'HR Dashboard';
 $useSidebar = true;
 $sidebarActive = 'hr_dashboard';
+$extraCss = ['https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.css'];
 
 ensureEmployeesTable();
 ensureMasterTables();
 ensureLeaveTables();
+require_once __DIR__ . '/../includes/employee_documents_helper.php';
+ensureEmployeeRelatedDocumentsTables();
 
 $conn = getDBConnection();
 ensureAttendanceTables($conn);
@@ -909,4 +912,31 @@ require_once __DIR__ . '/../includes/header.php';
     </section>
 </main>
 
+<?php
+$pendingDocToasts = [];
+$uploadDocToasts = [];
+if (isAdmin() || isHR()) {
+    foreach (getEmployeesWithPendingRelatedDocuments(6) as $p) {
+        $who = trim(($p['employee_code'] !== '' ? $p['employee_code'] . ' · ' : '') . $p['employee_name']);
+        $labels = array_slice($p['pending_labels'], 0, 4);
+        $more = $p['pending'] - count($labels);
+        $list = implode(', ', $labels) . ($more > 0 ? ' +' . $more . ' more' : '');
+        $pendingDocToasts[] = $who . ' — pending ' . $p['pending'] . '/' . $p['total'] . ': ' . $list;
+    }
+    $uid = (int) ($_SESSION['user_id'] ?? 0);
+    foreach (fetchUnreadEmployeeDocumentNotifications($uid, 5) as $n) {
+        $title = trim((string) ($n['title'] ?? 'Document uploaded'));
+        $body = trim((string) ($n['body'] ?? ''));
+        $uploadDocToasts[] = $body !== '' ? ($title . ' · ' . $body) : $title;
+    }
+}
+$extraJs = [
+    'https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.js',
+    'assets/js/emp_docs_pending_toast.js',
+];
+?>
+<script>
+    window.EMP_DOC_PENDING_TOASTS = <?php echo json_encode($pendingDocToasts); ?>;
+    window.EMP_DOC_UPLOAD_TOASTS = <?php echo json_encode($uploadDocToasts); ?>;
+</script>
 <?php require_once __DIR__ . '/../includes/footer.php'; ?>

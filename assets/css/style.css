@@ -4006,6 +4006,312 @@ body.emp-photo-crop-open {
     font-size: 13.5px;
 }
 
+/* Related Documents (employee profile tab) */
+.related-docs-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 12px;
+    padding: 16px;
+}
+
+.related-doc-card {
+    display: grid;
+    grid-template-columns: 32px minmax(0, 1fr) 88px;
+    gap: 12px;
+    align-items: start;
+    padding: 14px;
+    border: 1px solid #e8edf3;
+    border-radius: 14px;
+    background: linear-gradient(180deg, #fff 0%, #f8fafc 100%);
+    overflow: hidden;
+}
+
+.related-doc-card.is-done {
+    border-color: rgba(22, 163, 74, 0.35);
+}
+
+.related-doc-card.is-pending {
+    border-color: rgba(245, 158, 11, 0.35);
+}
+
+.related-doc-rank {
+    width: 32px;
+    height: 32px;
+    border-radius: 10px;
+    background: #d2232a;
+    color: #fff;
+    font-weight: 800;
+    font-size: 13px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.related-doc-body {
+    min-width: 0;
+    overflow: hidden;
+}
+
+.related-doc-body h4 {
+    margin: 0 0 6px;
+    font-size: 13.5px;
+    font-weight: 800;
+    color: #0f172a;
+    line-height: 1.35;
+    word-break: break-word;
+}
+
+.related-doc-body h4 i {
+    color: #d2232a;
+    margin-right: 4px;
+}
+
+.related-doc-status {
+    display: inline-flex;
+    align-items: center;
+    max-width: 100%;
+    font-size: 11px;
+    font-weight: 800;
+    padding: 3px 8px;
+    border-radius: 999px;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    white-space: nowrap;
+    margin-bottom: 6px;
+}
+
+.related-doc-status.ok {
+    background: #dcfce7;
+    color: #166534;
+}
+
+.related-doc-status.wait {
+    background: #fff7ed;
+    color: #c2410c;
+}
+
+.related-doc-hint {
+    margin: 0 0 10px;
+    font-size: 12px;
+    color: #64748b;
+    font-weight: 600;
+}
+
+.related-doc-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+}
+
+.related-doc-form {
+    margin: 0;
+    display: inline-flex;
+}
+
+.related-doc-upload {
+    position: relative;
+    overflow: hidden;
+    cursor: pointer;
+    margin: 0;
+    padding: 7px 12px;
+    font-size: 12.5px;
+}
+
+.related-doc-upload input[type="file"] {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    cursor: pointer;
+    width: 100%;
+    height: 100%;
+}
+
+.related-doc-view {
+    padding: 7px 12px;
+    font-size: 12.5px;
+}
+
+.related-doc-na {
+    font-size: 12.5px;
+    color: #94a3b8;
+    font-weight: 600;
+}
+
+.related-doc-thumb {
+    position: relative;
+    width: 88px;
+    height: 88px;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    background: #f8fafc;
+    overflow: hidden;
+    padding: 0;
+    cursor: pointer;
+    display: block;
+    isolation: isolate;
+    z-index: 1;
+}
+
+.related-doc-thumb.is-empty {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #cbd5e1;
+    font-size: 22px;
+    cursor: default;
+    background: #f1f5f9;
+}
+
+.related-doc-thumb img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+.related-doc-thumb-pdf-wrap {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    pointer-events: none;
+    background: #fff;
+    border-radius: inherit;
+}
+
+.related-doc-thumb-pdf {
+    width: 420px;
+    height: 594px;
+    border: 0;
+    display: block;
+    pointer-events: none;
+    transform: scale(0.21);
+    transform-origin: top left;
+    background: #fff;
+}
+
+.related-doc-thumb-badge {
+    position: absolute;
+    left: 6px;
+    bottom: 6px;
+    width: 22px;
+    height: 22px;
+    border-radius: 6px;
+    background: rgba(185, 28, 28, 0.92);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    pointer-events: none;
+    z-index: 2;
+}
+
+.related-doc-thumb-zoom {
+    position: absolute;
+    right: 6px;
+    top: 6px;
+    width: 24px;
+    height: 24px;
+    border-radius: 999px;
+    background: rgba(15, 23, 42, 0.72);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    pointer-events: none;
+    z-index: 2;
+}
+
+.related-doc-thumb:not(.is-empty):hover {
+    border-color: #d2232a;
+    box-shadow: 0 6px 16px rgba(210, 35, 42, 0.15);
+}
+
+body.related-doc-lightbox-open {
+    overflow: hidden;
+}
+
+.related-doc-lightbox {
+    position: fixed;
+    inset: 0;
+    z-index: 14000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 18px;
+    background: rgba(15, 23, 42, 0.78);
+}
+
+.related-doc-lightbox[hidden] {
+    display: none !important;
+}
+
+.related-doc-lightbox-inner {
+    width: min(920px, 96vw);
+    max-height: 92vh;
+    background: #fff;
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow: 0 24px 48px rgba(0, 0, 0, 0.35);
+    display: flex;
+    flex-direction: column;
+}
+
+.related-doc-lightbox-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 12px 14px;
+    border-bottom: 1px solid #e2e8f0;
+    background: #f8fafc;
+}
+
+.related-doc-lightbox-head strong {
+    font-size: 14px;
+    color: #0f172a;
+}
+
+.related-doc-lightbox-close {
+    width: 34px;
+    height: 34px;
+    border: 0;
+    border-radius: 999px;
+    background: #fff;
+    color: #0f172a;
+    font-size: 22px;
+    line-height: 1;
+    cursor: pointer;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+}
+
+.related-doc-lightbox-body {
+    flex: 1 1 auto;
+    min-height: 0;
+    background: #0f172a;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.related-doc-lightbox-img {
+    display: block;
+    max-width: 100%;
+    max-height: calc(92vh - 56px);
+    object-fit: contain;
+}
+
+.related-doc-lightbox-frame {
+    width: 100%;
+    height: calc(92vh - 56px);
+    min-height: 420px;
+    border: 0;
+    background: #fff;
+}
+
 /* Legacy table view (if any page still uses it) */
 .view-table {
     width: 100%;

@@ -7,6 +7,7 @@
 require_once __DIR__ . '/../config/app.php';
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/employee_helper.php';
+require_once __DIR__ . '/../includes/employee_documents_helper.php';
 require_once __DIR__ . '/../includes/leave_helper.php';
 require_once __DIR__ . '/../includes/attendance_helper.php';
 require_once __DIR__ . '/../includes/auth.php';
@@ -14,6 +15,7 @@ require_once __DIR__ . '/../includes/permission_helper.php';
 require_once __DIR__ . '/../includes/department_head_helper.php';
 
 ensureEmployeesTable();
+ensureEmployeeRelatedDocumentsTables();
 requireLogin();
 
 $id = isset($_GET['id']) ? (int) $_GET['id'] : 0;
@@ -54,7 +56,7 @@ $showBankDetails = $showSalaryDetails || $isOwnProfile;
 
 $isDeactive = isEmployeeDeactive($emp);
 $tab = strtolower(trim((string) ($_GET['tab'] ?? 'profile')));
-if (!in_array($tab, ['profile', 'family', 'leave', 'history', 'attendance', 'salary'], true)) {
+if (!in_array($tab, ['profile', 'family', 'documents', 'leave', 'history', 'attendance', 'salary'], true)) {
     $tab = 'profile';
 }
 if ($tab === 'salary' && !$showSalaryDetails) {
@@ -97,6 +99,10 @@ if ($isOwnProfile && (isOfficeStaffRole() || !canAccess('employees', 'view', $de
 
 ensureLeaveTables();
 $familyMembers = getEmployeeFamilyMembers($id);
+$relatedDocTypes = employeeRelatedDocumentTypes();
+$relatedDocs = getEmployeeRelatedDocuments($id);
+$relatedDocSummary = employeeRelatedDocumentsSummary($id);
+$canEditRelatedDocs = $isOwnProfile || $canEditEmployee || isAdmin() || isHR();
 $conn = getDBConnection();
 ensureAttendanceTables($conn);
 foreach (getActiveLeaveTypes($conn) as $lt) {
@@ -124,6 +130,23 @@ if (isset($_GET['msg'])) {
         $toastType = 'error';
     } elseif ($_GET['msg'] === 'photo_error') {
         $toastMsg = 'Could not update photo. Use JPG, PNG or WEBP (max 5MB).';
+        $toastType = 'error';
+    } elseif ($_GET['msg'] === 'doc_saved') {
+        $toastMsg = 'Document uploaded successfully.';
+    } elseif ($_GET['msg'] === 'doc_missing') {
+        $toastMsg = 'Please choose a file to upload.';
+        $toastType = 'error';
+    } elseif ($_GET['msg'] === 'doc_invalid') {
+        $toastMsg = 'Invalid document type.';
+        $toastType = 'error';
+    } elseif ($_GET['msg'] === 'doc_denied') {
+        $toastMsg = 'You do not have permission to update this document.';
+        $toastType = 'error';
+    } elseif ($_GET['msg'] === 'doc_error') {
+        $toastMsg = trim((string) ($_GET['err'] ?? ''));
+        if ($toastMsg === '') {
+            $toastMsg = 'Could not upload document. Check file type and size (max 5MB).';
+        }
         $toastType = 'error';
     }
 }
@@ -381,6 +404,11 @@ $tabUrl = function ($t) use ($baseQs, $year, $month) {
             <span class="emp-tab-label">Family</span>
             <span class="emp-tab-badge"><?php echo count($familyMembers); ?></span>
         </a>
+        <a class="emp-activity-tab <?php echo $tab === 'documents' ? 'active' : ''; ?>" href="<?php echo htmlspecialchars($tabUrl('documents')); ?>">
+            <span class="emp-tab-ico"><i class="fa-solid fa-folder-open"></i></span>
+            <span class="emp-tab-label">Documents</span>
+            <span class="emp-tab-badge"><?php echo (int) $relatedDocSummary['done']; ?>/<?php echo (int) $relatedDocSummary['total']; ?></span>
+        </a>
         <?php if (!($isOwnProfile && isOfficeStaffRole())): ?>
         <a class="emp-activity-tab <?php echo $tab === 'leave' ? 'active' : ''; ?>" href="<?php echo htmlspecialchars($tabUrl('leave')); ?>">
             <span class="emp-tab-ico"><i class="fa-solid fa-scale-balanced"></i></span>
@@ -447,6 +475,95 @@ $tabUrl = function ($t) use ($baseQs, $year, $month) {
                     <?php endforeach; ?>
                 </div>
             <?php endif; ?>
+        </div>
+
+    <?php elseif ($tab === 'documents'): ?>
+        <div class="view-card view-card-wide family-view-panel related-docs-panel">
+            <div class="view-card-head">
+                <i class="fa-solid fa-folder-open"></i>
+                <div>
+                    <h3>Related Documents</h3>
+                    <p>
+                        <?php echo (int) $relatedDocSummary['done']; ?> uploaded
+                        · <?php echo (int) $relatedDocSummary['pending']; ?> pending
+                        · Optional (not all required)
+                    </p>
+                </div>
+            </div>
+            <div class="related-docs-grid">
+                <?php
+                $docIndex = 0;
+                foreach ($relatedDocTypes as $docKey => $docMeta):
+                    $docIndex++;
+                    $docRow = $relatedDocs[$docKey] ?? null;
+                    $filePath = $docRow['file_path'] ?? '';
+                    $fileUrl = $filePath !== '' ? employeeDocumentPublicUrl($filePath) : '';
+                    $isDone = $fileUrl !== '';
+                    $isPhoto = ($docKey === 'passport_photo');
+                ?>
+                <article class="related-doc-card <?php echo $isDone ? 'is-done' : 'is-pending'; ?>">
+                    <div class="related-doc-rank"><?php echo $docIndex; ?></div>
+                    <div class="related-doc-body">
+                        <h4>
+                            <i class="fa-solid <?php echo htmlspecialchars($docMeta['icon']); ?>"></i>
+                            <?php echo htmlspecialchars($docMeta['label']); ?>
+                        </h4>
+                        <span class="related-doc-status <?php echo $isDone ? 'ok' : 'wait'; ?>">
+                            <?php echo $isDone ? 'Uploaded' : 'Pending'; ?>
+                        </span>
+                        <p class="related-doc-hint">
+                            <?php echo $isPhoto ? 'JPG / PNG · max 5MB' : 'PDF only · max 5MB'; ?>
+                        </p>
+                        <div class="related-doc-actions">
+                            <?php if ($canEditRelatedDocs): ?>
+                                <form class="related-doc-form" method="post" action="<?php echo app_url('employees/documents_save.php'); ?>" enctype="multipart/form-data">
+                                    <input type="hidden" name="employee_id" value="<?php echo (int) $id; ?>">
+                                    <input type="hidden" name="doc_type" value="<?php echo htmlspecialchars($docKey); ?>">
+                                    <label class="btn-primary related-doc-upload">
+                                        <i class="fa-solid fa-<?php echo $isDone ? 'pen' : 'upload'; ?>"></i>
+                                        <?php echo $isDone ? 'Replace' : 'Upload'; ?>
+                                        <input type="file"
+                                               name="document_file"
+                                               accept="<?php echo htmlspecialchars($docMeta['accept']); ?>"
+                                               required
+                                               onchange="this.form.submit()">
+                                    </label>
+                                </form>
+                            <?php elseif (!$isDone): ?>
+                                <span class="related-doc-na">Not uploaded</span>
+                            <?php endif; ?>
+                        </div>
+                    </div>
+                    <?php if ($isDone): ?>
+                        <div class="related-doc-thumb"
+                             role="button"
+                             tabindex="0"
+                             data-doc-url="<?php echo htmlspecialchars($fileUrl); ?>"
+                             data-doc-type="<?php echo $isPhoto ? 'image' : 'pdf'; ?>"
+                             data-doc-title="<?php echo htmlspecialchars($docMeta['label']); ?>"
+                             title="Click to view">
+                            <?php if ($isPhoto): ?>
+                                <img src="<?php echo htmlspecialchars($fileUrl); ?>" alt="<?php echo htmlspecialchars($docMeta['label']); ?>">
+                            <?php else: ?>
+                                <div class="related-doc-thumb-pdf-wrap" aria-hidden="true">
+                                    <iframe class="related-doc-thumb-pdf"
+                                            src="<?php echo htmlspecialchars($fileUrl); ?>#toolbar=0&navpanes=0&scrollbar=0&view=FitH&page=1"
+                                            title=""
+                                            tabindex="-1"
+                                            loading="lazy"></iframe>
+                                </div>
+                                <span class="related-doc-thumb-badge"><i class="fa-solid fa-file-pdf"></i></span>
+                            <?php endif; ?>
+                            <span class="related-doc-thumb-zoom"><i class="fa-solid fa-magnifying-glass-plus"></i></span>
+                        </div>
+                    <?php else: ?>
+                        <div class="related-doc-thumb is-empty" aria-hidden="true">
+                            <i class="fa-solid fa-<?php echo $isPhoto ? 'image' : 'file-pdf'; ?>"></i>
+                        </div>
+                    <?php endif; ?>
+                </article>
+                <?php endforeach; ?>
+            </div>
         </div>
 
     <?php elseif ($tab === 'leave'): ?>
@@ -913,6 +1030,16 @@ $tabUrl = function ($t) use ($baseQs, $year, $month) {
         </div>
     </div>
     <?php endif; ?>
+
+    <div class="related-doc-lightbox" id="relatedDocLightbox" hidden>
+        <div class="related-doc-lightbox-inner" role="dialog" aria-modal="true" aria-labelledby="relatedDocLightboxTitle">
+            <div class="related-doc-lightbox-head">
+                <strong id="relatedDocLightboxTitle">Document</strong>
+                <button type="button" class="related-doc-lightbox-close" id="relatedDocLightboxClose" aria-label="Close">&times;</button>
+            </div>
+            <div class="related-doc-lightbox-body" id="relatedDocLightboxBody"></div>
+        </div>
+    </div>
 </main>
 
 <script>
@@ -926,6 +1053,7 @@ $extraJs = [
     'https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.js',
     'assets/js/employees.js',
     'assets/js/emp_photo_view.js',
+    'assets/js/related_doc_view.js',
 ];
 if ($canEditOwnPhoto) {
     $extraJs[] = 'https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.js';

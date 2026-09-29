@@ -110,6 +110,22 @@ if (function_exists('isPortalUser') && isPortalUser()) {
             $headerNotifyItems[] = $n;
         }
     }
+    if (isAdmin() || isHR()) {
+        require_once __DIR__ . '/employee_documents_helper.php';
+        ensureEmployeeRelatedDocumentsTables();
+        foreach (fetchUnreadEmployeeDocumentNotifications($uid, 8) as $n) {
+            $n['_type'] = 'employee_document';
+            $n['_date'] = $n['notify_date'] ?? substr((string) ($n['created_at'] ?? ''), 0, 10);
+            $n['_dept_label'] = (string) ($n['body'] ?? '');
+            $n['_url'] = app_url('employees/documents_mark_read.php?id=' . (int) $n['id']);
+            $n['_icon'] = 'fa-folder-open';
+            $n['_label'] = 'Document · ' . employeeRelatedDocLabel($n['doc_type'] ?? '');
+            if (empty($n['title'])) {
+                $n['title'] = 'Document uploaded';
+            }
+            $headerNotifyItems[] = $n;
+        }
+    }
     usort($headerNotifyItems, static function ($a, $b) {
         return strcmp((string) ($b['created_at'] ?? ''), (string) ($a['created_at'] ?? ''));
     });
@@ -232,6 +248,10 @@ if (function_exists('isPortalUser') && isPortalUser()) {
                                 <a href="<?php echo app_url('leave/mark_read.php?all=1'); ?>">Read leave</a>
                                 ·
                                 <a href="<?php echo app_url('employee_voice/mark_read.php?all=1'); ?>">Read voice</a>
+                                <?php if (isAdmin() || isHR()): ?>
+                                ·
+                                <a href="<?php echo app_url('employees/documents_mark_read.php?all=1'); ?>">Read documents</a>
+                                <?php endif; ?>
                             </span>
                         <?php endif; ?>
                     </div>
