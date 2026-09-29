@@ -10,6 +10,10 @@ require_once __DIR__ . '/../includes/settings.php';
 require_once __DIR__ . '/../includes/company_content_helper.php';
 require_once __DIR__ . '/../includes/recruitment_helper.php';
 
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+
 ensureRecruitmentTables();
 ensureCompanyContentTables();
 
@@ -34,9 +38,22 @@ if (!$logoSrc) {
     $logoSrc = app_url('assets/images/logo-placeholder.svg');
 }
 
-$error = trim((string) ($_GET['err'] ?? ''));
+$draft = null;
+$toastError = '';
+$restoreStep = 1;
+if (!empty($_SESSION['recruitment_draft']) && is_array($_SESSION['recruitment_draft'])) {
+    $draft = $_SESSION['recruitment_draft'];
+    $toastError = trim((string) ($draft['error'] ?? ''));
+    $restoreStep = max(1, min(5, (int) ($draft['step'] ?? 5)));
+    unset($_SESSION['recruitment_draft']);
+}
+if ($toastError === '' && isset($_GET['err'])) {
+    $toastError = trim((string) $_GET['err']);
+}
+
 $cssV = (int) @filemtime(__DIR__ . '/../assets/css/recruitment_apply.css');
 $jsV = (int) @filemtime(__DIR__ . '/../assets/js/recruitment_apply.js');
+$hasDraft = is_array($draft) && !empty($draft['fields']);
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -48,9 +65,10 @@ $jsV = (int) @filemtime(__DIR__ . '/../assets/js/recruitment_apply.js');
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.css">
     <link rel="stylesheet" href="<?php echo app_url('assets/css/recruitment_apply.css'); ?>?v=<?php echo $cssV; ?>">
 </head>
-<body class="rec-page">
+<body class="rec-page"<?php echo $hasDraft ? ' data-rec-restore="1"' : ''; ?>>
 <div class="rec-bg" aria-hidden="true">
     <div class="rec-bg-glow rec-bg-a"></div>
     <div class="rec-bg-glow rec-bg-b"></div>
@@ -73,7 +91,7 @@ $jsV = (int) @filemtime(__DIR__ . '/../assets/js/recruitment_apply.js');
 </header>
 
 <main class="rec-wrap">
-    <section class="rec-intro" id="recIntro">
+    <section class="rec-intro" id="recIntro"<?php echo $hasDraft ? ' hidden' : ''; ?>>
         <div class="rec-intro-card">
             <div class="rec-intro-logo">
                 <img src="<?php echo htmlspecialchars($logoSrc); ?>"
@@ -94,7 +112,7 @@ $jsV = (int) @filemtime(__DIR__ . '/../assets/js/recruitment_apply.js');
         </div>
     </section>
 
-    <section class="rec-form-shell" id="recFormShell" hidden>
+    <section class="rec-form-shell" id="recFormShell"<?php echo $hasDraft ? '' : ' hidden'; ?>>
         <div class="rec-steps" id="recSteps" role="tablist" aria-label="Application steps">
             <button type="button" class="rec-step is-active" data-step="1"><span>1</span> Position</button>
             <button type="button" class="rec-step" data-step="2"><span>2</span> Personal</button>
@@ -102,10 +120,6 @@ $jsV = (int) @filemtime(__DIR__ . '/../assets/js/recruitment_apply.js');
             <button type="button" class="rec-step" data-step="4"><span>4</span> Experience</button>
             <button type="button" class="rec-step" data-step="5"><span>5</span> Salary</button>
         </div>
-
-        <?php if ($error !== ''): ?>
-            <div class="rec-alert"><?php echo htmlspecialchars($error); ?></div>
-        <?php endif; ?>
 
         <form method="POST"
               action="<?php echo app_url('recruitment/apply_save.php'); ?>"
@@ -161,6 +175,11 @@ $jsV = (int) @filemtime(__DIR__ . '/../assets/js/recruitment_apply.js');
                         <input type="date" name="dob" id="dob" max="<?php echo date('Y-m-d'); ?>">
                     </div>
                     <div class="rec-field">
+                        <label for="age_years">Age (auto)</label>
+                        <input type="text" name="age_years" id="age_years" readonly
+                               placeholder="Select DOB" tabindex="-1">
+                    </div>
+                    <div class="rec-field">
                         <label for="gender">Gender</label>
                         <select name="gender" id="gender">
                             <option value="">Select</option>
@@ -195,6 +214,31 @@ $jsV = (int) @filemtime(__DIR__ . '/../assets/js/recruitment_apply.js');
                         <label for="pincode">Pincode</label>
                         <input type="text" name="pincode" id="pincode" maxlength="12" inputmode="numeric">
                     </div>
+                    <div class="rec-field">
+                        <label for="aadhaar_no">Aadhaar No.</label>
+                        <input type="text" name="aadhaar_no" id="aadhaar_no" maxlength="12"
+                               inputmode="numeric" placeholder="12-digit Aadhaar">
+                    </div>
+                    <div class="rec-field">
+                        <label for="pan_no">PAN No.</label>
+                        <input type="text" name="pan_no" id="pan_no" maxlength="10"
+                               placeholder="e.g. ABCDE1234F" style="text-transform:uppercase">
+                    </div>
+                    <div class="rec-field">
+                        <label for="bank_name">Bank Name</label>
+                        <input type="text" name="bank_name" id="bank_name" maxlength="150"
+                               placeholder="Bank name">
+                    </div>
+                    <div class="rec-field">
+                        <label for="bank_account">Bank A/C No.</label>
+                        <input type="text" name="bank_account" id="bank_account" maxlength="40"
+                               inputmode="numeric" placeholder="Account number">
+                    </div>
+                    <div class="rec-field">
+                        <label for="bank_ifsc">IFSC Code</label>
+                        <input type="text" name="bank_ifsc" id="bank_ifsc" maxlength="20"
+                               placeholder="IFSC" style="text-transform:uppercase">
+                    </div>
                 </div>
             </fieldset>
 
@@ -211,12 +255,12 @@ $jsV = (int) @filemtime(__DIR__ . '/../assets/js/recruitment_apply.js');
             <!-- Step 4: Experience -->
             <fieldset class="rec-panel" data-panel="4" hidden>
                 <legend>Experience Details</legend>
-                <div class="rec-field" style="max-width:220px;margin-bottom:12px;">
-                    <label for="total_experience">Total Experience</label>
-                    <input type="text" name="total_experience" id="total_experience"
-                           placeholder="e.g. 3 years 6 months" maxlength="40">
+                <p class="rec-hint">Add each company with From / To month. Total experience calculates automatically. Fresher? Leave empty.</p>
+                <div class="rec-exp-total" id="recExpTotalBox" hidden>
+                    <span>Total Experience</span>
+                    <strong id="recExpTotalText">0 months</strong>
                 </div>
-                <p class="rec-hint">Fresher? Leave rows empty or mark “Fresher” in total experience.</p>
+                <input type="hidden" name="total_experience" id="total_experience" value="">
                 <div id="expRows" class="rec-repeat"></div>
                 <button type="button" class="rec-btn rec-btn-ghost" id="addExpBtn">
                     <i class="fa-solid fa-plus"></i> Add Experience
@@ -290,6 +334,15 @@ $jsV = (int) @filemtime(__DIR__ . '/../assets/js/recruitment_apply.js');
     <span>Powered by ARMOR FIRE HRMS</span>
 </footer>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.js"></script>
+<script>
+window.REC_DRAFT = <?php echo json_encode([
+    'fields' => $hasDraft ? ($draft['fields'] ?? []) : null,
+    'step' => $restoreStep,
+    'error' => $toastError,
+], JSON_UNESCAPED_UNICODE); ?>;
+</script>
 <script src="<?php echo app_url('assets/js/recruitment_apply.js'); ?>?v=<?php echo $jsV; ?>"></script>
 </body>
 </html>

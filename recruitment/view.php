@@ -44,6 +44,9 @@ if (isset($_GET['msg']) && $_GET['msg'] === 'saved') {
         <a href="<?php echo app_url('recruitment/index.php'); ?>" class="back-link">
             <i class="fa-solid fa-arrow-left"></i> Back to Applications
         </a>
+        <a href="<?php echo app_url('recruitment/interview.php?id=' . (int) $row['id']); ?>" class="btn-primary">
+            <i class="fa-solid fa-clipboard-user"></i> Open Interview
+        </a>
     </div>
 
     <div class="form-page-card" style="max-width:980px;">
@@ -69,8 +72,13 @@ if (isset($_GET['msg']) && $_GET['msg'] === 'saved') {
                     <div><dt>Alt Mobile</dt><dd><?php echo htmlspecialchars((string) ($row['alt_mobile'] ?: '—')); ?></dd></div>
                     <div><dt>Email</dt><dd><?php echo htmlspecialchars((string) $row['email']); ?></dd></div>
                     <div><dt>DOB</dt><dd><?php echo !empty($row['dob']) ? htmlspecialchars(date('d M Y', strtotime($row['dob']))) : '—'; ?></dd></div>
+                    <div><dt>Age</dt><dd><?php echo !empty($row['age_years']) ? ((int) $row['age_years'] . ' years') : '—'; ?></dd></div>
                     <div><dt>Gender</dt><dd><?php echo htmlspecialchars((string) ($row['gender'] ?: '—')); ?></dd></div>
                     <div><dt>Marital</dt><dd><?php echo htmlspecialchars((string) ($row['marital_status'] ?: '—')); ?></dd></div>
+                    <div><dt>Aadhaar</dt><dd><?php echo htmlspecialchars((string) ($row['aadhaar_no'] ?: '—')); ?></dd></div>
+                    <div><dt>PAN</dt><dd><?php echo htmlspecialchars((string) ($row['pan_no'] ?: '—')); ?></dd></div>
+                    <div><dt>Bank</dt><dd><?php echo htmlspecialchars((string) ($row['bank_name'] ?: '—')); ?></dd></div>
+                    <div><dt>A/C / IFSC</dt><dd><?php echo htmlspecialchars(trim(($row['bank_account'] ?? '') . ' / ' . ($row['bank_ifsc'] ?? ''), ' /') ?: '—'); ?></dd></div>
                     <div class="full"><dt>Address</dt><dd><?php echo nl2br(htmlspecialchars((string) ($row['address'] ?: '—'))); ?></dd></div>
                     <div><dt>City</dt><dd><?php echo htmlspecialchars((string) ($row['city'] ?: '—')); ?></dd></div>
                     <div><dt>State</dt><dd><?php echo htmlspecialchars((string) ($row['state_name'] ?: '—')); ?></dd></div>

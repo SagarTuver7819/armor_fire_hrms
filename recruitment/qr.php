@@ -20,6 +20,7 @@ $applyUrl = recruitmentApplyUrl();
 
 $pageTitle = 'Recruitment QR';
 $useSidebar = true;
+$sidebarMode = 'recruitment';
 $sidebarActive = 'recruitment_qr';
 $extraCss = [];
 

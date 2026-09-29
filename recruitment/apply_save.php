@@ -7,9 +7,21 @@ require_once __DIR__ . '/../config/app.php';
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/recruitment_helper.php';
 
-function recruitmentRedirectError($msg)
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+
+function recruitmentRedirectError($msg, $step = 5)
 {
-    header('Location: ' . app_url('recruitment/apply.php?err=' . urlencode($msg)));
+    // Keep typed data (files cannot be restored)
+    $draft = $_POST;
+    unset($draft['declare']); // user must re-confirm
+    $_SESSION['recruitment_draft'] = [
+        'fields' => $draft,
+        'error' => (string) $msg,
+        'step' => (int) $step,
+    ];
+    header('Location: ' . app_url('recruitment/apply.php?restore=1'));
     exit;
 }
 
@@ -36,43 +48,48 @@ $pincode = trim((string) ($_POST['pincode'] ?? ''));
 $currentSalary = trim((string) ($_POST['current_salary'] ?? ''));
 $expectedSalary = trim((string) ($_POST['expected_salary'] ?? ''));
 $notice = trim((string) ($_POST['notice_period'] ?? ''));
-$totalExp = trim((string) ($_POST['total_experience'] ?? ''));
 $declare = !empty($_POST['declare']);
+$aadhaar = preg_replace('/\D+/', '', (string) ($_POST['aadhaar_no'] ?? ''));
+$pan = strtoupper(trim((string) ($_POST['pan_no'] ?? '')));
+$bankName = trim((string) ($_POST['bank_name'] ?? ''));
+$bankAccount = preg_replace('/\s+/', '', (string) ($_POST['bank_account'] ?? ''));
+$bankIfsc = strtoupper(trim((string) ($_POST['bank_ifsc'] ?? '')));
+$ageYears = recruitmentCalcAgeYears($dob);
 
 if ($deptName === '') {
-    recruitmentRedirectError('Please enter department.');
+    recruitmentRedirectError('Please enter department.', 1);
 }
 if ($posName === '') {
-    recruitmentRedirectError('Please enter position / designation.');
+    recruitmentRedirectError('Please enter position / designation.', 1);
 }
 if ($fullName === '' || strlen($mobile) < 10 || $email === '' || $address === '') {
-    recruitmentRedirectError('Please fill all required personal details.');
+    recruitmentRedirectError('Please fill all required personal details.', 2);
 }
 if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-    recruitmentRedirectError('Please enter a valid email address.');
+    recruitmentRedirectError('Please enter a valid email address.', 2);
 }
 if ($expectedSalary === '') {
-    recruitmentRedirectError('Please enter expected salary.');
+    recruitmentRedirectError('Please enter expected salary.', 5);
 }
 if (!$declare) {
-    recruitmentRedirectError('Please accept the declaration to submit.');
+    recruitmentRedirectError('Please accept the declaration to submit.', 5);
 }
 
 $bankUp = recruitmentUploadFile('bank_statement', 'bank');
 if (!$bankUp['ok']) {
-    recruitmentRedirectError($bankUp['error']);
+    recruitmentRedirectError($bankUp['error'], 5);
 }
 $slipUp = recruitmentUploadFile('salary_slip', 'slip');
 if (!$slipUp['ok']) {
-    recruitmentRedirectError($slipUp['error']);
+    recruitmentRedirectError($slipUp['error'], 5);
 }
 $resumeUp = recruitmentUploadFile('resume_file', 'resume');
 if (!$resumeUp['ok']) {
-    recruitmentRedirectError($resumeUp['error']);
+    recruitmentRedirectError($resumeUp['error'], 5);
 }
 
 if ($bankUp['path'] === '' && $slipUp['path'] === '') {
-    recruitmentRedirectError('Please upload last 3 months bank statement or salary slip.');
+    recruitmentRedirectError('Please upload last 3 months bank statement or salary slip.', 5);
 }
 
 $education = [];
@@ -99,17 +116,25 @@ if (is_array($expIn)) {
         if (!is_array($row)) {
             continue;
         }
+        $from = trim((string) ($row['from'] ?? ''));
+        $to = trim((string) ($row['to'] ?? ''));
+        $isCurrent = !empty($row['current']);
+        if ($isCurrent) {
+            $to = date('Y-m');
+        }
         $experience[] = [
             'company_name' => $row['company'] ?? '',
             'designation' => $row['designation'] ?? '',
-            'from_date' => $row['from'] ?? '',
-            'to_date' => $row['to'] ?? '',
-            'is_current' => !empty($row['current']),
+            'from_date' => $from,
+            'to_date' => $to,
+            'is_current' => $isCurrent,
             'last_salary' => $row['salary'] ?? '',
             'responsibilities' => $row['responsibilities'] ?? '',
         ];
     }
 }
+
+$totalExp = recruitmentCalculateTotalExperience($experience);
 
 $data = [
     'department_id' => 0,
@@ -122,11 +147,17 @@ $data = [
     'alt_mobile' => $altMobile,
     'gender' => $gender,
     'dob' => $dob,
+    'age_years' => $ageYears,
     'marital_status' => $marital,
     'address' => $address,
     'city' => $city,
     'state_name' => $state,
     'pincode' => $pincode,
+    'aadhaar_no' => $aadhaar,
+    'pan_no' => $pan,
+    'bank_name' => $bankName,
+    'bank_account' => $bankAccount,
+    'bank_ifsc' => $bankIfsc,
     'current_salary' => $currentSalary,
     'expected_salary' => $expectedSalary,
     'notice_period' => $notice,
@@ -141,8 +172,10 @@ $data = [
 $res = saveRecruitmentApplication($data, $education, $experience);
 
 if (empty($res['ok'])) {
-    recruitmentRedirectError($res['error'] ?? 'Could not submit application. Please try again.');
+    recruitmentRedirectError($res['error'] ?? 'Could not submit application. Please try again.', 5);
 }
+
+unset($_SESSION['recruitment_draft']);
 
 header('Location: ' . app_url(
     'recruitment/thankyou.php?no=' . urlencode((string) $res['application_no'])

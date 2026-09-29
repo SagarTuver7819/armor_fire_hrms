@@ -72,6 +72,7 @@ $conn->close();
 
 $pageTitle = 'Recruitment';
 $useSidebar = true;
+$sidebarMode = 'recruitment';
 $sidebarActive = 'recruitment';
 
 require_once __DIR__ . '/../includes/header.php';
@@ -101,9 +102,9 @@ require_once __DIR__ . '/../includes/header.php';
                value="<?php echo htmlspecialchars($q); ?>">
         <select name="status" class="form-control" style="max-width:180px;">
             <option value="">All Status</option>
-            <?php foreach ($labels as $k => $lab): ?>
+            <?php foreach (['new', 'interview', 'awaited', 'selected', 'not_selected'] as $k): ?>
                 <option value="<?php echo htmlspecialchars($k); ?>" <?php echo $status === $k ? 'selected' : ''; ?>>
-                    <?php echo htmlspecialchars($lab); ?>
+                    <?php echo htmlspecialchars($labels[$k]); ?>
                 </option>
             <?php endforeach; ?>
         </select>
@@ -146,6 +147,8 @@ require_once __DIR__ . '/../includes/header.php';
                             </td>
                             <td><?php echo htmlspecialchars(date('d M Y', strtotime((string) $r['created_at']))); ?></td>
                             <td>
+                                <a href="<?php echo app_url('recruitment/interview.php?id=' . (int) $r['id']); ?>"
+                                   class="action-btn edit" title="Interview"><i class="fa-solid fa-clipboard-user"></i></a>
                                 <a href="<?php echo app_url('recruitment/view.php?id=' . (int) $r['id']); ?>"
                                    class="action-btn edit" title="View"><i class="fa-solid fa-eye"></i></a>
                             </td>
@@ -164,10 +167,10 @@ require_once __DIR__ . '/../includes/header.php';
     font-size: 11px; font-weight: 800;
 }
 .status-new { background: #dbeafe; color: #1d4ed8; }
-.status-review { background: #fef3c7; color: #b45309; }
-.status-shortlisted { background: #dcfce7; color: #15803d; }
-.status-rejected { background: #fee2e2; color: #b91c1c; }
-.status-hired { background: #e0e7ff; color: #3730a3; }
+.status-interview, .status-review { background: #fef3c7; color: #b45309; }
+.status-awaited, .status-shortlisted { background: #ffedd5; color: #c2410c; }
+.status-selected, .status-hired { background: #dcfce7; color: #15803d; }
+.status-not_selected, .status-rejected { background: #fee2e2; color: #b91c1c; }
 </style>
 
 <?php require_once __DIR__ . '/../includes/footer.php'; ?>

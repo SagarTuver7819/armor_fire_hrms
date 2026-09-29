@@ -36,6 +36,30 @@ if ($empId > 0) {
     if ($employee) {
         $deptId = (int) $employee['department_id'];
     }
+} elseif ($empId <= 0 && (($_GET['from'] ?? '') === 'recruitment') && !empty($_GET['rec_id'])) {
+    require_once __DIR__ . '/../includes/recruitment_helper.php';
+    $rec = getRecruitmentApplication((int) $_GET['rec_id']);
+    if ($rec) {
+        $employee = [
+            'full_name' => $rec['full_name'] ?? '',
+            'mobile' => $rec['mobile'] ?? '',
+            'email' => $rec['email'] ?? '',
+            'gender' => $rec['gender'] ?? '',
+            'date_of_birth' => $rec['dob'] ?? '',
+            'dob' => $rec['dob'] ?? '',
+            'marital_status' => $rec['marital_status'] ?? '',
+            'current_address' => $rec['address'] ?? '',
+            'permanent_address' => $rec['address'] ?? '',
+            'city' => $rec['city'] ?? '',
+            'pincode' => $rec['pincode'] ?? '',
+            'aadhaar_number' => $rec['aadhaar_no'] ?? '',
+            'pan_number' => $rec['pan_no'] ?? '',
+            'bank_name' => $rec['bank_name'] ?? '',
+            'bank_account_no' => $rec['bank_account'] ?? '',
+            'ifsc_code' => $rec['bank_ifsc'] ?? '',
+            'department_id' => $deptId,
+        ];
+    }
 }
 
 $department = $deptId > 0 ? getDepartmentById($deptId) : null;

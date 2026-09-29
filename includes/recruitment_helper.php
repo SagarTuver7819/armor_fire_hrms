@@ -82,6 +82,53 @@ if (!function_exists('ensureRecruitmentTables')) {
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
         );
 
+        $conn->query(
+            "CREATE TABLE IF NOT EXISTS recruitment_followups (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                application_id INT NOT NULL,
+                call_no INT NOT NULL DEFAULT 1,
+                call_at DATETIME NOT NULL,
+                next_followup_at DATE DEFAULT NULL,
+                notes TEXT,
+                outcome VARCHAR(80) DEFAULT NULL,
+                created_by INT DEFAULT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                INDEX idx_rec_fu_app (application_id),
+                INDEX idx_rec_fu_next (next_followup_at)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+        );
+
+        $extraCols = [
+            'age_years' => "INT DEFAULT NULL AFTER dob",
+            'aadhaar_no' => "VARCHAR(20) DEFAULT NULL AFTER pincode",
+            'pan_no' => "VARCHAR(20) DEFAULT NULL AFTER aadhaar_no",
+            'bank_name' => "VARCHAR(150) DEFAULT NULL AFTER pan_no",
+            'bank_account' => "VARCHAR(40) DEFAULT NULL AFTER bank_name",
+            'bank_ifsc' => "VARCHAR(20) DEFAULT NULL AFTER bank_account",
+            'interview_mode' => "VARCHAR(40) DEFAULT NULL AFTER status",
+            'interview_date' => "DATE DEFAULT NULL AFTER interview_mode",
+            'interview_notes' => "TEXT AFTER interview_date",
+            'awaited_with' => "VARCHAR(40) DEFAULT NULL AFTER interview_notes",
+            'not_selected_reason' => "TEXT AFTER awaited_with",
+            'offer_generated_at' => "DATETIME DEFAULT NULL AFTER not_selected_reason",
+            'selected_at' => "DATETIME DEFAULT NULL AFTER offer_generated_at",
+            'next_followup_at' => "DATE DEFAULT NULL AFTER selected_at",
+            'last_call_at' => "DATETIME DEFAULT NULL AFTER next_followup_at",
+            'call_count' => "INT NOT NULL DEFAULT 0 AFTER last_call_at",
+            'employee_id' => "INT DEFAULT NULL AFTER call_count",
+        ];
+        foreach ($extraCols as $col => $def) {
+            $chk = $conn->query("SHOW COLUMNS FROM recruitment_applications LIKE '" . $conn->real_escape_string($col) . "'");
+            if ($chk && $chk->num_rows === 0) {
+                $conn->query("ALTER TABLE recruitment_applications ADD COLUMN {$col} {$def}");
+            }
+        }
+
+        // Normalize legacy statuses toward interview flow
+        $conn->query("UPDATE recruitment_applications SET status = 'interview' WHERE status IN ('review','shortlisted')");
+        $conn->query("UPDATE recruitment_applications SET status = 'not_selected' WHERE status = 'rejected'");
+        $conn->query("UPDATE recruitment_applications SET status = 'selected' WHERE status = 'hired'");
+
         if ($close) {
             $conn->close();
         }
@@ -210,15 +257,273 @@ if (!function_exists('ensureRecruitmentTables')) {
         return ['ok' => true, 'path' => 'assets/uploads/recruitment/' . $safe];
     }
 
+    function recruitmentFormatExperienceMonths($months)
+    {
+        $months = max(0, (int) $months);
+        if ($months <= 0) {
+            return '';
+        }
+        $y = intdiv($months, 12);
+        $m = $months % 12;
+        $parts = [];
+        if ($y > 0) {
+            $parts[] = $y . ($y === 1 ? ' year' : ' years');
+        }
+        if ($m > 0) {
+            $parts[] = $m . ($m === 1 ? ' month' : ' months');
+        }
+        return implode(' ', $parts);
+    }
+
+    /**
+     * Sum company-wise From/To (YYYY-MM). Current job uses today's month.
+     */
+    function recruitmentCalculateTotalExperience(array $experience)
+    {
+        $total = 0;
+        $nowYm = date('Y-m');
+        foreach ($experience as $ex) {
+            $from = trim((string) ($ex['from_date'] ?? ''));
+            $to = trim((string) ($ex['to_date'] ?? ''));
+            if (!empty($ex['is_current'])) {
+                $to = $nowYm;
+            }
+            if (!preg_match('/^\d{4}-\d{2}$/', $from) || !preg_match('/^\d{4}-\d{2}$/', $to)) {
+                continue;
+            }
+            [$fy, $fm] = array_map('intval', explode('-', $from));
+            [$ty, $tm] = array_map('intval', explode('-', $to));
+            $diff = ($ty - $fy) * 12 + ($tm - $fm);
+            if ($diff < 0) {
+                continue;
+            }
+            $total += ($diff === 0 ? 1 : $diff);
+        }
+        return recruitmentFormatExperienceMonths($total);
+    }
+
     function recruitmentStatusLabels()
     {
         return [
-            'new' => 'New',
-            'review' => 'In Review',
-            'shortlisted' => 'Shortlisted',
-            'rejected' => 'Rejected',
-            'hired' => 'Hired',
+            'new' => 'New Application',
+            'interview' => 'Interview',
+            'awaited' => 'Awaited',
+            'selected' => 'Selected',
+            'not_selected' => 'Not Selected',
+            // legacy aliases (display only if old rows remain)
+            'review' => 'Interview',
+            'shortlisted' => 'Awaited',
+            'rejected' => 'Not Selected',
+            'hired' => 'Selected',
         ];
+    }
+
+    function recruitmentInterviewModes()
+    {
+        return [
+            'in_house' => 'In-house',
+            'in_person' => 'In-person',
+            'virtual' => 'Virtual',
+        ];
+    }
+
+    function recruitmentAwaitedSides()
+    {
+        return [
+            'hr' => 'HR',
+            'management' => 'Management',
+            'employee' => 'Employee side',
+        ];
+    }
+
+    function recruitmentCalcAgeYears($dob)
+    {
+        $dob = trim((string) $dob);
+        if ($dob === '' || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $dob)) {
+            return null;
+        }
+        try {
+            $birth = new DateTime($dob);
+            $now = new DateTime('today');
+            if ($birth > $now) {
+                return null;
+            }
+            return (int) $birth->diff($now)->y;
+        } catch (Throwable $e) {
+            return null;
+        }
+    }
+
+    function recruitmentFollowups($applicationId, $conn = null)
+    {
+        $close = false;
+        if ($conn === null) {
+            $conn = getDBConnection();
+            $close = true;
+        }
+        ensureRecruitmentTables($conn);
+        $applicationId = (int) $applicationId;
+        $rows = [];
+        $st = $conn->prepare(
+            'SELECT * FROM recruitment_followups WHERE application_id = ? ORDER BY call_no ASC, id ASC'
+        );
+        $st->bind_param('i', $applicationId);
+        $st->execute();
+        $res = $st->get_result();
+        while ($r = $res->fetch_assoc()) {
+            $rows[] = $r;
+        }
+        $st->close();
+        if ($close) {
+            $conn->close();
+        }
+        return $rows;
+    }
+
+    function recruitmentIsFollowupDue(array $row)
+    {
+        if (($row['status'] ?? '') !== 'awaited') {
+            return false;
+        }
+        $next = trim((string) ($row['next_followup_at'] ?? ''));
+        if ($next === '') {
+            return false;
+        }
+        return $next <= date('Y-m-d');
+    }
+
+    function saveRecruitmentInterviewUpdate($id, array $data, $userId = 0, $conn = null)
+    {
+        $close = false;
+        if ($conn === null) {
+            $conn = getDBConnection();
+            $close = true;
+        }
+        ensureRecruitmentTables($conn);
+        $id = (int) $id;
+        $status = trim((string) ($data['status'] ?? 'interview'));
+        $allowed = ['new', 'interview', 'awaited', 'selected', 'not_selected'];
+        if (!in_array($status, $allowed, true)) {
+            if ($close) {
+                $conn->close();
+            }
+            return ['ok' => false, 'error' => 'Invalid status'];
+        }
+
+        $mode = trim((string) ($data['interview_mode'] ?? ''));
+        $interviewDate = trim((string) ($data['interview_date'] ?? ''));
+        $notes = trim((string) ($data['interview_notes'] ?? ''));
+        $awaitedWith = trim((string) ($data['awaited_with'] ?? ''));
+        $notReason = trim((string) ($data['not_selected_reason'] ?? ''));
+        $hrRemarks = trim((string) ($data['hr_remarks'] ?? ''));
+
+        if ($status === 'not_selected' && $notReason === '') {
+            if ($close) {
+                $conn->close();
+            }
+            return ['ok' => false, 'error' => 'Please enter reason for Not Selected.'];
+        }
+        if ($status === 'awaited' && $awaitedWith === '') {
+            if ($close) {
+                $conn->close();
+            }
+            return ['ok' => false, 'error' => 'Please select Awaited with (HR / Management / Employee).'];
+        }
+
+        $sets = [
+            'status = ' . recruitmentSqlStr($conn, $status),
+            'interview_mode = ' . recruitmentSqlStr($conn, $mode),
+            'interview_date = ' . ($interviewDate !== '' ? recruitmentSqlStr($conn, $interviewDate) : 'NULL'),
+            'interview_notes = ' . recruitmentSqlStr($conn, $notes),
+            'awaited_with = ' . recruitmentSqlStr($conn, $awaitedWith),
+            'not_selected_reason = ' . recruitmentSqlStr($conn, $notReason),
+            'hr_remarks = ' . recruitmentSqlStr($conn, $hrRemarks),
+        ];
+
+        if ($status === 'awaited') {
+            // Default 6-day reminder from today if not already set / refresh on status change
+            $sets[] = 'next_followup_at = DATE_ADD(CURDATE(), INTERVAL 6 DAY)';
+        }
+        if ($status === 'selected') {
+            $sets[] = 'selected_at = IFNULL(selected_at, NOW())';
+            $sets[] = 'awaited_with = NULL';
+            $sets[] = 'not_selected_reason = ' . recruitmentSqlStr($conn, '');
+        }
+        if ($status === 'not_selected') {
+            $sets[] = 'awaited_with = NULL';
+            $sets[] = 'next_followup_at = NULL';
+        }
+
+        $ok = $conn->query(
+            'UPDATE recruitment_applications SET ' . implode(', ', $sets) . ' WHERE id = ' . $id
+        );
+        $err = $ok ? '' : $conn->error;
+        if ($close) {
+            $conn->close();
+        }
+        return $ok ? ['ok' => true] : ['ok' => false, 'error' => $err ?: 'Update failed'];
+    }
+
+    function saveRecruitmentFollowup($applicationId, array $data, $userId = 0, $conn = null)
+    {
+        $close = false;
+        if ($conn === null) {
+            $conn = getDBConnection();
+            $close = true;
+        }
+        ensureRecruitmentTables($conn);
+        $applicationId = (int) $applicationId;
+        $notes = trim((string) ($data['notes'] ?? ''));
+        $outcome = trim((string) ($data['outcome'] ?? ''));
+        $callAt = trim((string) ($data['call_at'] ?? ''));
+        if ($callAt === '') {
+            $callAt = date('Y-m-d H:i:s');
+        } elseif (preg_match('/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/', $callAt)) {
+            $callAt = str_replace('T', ' ', substr($callAt, 0, 16)) . ':00';
+        }
+        $next = trim((string) ($data['next_followup_at'] ?? ''));
+        if ($next === '') {
+            $next = date('Y-m-d', strtotime('+6 days'));
+        }
+
+        $st = $conn->prepare('SELECT COALESCE(MAX(call_no), 0) AS m FROM recruitment_followups WHERE application_id = ?');
+        $st->bind_param('i', $applicationId);
+        $st->execute();
+        $callNo = (int) ($st->get_result()->fetch_assoc()['m'] ?? 0) + 1;
+        $st->close();
+
+        $userId = (int) $userId;
+        $sql = 'INSERT INTO recruitment_followups
+            (application_id, call_no, call_at, next_followup_at, notes, outcome, created_by)
+            VALUES (' .
+            $applicationId . ',' .
+            $callNo . ',' .
+            recruitmentSqlStr($conn, $callAt) . ',' .
+            recruitmentSqlStr($conn, $next) . ',' .
+            recruitmentSqlStr($conn, $notes) . ',' .
+            recruitmentSqlStr($conn, $outcome) . ',' .
+            ($userId > 0 ? $userId : 'NULL') .
+        ')';
+        if (!$conn->query($sql)) {
+            $err = $conn->error;
+            if ($close) {
+                $conn->close();
+            }
+            return ['ok' => false, 'error' => $err ?: 'Could not save follow-up'];
+        }
+
+        $conn->query(
+            'UPDATE recruitment_applications SET
+                last_call_at = ' . recruitmentSqlStr($conn, $callAt) . ',
+                next_followup_at = ' . recruitmentSqlStr($conn, $next) . ',
+                call_count = ' . (int) $callNo . '
+             WHERE id = ' . $applicationId
+        );
+
+        if ($close) {
+            $conn->close();
+        }
+        return ['ok' => true, 'call_no' => $callNo];
     }
 
     function getRecruitmentApplication($id, $conn = null)
@@ -268,6 +573,10 @@ if (!function_exists('ensureRecruitmentTables')) {
 
         $row['education'] = $edu;
         $row['experience'] = $exp;
+        $row['followups'] = recruitmentFollowups($id, $conn);
+        if (empty($row['age_years']) && !empty($row['dob'])) {
+            $row['age_years'] = recruitmentCalcAgeYears($row['dob']);
+        }
         if ($close) {
             $conn->close();
         }
@@ -286,8 +595,9 @@ if (!function_exists('ensureRecruitmentTables')) {
 
         $sql = 'INSERT INTO recruitment_applications (
             application_no, department_id, designation_id, department_name, position_name,
-            full_name, email, mobile, alt_mobile, gender, dob, marital_status,
+            full_name, email, mobile, alt_mobile, gender, dob, age_years, marital_status,
             address, city, state_name, pincode,
+            aadhaar_no, pan_no, bank_name, bank_account, bank_ifsc,
             current_salary, expected_salary, notice_period, total_experience,
             bank_statement_file, salary_slip_file, resume_file,
             status, ip_address, user_agent
@@ -303,11 +613,18 @@ if (!function_exists('ensureRecruitmentTables')) {
             recruitmentSqlStr($conn, $data['alt_mobile'] ?? '') . ',' .
             recruitmentSqlStr($conn, $data['gender'] ?? '') . ',' .
             (!empty($data['dob']) ? recruitmentSqlStr($conn, $data['dob']) : 'NULL') . ',' .
+            (isset($data['age_years']) && $data['age_years'] !== null && $data['age_years'] !== ''
+                ? (string) (int) $data['age_years'] : 'NULL') . ',' .
             recruitmentSqlStr($conn, $data['marital_status'] ?? '') . ',' .
             recruitmentSqlStr($conn, $data['address'] ?? '') . ',' .
             recruitmentSqlStr($conn, $data['city'] ?? '') . ',' .
             recruitmentSqlStr($conn, $data['state_name'] ?? '') . ',' .
             recruitmentSqlStr($conn, $data['pincode'] ?? '') . ',' .
+            recruitmentSqlStr($conn, $data['aadhaar_no'] ?? '') . ',' .
+            recruitmentSqlStr($conn, $data['pan_no'] ?? '') . ',' .
+            recruitmentSqlStr($conn, $data['bank_name'] ?? '') . ',' .
+            recruitmentSqlStr($conn, $data['bank_account'] ?? '') . ',' .
+            recruitmentSqlStr($conn, $data['bank_ifsc'] ?? '') . ',' .
             recruitmentSqlNum($data['current_salary'] ?? null) . ',' .
             recruitmentSqlNum($data['expected_salary'] ?? null) . ',' .
             recruitmentSqlStr($conn, $data['notice_period'] ?? '') . ',' .

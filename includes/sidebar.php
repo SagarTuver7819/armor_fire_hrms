@@ -98,6 +98,7 @@ $openMasters = ($sidebarMode === 'masters' || $sidebarActive === 'hub' || isset(
 $regType = (string) ($_GET['type'] ?? '');
 $openContractor = ($sidebarMode === 'contractor' || strpos((string) $sidebarActive, 'contractor') === 0 || $regType === 'jobwork_govt' || $regType === 'jobwork_actual' || $regType === 'contractor_main');
 $openAttendance = ($sidebarMode === 'attendance' || strpos((string) $sidebarActive, 'attendance') === 0);
+$openRecruitment = ($sidebarMode === 'recruitment' || strpos((string) $sidebarActive, 'recruitment') === 0);
 
 if (!function_exists('getDashboardLogo')) {
     require_once __DIR__ . '/settings.php';
@@ -233,13 +234,6 @@ $sidebarCompanyName = function_exists('getCompanyName') ? getCompanyName() : 'Ar
                     <i class="fa-solid fa-clipboard-list"></i>
                     <span>KPI Reports</span>
                 </a>
-                <?php if ($canRecruitment): ?>
-                <a href="<?php echo app_url('recruitment/index.php'); ?>"
-                   class="sidebar-link <?php echo in_array($sidebarActive, ['recruitment', 'recruitment_qr'], true) ? 'active' : ''; ?>">
-                    <i class="fa-solid fa-user-plus"></i>
-                    <span>Recruitment</span>
-                </a>
-                <?php endif; ?>
                 <?php elseif (!$isDeptHeadNav && (canAccess('leave', 'edit', 0) || canAccess('payroll', 'view', 0))): ?>
                 <a href="<?php echo app_url('hr/dashboard.php'); ?>"
                    class="sidebar-link <?php echo $sidebarActive === 'hr_dashboard' ? 'active' : ''; ?>">
@@ -251,19 +245,34 @@ $sidebarCompanyName = function_exists('getCompanyName') ? getCompanyName() : 'Ar
                     <i class="fa-solid fa-clipboard-list"></i>
                     <span>KPI Reports</span>
                 </a>
-                <?php if ($canRecruitment): ?>
-                <a href="<?php echo app_url('recruitment/index.php'); ?>"
-                   class="sidebar-link <?php echo in_array($sidebarActive, ['recruitment', 'recruitment_qr'], true) ? 'active' : ''; ?>">
-                    <i class="fa-solid fa-user-plus"></i>
-                    <span>Recruitment</span>
-                </a>
                 <?php endif; ?>
-                <?php elseif ($canRecruitment): ?>
-                <a href="<?php echo app_url('recruitment/index.php'); ?>"
-                   class="sidebar-link <?php echo in_array($sidebarActive, ['recruitment', 'recruitment_qr'], true) ? 'active' : ''; ?>">
-                    <i class="fa-solid fa-user-plus"></i>
-                    <span>Recruitment</span>
-                </a>
+                <?php if ($canRecruitment): ?>
+            <div class="sidebar-accordion <?php echo $openRecruitment ? 'is-open' : ''; ?>" data-accordion="recruitment" data-default-open="<?php echo $openRecruitment ? '1' : '0'; ?>">
+                <button type="button" class="sidebar-acc-btn" aria-expanded="<?php echo $openRecruitment ? 'true' : 'false'; ?>">
+                    <span class="sidebar-acc-left">
+                        <i class="fa-solid fa-user-plus"></i>
+                        <span>Recruitment</span>
+                    </span>
+                    <i class="fa-solid fa-chevron-down sidebar-acc-caret"></i>
+                </button>
+                <div class="sidebar-submenu">
+                    <a href="<?php echo app_url('recruitment/interviews.php'); ?>"
+                       class="sidebar-link sidebar-sublink <?php echo $sidebarActive === 'recruitment_interview' ? 'active' : ''; ?>">
+                        <i class="fa-solid fa-clipboard-user"></i>
+                        <span>Interview Candidates</span>
+                    </a>
+                    <a href="<?php echo app_url('recruitment/index.php'); ?>"
+                       class="sidebar-link sidebar-sublink <?php echo $sidebarActive === 'recruitment' ? 'active' : ''; ?>">
+                        <i class="fa-solid fa-list"></i>
+                        <span>Applications</span>
+                    </a>
+                    <a href="<?php echo app_url('recruitment/qr.php'); ?>"
+                       class="sidebar-link sidebar-sublink <?php echo $sidebarActive === 'recruitment_qr' ? 'active' : ''; ?>">
+                        <i class="fa-solid fa-qrcode"></i>
+                        <span>Fixed QR Code</span>
+                    </a>
+                </div>
+            </div>
                 <?php endif; ?>
                 <?php if ($canCirc): ?>
                 <a href="<?php echo app_url('circulars/index.php'); ?>"
