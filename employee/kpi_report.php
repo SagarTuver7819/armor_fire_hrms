@@ -303,27 +303,38 @@ $h = static function ($s) {
         .kpi-signs {
             display: grid;
             grid-template-columns: 1fr 1fr 1fr;
-            gap: 16px;
-            margin: 6px 0 4px;
+            gap: 22px;
+            margin: 18px 0 8px;
+            margin-top: auto;
+            padding-top: 12px;
         }
         .kpi-sign-box {
-            border-top: 1.75px solid #111;
-            padding-top: 8px;
+            display: flex;
+            flex-direction: column;
+            min-height: 110px;
+            border-top: 0;
+            padding-top: 0;
+        }
+        .kpi-sign-box .sign-space {
+            flex: 1 1 auto;
             min-height: 58px;
+            border-bottom: 1.75px solid #111;
+            margin-bottom: 8px;
         }
         .kpi-sign-box .lbl {
-            font-size: 12px;
+            font-size: 11.5px;
             font-weight: 800;
             text-transform: uppercase;
             letter-spacing: .04em;
             color: #64748b;
-            margin-bottom: 6px;
+            margin-bottom: 4px;
         }
         .kpi-sign-box .val {
-            font-size: 14.5px;
+            font-size: 13.5px;
             font-weight: 700;
             color: #0f172a;
-            min-height: 1.4em;
+            min-height: 1.35em;
+            line-height: 1.35;
         }
 
         @media print {
@@ -449,14 +460,17 @@ $h = static function ($s) {
 
         <div class="kpi-signs">
             <div class="kpi-sign-box">
+                <div class="sign-space" aria-hidden="true"></div>
                 <div class="lbl">તૈયાર કરનાર / Prepared By</div>
                 <div class="val"><?php echo $h($preparedBy !== '' ? $preparedBy : '—'); ?></div>
             </div>
             <div class="kpi-sign-box">
+                <div class="sign-space" aria-hidden="true"></div>
                 <div class="lbl">ચકાસનાર / Checked By</div>
                 <div class="val">&nbsp;</div>
             </div>
             <div class="kpi-sign-box">
+                <div class="sign-space" aria-hidden="true"></div>
                 <div class="lbl">મંજૂર કરનાર / Approved By</div>
                 <div class="val">&nbsp;</div>
             </div>
