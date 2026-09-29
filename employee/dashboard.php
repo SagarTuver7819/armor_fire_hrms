@@ -995,7 +995,6 @@ $denied = isset($_GET['msg']) && $_GET['msg'] === 'denied';
                          onerror="this.src='<?php echo app_url('assets/images/logo-placeholder.svg'); ?>'">
                 </div>
                 <div class="co-about-brand-text">
-                    <p class="co-about-eyebrow">ARMOR FIRE</p>
                     <h2 id="coAboutTitle"><?php echo htmlspecialchars($popupCompanyName); ?></h2>
                     <p class="co-about-sub">About Our Company · History · Vision · Mission · Values</p>
                 </div>
@@ -1015,7 +1014,7 @@ $denied = isset($_GET['msg']) && $_GET['msg'] === 'denied';
                 </div>
                 <div class="co-about-scroll">
                     <?php foreach (($hBody['paragraphs'] ?? []) as $p): ?>
-                        <p><?php echo companyContentHighlightHtml((string) $p); ?></p>
+                        <p><?php echo nl2br(htmlspecialchars((string) $p)); ?></p>
                     <?php endforeach; ?>
                     <?php if (!empty($hBody['products_2021'])): ?>
                         <h4><i class="fa-solid fa-industry"></i> 2021 Expansion Products</h4>
@@ -1047,18 +1046,18 @@ $denied = isset($_GET['msg']) && $_GET['msg'] === 'denied';
                     <?php if (!empty($vBody['leadership'])): ?>
                         <div class="co-about-lead">
                             <span class="co-about-lead-label"><i class="fa-solid fa-user-tie"></i> Leadership</span>
-                            <p><?php echo companyContentHighlightHtml((string) $vBody['leadership']); ?></p>
+                            <p><?php echo nl2br(htmlspecialchars((string) $vBody['leadership'])); ?></p>
                         </div>
                     <?php endif; ?>
                     <div class="co-about-callout is-vision-box">
                         <h4><i class="fa-solid fa-eye"></i> Vision</h4>
-                        <p><?php echo companyContentHighlightHtml((string) ($vBody['vision'] ?? '')); ?></p>
+                        <p><?php echo nl2br(htmlspecialchars((string) ($vBody['vision'] ?? ''))); ?></p>
                     </div>
                     <?php if (!empty($vBody['mission'])): ?>
                         <h4><i class="fa-solid fa-flag"></i> Mission</h4>
                         <ul class="co-about-mission">
                             <?php foreach ($vBody['mission'] as $item): ?>
-                                <li><i class="fa-solid fa-check"></i> <span><?php echo companyContentHighlightHtml((string) $item); ?></span></li>
+                                <li><i class="fa-solid fa-check"></i> <span><?php echo htmlspecialchars((string) $item); ?></span></li>
                             <?php endforeach; ?>
                         </ul>
                     <?php endif; ?>

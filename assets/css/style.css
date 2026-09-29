@@ -9188,7 +9188,7 @@ body.co-about-open { overflow: hidden; }
     align-items: center;
     gap: 16px;
     padding: 14px 18px;
-    background: linear-gradient(135deg, #0b1220 0%, #1e3a5f 52%, #8b1a1f 130%);
+    background: linear-gradient(135deg, var(--brand) 0%, var(--brand-dark) 100%);
     color: #fff;
 }
 .co-about-brand {
@@ -9215,13 +9215,6 @@ body.co-about-open { overflow: hidden; }
     object-fit: contain;
 }
 .co-about-brand-text { min-width: 0; }
-.co-about-eyebrow {
-    margin: 0;
-    font-size: 11px;
-    font-weight: 800;
-    letter-spacing: 0.1em;
-    opacity: 0.88;
-}
 .co-about-top h2 {
     margin: 2px 0 0;
     font-size: clamp(18px, 2.2vw, 26px);
@@ -9319,15 +9312,6 @@ body.co-about-open { overflow: hidden; }
 }
 .co-about-scroll h4 i { color: #d2232a; font-size: 12px; }
 .co-about-pane.is-history .co-about-scroll h4 i { color: #1d4ed8; }
-mark.co-hl {
-    background: linear-gradient(180deg, rgba(250, 204, 21, 0.55), rgba(250, 204, 21, 0.28));
-    color: #0f172a;
-    font-weight: 800;
-    padding: 0 3px;
-    border-radius: 3px;
-    box-decoration-break: clone;
-    -webkit-box-decoration-break: clone;
-}
 .co-about-chips {
     display: flex;
     flex-wrap: wrap;
