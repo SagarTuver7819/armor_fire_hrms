@@ -1,11 +1,13 @@
 <?php
 /**
- * KPI Report — paper format (employee own next-day / HR anytime)
+ * KPI Report — A4 print (company letterhead = Appointment / Experience letters)
  */
 
 require_once __DIR__ . '/../config/app.php';
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/auth.php';
+require_once __DIR__ . '/../includes/settings.php';
+require_once __DIR__ . '/../includes/document_print.php';
 require_once __DIR__ . '/../includes/employee_helper.php';
 require_once __DIR__ . '/../includes/kpi_helper.php';
 
@@ -49,113 +51,409 @@ usort($slots, static function ($a, $b) {
     return ((int) $a['slot_index']) <=> ((int) $b['slot_index']);
 });
 
-$companyName = function_exists('getCompanyName') ? getCompanyName() : 'ARMOR';
+$brand = getCompanyDocumentBranding();
+$companyName = trim((string) ($brand['company_name'] ?? ''));
+if ($companyName === '') {
+    $companyName = function_exists('getCompanyName') ? getCompanyName() : 'ARMOR';
+}
+
 $dateDisp = formatDateDisplay($sheet['kpi_date'] ?? '');
 $shiftDisp = trim(($sheet['shift_in'] ?? '') . ' TO ' . ($sheet['shift_out'] ?? ''));
+if ($shiftDisp === 'TO' || $shiftDisp === ' TO ') {
+    $shiftDisp = '—';
+}
+$deptLine = trim((string) (($emp['department_name'] ?? '') . (!empty($emp['designation']) ? ' · ' . $emp['designation'] : '')));
+if ($deptLine === '') {
+    $deptLine = '—';
+}
+$reporting = trim((string) ($emp['reporting_head'] ?? ''));
+if ($reporting === '') {
+    $reporting = '—';
+}
+$preparedBy = trim((string) ($sheet['prepared_by_name'] ?: ($emp['employee_name'] ?? '')));
+$empName = trim((string) ($emp['employee_name'] ?? ''));
+$empCode = trim((string) ($emp['employee_code'] ?? ''));
+
 $backUrl = $asStaff
     ? app_url('hr/kpi.php?date=' . urlencode((string) $sheet['kpi_date']))
     : app_url('employee/kpi_history.php');
 
-$pageTitle = 'KPI Report';
-$useSidebar = true;
-$sidebarMode = 'workspace';
-$sidebarActive = $asStaff ? 'hr_kpi' : 'my_kpi';
-
-require_once __DIR__ . '/../includes/header.php';
+$h = static function ($s) {
+    return htmlspecialchars((string) $s, ENT_QUOTES, 'UTF-8');
+};
 ?>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>KPI Report · <?php echo $h($empCode ?: $empName); ?> · <?php echo $h($dateDisp); ?></title>
+    <style>
+        <?php echo companyDocPrintCss(); ?>
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            padding: 0;
+            background: #e5e7eb;
+            color: #111;
+            font-family: Calibri, Candara, Segoe UI, Arial, Helvetica, sans-serif;
+            font-size: 12.5px;
+            line-height: 1.45;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+        .bar {
+            width: 210mm;
+            max-width: 100%;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+            background: #111;
+            color: #fff;
+            padding: 10px 14px;
+            font-size: 13px;
+            font-weight: 700;
+        }
+        .bar a, .bar button {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: #333;
+            color: #fff;
+            border: 0;
+            padding: 8px 14px;
+            border-radius: 8px;
+            font-weight: 700;
+            cursor: pointer;
+            text-decoration: none;
+            font-family: inherit;
+            font-size: 13px;
+        }
+        .bar button.primary { background: #d2232a; }
+        .bar .meta { opacity: .9; font-size: 12px; }
 
-<main class="dashboard-main">
-    <div class="page-toolbar flex-between no-print">
-        <a href="<?php echo htmlspecialchars($backUrl); ?>" class="back-link">
-            <i class="fa-solid fa-arrow-left"></i> Back
-        </a>
-        <button type="button" class="btn-primary" onclick="window.print()">
-            <i class="fa-solid fa-print"></i> Print
-        </button>
-    </div>
+        .page {
+            width: 210mm;
+            max-width: 100%;
+            min-height: 297mm;
+            margin: 14px auto;
+            border: 2.25px solid #000;
+            background: #fff;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 8px 28px rgba(0,0,0,.12);
+        }
+        .page-inner {
+            min-height: 297mm;
+            padding: 10mm 12mm 10mm;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            z-index: 1;
+        }
 
-    <div class="kpi-sheet-card kpi-report-print">
-        <div class="kpi-sheet-company"><?php echo htmlspecialchars(strtoupper($companyName)); ?></div>
-        <div class="kpi-sheet-title">Key Performance Indicator (K.P.I.)</div>
-        <div class="kpi-sheet-meta">
-            <span>તારીખ / Date: <strong><?php echo htmlspecialchars($dateDisp); ?></strong></span>
-            <span class="kpi-status is-done"><i class="fa-solid fa-circle-check"></i> Submitted</span>
+        .cdoc-header {
+            gap: 14px;
+            padding-bottom: 10px;
+            margin-bottom: 12px;
+            border-bottom-width: 2.5px;
+            align-items: center;
+            flex-shrink: 0;
+        }
+        .cdoc-header-logo {
+            width: 88px;
+            height: 88px;
+            border: 0;
+            padding: 0;
+            background: transparent;
+        }
+        .cdoc-header-text .cdoc-company {
+            font-size: 22px;
+            font-weight: 800;
+            color: #b91c1c;
+            margin: 0 0 4px;
+            line-height: 1.12;
+            text-transform: uppercase;
+        }
+        .cdoc-header-text .cdoc-header-details {
+            font-size: 12.5px;
+            font-weight: 700;
+            color: #1e293b;
+            line-height: 1.4;
+        }
+        .cdoc-footer {
+            margin-top: auto;
+            padding-top: 10px;
+            border-top-width: 1.5px;
+            font-size: 10.5px;
+            line-height: 1.4;
+            flex-shrink: 0;
+        }
+        .cdoc-watermark img {
+            width: min(52%, 320px);
+            max-height: 320px;
+            opacity: 0.055;
+        }
+
+        .kpi-title {
+            text-align: center;
+            margin: 2px 0 10px;
+            font-size: 18px;
+            font-weight: 800;
+            letter-spacing: .05em;
+            text-transform: uppercase;
+            text-decoration: underline;
+            text-underline-offset: 4px;
+            color: #0f172a;
+        }
+        .kpi-meta {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+            margin: 0 0 10px;
+            font-size: 12.5px;
+            font-weight: 700;
+            color: #334155;
+        }
+        .kpi-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 3px 10px;
+            border-radius: 999px;
+            background: #ecfdf5;
+            color: #047857;
+            border: 1px solid #a7f3d0;
+            font-size: 11.5px;
+            font-weight: 800;
+        }
+
+        .kpi-info,
+        .kpi-hours {
+            width: 100%;
+            border-collapse: collapse;
+            table-layout: fixed;
+            margin-bottom: 10px;
+        }
+        .kpi-info th,
+        .kpi-info td,
+        .kpi-hours th,
+        .kpi-hours td {
+            border: 1px solid #1e293b;
+            padding: 5px 8px;
+            vertical-align: top;
+            word-break: break-word;
+        }
+        .kpi-info th,
+        .kpi-hours th {
+            background: #f1f5f9;
+            font-weight: 800;
+            text-align: left;
+            font-size: 11.5px;
+        }
+        .kpi-info td:first-child {
+            width: 38%;
+            font-weight: 700;
+            color: #334155;
+            background: #fafafa;
+        }
+        .kpi-hours th {
+            text-align: center;
+            text-transform: uppercase;
+            font-size: 10.5px;
+            letter-spacing: .03em;
+        }
+        .kpi-hours td.num {
+            text-align: center;
+            font-weight: 800;
+            width: 56px;
+        }
+        .kpi-hours td.time {
+            text-align: center;
+            font-weight: 700;
+            white-space: nowrap;
+            width: 130px;
+        }
+
+        .kpi-section {
+            margin: 2px 0 6px;
+            font-size: 13px;
+            font-weight: 800;
+            color: #0f172a;
+            letter-spacing: .02em;
+        }
+
+        .kpi-ack {
+            margin: 8px 0 12px;
+            padding: 8px 10px;
+            border: 1px solid #a7f3d0;
+            background: #ecfdf5;
+            color: #065f46;
+            font-size: 11.5px;
+            font-weight: 700;
+            border-radius: 4px;
+        }
+
+        .kpi-signs {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 14px;
+            margin: 8px 0 6px;
+        }
+        .kpi-sign-box {
+            border-top: 1.5px solid #111;
+            padding-top: 8px;
+            min-height: 62px;
+        }
+        .kpi-sign-box .lbl {
+            font-size: 10.5px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: .04em;
+            color: #64748b;
+            margin-bottom: 6px;
+        }
+        .kpi-sign-box .val {
+            font-size: 12.5px;
+            font-weight: 700;
+            color: #0f172a;
+            min-height: 1.4em;
+        }
+
+        @media print {
+            @page { size: A4; margin: 0; }
+            .no-print { display: none !important; }
+            body { background: #fff; padding: 0; }
+            .page {
+                width: 210mm;
+                min-height: 297mm;
+                height: 297mm;
+                margin: 0;
+                box-shadow: none;
+                border: 0;
+                page-break-after: always;
+                break-after: page;
+            }
+            .page:last-child {
+                page-break-after: auto;
+                break-after: auto;
+            }
+            .page-inner {
+                min-height: 297mm;
+                height: 297mm;
+            }
+        }
+        @media screen and (max-width: 900px) {
+            .page { width: auto; margin: 10px; }
+            .bar { width: auto; }
+        }
+    </style>
+</head>
+<body>
+<div class="bar no-print">
+    <a href="<?php echo $h($backUrl); ?>">← Back</a>
+    <span class="meta"><?php echo $h($empName); ?> · <?php echo $h($dateDisp); ?></span>
+    <button type="button" class="primary" onclick="window.print()">Print / Save as PDF</button>
+</div>
+
+<section class="page cdoc-sheet">
+    <?php echo companyDocRenderWatermark($brand); ?>
+    <div class="page-inner cdoc-inner">
+        <?php echo companyDocRenderHeader($brand, 'Human Resource · Key Performance Indicator'); ?>
+
+        <h1 class="kpi-title">Key Performance Indicator (K.P.I.)</h1>
+
+        <div class="kpi-meta">
+            <span>તારીખ / Date: <strong><?php echo $h($dateDisp); ?></strong></span>
+            <span class="kpi-badge">✓ Submitted</span>
         </div>
 
-        <table class="kpi-info-table">
+        <table class="kpi-info">
             <thead>
                 <tr>
-                    <th style="width:38%;">વિગતો / Details</th>
+                    <th>વિગતો / Details</th>
                     <th>માહિતી / Information</th>
                 </tr>
             </thead>
             <tbody>
                 <tr>
                     <td>કર્મચારીનું નામ / Employee Name</td>
-                    <td><strong><?php echo htmlspecialchars((string) ($emp['employee_name'] ?? '')); ?></strong></td>
+                    <td><strong><?php echo $h($empName); ?></strong></td>
                 </tr>
                 <tr>
                     <td>કર્મચારી કોડ / Employee Code</td>
-                    <td><?php echo htmlspecialchars((string) ($emp['employee_code'] ?? '')); ?></td>
+                    <td><?php echo $h($empCode !== '' ? $empCode : '—'); ?></td>
                 </tr>
                 <tr>
                     <td>વિભાગ / Department</td>
-                    <td><?php echo htmlspecialchars(trim((string) (($emp['department_name'] ?? '') . (!empty($emp['designation']) ? ' · ' . $emp['designation'] : '')))); ?></td>
+                    <td><?php echo $h($deptLine); ?></td>
                 </tr>
                 <tr>
                     <td>શિફ્ટ સમય / Shift Time</td>
-                    <td><?php echo htmlspecialchars($shiftDisp !== ' TO ' ? $shiftDisp : '—'); ?></td>
+                    <td><?php echo $h($shiftDisp); ?></td>
                 </tr>
                 <tr>
                     <td>રિપોર્ટિંગ મેનેજર / Reporting Manager</td>
-                    <td><?php echo htmlspecialchars((string) (($emp['reporting_head'] ?? '') !== '' ? $emp['reporting_head'] : '—')); ?></td>
+                    <td><?php echo $h($reporting); ?></td>
                 </tr>
             </tbody>
         </table>
 
-        <div class="kpi-section-head">પ્રતિ કલાક K.P.I. શીટ / Hourly K.P.I. Sheet</div>
+        <div class="kpi-section">પ્રતિ કલાક K.P.I. શીટ / Hourly K.P.I. Sheet</div>
 
-        <table class="kpi-hour-table">
+        <table class="kpi-hours">
             <thead>
                 <tr>
-                    <th style="width:70px;">ક્રમાંક</th>
-                    <th style="width:160px;">સમય / Time</th>
+                    <th style="width:56px;">ક્રમાંક</th>
+                    <th style="width:130px;">સમય / Time</th>
                     <th>Activity / કામની વિગત</th>
                 </tr>
             </thead>
             <tbody>
-            <?php foreach ($slots as $slot): ?>
+            <?php if (!$slots): ?>
+                <tr>
+                    <td colspan="3" style="text-align:center;color:#64748b;font-weight:700;padding:16px;">No hourly entries</td>
+                </tr>
+            <?php else: ?>
+                <?php foreach ($slots as $slot):
+                    $act = trim((string) ($slot['activity_text'] ?? ''));
+                    ?>
                 <tr>
                     <td class="num"><?php echo (int) $slot['slot_index']; ?></td>
-                    <td><?php echo htmlspecialchars($slot['time_from'] . ' – ' . $slot['time_to']); ?></td>
-                    <td><?php echo nl2br(htmlspecialchars(trim((string) ($slot['activity_text'] ?? '')) !== '' ? $slot['activity_text'] : '—')); ?></td>
+                    <td class="time"><?php echo $h($slot['time_from'] . ' – ' . $slot['time_to']); ?></td>
+                    <td><?php echo $act !== '' ? nl2br($h($act)) : '—'; ?></td>
                 </tr>
-            <?php endforeach; ?>
+                <?php endforeach; ?>
+            <?php endif; ?>
             </tbody>
         </table>
 
         <?php if (!empty($sheet['responsibility_ack'])): ?>
-            <div class="kpi-ack-done">
-                <i class="fa-solid fa-square-check"></i>
-                Based on my best knowledge, the above information is correct, and I confirm its accuracy. — Confirmed
-            </div>
+        <div class="kpi-ack">
+            Based on my best knowledge, the above information is correct, and I confirm its accuracy. — Confirmed
+        </div>
         <?php endif; ?>
 
-        <div class="kpi-sign-row">
-            <div>
-                <div class="kpi-sign-label">તૈયાર કરનાર / Prepared By</div>
-                <div class="kpi-sign-val"><?php echo htmlspecialchars((string) ($sheet['prepared_by_name'] ?: ($emp['employee_name'] ?? ''))); ?></div>
+        <div class="kpi-signs">
+            <div class="kpi-sign-box">
+                <div class="lbl">તૈયાર કરનાર / Prepared By</div>
+                <div class="val"><?php echo $h($preparedBy !== '' ? $preparedBy : '—'); ?></div>
             </div>
-            <div>
-                <div class="kpi-sign-label">ચકાસનાર / Checked By</div>
-                <div class="kpi-sign-val">—</div>
+            <div class="kpi-sign-box">
+                <div class="lbl">ચકાસનાર / Checked By</div>
+                <div class="val">&nbsp;</div>
             </div>
-            <div>
-                <div class="kpi-sign-label">મંજૂર કરનાર / Approved By</div>
-                <div class="kpi-sign-val">—</div>
+            <div class="kpi-sign-box">
+                <div class="lbl">મંજૂર કરનાર / Approved By</div>
+                <div class="val">&nbsp;</div>
             </div>
         </div>
-    </div>
-</main>
 
-<?php require_once __DIR__ . '/../includes/footer.php'; ?>
+        <?php echo companyDocRenderFooter($brand); ?>
+    </div>
+</section>
+</body>
+</html>
