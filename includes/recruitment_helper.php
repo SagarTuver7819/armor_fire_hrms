@@ -111,7 +111,35 @@ if (!function_exists('ensureRecruitmentTables')) {
 
     function recruitmentApplyUrl()
     {
-        return app_full_url('recruitment/apply.php');
+        $path = 'recruitment/apply.php';
+
+        // Optional override in .env: RECRUITMENT_PUBLIC_URL=https://armor-hrms.oceanhub.co.in/recruitment/apply.php
+        $override = trim((string) (function_exists('env') ? env('RECRUITMENT_PUBLIC_URL', '') : ''));
+        if ($override !== '') {
+            return rtrim($override, '/');
+        }
+
+        $liveBase = 'https://armor-hrms.oceanhub.co.in';
+        $appUrl = defined('APP_URL') ? rtrim((string) APP_URL, '/') : '';
+        $host = strtolower((string) ($_SERVER['HTTP_HOST'] ?? ''));
+        $isLocalHost = (
+            strpos($host, 'localhost') !== false
+            || strpos($host, '127.0.0.1') !== false
+            || $appUrl === ''
+            || stripos($appUrl, 'localhost') !== false
+            || stripos($appUrl, '127.0.0.1') !== false
+        );
+
+        // Fixed QR for phones must use live public URL (not localhost)
+        if ($isLocalHost) {
+            return $liveBase . '/' . $path;
+        }
+
+        if ($appUrl !== '') {
+            return $appUrl . '/' . $path;
+        }
+
+        return app_full_url($path);
     }
 
     function recruitmentUploadDir()
