@@ -273,6 +273,19 @@ $tabUrl = function ($t) use ($baseQs, $year, $month) {
                 <a href="<?php echo app_url('employees/pdf.php?id=' . (int) $emp['id'] . '&lang=hi'); ?>" target="_blank" class="btn-ghost">
                     <i class="fa-solid fa-file-pdf"></i> PDF HI
                 </a>
+                <?php
+                require_once __DIR__ . '/../includes/induction_helper.php';
+                $isSalesEmp = employeeIsSalesRole($emp);
+                if ($isSalesEmp):
+                ?>
+                <a href="<?php echo app_url('employees/induction.php?id=' . (int) $emp['id'] . '&type=sales'); ?>" target="_blank" class="btn-ghost" title="Sales training (includes general points)">
+                    <i class="fa-solid fa-handshake"></i> Sales Training
+                </a>
+                <?php else: ?>
+                <a href="<?php echo app_url('employees/induction.php?id=' . (int) $emp['id'] . '&type=general'); ?>" target="_blank" class="btn-ghost" title="General induction">
+                    <i class="fa-solid fa-clipboard-list"></i> Induction
+                </a>
+                <?php endif; ?>
                 <?php endif; ?>
                 <?php if ($canSalaryManage): ?>
                 <a href="<?php echo app_url('employees/salary.php?id=' . (int) $emp['id']); ?>" class="btn-ghost">

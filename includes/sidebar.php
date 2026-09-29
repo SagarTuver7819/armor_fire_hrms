@@ -99,6 +99,7 @@ $regType = (string) ($_GET['type'] ?? '');
 $openContractor = ($sidebarMode === 'contractor' || strpos((string) $sidebarActive, 'contractor') === 0 || $regType === 'jobwork_govt' || $regType === 'jobwork_actual' || $regType === 'contractor_main');
 $openAttendance = ($sidebarMode === 'attendance' || strpos((string) $sidebarActive, 'attendance') === 0);
 $openRecruitment = ($sidebarMode === 'recruitment' || strpos((string) $sidebarActive, 'recruitment') === 0);
+$openTraining = ($sidebarMode === 'training' || strpos((string) $sidebarActive, 'training') === 0 || in_array((string) $sidebarActive, ['training_induction', 'training_sales'], true));
 $openEmployeesMenu = in_array((string) $sidebarActive, ['all_employees', 'visiting_card', 'exit_employee', 'join_employee'], true)
     || $sidebarMode === 'employees';
 $openLeaveMenu = in_array((string) $sidebarActive, [
@@ -287,6 +288,20 @@ $sidebarCompanyName = function_exists('getCompanyName') ? getCompanyName() : 'Ar
                     <a href="<?php echo app_url('recruitment/index.php'); ?>" class="sidebar-link sidebar-sublink <?php echo $sidebarActive === 'recruitment' ? 'active' : ''; ?>"><i class="fa-solid fa-inbox"></i><span>Applications</span></a>
                     <a href="<?php echo app_url('recruitment/interviews.php'); ?>" class="sidebar-link sidebar-sublink <?php echo $sidebarActive === 'recruitment_interview' ? 'active' : ''; ?>"><i class="fa-solid fa-clipboard-user"></i><span>Interview Candidates</span></a>
                     <a href="<?php echo app_url('recruitment/qr.php'); ?>" class="sidebar-link sidebar-sublink <?php echo $sidebarActive === 'recruitment_qr' ? 'active' : ''; ?>"><i class="fa-solid fa-qrcode"></i><span>Apply QR Code</span></a>
+                </div>
+            </div>
+            <?php endif; ?>
+
+            <?php if ($canEmp): ?>
+            <div class="sidebar-accordion <?php echo $openTraining ? 'is-open' : ''; ?>" data-accordion="training" data-default-open="<?php echo $openTraining ? '1' : '0'; ?>">
+                <button type="button" class="sidebar-acc-btn <?php echo $openTraining ? 'is-active' : ''; ?>" aria-expanded="<?php echo $openTraining ? 'true' : 'false'; ?>">
+                    <span class="sidebar-acc-left"><i class="fa-solid fa-chalkboard-user"></i><span>Training</span></span>
+                    <i class="fa-solid fa-chevron-down sidebar-acc-caret"></i>
+                </button>
+                <div class="sidebar-submenu">
+                    <a href="<?php echo app_url('training/index.php'); ?>" class="sidebar-link sidebar-sublink <?php echo $sidebarActive === 'training' ? 'active' : ''; ?>"><i class="fa-solid fa-list"></i><span>Training List</span></a>
+                    <a href="<?php echo app_url('training/index.php?type=general'); ?>" class="sidebar-link sidebar-sublink <?php echo $sidebarActive === 'training_induction' ? 'active' : ''; ?>"><i class="fa-solid fa-clipboard-list"></i><span>General Induction</span></a>
+                    <a href="<?php echo app_url('training/index.php?type=sales'); ?>" class="sidebar-link sidebar-sublink <?php echo $sidebarActive === 'training_sales' ? 'active' : ''; ?>"><i class="fa-solid fa-handshake"></i><span>Sales Training</span></a>
                 </div>
             </div>
             <?php endif; ?>
