@@ -281,28 +281,11 @@ while ($row = $result->fetch_assoc()) {
     $payLabel = function_exists('payTypeLabel') ? payTypeLabel($payType) : $payType;
 
     $isDeactive = isEmployeeDeactive($row);
-    $appointUrl = app_url('employees/appointment_letter.php?id=' . $id);
-    $hasAppoint = trim((string) ($row['appointment_letter_no'] ?? '')) !== '';
-    $appointLabel = $hasAppoint ? 'Appointment Letter' : 'Generate Appointment Letter';
-    $appointTitle = $hasAppoint
-        ? 'Open Appointment Letter (' . trim((string) $row['appointment_letter_no']) . ')'
-        : 'Generate Appointment Letter';
-    $expUrl = app_url('employees/experience_letter.php?id=' . $id);
 
     $nameHtml = '<div class="emp-name-cell" onclick="event.stopPropagation();">';
     $nameHtml .= '<a class="emp-name-link" href="' . htmlspecialchars($viewUrl) . '">' . htmlspecialchars($row['employee_name']) . '</a>';
     if ($isDeactive && !$isExit) {
         $nameHtml .= ' <span class="pay-pill is-jobwork" title="Soft-deleted / deactive">Deactive</span>';
-    }
-    if (!$isExit && !$isDeactive && (canAccess('employees', 'view', (int) $row['department_id']) || isAdmin() || isHR())) {
-        $nameHtml .= ' <a class="emp-appoint-link' . ($hasAppoint ? ' is-issued' : '') . '" href="'
-            . htmlspecialchars($appointUrl) . '" target="_blank" rel="noopener" title="'
-            . htmlspecialchars($appointTitle) . '"><i class="fa-solid fa-file-signature"></i> '
-            . htmlspecialchars($appointLabel) . '</a>';
-    }
-    if (canAccess('employees', 'view', (int) $row['department_id']) || isAdmin() || isHR()) {
-        $nameHtml .= ' <a class="emp-appoint-link" href="'
-            . htmlspecialchars($expUrl) . '" target="_blank" rel="noopener" title="Experience Letter"><i class="fa-solid fa-file-lines"></i> Experience Letter</a>';
     }
     $nameHtml .= '</div>';
 
