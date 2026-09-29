@@ -316,6 +316,11 @@ $tabUrl = function ($t) use ($baseQs, $year, $month) {
                     <?php echo !empty($emp['appointment_letter_no']) ? 'Appointment Letter' : 'Generate Appointment Letter'; ?>
                 </a>
                 <?php endif; ?>
+                <?php if ($canEmpPdf): ?>
+                <a href="<?php echo app_url('employees/experience_letter.php?id=' . (int) $emp['id']); ?>" target="_blank" class="btn-ghost" title="<?php echo $isDeactive ? 'Experience Letter (Joining to Exit Date)' : 'Experience Letter (Joining to Till Date)'; ?>">
+                    <i class="fa-solid fa-file-lines"></i> Experience Letter
+                </a>
+                <?php endif; ?>
                 <?php if ($canSalaryManage): ?>
                 <a href="<?php echo app_url('employees/salary.php?id=' . (int) $emp['id']); ?>" class="btn-ghost">
                     <i class="fa-solid fa-indian-rupee-sign"></i> Salary Details
