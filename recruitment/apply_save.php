@@ -5,7 +5,6 @@
 
 require_once __DIR__ . '/../config/app.php';
 require_once __DIR__ . '/../config/database.php';
-require_once __DIR__ . '/../includes/master_helper.php';
 require_once __DIR__ . '/../includes/recruitment_helper.php';
 
 function recruitmentRedirectError($msg)
@@ -19,12 +18,10 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     exit;
 }
 
-ensureMasterTables();
 ensureRecruitmentTables();
 
-$deptId = (int) ($_POST['department_id'] ?? 0);
-$desigId = (int) ($_POST['designation_id'] ?? 0);
-$positionOther = trim((string) ($_POST['position_other'] ?? ''));
+$deptName = trim((string) ($_POST['department_name'] ?? ''));
+$posName = trim((string) ($_POST['position_name'] ?? ''));
 $fullName = trim((string) ($_POST['full_name'] ?? ''));
 $email = trim((string) ($_POST['email'] ?? ''));
 $mobile = preg_replace('/\D+/', '', (string) ($_POST['mobile'] ?? ''));
@@ -42,11 +39,11 @@ $notice = trim((string) ($_POST['notice_period'] ?? ''));
 $totalExp = trim((string) ($_POST['total_experience'] ?? ''));
 $declare = !empty($_POST['declare']);
 
-if ($deptId <= 0) {
-    recruitmentRedirectError('Please select a department.');
+if ($deptName === '') {
+    recruitmentRedirectError('Please enter department.');
 }
-if ($desigId <= 0 && $positionOther === '') {
-    recruitmentRedirectError('Please select a position or enter other position.');
+if ($posName === '') {
+    recruitmentRedirectError('Please enter position / designation.');
 }
 if ($fullName === '' || strlen($mobile) < 10 || $email === '' || $address === '') {
     recruitmentRedirectError('Please fill all required personal details.');
@@ -61,56 +58,20 @@ if (!$declare) {
     recruitmentRedirectError('Please accept the declaration to submit.');
 }
 
-$deptName = '';
-$st = getDBConnection();
-ensureMasterTables($st);
-$q = $st->prepare('SELECT department_name FROM departments WHERE id = ? AND status = 1 LIMIT 1');
-$q->bind_param('i', $deptId);
-$q->execute();
-$dr = $q->get_result()->fetch_assoc();
-$q->close();
-if (!$dr) {
-    $st->close();
-    recruitmentRedirectError('Invalid department selected.');
-}
-$deptName = (string) $dr['department_name'];
-
-$posName = $positionOther;
-if ($desigId > 0) {
-    $q = $st->prepare('SELECT name FROM designations WHERE id = ? AND status = 1 LIMIT 1');
-    $q->bind_param('i', $desigId);
-    $q->execute();
-    $dg = $q->get_result()->fetch_assoc();
-    $q->close();
-    if ($dg) {
-        $posName = $positionOther !== ''
-            ? ((string) $dg['name'] . ' / ' . $positionOther)
-            : (string) $dg['name'];
-    }
-}
-if ($posName === '') {
-    $st->close();
-    recruitmentRedirectError('Please select or enter a position.');
-}
-
 $bankUp = recruitmentUploadFile('bank_statement', 'bank');
 if (!$bankUp['ok']) {
-    $st->close();
     recruitmentRedirectError($bankUp['error']);
 }
 $slipUp = recruitmentUploadFile('salary_slip', 'slip');
 if (!$slipUp['ok']) {
-    $st->close();
     recruitmentRedirectError($slipUp['error']);
 }
 $resumeUp = recruitmentUploadFile('resume_file', 'resume');
 if (!$resumeUp['ok']) {
-    $st->close();
     recruitmentRedirectError($resumeUp['error']);
 }
 
 if ($bankUp['path'] === '' && $slipUp['path'] === '') {
-    $st->close();
     recruitmentRedirectError('Please upload last 3 months bank statement or salary slip.');
 }
 
@@ -151,8 +112,8 @@ if (is_array($expIn)) {
 }
 
 $data = [
-    'department_id' => $deptId,
-    'designation_id' => $desigId,
+    'department_id' => 0,
+    'designation_id' => 0,
     'department_name' => $deptName,
     'position_name' => $posName,
     'full_name' => $fullName,
@@ -177,8 +138,7 @@ $data = [
     'user_agent' => (string) ($_SERVER['HTTP_USER_AGENT'] ?? ''),
 ];
 
-$res = saveRecruitmentApplication($data, $education, $experience, $st);
-$st->close();
+$res = saveRecruitmentApplication($data, $education, $experience);
 
 if (empty($res['ok'])) {
     recruitmentRedirectError($res['error'] ?? 'Could not submit application. Please try again.');

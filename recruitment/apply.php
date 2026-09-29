@@ -7,11 +7,9 @@
 require_once __DIR__ . '/../config/app.php';
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/settings.php';
-require_once __DIR__ . '/../includes/master_helper.php';
 require_once __DIR__ . '/../includes/company_content_helper.php';
 require_once __DIR__ . '/../includes/recruitment_helper.php';
 
-ensureMasterTables();
 ensureRecruitmentTables();
 ensureCompanyContentTables();
 
@@ -35,9 +33,6 @@ if ($logoSrc && strpos($logoSrc, 'http') !== 0 && strpos($logoSrc, '/') !== 0) {
 if (!$logoSrc) {
     $logoSrc = app_url('assets/images/logo-placeholder.svg');
 }
-
-$departments = getActiveMasterRows('departments', 'sort_order ASC, department_name ASC');
-$designations = getActiveMasterRows('designations', 'sort_order ASC, name ASC');
 
 $error = trim((string) ($_GET['err'] ?? ''));
 $cssV = (int) @filemtime(__DIR__ . '/../assets/css/recruitment_apply.css');
@@ -124,32 +119,16 @@ $jsV = (int) @filemtime(__DIR__ . '/../assets/js/recruitment_apply.js');
                 <legend>Apply for Position &amp; Department</legend>
                 <div class="rec-grid">
                     <div class="rec-field">
-                        <label for="department_id">Department <em>*</em></label>
-                        <select name="department_id" id="department_id" required>
-                            <option value="">Select Department</option>
-                            <?php foreach ($departments as $d): ?>
-                                <option value="<?php echo (int) $d['id']; ?>">
-                                    <?php echo htmlspecialchars((string) ($d['department_name'] ?? '')); ?>
-                                </option>
-                            <?php endforeach; ?>
-                        </select>
+                        <label for="department_name">Department <em>*</em></label>
+                        <input type="text" name="department_name" id="department_name" required
+                               maxlength="150" placeholder="e.g. Production, HR, Accounts"
+                               autocomplete="organization-title">
                     </div>
                     <div class="rec-field">
-                        <label for="designation_id">Position / Designation <em>*</em></label>
-                        <select name="designation_id" id="designation_id" required>
-                            <option value="">Select Position</option>
-                            <?php foreach ($designations as $dg): ?>
-                                <option value="<?php echo (int) $dg['id']; ?>">
-                                    <?php echo htmlspecialchars((string) ($dg['name'] ?? '')); ?>
-                                </option>
-                            <?php endforeach; ?>
-                        </select>
-                    </div>
-                    <div class="rec-field rec-span-2">
-                        <label for="position_other">Other Position (if not in list)</label>
-                        <input type="text" name="position_other" id="position_other"
-                               placeholder="Optional — type if your role is not listed"
-                               maxlength="150">
+                        <label for="position_name">Position / Designation <em>*</em></label>
+                        <input type="text" name="position_name" id="position_name" required
+                               maxlength="150" placeholder="e.g. Operator, Accountant, Engineer"
+                               autocomplete="organization-title">
                     </div>
                 </div>
             </fieldset>

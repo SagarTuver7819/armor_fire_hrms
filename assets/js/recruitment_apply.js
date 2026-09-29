@@ -139,8 +139,10 @@
             '<input type="number" name="exp[' + i + '][salary]" min="0" step="0.01"></div>' +
             '<div class="rec-field rec-span-2"><label>Key Responsibilities</label>' +
             '<textarea name="exp[' + i + '][responsibilities]" rows="2" placeholder="Brief summary"></textarea></div>' +
-            '<div class="rec-field rec-span-2"><label class="rec-check">' +
-            '<input type="checkbox" name="exp[' + i + '][current]" value="1"> Currently working here</label></div>' +
+            '<div class="rec-check-row">' +
+            '<label class="rec-check">' +
+            '<input type="checkbox" name="exp[' + i + '][current]" value="1">' +
+            '<span>Currently working here</span></label></div>' +
             '</div></div>'
         );
     }
