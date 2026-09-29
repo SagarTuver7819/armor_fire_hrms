@@ -1,6 +1,6 @@
 <?php
 /**
- * Offer Letter — company header/footer + logo watermark from settings
+ * Offer Letter — company sample format (Ref / Date / body / docs list)
  */
 
 require_once __DIR__ . '/../config/app.php';
@@ -28,17 +28,37 @@ $issued = recruitmentIssueOfferLetter($id);
 $row = getRecruitmentApplication($id) ?: $row;
 
 $brand = getCompanyDocumentBranding();
-$company = $brand['company_name'];
+$company = trim((string) $brand['company_name']);
+if ($company === '' || strcasecmp($company, 'Armor Fire') === 0) {
+    $company = 'Armor Steel Industries Pvt. Ltd.';
+}
+$companyShort = 'Armor Steel Industries Pvt. Ltd.';
 
 $offerNo = trim((string) ($row['offer_letter_no'] ?? ($issued['offer_letter_no'] ?? '')));
-$offerDate = !empty($row['offer_letter_date'])
-    ? date('d M Y', strtotime((string) $row['offer_letter_date']))
-    : date('d M Y');
+$offerDateRaw = !empty($row['offer_letter_date'])
+    ? (string) $row['offer_letter_date']
+    : date('Y-m-d');
+$offerDate = date('d-m-Y', strtotime($offerDateRaw));
 
-$v = static function ($x) {
-    $x = trim((string) $x);
-    return $x !== '' ? $x : '—';
-};
+$position = trim((string) ($row['position_name'] ?? ''));
+$department = trim((string) ($row['department_name'] ?? ''));
+$fullName = strtoupper(trim((string) ($row['full_name'] ?? '')));
+
+$gender = strtolower(trim((string) ($row['gender'] ?? '')));
+$title = 'Mr.';
+if (in_array($gender, ['female', 'f', 'woman', 'lady'], true)) {
+    $title = 'Ms.';
+} elseif (in_array($gender, ['other', 'o'], true)) {
+    $title = '';
+}
+$displayName = trim(($title !== '' ? $title . ' ' : '') . $fullName);
+
+$region = 'RAJKOT - GUJARAT Region';
+$joiningDate = !empty($row['joining_date'])
+    ? date('d/m/Y', strtotime((string) $row['joining_date']))
+    : 'as mutually agreed';
+
+$workLocation = $companyShort . ', Rajkot, Gujarat';
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -51,10 +71,10 @@ $v = static function ($x) {
             margin: 0;
             padding: 18px;
             background: #e5e7eb;
-            color: #1a1a1a;
+            color: #111;
             font-family: Calibri, Candara, Segoe UI, Optima, Arial, sans-serif;
             font-size: 14px;
-            line-height: 1.6;
+            line-height: 1.55;
         }
         .bar {
             max-width: 820px;
@@ -65,7 +85,6 @@ $v = static function ($x) {
             background: #fff;
             border: 1px solid #cbd5e1;
             padding: 10px 14px;
-            font-family: Calibri, Candara, Segoe UI, Arial, sans-serif;
             font-size: 13px;
         }
         .bar button {
@@ -80,10 +99,10 @@ $v = static function ($x) {
         .sheet {
             max-width: 820px;
             margin: 0 auto;
-            border: 2px solid #111;
-            padding: 28px 36px 32px;
+            border: 1.5px solid #111;
+            padding: 26px 34px 28px;
             min-height: 1040px;
-            font-family: Calibri, Candara, Segoe UI, Optima, Arial, sans-serif;
+            background: #fff;
         }
         <?php echo companyDocPrintCss(); ?>
         .cdoc-header-text .cdoc-company,
@@ -92,145 +111,92 @@ $v = static function ($x) {
             font-family: Calibri, Candara, Segoe UI, Optima, Arial, sans-serif;
         }
 
+        .ref-date-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            gap: 16px;
+            margin: 10px 0 8px;
+            font-size: 14px;
+            font-weight: 600;
+        }
+        .ref-date-row .ref-no,
+        .ref-date-row .ref-date {
+            white-space: nowrap;
+        }
+
         .doc-title {
             text-align: center;
-            margin: 16px 0 18px;
-            font-size: 20px;
+            margin: 10px 0 22px;
+            font-size: 18px;
             font-weight: 700;
-            font-family: Calibri, Candara, Segoe UI, Arial, sans-serif;
-            letter-spacing: .12em;
+            letter-spacing: .04em;
             text-transform: uppercase;
-            color: #111;
             text-decoration: underline;
-            text-underline-offset: 5px;
+            text-underline-offset: 4px;
         }
 
-        /* Matching Offer No + Date boxes */
-        .meta-row {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 16px;
-            margin: 0 0 22px;
-        }
-        .meta-box {
-            border: 1.5px solid #334155;
-            background: #fff;
-            display: flex;
-            flex-direction: column;
-            min-height: 62px;
-            overflow: hidden;
-        }
-        .meta-box .meta-label {
-            display: block;
-            margin: 0;
-            padding: 6px 12px;
-            font-size: 11px;
-            font-weight: 700;
-            color: #fff;
-            background: #d2232a;
-            text-transform: uppercase;
-            letter-spacing: .06em;
-            font-family: Calibri, Candara, Segoe UI, Arial, sans-serif;
-            border-bottom: 1px solid #9f1c22;
-        }
-        .meta-box .meta-value {
-            display: block;
-            flex: 1;
-            padding: 10px 12px;
-            font-size: 15px;
-            font-weight: 700;
-            color: #111;
-            font-family: Calibri, Candara, Segoe UI, Arial, sans-serif;
-            letter-spacing: .02em;
-            background: #fffafa;
-        }
-        .meta-box.meta-date .meta-value {
-            text-align: right;
-        }
-
-        .body-text {
-            font-family: Calibri, Candara, Segoe UI, Optima, Arial, sans-serif;
+        .letter-body {
             font-size: 14px;
-            line-height: 1.65;
-            color: #1a1a1a;
-        }
-        .body-text p {
-            margin: 0 0 13px;
+            line-height: 1.62;
             text-align: justify;
         }
-        .body-text strong { font-weight: 700; }
-        .addr-block {
+        .letter-body p { margin: 0 0 12px; }
+        .letter-body .to-block {
             margin: 0 0 14px;
-            line-height: 1.55;
-        }
-        .addr-block .to-label {
-            font-weight: 700;
-            margin-bottom: 2px;
-        }
-        .subject-line {
-            margin: 0 0 14px;
-            padding: 8px 12px;
-            border-left: 3px solid #d2232a;
-            background: #f8fafc;
-            font-size: 14px;
-        }
-
-        .ref-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin: 6px 0 18px;
-            font-family: Calibri, Candara, Segoe UI, Arial, sans-serif;
-            font-size: 13.5px;
-        }
-        .ref-table th,
-        .ref-table td {
-            border: 1px solid #64748b;
-            padding: 9px 12px;
             text-align: left;
-            vertical-align: top;
+            line-height: 1.45;
         }
-        .ref-table th {
-            width: 34%;
-            background: #f1f5f9;
+        .letter-body .to-block .name {
             font-weight: 700;
-            color: #1e293b;
-            font-size: 13px;
+            text-transform: uppercase;
         }
-        .ref-table td {
-            font-weight: 600;
-            color: #111;
-            background: #fff;
+        .letter-body strong { font-weight: 700; }
+
+        .docs-head {
+            margin: 16px 0 8px;
+            font-weight: 700;
+            text-decoration: underline;
+            text-underline-offset: 3px;
+            text-align: left;
+        }
+        .docs-list {
+            margin: 0 0 14px;
+            padding-left: 22px;
+            text-align: left;
+        }
+        .docs-list li {
+            margin: 0 0 3px;
+            padding-left: 2px;
         }
 
-        .closing { margin-top: 20px; }
+        .closing-block {
+            margin-top: 18px;
+            text-align: left;
+        }
+        .closing-block .sincerely {
+            margin: 0 0 28px;
+        }
         .sign-row {
             display: flex;
             justify-content: space-between;
+            align-items: flex-end;
             gap: 24px;
-            margin-top: 28px;
-            font-family: Calibri, Candara, Segoe UI, Arial, sans-serif;
-            font-size: 13px;
-            font-weight: 700;
+            margin-top: 8px;
         }
-        .sign-box {
+        .sign-left {
+            font-weight: 700;
+            line-height: 1.45;
+        }
+        .sign-right {
             width: 42%;
             text-align: center;
+            font-weight: 700;
+        }
+        .sign-right .line {
             border-top: 1.5px solid #111;
-            padding-top: 8px;
-            margin-top: 52px;
-        }
-        .sign-box small {
-            display: block;
-            margin-top: 3px;
-            font-weight: 600;
-            color: #666;
-            font-size: 11.5px;
-        }
-        .foot-note {
-            margin-top: 18px;
-            font-size: 11px;
-            color: #666;
-            font-family: Calibri, Candara, Segoe UI, Arial, sans-serif;
+            margin: 0 0 6px;
+            min-height: 1px;
         }
 
         @media print {
@@ -240,7 +206,7 @@ $v = static function ($x) {
                 max-width: none;
                 border: 0;
                 min-height: auto;
-                padding: 12mm 14mm;
+                padding: 10mm 12mm;
             }
             @page { size: A4; margin: 10mm; }
         }
@@ -258,106 +224,85 @@ $v = static function ($x) {
 <div class="sheet cdoc-sheet">
     <?php echo companyDocRenderWatermark($brand); ?>
     <div class="cdoc-inner">
-        <?php echo companyDocRenderHeader($brand, 'Human Resource · Recruitment · Offer of Employment'); ?>
+        <?php echo companyDocRenderHeader($brand, 'Human Resource · Recruitment'); ?>
 
-        <h2 class="doc-title">Offer Letter</h2>
-
-        <div class="meta-row">
-            <div class="meta-box">
-                <span class="meta-label">Offer Letter No.</span>
-                <span class="meta-value"><?php echo htmlspecialchars($offerNo !== '' ? $offerNo : '—'); ?></span>
-            </div>
-            <div class="meta-box meta-date">
-                <span class="meta-label">Date</span>
-                <span class="meta-value"><?php echo htmlspecialchars($offerDate); ?></span>
-            </div>
+        <div class="ref-date-row">
+            <div class="ref-no">Ref: <?php echo htmlspecialchars($offerNo !== '' ? $offerNo : '—'); ?></div>
+            <div class="ref-date">Date:- <?php echo htmlspecialchars($offerDate); ?></div>
         </div>
 
-        <div class="body-text">
-            <div class="addr-block">
-                <div class="to-label">To,</div>
-                <strong><?php echo htmlspecialchars((string) $row['full_name']); ?></strong><br>
-                <?php if (!empty($row['address'])): ?>
-                    <?php echo nl2br(htmlspecialchars((string) $row['address'])); ?><br>
-                <?php endif; ?>
-                Mobile: <?php echo htmlspecialchars($v($row['mobile'] ?? '')); ?>
-                <?php if (!empty($row['email'])): ?>
-                    &nbsp;·&nbsp; Email: <?php echo htmlspecialchars((string) $row['email']); ?>
-                <?php endif; ?>
+        <h2 class="doc-title">Offer-Letter</h2>
+
+        <div class="letter-body">
+            <div class="to-block">
+                To,<br>
+                <span class="name"><?php echo htmlspecialchars($displayName); ?></span>
             </div>
 
-            <p class="subject-line">
-                <strong>Subject:</strong> Offer of Employment — <?php echo htmlspecialchars($v($row['position_name'] ?? '')); ?>
-            </p>
-
-            <p>Dear <strong><?php echo htmlspecialchars((string) $row['full_name']); ?></strong>,</p>
-
             <p>
-                We are pleased to offer you employment with
-                <strong><?php echo htmlspecialchars($company); ?></strong>
-                for the position of
-                <strong><?php echo htmlspecialchars($v($row['position_name'] ?? '')); ?></strong>
-                in the
-                <strong><?php echo htmlspecialchars($v($row['department_name'] ?? '')); ?></strong>
-                department, subject to successful completion of joining formalities and verification of documents.
-            </p>
-
-            <table class="ref-table">
-                <tr>
-                    <th>Application No.</th>
-                    <td><?php echo htmlspecialchars((string) $row['application_no']); ?></td>
-                </tr>
-                <tr>
-                    <th>Position / Designation</th>
-                    <td><?php echo htmlspecialchars($v($row['position_name'] ?? '')); ?></td>
-                </tr>
-                <tr>
-                    <th>Department</th>
-                    <td><?php echo htmlspecialchars($v($row['department_name'] ?? '')); ?></td>
-                </tr>
-                <tr>
-                    <th>Discussed Salary (Ref.)</th>
-                    <td><?php
-                        echo $row['expected_salary'] !== null
-                            ? ('₹ ' . number_format((float) $row['expected_salary'], 0) . ' / month')
-                            : '—';
-                    ?> (final as per Appointment Letter)</td>
-                </tr>
-                <tr>
-                    <th>Total Experience</th>
-                    <td><?php echo htmlspecialchars($v($row['total_experience'] ?? '')); ?></td>
-                </tr>
-            </table>
-
-            <p>
-                Kindly confirm your acceptance of this offer and your proposed date of joining.
-                You are requested to report to the HR department with original documents for verification
-                and complete biometric / onboarding formalities.
+                We are pleased to offer you the position of
+                <strong><?php echo htmlspecialchars($position !== '' ? $position : '—'); ?></strong>
+                in
+                <strong><?php echo htmlspecialchars($department !== '' ? $department : '—'); ?></strong>
+                department at
+                <strong><?php echo htmlspecialchars($region); ?>.</strong>
             </p>
 
             <p>
-                This offer is provisional and does not create an employment relationship until the
-                Appointment Letter is issued and you appear for duty as scheduled.
+                Your joining date at the company will be
+                <strong><?php echo htmlspecialchars($joiningDate); ?></strong>
+                at
+                <strong><?php echo htmlspecialchars($workLocation); ?>.</strong>
             </p>
 
-            <div class="closing">
-                <p>We look forward to welcoming you to the team.</p>
-                <p>
-                    For <strong><?php echo htmlspecialchars($company); ?></strong><br>
-                    Human Resources
-                </p>
-            </div>
+            <p>Your salary remuneration will be <strong>as discussed.</strong></p>
 
-            <div class="sign-row">
-                <div class="sign-box">Candidate Acceptance<small>Sign / Date</small></div>
-                <div class="sign-box">Authorized Signatory · HR<small>Company Seal</small></div>
-            </div>
+            <p>You will be on probation for <strong>3 months</strong> from your joining.</p>
 
-            <p class="foot-note">
-                Generated from <?php echo htmlspecialchars($company); ?> HRMS ·
-                App <?php echo htmlspecialchars((string) $row['application_no']); ?>
-                <?php if ($offerNo !== ''): ?> · Letter <?php echo htmlspecialchars($offerNo); ?><?php endif; ?>
+            <p>
+                Company will review your performance after 3 months according to your performance,
+                the company has all rights to continue or terminate your service.
             </p>
+
+            <p>
+                We warmly welcome you to our Armor family and hope it will be the beginning of a long
+                and mutually beneficial future ahead.
+            </p>
+
+            <p>Kindly acknowledge the mail and acceptance of this Letter of Intent.</p>
+
+            <p class="docs-head">You are requested to submit</p>
+            <ol class="docs-list">
+                <li>Aadhar Card</li>
+                <li>PAN Card</li>
+                <li>Education Certificate</li>
+                <li>Bank Details</li>
+                <li>5 Passport Size Photos</li>
+                <li>Experience Letter of last company</li>
+                <li>Salary Proof of last 3 months at the time of Joining</li>
+            </ol>
+
+            <p>
+                If you wish to resign from your designation for any specific reason you are bound to
+                submit 1-month prior notice to the company and submit the resignation letter to the
+                respected authority.
+            </p>
+
+            <p>For any query feel free to contact undersigned.</p>
+
+            <div class="closing-block">
+                <p class="sincerely">Sincerely,</p>
+                <div class="sign-row">
+                    <div class="sign-left">
+                        HR Department<br>
+                        <?php echo htmlspecialchars($companyShort); ?>
+                    </div>
+                    <div class="sign-right">
+                        <div class="line"></div>
+                        Candidate Signature
+                    </div>
+                </div>
+            </div>
         </div>
 
         <?php echo companyDocRenderFooter($brand); ?>

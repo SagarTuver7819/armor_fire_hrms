@@ -1121,7 +1121,38 @@ if (!function_exists('ensureRecruitmentTables')) {
     }
 
     /**
-     * Next series no: OFR/2026/0001 or APT/2026/0001
+     * Financial year label e.g. 26-27 (Apr–Mar)
+     */
+    function recruitmentFinancialYearLabel($date = null)
+    {
+        $ts = $date ? strtotime((string) $date) : time();
+        if ($ts === false) {
+            $ts = time();
+        }
+        $y = (int) date('Y', $ts);
+        $m = (int) date('n', $ts);
+        $start = ($m >= 4) ? $y : ($y - 1);
+        return substr((string) $start, -2) . '-' . substr((string) ($start + 1), -2);
+    }
+
+    /**
+     * FY start calendar year for series key (e.g. 2026 for 26-27)
+     */
+    function recruitmentFinancialYearStart($date = null)
+    {
+        $ts = $date ? strtotime((string) $date) : time();
+        if ($ts === false) {
+            $ts = time();
+        }
+        $y = (int) date('Y', $ts);
+        $m = (int) date('n', $ts);
+        return ($m >= 4) ? $y : ($y - 1);
+    }
+
+    /**
+     * Next series no:
+     * Offer: ASIPL_Offer_26-27_0001
+     * Appointment: APT/2026/0001
      */
     function recruitmentNextDocNo($docType, $conn = null)
     {
@@ -1135,8 +1166,14 @@ if (!function_exists('ensureRecruitmentTables')) {
         if (!in_array($docType, ['offer', 'appointment'], true)) {
             $docType = 'offer';
         }
-        $year = (int) date('Y');
-        $prefix = $docType === 'appointment' ? 'APT' : 'OFR';
+
+        if ($docType === 'offer') {
+            $year = recruitmentFinancialYearStart();
+            $fyLabel = recruitmentFinancialYearLabel();
+        } else {
+            $year = (int) date('Y');
+            $fyLabel = '';
+        }
 
         $conn->query(
             "INSERT INTO recruitment_doc_series (doc_type, series_year, last_no)
@@ -1155,9 +1192,36 @@ if (!function_exists('ensureRecruitmentTables')) {
         if ($res && ($r = $res->fetch_assoc())) {
             $n = (int) $r['last_no'];
         }
-        $no = $prefix . '/' . $year . '/' . str_pad((string) $n, 4, '0', STR_PAD_LEFT);
+
+        if ($docType === 'offer') {
+            $no = 'ASIPL_Offer_' . $fyLabel . '_' . str_pad((string) $n, 4, '0', STR_PAD_LEFT);
+        } else {
+            $no = 'APT/' . $year . '/' . str_pad((string) $n, 4, '0', STR_PAD_LEFT);
+        }
+
         if ($close) {
             $conn->close();
+        }
+        return $no;
+    }
+
+    /**
+     * Convert legacy OFR/YYYY/#### or ASIPL_Offer_YY-YY/### → ASIPL_Offer_YY-YY_####
+     */
+    function recruitmentNormalizeOfferLetterNo($no, $refDate = null)
+    {
+        $no = trim((string) $no);
+        if ($no === '') {
+            return '';
+        }
+        if (preg_match('#^OFR/(\d{4})/(\d+)$#', $no, $m)) {
+            $calYear = (int) $m[1];
+            $seq = (int) $m[2];
+            $fyLabel = recruitmentFinancialYearLabel($refDate ?: ($calYear . '-09-01'));
+            return 'ASIPL_Offer_' . $fyLabel . '_' . str_pad((string) $seq, 4, '0', STR_PAD_LEFT);
+        }
+        if (preg_match('#^ASIPL_Offer_(\d{2}-\d{2})/(\d+)$#', $no, $m)) {
+            return 'ASIPL_Offer_' . $m[1] . '_' . str_pad((string) ((int) $m[2]), 4, '0', STR_PAD_LEFT);
         }
         return $no;
     }
@@ -1240,6 +1304,10 @@ if (!function_exists('ensureRecruitmentTables')) {
             return ['ok' => false, 'error' => 'Only Selected candidates can get offer letter'];
         }
         $no = trim((string) ($row['offer_letter_no'] ?? ''));
+        $normalized = recruitmentNormalizeOfferLetterNo(
+            $no,
+            $row['offer_letter_date'] ?? ($row['selected_at'] ?? null)
+        );
         if ($no === '') {
             $no = recruitmentNextDocNo('offer', $conn);
             $conn->query(
@@ -1248,6 +1316,15 @@ if (!function_exists('ensureRecruitmentTables')) {
                     offer_letter_date = CURDATE(),
                     offer_generated_at = IFNULL(offer_generated_at, NOW()),
                     duty_status = IF(duty_status = \'\' OR duty_status IS NULL, \'pending\', duty_status)
+                 WHERE id = ' . $applicationId
+            );
+        } elseif ($normalized !== '' && $normalized !== $no) {
+            $no = $normalized;
+            $conn->query(
+                'UPDATE recruitment_applications SET
+                    offer_letter_no = ' . recruitmentSqlStr($conn, $no) . ',
+                    offer_generated_at = IFNULL(offer_generated_at, NOW()),
+                    offer_letter_date = IFNULL(offer_letter_date, CURDATE())
                  WHERE id = ' . $applicationId
             );
         } else {
