@@ -7,6 +7,7 @@ require_once __DIR__ . '/../config/app.php';
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/settings.php';
+require_once __DIR__ . '/../includes/document_print.php';
 require_once __DIR__ . '/../includes/permission_helper.php';
 require_once __DIR__ . '/../includes/recruitment_helper.php';
 
@@ -25,12 +26,9 @@ if (!$row) {
 $labels = recruitmentStatusLabels();
 $modes = recruitmentInterviewModes();
 $sides = recruitmentAwaitedSides();
-$company = 'Armor Steel Industries Pvt Ltd';
-$logo = getLoginLogo();
-$logoSrc = $logo;
-if ($logoSrc && strpos($logoSrc, 'http') !== 0 && strpos($logoSrc, '/') !== 0) {
-    $logoSrc = app_url($logoSrc);
-}
+$brand = getCompanyDocumentBranding();
+$company = $brand['company_name'];
+$logoSrc = $brand['logo_src'];
 
 $criteria = getRecruitmentCriteriaForPosition((string) ($row['position_name'] ?? ''));
 $marks = getRecruitmentApplicationMarks((int) $row['id']);
@@ -108,17 +106,21 @@ $cell = static function ($label, $value, $span = 1) {
             border: 2px solid #111;
             padding: 0;
         }
-        .head {
-            display: flex;
-            gap: 14px;
-            align-items: center;
+        <?php echo companyDocPrintCss(); ?>
+        .cdoc-header {
             padding: 12px 14px;
-            border-bottom: 2px solid #d2232a;
+            margin-bottom: 0;
             background: #fffafa;
         }
-        .head img { width: 58px; height: 58px; object-fit: contain; border: 1px solid #e5e7eb; padding: 4px; background: #fff; }
-        .head h1 { margin: 0; font-size: 17px; color: #d2232a; letter-spacing: .01em; }
-        .head p { margin: 3px 0 0; color: #444; font-size: 11px; font-weight: 600; }
+        .cdoc-header-logo { width: 58px; height: 58px; }
+        .cdoc-header-text .cdoc-company { font-size: 17px; }
+        .cdoc-body-pad { padding: 0; }
+        .cdoc-footer {
+            margin: 0;
+            padding: 10px 14px 12px;
+            border-top: 2px solid #d2232a;
+            text-align: left;
+        }
         .cand {
             display: flex;
             justify-content: space-between;
@@ -238,14 +240,10 @@ $cell = static function ($label, $value, $span = 1) {
     <button type="button" onclick="window.print()">Print / Save PDF</button>
 </div>
 
-<div class="sheet">
-    <div class="head">
-        <?php if ($logoSrc): ?><img src="<?php echo htmlspecialchars($logoSrc); ?>" alt=""><?php endif; ?>
-        <div>
-            <h1><?php echo htmlspecialchars($company); ?></h1>
-            <p>Recruitment Application · Interview Evaluation Form</p>
-        </div>
-    </div>
+<div class="sheet cdoc-sheet">
+    <?php echo companyDocRenderWatermark($brand); ?>
+    <div class="cdoc-inner cdoc-body-pad">
+    <?php echo companyDocRenderHeader($brand, 'Recruitment Application · Interview Evaluation Form'); ?>
 
     <div class="cand">
         <div>
@@ -429,6 +427,9 @@ $cell = static function ($label, $value, $span = 1) {
             <div class="sign">Interviewer Signature</div>
             <div class="sign">Authorized Signatory</div>
         </div>
+    </div>
+
+    <?php echo companyDocRenderFooter($brand); ?>
     </div>
 </div>
 </body>

@@ -37,6 +37,12 @@ function ensureCompanySettingsSchema($conn)
     if (!in_array('dashboard_logo', $cols, true)) {
         $conn->query("ALTER TABLE company_settings ADD COLUMN dashboard_logo VARCHAR(255) DEFAULT NULL");
     }
+    if (!in_array('header_details', $cols, true)) {
+        $conn->query("ALTER TABLE company_settings ADD COLUMN header_details TEXT DEFAULT NULL");
+    }
+    if (!in_array('footer_details', $cols, true)) {
+        $conn->query("ALTER TABLE company_settings ADD COLUMN footer_details TEXT DEFAULT NULL");
+    }
 
     $conn->query(
         "INSERT INTO company_settings (id, company_name)
@@ -76,10 +82,12 @@ function getCompanySettings()
 
     $defaultLogo = 'assets/images/logo-placeholder.svg';
     $settings = [
-        'company_name'   => 'Armor Fire',
-        'login_logo'     => $defaultLogo,
-        'dashboard_logo' => $defaultLogo,
-        'company_logo'   => $defaultLogo, // legacy
+        'company_name'    => 'Armor Fire',
+        'login_logo'      => $defaultLogo,
+        'dashboard_logo'  => $defaultLogo,
+        'company_logo'    => $defaultLogo, // legacy
+        'header_details'  => '',
+        'footer_details'  => '',
     ];
 
     $conn = @getDBConnection();
@@ -90,7 +98,7 @@ function getCompanySettings()
     ensureCompanySettingsSchema($conn);
 
     $result = $conn->query(
-        "SELECT company_name, company_logo, login_logo, dashboard_logo
+        "SELECT company_name, company_logo, login_logo, dashboard_logo, header_details, footer_details
          FROM company_settings WHERE id = 1 LIMIT 1"
     );
 
@@ -109,6 +117,8 @@ function getCompanySettings()
         if (!empty($dash) && file_exists(__DIR__ . '/../' . $dash)) {
             $settings['dashboard_logo'] = $dash;
         }
+        $settings['header_details'] = trim((string) ($row['header_details'] ?? ''));
+        $settings['footer_details'] = trim((string) ($row['footer_details'] ?? ''));
     }
 
     $conn->close();
@@ -148,6 +158,24 @@ function getCompanyName()
 {
     $settings = getCompanySettings();
     return $settings['company_name'];
+}
+
+/**
+ * Document / PDF header details (address, phone, GST etc.)
+ */
+function getCompanyHeaderDetails()
+{
+    $settings = getCompanySettings();
+    return (string) ($settings['header_details'] ?? '');
+}
+
+/**
+ * Document / PDF footer details
+ */
+function getCompanyFooterDetails()
+{
+    $settings = getCompanySettings();
+    return (string) ($settings['footer_details'] ?? '');
 }
 
 /**

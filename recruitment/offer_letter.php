@@ -1,6 +1,6 @@
 <?php
 /**
- * Offer Letter — print form with company logo header + watermark
+ * Offer Letter — company header/footer + logo watermark from settings
  */
 
 require_once __DIR__ . '/../config/app.php';
@@ -8,6 +8,7 @@ require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/permission_helper.php';
 require_once __DIR__ . '/../includes/settings.php';
+require_once __DIR__ . '/../includes/document_print.php';
 require_once __DIR__ . '/../includes/recruitment_helper.php';
 
 requireLogin();
@@ -26,19 +27,8 @@ if (!$row || ($row['status'] ?? '') !== 'selected') {
 $issued = recruitmentIssueOfferLetter($id);
 $row = getRecruitmentApplication($id) ?: $row;
 
-$company = trim((string) getCompanyName());
-if ($company === '' || strcasecmp($company, 'Armor Fire') === 0) {
-    $company = 'Armor Steel Industries Pvt Ltd';
-}
-
-$logo = getLoginLogo();
-if (!$logo && function_exists('getCompanyLogo')) {
-    $logo = getCompanyLogo();
-}
-$logoSrc = $logo;
-if ($logoSrc && strpos($logoSrc, 'http') !== 0 && strpos($logoSrc, '/') !== 0) {
-    $logoSrc = app_url($logoSrc);
-}
+$brand = getCompanyDocumentBranding();
+$company = $brand['company_name'];
 
 $offerNo = trim((string) ($row['offer_letter_no'] ?? ($issued['offer_letter_no'] ?? '')));
 $offerDate = !empty($row['offer_letter_date'])
@@ -61,10 +51,10 @@ $v = static function ($x) {
             margin: 0;
             padding: 18px;
             background: #e5e7eb;
-            color: #111;
-            font-family: "Times New Roman", Times, Georgia, serif;
-            font-size: 13.5px;
-            line-height: 1.55;
+            color: #1a1a1a;
+            font-family: Calibri, Candara, Segoe UI, Optima, Arial, sans-serif;
+            font-size: 14px;
+            line-height: 1.6;
         }
         .bar {
             max-width: 820px;
@@ -75,6 +65,8 @@ $v = static function ($x) {
             background: #fff;
             border: 1px solid #cbd5e1;
             padding: 10px 14px;
+            font-family: Calibri, Candara, Segoe UI, Arial, sans-serif;
+            font-size: 13px;
         }
         .bar button {
             background: #d2232a;
@@ -83,163 +75,162 @@ $v = static function ($x) {
             padding: 9px 14px;
             font-weight: 700;
             cursor: pointer;
-            font-family: Arial, Helvetica, sans-serif;
+            font-family: Calibri, Candara, Segoe UI, Arial, sans-serif;
         }
         .sheet {
-            position: relative;
             max-width: 820px;
             margin: 0 auto;
-            background: #fff;
             border: 2px solid #111;
             padding: 28px 36px 32px;
             min-height: 1040px;
-            overflow: hidden;
+            font-family: Calibri, Candara, Segoe UI, Optima, Arial, sans-serif;
         }
-        .watermark {
-            position: absolute;
-            inset: 0;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            pointer-events: none;
-            z-index: 0;
-        }
-        .watermark img {
-            width: min(62%, 420px);
-            max-height: 420px;
-            object-fit: contain;
-            opacity: 0.08;
-            filter: grayscale(10%);
-        }
-        .content { position: relative; z-index: 1; }
-
-        .head {
-            display: flex;
-            align-items: center;
-            gap: 16px;
-            padding-bottom: 14px;
-            border-bottom: 3px solid #d2232a;
-            margin-bottom: 6px;
-        }
-        .head-logo {
-            width: 78px;
-            height: 78px;
-            object-fit: contain;
-            flex-shrink: 0;
-            border: 1px solid #e5e7eb;
-            padding: 4px;
-            background: #fff;
-        }
-        .head-copy h1 {
-            margin: 0;
-            font-size: 20px;
-            color: #d2232a;
-            font-family: Arial, Helvetica, sans-serif;
-            letter-spacing: .01em;
-            line-height: 1.25;
-        }
-        .head-copy .tag {
-            margin: 4px 0 0;
-            font-size: 12px;
-            font-weight: 700;
-            color: #444;
-            font-family: Arial, Helvetica, sans-serif;
-            text-transform: uppercase;
-            letter-spacing: .06em;
-        }
-        .head-copy .sub {
-            margin: 3px 0 0;
-            font-size: 11px;
-            color: #666;
-            font-family: Arial, Helvetica, sans-serif;
+        <?php echo companyDocPrintCss(); ?>
+        .cdoc-header-text .cdoc-company,
+        .cdoc-header-text .cdoc-header-details,
+        .cdoc-footer {
+            font-family: Calibri, Candara, Segoe UI, Optima, Arial, sans-serif;
         }
 
         .doc-title {
             text-align: center;
-            margin: 18px 0 8px;
-            font-size: 18px;
-            font-weight: 800;
-            font-family: Arial, Helvetica, sans-serif;
-            letter-spacing: .08em;
+            margin: 16px 0 18px;
+            font-size: 20px;
+            font-weight: 700;
+            font-family: Calibri, Candara, Segoe UI, Arial, sans-serif;
+            letter-spacing: .12em;
             text-transform: uppercase;
             color: #111;
             text-decoration: underline;
-            text-underline-offset: 4px;
-        }
-        .meta-row {
-            display: flex;
-            justify-content: space-between;
-            gap: 12px;
-            margin: 14px 0 18px;
-            font-family: Arial, Helvetica, sans-serif;
-            font-size: 12px;
-            font-weight: 700;
-        }
-        .meta-box {
-            border: 1px solid #94a3b8;
-            padding: 8px 10px;
-            background: #fffafa;
-            min-width: 42%;
-        }
-        .meta-box span {
-            display: block;
-            font-size: 10px;
-            color: #64748b;
-            text-transform: uppercase;
-            letter-spacing: .04em;
-            margin-bottom: 2px;
+            text-underline-offset: 5px;
         }
 
-        .body-text p { margin: 0 0 12px; text-align: justify; }
+        /* Matching Offer No + Date boxes */
+        .meta-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            margin: 0 0 22px;
+        }
+        .meta-box {
+            border: 1.5px solid #334155;
+            background: #fff;
+            display: flex;
+            flex-direction: column;
+            min-height: 62px;
+            overflow: hidden;
+        }
+        .meta-box .meta-label {
+            display: block;
+            margin: 0;
+            padding: 6px 12px;
+            font-size: 11px;
+            font-weight: 700;
+            color: #fff;
+            background: #d2232a;
+            text-transform: uppercase;
+            letter-spacing: .06em;
+            font-family: Calibri, Candara, Segoe UI, Arial, sans-serif;
+            border-bottom: 1px solid #9f1c22;
+        }
+        .meta-box .meta-value {
+            display: block;
+            flex: 1;
+            padding: 10px 12px;
+            font-size: 15px;
+            font-weight: 700;
+            color: #111;
+            font-family: Calibri, Candara, Segoe UI, Arial, sans-serif;
+            letter-spacing: .02em;
+            background: #fffafa;
+        }
+        .meta-box.meta-date .meta-value {
+            text-align: right;
+        }
+
+        .body-text {
+            font-family: Calibri, Candara, Segoe UI, Optima, Arial, sans-serif;
+            font-size: 14px;
+            line-height: 1.65;
+            color: #1a1a1a;
+        }
+        .body-text p {
+            margin: 0 0 13px;
+            text-align: justify;
+        }
         .body-text strong { font-weight: 700; }
+        .addr-block {
+            margin: 0 0 14px;
+            line-height: 1.55;
+        }
+        .addr-block .to-label {
+            font-weight: 700;
+            margin-bottom: 2px;
+        }
+        .subject-line {
+            margin: 0 0 14px;
+            padding: 8px 12px;
+            border-left: 3px solid #d2232a;
+            background: #f8fafc;
+            font-size: 14px;
+        }
+
         .ref-table {
             width: 100%;
             border-collapse: collapse;
-            margin: 14px 0 16px;
-            font-family: Arial, Helvetica, sans-serif;
-            font-size: 12px;
+            margin: 6px 0 18px;
+            font-family: Calibri, Candara, Segoe UI, Arial, sans-serif;
+            font-size: 13.5px;
         }
         .ref-table th,
         .ref-table td {
             border: 1px solid #64748b;
-            padding: 8px 10px;
+            padding: 9px 12px;
             text-align: left;
             vertical-align: top;
         }
         .ref-table th {
-            width: 32%;
-            background: #f8fafc;
-            font-weight: 800;
-            color: #334155;
-            text-transform: uppercase;
-            font-size: 10.5px;
-            letter-spacing: .03em;
+            width: 34%;
+            background: #f1f5f9;
+            font-weight: 700;
+            color: #1e293b;
+            font-size: 13px;
+        }
+        .ref-table td {
+            font-weight: 600;
+            color: #111;
+            background: #fff;
         }
 
-        .closing { margin-top: 22px; }
+        .closing { margin-top: 20px; }
         .sign-row {
             display: flex;
             justify-content: space-between;
             gap: 24px;
-            margin-top: 48px;
-            font-family: Arial, Helvetica, sans-serif;
-            font-size: 12px;
+            margin-top: 28px;
+            font-family: Calibri, Candara, Segoe UI, Arial, sans-serif;
+            font-size: 13px;
             font-weight: 700;
         }
         .sign-box {
             width: 42%;
             text-align: center;
-            border-top: 1px solid #111;
+            border-top: 1.5px solid #111;
             padding-top: 8px;
-            margin-top: 56px;
+            margin-top: 52px;
+        }
+        .sign-box small {
+            display: block;
+            margin-top: 3px;
+            font-weight: 600;
+            color: #666;
+            font-size: 11.5px;
         }
         .foot-note {
-            margin-top: 28px;
-            padding-top: 10px;
-            border-top: 1px solid #e2e8f0;
-            font-size: 10.5px;
+            margin-top: 18px;
+            font-size: 11px;
             color: #666;
-            font-family: Arial, Helvetica, sans-serif;
+            font-family: Calibri, Candara, Segoe UI, Arial, sans-serif;
         }
 
         @media print {
@@ -264,52 +255,40 @@ $v = static function ($x) {
     <button type="button" onclick="window.print()">Print / Save PDF</button>
 </div>
 
-<div class="sheet">
-    <?php if ($logoSrc): ?>
-    <div class="watermark" aria-hidden="true">
-        <img src="<?php echo htmlspecialchars($logoSrc); ?>" alt="">
-    </div>
-    <?php endif; ?>
-
-    <div class="content">
-        <header class="head">
-            <?php if ($logoSrc): ?>
-                <img class="head-logo" src="<?php echo htmlspecialchars($logoSrc); ?>" alt="<?php echo htmlspecialchars($company); ?>">
-            <?php endif; ?>
-            <div class="head-copy">
-                <h1><?php echo htmlspecialchars($company); ?></h1>
-                <p class="tag">Human Resource · Recruitment</p>
-                <p class="sub">Offer of Employment</p>
-            </div>
-        </header>
+<div class="sheet cdoc-sheet">
+    <?php echo companyDocRenderWatermark($brand); ?>
+    <div class="cdoc-inner">
+        <?php echo companyDocRenderHeader($brand, 'Human Resource · Recruitment · Offer of Employment'); ?>
 
         <h2 class="doc-title">Offer Letter</h2>
 
         <div class="meta-row">
             <div class="meta-box">
-                <span>Offer Letter No.</span>
-                <?php echo htmlspecialchars($offerNo !== '' ? $offerNo : '—'); ?>
+                <span class="meta-label">Offer Letter No.</span>
+                <span class="meta-value"><?php echo htmlspecialchars($offerNo !== '' ? $offerNo : '—'); ?></span>
             </div>
-            <div class="meta-box" style="text-align:right;">
-                <span>Date</span>
-                <?php echo htmlspecialchars($offerDate); ?>
+            <div class="meta-box meta-date">
+                <span class="meta-label">Date</span>
+                <span class="meta-value"><?php echo htmlspecialchars($offerDate); ?></span>
             </div>
         </div>
 
         <div class="body-text">
-            <p>
-                <strong>To,</strong><br>
+            <div class="addr-block">
+                <div class="to-label">To,</div>
                 <strong><?php echo htmlspecialchars((string) $row['full_name']); ?></strong><br>
                 <?php if (!empty($row['address'])): ?>
                     <?php echo nl2br(htmlspecialchars((string) $row['address'])); ?><br>
                 <?php endif; ?>
                 Mobile: <?php echo htmlspecialchars($v($row['mobile'] ?? '')); ?>
                 <?php if (!empty($row['email'])): ?>
-                    · Email: <?php echo htmlspecialchars((string) $row['email']); ?>
+                    &nbsp;·&nbsp; Email: <?php echo htmlspecialchars((string) $row['email']); ?>
                 <?php endif; ?>
-            </p>
+            </div>
 
-            <p><strong>Subject:</strong> Offer of Employment — <?php echo htmlspecialchars($v($row['position_name'] ?? '')); ?></p>
+            <p class="subject-line">
+                <strong>Subject:</strong> Offer of Employment — <?php echo htmlspecialchars($v($row['position_name'] ?? '')); ?>
+            </p>
 
             <p>Dear <strong><?php echo htmlspecialchars((string) $row['full_name']); ?></strong>,</p>
 
@@ -370,8 +349,8 @@ $v = static function ($x) {
             </div>
 
             <div class="sign-row">
-                <div class="sign-box">Candidate Acceptance<br><small style="font-weight:600;color:#666;">Sign / Date</small></div>
-                <div class="sign-box">Authorized Signatory · HR<br><small style="font-weight:600;color:#666;">Company Seal</small></div>
+                <div class="sign-box">Candidate Acceptance<small>Sign / Date</small></div>
+                <div class="sign-box">Authorized Signatory · HR<small>Company Seal</small></div>
             </div>
 
             <p class="foot-note">
@@ -380,6 +359,8 @@ $v = static function ($x) {
                 <?php if ($offerNo !== ''): ?> · Letter <?php echo htmlspecialchars($offerNo); ?><?php endif; ?>
             </p>
         </div>
+
+        <?php echo companyDocRenderFooter($brand); ?>
     </div>
 </div>
 </body>

@@ -1,7 +1,7 @@
 <?php
 /**
  * Admin - Company Logo Setup
- * Separate options: Login Logo + Dashboard Logo
+ * Login Logo + Dashboard Logo + Document Header / Footer details
  */
 
 require_once __DIR__ . '/config/app.php';
@@ -20,19 +20,23 @@ $conn = getDBConnection();
 ensureCompanySettingsSchema($conn);
 
 $current = [
-    'company_name'   => 'Armor Fire',
-    'login_logo'     => null,
-    'dashboard_logo' => null,
+    'company_name'    => 'Armor Fire',
+    'login_logo'      => null,
+    'dashboard_logo'  => null,
+    'header_details'  => '',
+    'footer_details'  => '',
 ];
 
 $res = $conn->query(
-    "SELECT company_name, login_logo, dashboard_logo, company_logo
+    "SELECT company_name, login_logo, dashboard_logo, company_logo, header_details, footer_details
      FROM company_settings WHERE id = 1 LIMIT 1"
 );
 if ($res && $row = $res->fetch_assoc()) {
     $current['company_name']   = $row['company_name'];
     $current['login_logo']     = !empty($row['login_logo']) ? $row['login_logo'] : $row['company_logo'];
     $current['dashboard_logo'] = !empty($row['dashboard_logo']) ? $row['dashboard_logo'] : $row['company_logo'];
+    $current['header_details'] = (string) ($row['header_details'] ?? '');
+    $current['footer_details'] = (string) ($row['footer_details'] ?? '');
 }
 
 $message = '';
@@ -109,12 +113,16 @@ function removeUploadedLogo($path)
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $companyName = trim($_POST['company_name'] ?? '');
+    $headerDetails = trim($_POST['header_details'] ?? '');
+    $footerDetails = trim($_POST['footer_details'] ?? '');
     $removeLogin = isset($_POST['remove_login_logo']);
     $removeDash  = isset($_POST['remove_dashboard_logo']);
 
     if ($companyName === '') {
         $message = 'Company name is required.';
         $messageType = 'error';
+        $current['header_details'] = $headerDetails;
+        $current['footer_details'] = $footerDetails;
     } else {
         $loginLogo = $current['login_logo'];
         $dashLogo  = $current['dashboard_logo'];
@@ -137,8 +145,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($uploadError !== '') {
             $message = $uploadError;
             $messageType = 'error';
+            $current['header_details'] = $headerDetails;
+            $current['footer_details'] = $footerDetails;
         } else {
-            // Cleanup unused old files
             foreach ([$oldLogin, $oldDash] as $oldPath) {
                 if (
                     !empty($oldPath)
@@ -155,12 +164,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                  SET company_name = ?,
                      login_logo = ?,
                      dashboard_logo = ?,
-                     company_logo = ?
+                     company_logo = ?,
+                     header_details = ?,
+                     footer_details = ?
                  WHERE id = 1"
             );
-            // Keep company_logo synced to dashboard for older code
             $legacy = $dashLogo;
-            $stmt->bind_param('ssss', $companyName, $loginLogo, $dashLogo, $legacy);
+            $stmt->bind_param(
+                'ssssss',
+                $companyName,
+                $loginLogo,
+                $dashLogo,
+                $legacy,
+                $headerDetails,
+                $footerDetails
+            );
             $ok = $stmt->execute();
             $stmt->close();
             $conn->close();
@@ -173,6 +191,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $message = 'Failed to save settings.';
             $messageType = 'error';
             $conn = getDBConnection();
+            $current['header_details'] = $headerDetails;
+            $current['footer_details'] = $footerDetails;
         }
     }
 }
@@ -181,13 +201,15 @@ if (isset($_GET['saved']) && $_GET['saved'] == '1') {
     $message = 'Company settings saved successfully.';
     $messageType = 'success';
     $res = $conn->query(
-        "SELECT company_name, login_logo, dashboard_logo, company_logo
+        "SELECT company_name, login_logo, dashboard_logo, company_logo, header_details, footer_details
          FROM company_settings WHERE id = 1 LIMIT 1"
     );
     if ($res && $row = $res->fetch_assoc()) {
         $current['company_name']   = $row['company_name'];
         $current['login_logo']     = !empty($row['login_logo']) ? $row['login_logo'] : $row['company_logo'];
         $current['dashboard_logo'] = !empty($row['dashboard_logo']) ? $row['dashboard_logo'] : $row['company_logo'];
+        $current['header_details'] = (string) ($row['header_details'] ?? '');
+        $current['footer_details'] = (string) ($row['footer_details'] ?? '');
     }
 }
 
@@ -221,7 +243,7 @@ $previewDash = (!empty($current['dashboard_logo']) && file_exists(__DIR__ . '/' 
                 <i class="fa-solid fa-image"></i>
                 <div>
                     <h2>Company Logo Setup</h2>
-                    <p>Login page logo and Dashboard logo — set separately.</p>
+                    <p>Login / Dashboard logos + document header &amp; footer for all PDF prints.</p>
                 </div>
             </div>
 
@@ -299,6 +321,30 @@ $previewDash = (!empty($current['dashboard_logo']) && file_exists(__DIR__ . '/' 
                     </div>
                 </div>
 
+                <div class="doc-brand-block">
+                    <div class="logo-split-title" style="margin-bottom:14px;">
+                        <i class="fa-solid fa-file-lines"></i>
+                        <div>
+                            <strong>Document Header &amp; Footer</strong>
+                            <span>Used on Offer Letter, Application PDF and other print documents</span>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="header_details">Header Details</label>
+                        <textarea id="header_details" name="header_details" class="form-control" rows="5"
+                                  placeholder="e.g.&#10;Plot / Address line&#10;City, State, PIN&#10;Phone · Email · GSTIN"><?php echo htmlspecialchars($current['header_details'] ?? ''); ?></textarea>
+                        <small class="form-help">Appears under company name + logo at the top of every document PDF.</small>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="footer_details">Footer Details</label>
+                        <textarea id="footer_details" name="footer_details" class="form-control" rows="4"
+                                  placeholder="e.g.&#10;Registered Office: …&#10;CIN / GST / Website"><?php echo htmlspecialchars($current['footer_details'] ?? ''); ?></textarea>
+                        <small class="form-help">Appears at the bottom of every document PDF.</small>
+                    </div>
+                </div>
+
                 <div class="form-actions">
                     <button type="submit" class="btn-primary">
                         <i class="fa-solid fa-floppy-disk"></i> Save Settings
@@ -329,7 +375,28 @@ $previewDash = (!empty($current['dashboard_logo']) && file_exists(__DIR__ . '/' 
             </div>
 
             <p class="preview-name"><?php echo htmlspecialchars($current['company_name'] ?? 'Armor Fire'); ?></p>
-            <p class="form-help">Both logos can be different images.</p>
+
+            <div class="doc-preview-sample">
+                <p class="preview-label">Document header</p>
+                <div class="doc-preview-box">
+                    <strong><?php echo htmlspecialchars($current['company_name'] ?? 'Armor Fire'); ?></strong>
+                    <?php if (trim((string) ($current['header_details'] ?? '')) !== ''): ?>
+                        <div class="doc-preview-text"><?php echo nl2br(htmlspecialchars($current['header_details'])); ?></div>
+                    <?php else: ?>
+                        <div class="doc-preview-text muted">Header details not set yet.</div>
+                    <?php endif; ?>
+                </div>
+                <p class="preview-label" style="margin-top:12px;">Document footer</p>
+                <div class="doc-preview-box">
+                    <?php if (trim((string) ($current['footer_details'] ?? '')) !== ''): ?>
+                        <div class="doc-preview-text"><?php echo nl2br(htmlspecialchars($current['footer_details'])); ?></div>
+                    <?php else: ?>
+                        <div class="doc-preview-text muted">Footer details not set yet.</div>
+                    <?php endif; ?>
+                </div>
+            </div>
+
+            <p class="form-help">Logo watermark + this header/footer apply on PDF print pages.</p>
         </div>
     </div>
 </main>
