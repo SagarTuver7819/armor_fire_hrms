@@ -290,12 +290,6 @@ $tabUrl = function ($t) use ($baseQs, $year, $month) {
             <?php if ($showAdminActions): ?>
             <div class="emp-id-actions">
                 <?php if ($canEmpPdf): ?>
-                <a href="<?php echo app_url('employees/pdf.php?id=' . (int) $emp['id'] . '&lang=en'); ?>" target="_blank" class="btn-ghost">
-                    <i class="fa-solid fa-file-pdf"></i> PDF EN
-                </a>
-                <a href="<?php echo app_url('employees/pdf.php?id=' . (int) $emp['id'] . '&lang=hi'); ?>" target="_blank" class="btn-ghost">
-                    <i class="fa-solid fa-file-pdf"></i> PDF HI
-                </a>
                 <?php
                 require_once __DIR__ . '/../includes/induction_helper.php';
                 $isSalesEmp = employeeIsSalesRole($emp);
@@ -309,17 +303,40 @@ $tabUrl = function ($t) use ($baseQs, $year, $month) {
                     <i class="fa-solid fa-clipboard-list"></i> Induction
                 </a>
                 <?php endif; ?>
-                <?php endif; ?>
-                <?php if ($canEmpPdf && !$isDeactive): ?>
-                <a href="<?php echo app_url('employees/appointment_letter.php?id=' . (int) $emp['id']); ?>" target="_blank" class="btn-ghost" title="<?php echo !empty($emp['appointment_letter_no']) ? htmlspecialchars('Appointment Letter · ' . $emp['appointment_letter_no']) : 'Generate Appointment Letter'; ?>">
-                    <i class="fa-solid fa-file-signature"></i>
-                    <?php echo !empty($emp['appointment_letter_no']) ? 'Appointment Letter' : 'Generate Appointment Letter'; ?>
-                </a>
-                <?php endif; ?>
-                <?php if ($canEmpPdf): ?>
-                <a href="<?php echo app_url('employees/experience_letter.php?id=' . (int) $emp['id']); ?>" target="_blank" class="btn-ghost" title="<?php echo $isDeactive ? 'Experience Letter (Joining to Exit Date)' : 'Experience Letter (Joining to Till Date)'; ?>">
-                    <i class="fa-solid fa-file-lines"></i> Experience Letter
-                </a>
+                <div class="emp-letters-dd">
+                    <button type="button" class="btn-ghost emp-letters-btn" id="empLettersBtn" aria-expanded="false" aria-haspopup="true">
+                        <i class="fa-solid fa-envelopes-bulk"></i> Letters
+                        <i class="fa-solid fa-chevron-down emp-letters-caret"></i>
+                    </button>
+                    <div class="emp-letters-menu" id="empLettersMenu" hidden>
+                        <?php if (!$isDeactive): ?>
+                        <a href="<?php echo app_url('employees/appointment_letter.php?id=' . (int) $emp['id']); ?>" target="_blank" rel="noopener">
+                            <i class="fa-solid fa-file-signature"></i>
+                            <span>
+                                <?php echo !empty($emp['appointment_letter_no']) ? 'Appointment Letter' : 'Generate Appointment Letter'; ?>
+                                <?php if (!empty($emp['appointment_letter_no'])): ?>
+                                <small><?php echo htmlspecialchars((string) $emp['appointment_letter_no']); ?></small>
+                                <?php endif; ?>
+                            </span>
+                        </a>
+                        <?php endif; ?>
+                        <a href="<?php echo app_url('employees/experience_letter.php?id=' . (int) $emp['id']); ?>" target="_blank" rel="noopener">
+                            <i class="fa-solid fa-file-lines"></i>
+                            <span>
+                                Experience Letter
+                                <small><?php echo $isDeactive ? 'Joining → Exit Date' : 'Joining → Till Date'; ?></small>
+                            </span>
+                        </a>
+                        <a href="<?php echo app_url('employees/pdf.php?id=' . (int) $emp['id'] . '&lang=en'); ?>" target="_blank" rel="noopener">
+                            <i class="fa-solid fa-file-pdf"></i>
+                            <span>Application Form <small>English</small></span>
+                        </a>
+                        <a href="<?php echo app_url('employees/pdf.php?id=' . (int) $emp['id'] . '&lang=hi'); ?>" target="_blank" rel="noopener">
+                            <i class="fa-solid fa-file-pdf"></i>
+                            <span>Application Form <small>हिंदी</small></span>
+                        </a>
+                    </div>
+                </div>
                 <?php endif; ?>
                 <?php if ($canSalaryManage): ?>
                 <a href="<?php echo app_url('employees/salary.php?id=' . (int) $emp['id']); ?>" class="btn-ghost">
@@ -1050,6 +1067,36 @@ $tabUrl = function ($t) use ($baseQs, $year, $month) {
 <script>
     window.EMP_TOAST_MSG  = <?php echo json_encode($toastMsg); ?>;
     window.EMP_TOAST_TYPE = <?php echo json_encode($toastType); ?>;
+    (function () {
+        var btn = document.getElementById('empLettersBtn');
+        var menu = document.getElementById('empLettersMenu');
+        var wrap = btn ? btn.closest('.emp-letters-dd') : null;
+        if (!btn || !menu || !wrap) return;
+
+        function closeMenu() {
+            menu.hidden = true;
+            btn.setAttribute('aria-expanded', 'false');
+            wrap.classList.remove('is-open');
+        }
+        function openMenu() {
+            menu.hidden = false;
+            btn.setAttribute('aria-expanded', 'true');
+            wrap.classList.add('is-open');
+        }
+
+        btn.addEventListener('click', function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            if (menu.hidden) openMenu();
+            else closeMenu();
+        });
+        document.addEventListener('click', function (e) {
+            if (!wrap.contains(e.target)) closeMenu();
+        });
+        document.addEventListener('keydown', function (e) {
+            if (e.key === 'Escape') closeMenu();
+        });
+    })();
 </script>
 
 <?php

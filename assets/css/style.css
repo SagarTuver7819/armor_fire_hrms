@@ -3842,6 +3842,67 @@ body.emp-photo-crop-open {
     flex-shrink: 0;
 }
 
+.emp-letters-dd {
+    position: relative;
+    display: inline-flex;
+}
+.emp-letters-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+.emp-letters-caret {
+    font-size: 11px;
+    opacity: .75;
+    transition: transform .15s ease;
+}
+.emp-letters-dd.is-open .emp-letters-caret {
+    transform: rotate(180deg);
+}
+.emp-letters-menu {
+    position: absolute;
+    top: calc(100% + 6px);
+    right: 0;
+    min-width: 280px;
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    box-shadow: 0 12px 32px rgba(15, 23, 42, .14);
+    padding: 6px;
+    z-index: 80;
+}
+.emp-letters-menu a {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 10px 12px;
+    border-radius: 9px;
+    text-decoration: none;
+    color: #0f172a;
+    font-weight: 700;
+    font-size: 13.5px;
+}
+.emp-letters-menu a i {
+    width: 18px;
+    margin-top: 2px;
+    color: #d2232a;
+    text-align: center;
+}
+.emp-letters-menu a span {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    line-height: 1.25;
+}
+.emp-letters-menu a small {
+    font-size: 11px;
+    font-weight: 600;
+    color: #64748b;
+}
+.emp-letters-menu a:hover {
+    background: #fef2f2;
+}
+
 .emp-stat-item {
     display: flex;
     align-items: center;
