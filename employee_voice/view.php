@@ -26,6 +26,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $id > 0) {
         $res = evUpdateStatus($id, $_POST['status'] ?? '', $_POST['reason'] ?? '', (int) ($_SESSION['user_id'] ?? 0));
         $msg = !empty($res['ok']) ? 'Status updated.' : ($res['error'] ?? 'Update failed');
         $msgType = !empty($res['ok']) ? 'success' : 'error';
+    } elseif ($action === 'complete') {
+        $ticketTmp = evGetTicket($id);
+        $completeStatus = evCompleteStatusForModule($ticketTmp['module_type'] ?? '');
+        $res = evUpdateStatus($id, $completeStatus, 'Marked complete by HR/Admin', (int) ($_SESSION['user_id'] ?? 0));
+        $msg = !empty($res['ok']) ? ('Marked as ' . $completeStatus . '.') : ($res['error'] ?? 'Update failed');
+        $msgType = !empty($res['ok']) ? 'success' : 'error';
+    } elseif ($action === 'close') {
+        $res = evUpdateStatus($id, 'Closed', 'Closed by HR/Admin', (int) ($_SESSION['user_id'] ?? 0));
+        $msg = !empty($res['ok']) ? 'Ticket closed.' : ($res['error'] ?? 'Update failed');
+        $msgType = !empty($res['ok']) ? 'success' : 'error';
     } elseif ($action === 'notes') {
         evSaveAdminNotes($id, $_POST['admin_notes'] ?? '');
         $msg = 'Notes saved.';
@@ -53,6 +63,10 @@ $meta = $types[$ticket['module_type']] ?? ['label' => $ticket['module_type'], 'c
 $detail = $ticket['detail'] ?? [];
 $statuses = evStatusesByModule($ticket['module_type']);
 $accentClass = $ticket['module_type'] === 'SUGGESTION' ? 'is-green' : ($ticket['module_type'] === 'SAFETY' ? 'is-blue' : 'is-red');
+$completeStatus = evCompleteStatusForModule($ticket['module_type']);
+$curStatus = (string) $ticket['status'];
+$isClosed = in_array($curStatus, ['Closed', 'Withdrawn'], true);
+$isCompleteDone = in_array($curStatus, ['Resolved', 'Verified', 'Closed', 'Withdrawn'], true);
 
 $pageTitle = $ticket['ticket_no'];
 $useSidebar = true;
@@ -67,6 +81,26 @@ require_once __DIR__ . '/../includes/header.php';
         <a href="<?php echo app_url('employee_voice/index.php'); ?>" class="back-link">
             <i class="fa-solid fa-arrow-left"></i> Employee Voice
         </a>
+        <?php if (!$isClosed): ?>
+        <div class="ev-row-actions">
+            <?php if (!$isCompleteDone): ?>
+            <form method="POST" class="ev-inline-form"
+                  onsubmit="return confirm('Mark this ticket as <?php echo htmlspecialchars($completeStatus); ?>?');">
+                <input type="hidden" name="action" value="complete">
+                <button type="submit" class="btn-primary" style="background:#16a34a;">
+                    <i class="fa-solid fa-circle-check"></i> Complete
+                </button>
+            </form>
+            <?php endif; ?>
+            <form method="POST" class="ev-inline-form"
+                  onsubmit="return confirm('Close this ticket?');">
+                <input type="hidden" name="action" value="close">
+                <button type="submit" class="btn-secondary">
+                    <i class="fa-solid fa-lock"></i> Close
+                </button>
+            </form>
+        </div>
+        <?php endif; ?>
     </div>
 
     <?php if ($msg !== ''): ?>
@@ -188,6 +222,26 @@ require_once __DIR__ . '/../includes/header.php';
 
             <div class="ev-section ev-admin-panel">
                 <h2 class="ev-section-title <?php echo $accentClass; ?>"><span class="bar"></span> Update status</h2>
+                <?php if (!$isClosed): ?>
+                <div class="ev-quick-status" style="margin-bottom:14px;">
+                    <?php if (!$isCompleteDone): ?>
+                    <form method="POST" class="ev-inline-form"
+                          onsubmit="return confirm('Mark as <?php echo htmlspecialchars($completeStatus); ?>?');">
+                        <input type="hidden" name="action" value="complete">
+                        <button type="submit" class="btn-primary" style="background:#16a34a;">
+                            <i class="fa-solid fa-circle-check"></i> Mark Complete (<?php echo htmlspecialchars($completeStatus); ?>)
+                        </button>
+                    </form>
+                    <?php endif; ?>
+                    <form method="POST" class="ev-inline-form"
+                          onsubmit="return confirm('Close this ticket?');">
+                        <input type="hidden" name="action" value="close">
+                        <button type="submit" class="btn-secondary">
+                            <i class="fa-solid fa-lock"></i> Close Ticket
+                        </button>
+                    </form>
+                </div>
+                <?php endif; ?>
                 <form method="POST" class="employee-form">
                     <input type="hidden" name="action" value="status">
                     <div class="ev-form-row">

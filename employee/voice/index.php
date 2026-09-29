@@ -27,6 +27,7 @@ if (isset($types[$typeFilter])) {
     $filters['module_type'] = $typeFilter;
 }
 $myRows = evListTickets($filters);
+$flashMsg = (string) ($_GET['msg'] ?? '');
 
 $pageTitle = 'Employee Voice';
 $useSidebar = true;
@@ -46,6 +47,16 @@ require_once __DIR__ . '/../../includes/header.php';
         </a>
     </div>
 
+    <?php if ($flashMsg === 'withdrawn'): ?>
+    <div class="alert alert-success" style="margin-bottom:14px;">
+        <i class="fa-solid fa-circle-check"></i> Ticket withdrawn successfully.
+    </div>
+    <?php elseif ($flashMsg === 'edit_locked'): ?>
+    <div class="alert alert-error" style="margin-bottom:14px;">
+        This ticket can no longer be edited.
+    </div>
+    <?php endif; ?>
+
     <div class="form-page-card">
         <div class="form-page-header">
             <h1><i class="fa-solid fa-comments" style="color:#d2232a;"></i> Employee Voice</h1>
@@ -56,7 +67,9 @@ require_once __DIR__ . '/../../includes/header.php';
             <?php foreach ($types as $t): ?>
             <a href="<?php echo app_url('employee/voice/submit.php?type=' . urlencode($t['key'])); ?>"
                class="ev-hub-card"
-               style="--ev-accent:<?php echo htmlspecialchars($t['color']); ?>;--ev-bg:<?php echo htmlspecialchars($t['bg']); ?>;">
+               style="--ev-accent:<?php echo htmlspecialchars($t['color']); ?>;--ev-bg:<?php echo htmlspecialchars($t['bg']); ?>;"
+               title="Add <?php echo htmlspecialchars($t['short']); ?>">
+                <span class="ev-hub-add" aria-hidden="true"><i class="fa-solid fa-plus"></i></span>
                 <div class="ev-hub-card-ico">
                     <i class="fa-solid <?php echo htmlspecialchars($t['icon']); ?>"></i>
                 </div>
@@ -71,6 +84,9 @@ require_once __DIR__ . '/../../includes/header.php';
                         echo 'Unsafe machines, PPE, fire hazards, near misses';
                     }
                     ?>
+                </div>
+                <div class="ev-hub-card-cta">
+                    <i class="fa-solid fa-plus"></i> Add new
                 </div>
             </a>
             <?php endforeach; ?>
@@ -108,7 +124,7 @@ require_once __DIR__ . '/../../includes/header.php';
                         <th>Status</th>
                         <th>HR Response</th>
                         <th>Submitted</th>
-                        <th></th>
+                        <th>Actions</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -121,6 +137,7 @@ require_once __DIR__ . '/../../includes/header.php';
                 <?php else: foreach ($myRows as $r):
                     $mt = (string) $r['module_type'];
                     $meta = $types[$mt] ?? null;
+                    $canMod = evEmployeeCanModifyTicket($r);
                     $hrReply = trim((string) ($r['hr_reply'] ?? ''));
                     $hrAt = (string) ($r['hr_reply_at'] ?? '');
                     $hrPreview = $hrReply !== ''
@@ -156,10 +173,27 @@ require_once __DIR__ . '/../../includes/header.php';
                         </td>
                         <td><?php echo !empty($r['submitted_at']) ? htmlspecialchars(formatDateTimeDisplay($r['submitted_at'])) : '—'; ?></td>
                         <td>
-                            <a class="btn-ghost ev-view-btn"
-                               href="<?php echo app_url('employee/voice/view.php?id=' . (int) $r['id']); ?>">
-                                View
-                            </a>
+                            <div class="ev-row-actions">
+                                <a class="btn-ghost ev-view-btn"
+                                   href="<?php echo app_url('employee/voice/view.php?id=' . (int) $r['id']); ?>">
+                                    View
+                                </a>
+                                <?php if ($canMod): ?>
+                                <a class="btn-ghost ev-view-btn"
+                                   href="<?php echo app_url('employee/voice/submit.php?id=' . (int) $r['id']); ?>"
+                                   title="Edit">
+                                    <i class="fa-solid fa-pen"></i> Edit
+                                </a>
+                                <form method="POST" action="<?php echo app_url('employee/voice/withdraw.php'); ?>"
+                                      class="ev-inline-form"
+                                      onsubmit="return confirm('Withdraw this ticket? You cannot undo this.');">
+                                    <input type="hidden" name="id" value="<?php echo (int) $r['id']; ?>">
+                                    <button type="submit" class="btn-ghost ev-view-btn ev-withdraw-btn" title="Withdraw">
+                                        <i class="fa-solid fa-trash-can"></i> Withdraw
+                                    </button>
+                                </form>
+                                <?php endif; ?>
+                            </div>
                         </td>
                     </tr>
                 <?php endforeach; endif; ?>

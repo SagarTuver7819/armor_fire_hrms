@@ -71,7 +71,7 @@ require_once __DIR__ . '/../../includes/header.php';
                         <th>Status</th>
                         <th>HR Response</th>
                         <th>Submitted</th>
-                        <th></th>
+                        <th>Actions</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -80,6 +80,7 @@ require_once __DIR__ . '/../../includes/header.php';
                 <?php else: foreach ($rows as $r):
                     $mt = (string) $r['module_type'];
                     $meta = $types[$mt] ?? null;
+                    $canMod = evEmployeeCanModifyTicket($r);
                     $hrReply = trim((string) ($r['hr_reply'] ?? ''));
                     $hrAt = (string) ($r['hr_reply_at'] ?? '');
                     $hrPreview = $hrReply !== ''
@@ -114,8 +115,24 @@ require_once __DIR__ . '/../../includes/header.php';
                         </td>
                         <td><?php echo !empty($r['submitted_at']) ? htmlspecialchars(formatDateTimeDisplay($r['submitted_at'])) : '—'; ?></td>
                         <td>
-                            <a class="btn-ghost ev-view-btn"
-                               href="<?php echo app_url('employee/voice/view.php?id=' . (int) $r['id']); ?>">View</a>
+                            <div class="ev-row-actions">
+                                <a class="btn-ghost ev-view-btn"
+                                   href="<?php echo app_url('employee/voice/view.php?id=' . (int) $r['id']); ?>">View</a>
+                                <?php if ($canMod): ?>
+                                <a class="btn-ghost ev-view-btn"
+                                   href="<?php echo app_url('employee/voice/submit.php?id=' . (int) $r['id']); ?>">
+                                    <i class="fa-solid fa-pen"></i> Edit
+                                </a>
+                                <form method="POST" action="<?php echo app_url('employee/voice/withdraw.php'); ?>"
+                                      class="ev-inline-form"
+                                      onsubmit="return confirm('Withdraw this ticket? You cannot undo this.');">
+                                    <input type="hidden" name="id" value="<?php echo (int) $r['id']; ?>">
+                                    <button type="submit" class="btn-ghost ev-view-btn ev-withdraw-btn">
+                                        <i class="fa-solid fa-trash-can"></i> Withdraw
+                                    </button>
+                                </form>
+                                <?php endif; ?>
+                            </div>
                         </td>
                     </tr>
                 <?php endforeach; endif; ?>

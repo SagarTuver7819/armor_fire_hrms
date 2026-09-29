@@ -1,6 +1,6 @@
 <?php
 /**
- * Employee Voice — save submission
+ * Employee Voice — save submission / update
  */
 
 require_once __DIR__ . '/../../config/app.php';
@@ -23,6 +23,8 @@ if (!$emp) {
 }
 
 $type = strtoupper(trim((string) ($_POST['module_type'] ?? '')));
+$ticketId = (int) ($_POST['ticket_id'] ?? 0);
+
 $data = [
     'module_type' => $type,
     'employee_id' => $empId,
@@ -58,6 +60,25 @@ $data = [
     'immediate_danger' => !empty($_POST['immediate_danger']),
     'immediate_action_taken' => $_POST['immediate_action_taken'] ?? '',
 ];
+
+if ($ticketId > 0) {
+    $existing = evGetTicket($ticketId);
+    if (!$existing || (int) ($existing['employee_id'] ?? 0) !== $empId) {
+        header('Location: ' . app_url('employee/voice/index.php'));
+        exit;
+    }
+    $result = evUpdateTicket($ticketId, $data);
+    if (empty($result['ok'])) {
+        $_SESSION['ev_flash_error'] = $result['error'] ?? 'Could not update';
+        header('Location: ' . app_url('employee/voice/submit.php?id=' . $ticketId));
+        exit;
+    }
+    if (!empty($_FILES['attachment']) && ($_FILES['attachment']['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_NO_FILE) {
+        evSaveAttachment($ticketId, $_FILES['attachment'], (int) ($_SESSION['user_id'] ?? 0));
+    }
+    header('Location: ' . app_url('employee/voice/view.php?id=' . $ticketId . '&updated=1'));
+    exit;
+}
 
 $result = evCreateTicket($data);
 if (empty($result['ok'])) {

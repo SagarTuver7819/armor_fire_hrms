@@ -45,20 +45,54 @@ function evStatusesByModule($moduleType)
         'GRIEVANCE' => [
             'Submitted', 'Screening', 'Assigned', 'Investigation',
             'Action Pending', 'Action in Progress', 'Resolved',
-            'Feedback Pending', 'Closed', 'Reopened',
+            'Feedback Pending', 'Closed', 'Reopened', 'Withdrawn',
         ],
         'SUGGESTION' => [
             'Submitted', 'Screening', 'Under Evaluation', 'Approved',
             'Rejected', 'On Hold', 'Implementation in Progress',
-            'Impact Measurement', 'Recognition Pending', 'Closed',
+            'Impact Measurement', 'Recognition Pending', 'Closed', 'Withdrawn',
         ],
         'SAFETY' => [
             'Reported', 'Risk Triage', 'Containment in Progress',
             'Investigation', 'Corrective Action Pending',
-            'Verification Pending', 'Verified', 'Closed', 'Reopened',
+            'Verification Pending', 'Verified', 'Closed', 'Reopened', 'Withdrawn',
         ],
     ];
-    return $map[$moduleType] ?? ['Submitted', 'Closed'];
+    return $map[$moduleType] ?? ['Submitted', 'Closed', 'Withdrawn'];
+}
+
+/**
+ * Employee may edit/withdraw only while ticket is still early-stage.
+ */
+function evEmployeeCanModifyTicket($ticket)
+{
+    if (!$ticket || !empty($ticket['is_deleted'])) {
+        return false;
+    }
+    $status = trim((string) ($ticket['status'] ?? ''));
+    $module = strtoupper(trim((string) ($ticket['module_type'] ?? '')));
+    $allowed = [
+        'GRIEVANCE' => ['Submitted', 'Screening'],
+        'SUGGESTION' => ['Submitted', 'Screening'],
+        'SAFETY' => ['Reported', 'Risk Triage'],
+    ];
+    $ok = $allowed[$module] ?? ['Submitted'];
+    return in_array($status, $ok, true);
+}
+
+/**
+ * Target status for HR "Complete" quick action
+ */
+function evCompleteStatusForModule($moduleType)
+{
+    $moduleType = strtoupper(trim((string) $moduleType));
+    if ($moduleType === 'SAFETY') {
+        return 'Verified';
+    }
+    if ($moduleType === 'SUGGESTION') {
+        return 'Closed';
+    }
+    return 'Resolved';
 }
 
 function evDefaultStatus($moduleType)
@@ -441,6 +475,169 @@ function evCreateTicket(array $data, $conn = null)
     ];
 }
 
+/**
+ * Employee update of own early-stage ticket
+ */
+function evUpdateTicket($ticketId, array $data, $conn = null)
+{
+    $close = false;
+    if ($conn === null) {
+        $conn = getDBConnection();
+        $close = true;
+    }
+    ensureEmployeeVoiceTables($conn);
+    $ticketId = (int) $ticketId;
+    $ticket = evGetTicket($ticketId, $conn);
+    if (!$ticket) {
+        if ($close) {
+            $conn->close();
+        }
+        return ['ok' => false, 'error' => 'Ticket not found'];
+    }
+    if (!evEmployeeCanModifyTicket($ticket)) {
+        if ($close) {
+            $conn->close();
+        }
+        return ['ok' => false, 'error' => 'This ticket can no longer be edited'];
+    }
+
+    $moduleType = (string) $ticket['module_type'];
+    $subject = trim((string) ($data['subject'] ?? ''));
+    $description = trim((string) ($data['description'] ?? ''));
+    $category = trim((string) ($data['category'] ?? ''));
+    if ($subject === '' || $description === '' || $category === '') {
+        if ($close) {
+            $conn->close();
+        }
+        return ['ok' => false, 'error' => 'Subject, description and category are required'];
+    }
+
+    $confidentiality = trim((string) ($data['confidentiality'] ?? $ticket['confidentiality']));
+    if (!in_array($confidentiality, evConfidentialityOptions(), true)) {
+        $confidentiality = (string) $ticket['confidentiality'];
+    }
+    $location = trim((string) ($data['location_name'] ?? ''));
+
+    $priority = (string) ($ticket['priority'] ?? 'Medium');
+    if ($moduleType === 'SAFETY') {
+        $sev = strtolower(trim((string) ($data['risk_severity'] ?? 'medium')));
+        $immediate = !empty($data['immediate_danger']);
+        if ($immediate || $sev === 'critical') {
+            $priority = 'Critical';
+        } elseif ($sev === 'high') {
+            $priority = 'High';
+        } elseif ($sev === 'low') {
+            $priority = 'Low';
+        } else {
+            $priority = 'Medium';
+        }
+    } elseif (!empty($data['immediate_assistance'])) {
+        $priority = 'High';
+    } else {
+        $priority = 'Medium';
+    }
+
+    $ok = $conn->query(
+        'UPDATE ev_ticket SET
+            location_name = ' . evSqlStr($conn, $location !== '' ? $location : null) . ',
+            category = ' . evSqlStr($conn, $category) . ',
+            subject = ' . evSqlStr($conn, $subject) . ',
+            description = ' . evSqlStr($conn, $description) . ',
+            confidentiality = ' . evSqlStr($conn, $confidentiality) . ',
+            priority = ' . evSqlStr($conn, $priority) . '
+         WHERE id = ' . $ticketId . ' AND is_deleted = 0'
+    );
+    if (!$ok) {
+        if ($close) {
+            $conn->close();
+        }
+        return ['ok' => false, 'error' => 'Could not update ticket'];
+    }
+
+    if ($moduleType === 'GRIEVANCE') {
+        $conn->query(
+            'UPDATE ev_grievance_detail SET
+                complaint_against = ' . evSqlStr($conn, $data['complaint_against'] ?? null) . ',
+                incident_date = ' . (!empty($data['incident_date']) ? evSqlStr($conn, $data['incident_date']) : 'NULL') . ',
+                incident_location = ' . evSqlStr($conn, $data['incident_location'] ?? null) . ',
+                confidential_handling = ' . (!empty($data['confidential_handling']) ? '1' : '0') . ',
+                preferred_contact = ' . evSqlStr($conn, $data['preferred_contact'] ?? null) . ',
+                immediate_assistance = ' . (!empty($data['immediate_assistance']) ? '1' : '0') . ',
+                requested_resolution = ' . evSqlStr($conn, $data['requested_resolution'] ?? null) . '
+             WHERE ticket_id = ' . $ticketId
+        );
+    } elseif ($moduleType === 'SUGGESTION') {
+        $conn->query(
+            'UPDATE ev_suggestion_detail SET
+                current_problem = ' . evSqlStr($conn, $data['current_problem'] ?? null) . ',
+                proposed_improvement = ' . evSqlStr($conn, $data['proposed_improvement'] ?? null) . ',
+                expected_benefit = ' . evSqlStr($conn, $data['expected_benefit'] ?? null) . ',
+                estimated_saving = ' . evSqlStr($conn, $data['estimated_saving'] ?? null) . ',
+                estimated_impl_cost = ' . evSqlStr($conn, $data['estimated_impl_cost'] ?? null) . ',
+                help_implement = ' . (!empty($data['help_implement']) ? '1' : '0') . '
+             WHERE ticket_id = ' . $ticketId
+        );
+    } else {
+        $conn->query(
+            'UPDATE ev_safety_detail SET
+                hazard_type = ' . evSqlStr($conn, $data['hazard_type'] ?? null) . ',
+                exact_location = ' . evSqlStr($conn, $data['exact_location'] ?? null) . ',
+                equipment_ref = ' . evSqlStr($conn, $data['equipment_ref'] ?? null) . ',
+                risk_severity = ' . evSqlStr($conn, $data['risk_severity'] ?? 'Medium') . ',
+                injury_near_miss = ' . (!empty($data['injury_near_miss']) ? '1' : '0') . ',
+                immediate_danger = ' . (!empty($data['immediate_danger']) ? '1' : '0') . ',
+                immediate_action_taken = ' . evSqlStr($conn, $data['immediate_action_taken'] ?? null) . '
+             WHERE ticket_id = ' . $ticketId
+        );
+    }
+
+    if ($close) {
+        $conn->close();
+    }
+    return ['ok' => true, 'ticket_id' => $ticketId];
+}
+
+/**
+ * Employee withdraw (soft close as Withdrawn)
+ */
+function evWithdrawTicket($ticketId, $employeeId, $changedBy = 0, $conn = null)
+{
+    $close = false;
+    if ($conn === null) {
+        $conn = getDBConnection();
+        $close = true;
+    }
+    ensureEmployeeVoiceTables($conn);
+    $ticket = evGetTicket((int) $ticketId, $conn);
+    if (!$ticket || (int) ($ticket['employee_id'] ?? 0) !== (int) $employeeId) {
+        if ($close) {
+            $conn->close();
+        }
+        return ['ok' => false, 'error' => 'Ticket not found'];
+    }
+    if (!evEmployeeCanModifyTicket($ticket)) {
+        if ($close) {
+            $conn->close();
+        }
+        return ['ok' => false, 'error' => 'This ticket can no longer be withdrawn'];
+    }
+    $res = evUpdateStatus((int) $ticketId, 'Withdrawn', 'Withdrawn by employee', (int) $changedBy, $conn);
+    if (!empty($res['ok'])) {
+        // Notify HR that employee withdrew
+        $types = evModuleTypes();
+        $label = $types[$ticket['module_type']]['short'] ?? 'Ticket';
+        $title = $label . ' withdrawn · ' . $ticket['ticket_no'];
+        $body = (string) ($ticket['subject'] ?? '');
+        foreach (evStaffNotifyUserIds($conn) as $uid) {
+            evInsertNotification((int) $ticketId, $uid, (int) $employeeId, 'Withdrawn', $title, $body, $conn);
+        }
+    }
+    if ($close) {
+        $conn->close();
+    }
+    return $res;
+}
+
 function evSaveAttachment($ticketId, array $file, $uploadedBy = 0, $conn = null)
 {
     if (empty($file['tmp_name']) || ($file['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) {
@@ -768,7 +965,7 @@ function evDashboardCounts($conn = null)
     }
     $r2 = $conn->query(
         "SELECT COUNT(*) AS c FROM ev_ticket
-         WHERE is_deleted = 0 AND status NOT IN ('Closed','Rejected')"
+         WHERE is_deleted = 0 AND status NOT IN ('Closed','Rejected','Withdrawn','Verified','Resolved')"
     );
     if ($r2 && ($x = $r2->fetch_assoc())) {
         $out['open'] = (int) $x['c'];
@@ -790,6 +987,9 @@ function evDashboardCounts($conn = null)
 function evStatusBadgeStyle($status)
 {
     $s = strtolower((string) $status);
+    if (strpos($s, 'withdraw') !== false) {
+        return 'background:#f1f5f9;color:#64748b;';
+    }
     if (strpos($s, 'closed') !== false || strpos($s, 'verified') !== false || strpos($s, 'resolved') !== false) {
         return 'background:#dcfce7;color:#15803d;';
     }

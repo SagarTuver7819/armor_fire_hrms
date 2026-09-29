@@ -28,6 +28,9 @@ $types = evModuleTypes();
 $meta = $types[$ticket['module_type']] ?? ['label' => $ticket['module_type'], 'color' => '#333', 'icon' => 'fa-ticket', 'bg' => '#eee'];
 $detail = $ticket['detail'] ?? [];
 $created = isset($_GET['created']);
+$updated = isset($_GET['updated']);
+$canMod = evEmployeeCanModifyTicket($ticket);
+$errMsg = trim((string) ($_GET['msg'] ?? ''));
 
 $pageTitle = $ticket['ticket_no'];
 $useSidebar = true;
@@ -39,12 +42,27 @@ require_once __DIR__ . '/../../includes/header.php';
 
 <main class="dashboard-main">
     <div class="page-toolbar flex-between">
-        <a href="<?php echo app_url('employee/voice/my.php'); ?>" class="back-link">
+        <a href="<?php echo app_url('employee/voice/index.php#my-submissions'); ?>" class="back-link">
             <i class="fa-solid fa-arrow-left"></i> My Submissions
         </a>
-        <a href="<?php echo app_url('employee/voice/index.php'); ?>" class="btn-secondary">
-            <i class="fa-solid fa-plus"></i> New Submission
-        </a>
+        <div class="ev-row-actions">
+            <?php if ($canMod): ?>
+            <a href="<?php echo app_url('employee/voice/submit.php?id=' . (int) $ticket['id']); ?>" class="btn-secondary">
+                <i class="fa-solid fa-pen"></i> Edit
+            </a>
+            <form method="POST" action="<?php echo app_url('employee/voice/withdraw.php'); ?>"
+                  class="ev-inline-form"
+                  onsubmit="return confirm('Withdraw this ticket? You cannot undo this.');">
+                <input type="hidden" name="id" value="<?php echo (int) $ticket['id']; ?>">
+                <button type="submit" class="btn-secondary ev-withdraw-btn">
+                    <i class="fa-solid fa-trash-can"></i> Withdraw
+                </button>
+            </form>
+            <?php endif; ?>
+            <a href="<?php echo app_url('employee/voice/index.php'); ?>" class="btn-secondary">
+                <i class="fa-solid fa-plus"></i> New Submission
+            </a>
+        </div>
     </div>
 
     <?php if ($created): ?>
@@ -52,6 +70,12 @@ require_once __DIR__ . '/../../includes/header.php';
         <i class="fa-solid fa-circle-check"></i>
         Ticket <strong><?php echo htmlspecialchars((string) $ticket['ticket_no']); ?></strong> submitted successfully.
     </div>
+    <?php elseif ($updated): ?>
+    <div class="alert alert-success" style="margin-bottom:14px;">
+        <i class="fa-solid fa-circle-check"></i> Ticket updated successfully.
+    </div>
+    <?php elseif ($errMsg !== ''): ?>
+    <div class="alert alert-error" style="margin-bottom:14px;"><?php echo htmlspecialchars($errMsg); ?></div>
     <?php endif; ?>
 
     <div class="ev-wrap">

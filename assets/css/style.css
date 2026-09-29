@@ -9821,11 +9821,38 @@ body.co-about-open { overflow: hidden; }
     padding: 22px 18px;
     background: var(--ev-bg, #f8fafc);
     transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease;
+    position: relative;
 }
 .ev-hub-card:hover {
     transform: translateY(-2px);
     box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
     border-color: color-mix(in srgb, var(--ev-accent, #d2232a) 35%, #e5e7eb);
+}
+.ev-hub-add {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    background: var(--ev-accent, #d2232a);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    box-shadow: 0 4px 12px color-mix(in srgb, var(--ev-accent, #d2232a) 35%, transparent);
+}
+.ev-hub-card-cta {
+    margin-top: 14px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12.5px;
+    font-weight: 800;
+    color: var(--ev-accent, #d2232a);
+    text-transform: uppercase;
+    letter-spacing: .03em;
 }
 .ev-hub-card-ico {
     width: 52px;
@@ -9910,6 +9937,21 @@ body.co-about-open { overflow: hidden; }
 .ev-view-btn {
     padding: 5px 10px;
     font-size: 12px;
+}
+.ev-row-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    align-items: center;
+}
+.ev-inline-form { display: inline; margin: 0; }
+.ev-withdraw-btn { color: #b91c1c !important; border-color: #fecaca !important; }
+.ev-withdraw-btn:hover { background: #fef2f2 !important; }
+.ev-quick-status {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: center;
 }
 .ev-my-table .status-badge i { margin-right: 4px; font-size: 11px; }
 @media (max-width: 900px) {

@@ -118,7 +118,7 @@ require_once __DIR__ . '/../includes/header.php';
                         <th>Priority</th>
                         <th>Status</th>
                         <th>Submitted</th>
-                        <th></th>
+                        <th>Actions</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -127,10 +127,10 @@ require_once __DIR__ . '/../includes/header.php';
                 <?php else: foreach ($rows as $r):
                     $mt = (string) $r['module_type'];
                     $meta = $types[$mt] ?? null;
-                    $showName = true;
-                    if (($r['confidentiality'] ?? '') === 'Anonymous' && !isAdmin() && !isHR()) {
-                        // still show for admin/HR managers — they need identity for investigation
-                    }
+                    $st = (string) ($r['status'] ?? '');
+                    $canClose = !in_array($st, ['Closed', 'Withdrawn'], true);
+                    $canComplete = !in_array($st, ['Resolved', 'Verified', 'Closed', 'Withdrawn'], true);
+                    $completeTo = evCompleteStatusForModule($mt);
                 ?>
                     <tr>
                         <td><strong><?php echo htmlspecialchars((string) $r['ticket_no']); ?></strong></td>
@@ -154,8 +154,30 @@ require_once __DIR__ . '/../includes/header.php';
                         <td><span class="status-badge" style="<?php echo evStatusBadgeStyle($r['status']); ?>"><?php echo htmlspecialchars((string) $r['status']); ?></span></td>
                         <td><?php echo !empty($r['submitted_at']) ? htmlspecialchars(formatDateTimeDisplay($r['submitted_at'])) : '—'; ?></td>
                         <td>
-                            <a class="btn-ghost" style="padding:5px 10px;font-size:12px;"
-                               href="<?php echo app_url('employee_voice/view.php?id=' . (int) $r['id']); ?>">Open</a>
+                            <div class="ev-row-actions">
+                                <a class="btn-ghost ev-view-btn"
+                                   href="<?php echo app_url('employee_voice/view.php?id=' . (int) $r['id']); ?>">Open</a>
+                                <?php if ($canComplete): ?>
+                                <form method="POST" action="<?php echo app_url('employee_voice/view.php?id=' . (int) $r['id']); ?>"
+                                      class="ev-inline-form"
+                                      onsubmit="return confirm('Mark as <?php echo htmlspecialchars($completeTo); ?>?');">
+                                    <input type="hidden" name="action" value="complete">
+                                    <button type="submit" class="btn-ghost ev-view-btn" style="color:#15803d;border-color:#bbf7d0;" title="Complete">
+                                        <i class="fa-solid fa-circle-check"></i>
+                                    </button>
+                                </form>
+                                <?php endif; ?>
+                                <?php if ($canClose): ?>
+                                <form method="POST" action="<?php echo app_url('employee_voice/view.php?id=' . (int) $r['id']); ?>"
+                                      class="ev-inline-form"
+                                      onsubmit="return confirm('Close this ticket?');">
+                                    <input type="hidden" name="action" value="close">
+                                    <button type="submit" class="btn-ghost ev-view-btn" title="Close">
+                                        <i class="fa-solid fa-lock"></i>
+                                    </button>
+                                </form>
+                                <?php endif; ?>
+                            </div>
                         </td>
                     </tr>
                 <?php endforeach; endif; ?>
