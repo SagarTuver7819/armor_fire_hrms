@@ -245,7 +245,8 @@ $stmtC->close();
 
 // Data page
 $dataSql = "SELECT e.id, e.employee_code, e.employee_name, e.designation, e.mobile_number,
-                   e.date_of_joining, e.date_of_exit, e.shift_type, e.department_id, e.pay_type, e.status, d.department_name,
+                   e.date_of_joining, e.date_of_exit, e.shift_type, e.department_id, e.pay_type, e.status,
+                   e.appointment_letter_no, d.department_name,
                    ast.name AS assigned_state_name, aloc.name AS assigned_location_name
             FROM employees e
             LEFT JOIN departments d ON d.id = e.department_id
@@ -280,10 +281,25 @@ while ($row = $result->fetch_assoc()) {
     $payLabel = function_exists('payTypeLabel') ? payTypeLabel($payType) : $payType;
 
     $isDeactive = isEmployeeDeactive($row);
-    $nameHtml = '<a class="emp-name-link" href="' . htmlspecialchars($viewUrl) . '">' . htmlspecialchars($row['employee_name']) . '</a>';
+    $appointUrl = app_url('employees/appointment_letter.php?id=' . $id);
+    $hasAppoint = trim((string) ($row['appointment_letter_no'] ?? '')) !== '';
+    $appointLabel = $hasAppoint ? 'Appointment Letter' : 'Generate Appointment Letter';
+    $appointTitle = $hasAppoint
+        ? 'Open Appointment Letter (' . trim((string) $row['appointment_letter_no']) . ')'
+        : 'Generate Appointment Letter';
+
+    $nameHtml = '<div class="emp-name-cell" onclick="event.stopPropagation();">';
+    $nameHtml .= '<a class="emp-name-link" href="' . htmlspecialchars($viewUrl) . '">' . htmlspecialchars($row['employee_name']) . '</a>';
     if ($isDeactive && !$isExit) {
         $nameHtml .= ' <span class="pay-pill is-jobwork" title="Soft-deleted / deactive">Deactive</span>';
     }
+    if (!$isExit && (canAccess('employees', 'view', (int) $row['department_id']) || isAdmin() || isHR())) {
+        $nameHtml .= ' <a class="emp-appoint-link' . ($hasAppoint ? ' is-issued' : '') . '" href="'
+            . htmlspecialchars($appointUrl) . '" target="_blank" rel="noopener" title="'
+            . htmlspecialchars($appointTitle) . '"><i class="fa-solid fa-file-signature"></i> '
+            . htmlspecialchars($appointLabel) . '</a>';
+    }
+    $nameHtml .= '</div>';
 
     $item = [
         $sr++,

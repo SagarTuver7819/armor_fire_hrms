@@ -1152,7 +1152,7 @@ if (!function_exists('ensureRecruitmentTables')) {
     /**
      * Next series no:
      * Offer: ASIPL/HR/OFFER/26-27/0001
-     * Appointment: APT/2026/0001
+     * Appointment: ASIPL/HR/APPOINT/26-27/0001
      */
     function recruitmentNextDocNo($docType, $conn = null)
     {
@@ -1167,13 +1167,8 @@ if (!function_exists('ensureRecruitmentTables')) {
             $docType = 'offer';
         }
 
-        if ($docType === 'offer') {
-            $year = recruitmentFinancialYearStart();
-            $fyLabel = recruitmentFinancialYearLabel();
-        } else {
-            $year = (int) date('Y');
-            $fyLabel = '';
-        }
+        $year = recruitmentFinancialYearStart();
+        $fyLabel = recruitmentFinancialYearLabel();
 
         $conn->query(
             "INSERT INTO recruitment_doc_series (doc_type, series_year, last_no)
@@ -1196,11 +1191,36 @@ if (!function_exists('ensureRecruitmentTables')) {
         if ($docType === 'offer') {
             $no = 'ASIPL/HR/OFFER/' . $fyLabel . '/' . str_pad((string) $n, 4, '0', STR_PAD_LEFT);
         } else {
-            $no = 'APT/' . $year . '/' . str_pad((string) $n, 4, '0', STR_PAD_LEFT);
+            $no = 'ASIPL/HR/APPOINT/' . $fyLabel . '/' . str_pad((string) $n, 4, '0', STR_PAD_LEFT);
         }
 
         if ($close) {
             $conn->close();
+        }
+        return $no;
+    }
+
+    /**
+     * Normalize appointment nos → ASIPL/HR/APPOINT/YY-YY/####
+     */
+    function recruitmentNormalizeAppointmentLetterNo($no, $refDate = null)
+    {
+        $no = trim((string) $no);
+        if ($no === '') {
+            return '';
+        }
+        if (preg_match('#^ASIPL/HR/APPOINT/\d{2}-\d{2}/\d+$#', $no)) {
+            return $no;
+        }
+        if (preg_match('#^APT/(\d{4})/(\d+)$#', $no, $m)) {
+            $calYear = (int) $m[1];
+            $seq = (int) $m[2];
+            $fyLabel = recruitmentFinancialYearLabel($refDate ?: ($calYear . '-09-01'));
+            return 'ASIPL/HR/APPOINT/' . $fyLabel . '/' . str_pad((string) $seq, 4, '0', STR_PAD_LEFT);
+        }
+        if (preg_match('#^ASIPL/HR/APPOINT/(\d{4})/(\d+)$#', $no, $m)) {
+            $fyLabel = recruitmentFinancialYearLabel($refDate ?: ($m[1] . '-09-01'));
+            return 'ASIPL/HR/APPOINT/' . $fyLabel . '/' . str_pad((string) ((int) $m[2]), 4, '0', STR_PAD_LEFT);
         }
         return $no;
     }
@@ -1403,6 +1423,17 @@ if (!function_exists('ensureRecruitmentTables')) {
             return ['ok' => false, 'error' => 'Mark “Appears to Duty” before appointment letter'];
         }
         $no = trim((string) ($row['appointment_letter_no'] ?? ''));
+        if ($no !== '') {
+            $normalized = recruitmentNormalizeAppointmentLetterNo($no, $row['appointment_letter_date'] ?? null);
+            if ($normalized !== '' && $normalized !== $no) {
+                $no = $normalized;
+                $conn->query(
+                    'UPDATE recruitment_applications SET
+                        appointment_letter_no = ' . recruitmentSqlStr($conn, $no) . '
+                     WHERE id = ' . $applicationId
+                );
+            }
+        }
         if ($no === '') {
             $no = recruitmentNextDocNo('appointment', $conn);
             $conn->query(

@@ -80,6 +80,9 @@ function ensureEmployeesTable($conn = null)
     ensureEmployeeColumn($conn, 'pf_employer_contribution', "pf_employer_contribution DECIMAL(12,2) DEFAULT NULL AFTER pf_employee_contribution");
     ensureEmployeeColumn($conn, 'assigned_state_id', "assigned_state_id INT DEFAULT NULL AFTER sub_department_id");
     ensureEmployeeColumn($conn, 'assigned_location_id', "assigned_location_id INT DEFAULT NULL AFTER assigned_state_id");
+    ensureEmployeeColumn($conn, 'appointment_letter_no', "appointment_letter_no VARCHAR(40) DEFAULT NULL AFTER date_of_joining");
+    ensureEmployeeColumn($conn, 'appointment_letter_date', "appointment_letter_date DATE DEFAULT NULL AFTER appointment_letter_no");
+    ensureEmployeeColumn($conn, 'appointment_generated_at', "appointment_generated_at DATETIME DEFAULT NULL AFTER appointment_letter_date");
 
     // Auto-sync: Exit date reached (today or past) → Deactive. Future exit date keeps Active.
     $conn->query(
@@ -1632,5 +1635,79 @@ function employeeImportFile($conn, $filePath, $originalName, $defaultDeptId = 0,
         'errors' => $errors,
         'error_log' => $errorLog,
     ];
+}
+
+/**
+ * Issue / reuse Appointment Letter no for an employee.
+ * Series: ASIPL/HR/APPOINT/{FY}/####
+ * @return array{ok:bool,appointment_letter_no?:string,error?:string}
+ */
+function employeeIssueAppointmentLetter($employeeId, $conn = null)
+{
+    $close = false;
+    if ($conn === null) {
+        $conn = getDBConnection();
+        $close = true;
+    }
+    ensureEmployeesTable($conn);
+    $employeeId = (int) $employeeId;
+    if ($employeeId <= 0) {
+        if ($close) {
+            $conn->close();
+        }
+        return ['ok' => false, 'error' => 'Invalid employee'];
+    }
+
+    $st = $conn->prepare(
+        'SELECT id, employee_name, appointment_letter_no, appointment_letter_date
+         FROM employees WHERE id = ? LIMIT 1'
+    );
+    $st->bind_param('i', $employeeId);
+    $st->execute();
+    $row = $st->get_result()->fetch_assoc();
+    $st->close();
+    if (!$row) {
+        if ($close) {
+            $conn->close();
+        }
+        return ['ok' => false, 'error' => 'Employee not found'];
+    }
+
+    if (!function_exists('recruitmentNextDocNo')) {
+        require_once __DIR__ . '/recruitment_helper.php';
+    }
+
+    $no = trim((string) ($row['appointment_letter_no'] ?? ''));
+    if ($no !== '' && function_exists('recruitmentNormalizeAppointmentLetterNo')) {
+        $normalized = recruitmentNormalizeAppointmentLetterNo($no, $row['appointment_letter_date'] ?? null);
+        if ($normalized !== '' && $normalized !== $no) {
+            $no = $normalized;
+            $up = $conn->prepare(
+                'UPDATE employees SET appointment_letter_no = ? WHERE id = ?'
+            );
+            $up->bind_param('si', $no, $employeeId);
+            $up->execute();
+            $up->close();
+        }
+    }
+
+    if ($no === '') {
+        $no = recruitmentNextDocNo('appointment', $conn);
+        $up = $conn->prepare(
+            'UPDATE employees SET
+                appointment_letter_no = ?,
+                appointment_letter_date = CURDATE(),
+                appointment_generated_at = NOW()
+             WHERE id = ?'
+        );
+        $up->bind_param('si', $no, $employeeId);
+        $up->execute();
+        $up->close();
+    }
+
+    if ($close) {
+        $conn->close();
+    }
+    return ['ok' => true, 'appointment_letter_no' => $no];
 }
 
