@@ -7363,12 +7363,11 @@ a.hr-kpi:hover {
 }
 .salary-revise-wrap #decidedSalary {
     flex: 1;
-    background: #f8fafc;
-    cursor: pointer;
 }
 .salary-revise-wrap #btnReviseSalary {
     white-space: nowrap;
-    padding: 0 14px;
+    padding: 0 12px;
+    font-size: 13px;
 }
 .salary-history-box {
     margin-top: 4px;

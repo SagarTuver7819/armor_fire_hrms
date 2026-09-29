@@ -602,9 +602,9 @@ $ob = empField($employee, 'overtime_benefits', 'No');
                             <div class="salary-revise-wrap">
                                 <input type="number" step="0.01" name="decided_salary" id="decidedSalary" class="form-control"
                                        value="<?php echo htmlspecialchars(empField($employee, 'decided_salary')); ?>"
-                                       readonly title="Click Revise to change salary">
-                                <button type="button" class="btn-secondary" id="btnReviseSalary" title="Increase / decrease salary">
-                                    <i class="fa-solid fa-pen-to-square"></i> Revise
+                                       title="You can edit salary directly, or use Add Increment Details for history">
+                                <button type="button" class="btn-secondary" id="btnReviseSalary" title="Add increment / decrease with effective date">
+                                    <i class="fa-solid fa-plus"></i> Add Increment Details
                                 </button>
                             </div>
                         <?php else: ?>
@@ -620,7 +620,7 @@ $ob = empField($employee, 'overtime_benefits', 'No');
                         <div id="salaryHistoryBox" class="salary-history-box">
                             <div class="salary-history-head">Salary History</div>
                             <p class="salary-history-empty" id="salaryHistoryEmpty" <?php echo $hasSalHist ? 'hidden' : ''; ?>>
-                                No revisions yet. Use Revise to add increase / decrease.
+                                No increment details yet. Use Add Increment Details for increase / decrease.
                             </p>
                             <div class="salary-history-scroll" <?php echo $hasSalHist ? '' : 'hidden'; ?>>
                                 <table class="salary-history-table">
@@ -828,7 +828,7 @@ $ob = empField($employee, 'overtime_benefits', 'No');
 <div id="salaryReviseModal" class="salary-revise-modal" hidden>
     <div class="salary-revise-backdrop" data-close-salary-modal></div>
     <div class="salary-revise-box" role="dialog" aria-labelledby="salaryReviseTitle">
-        <h3 id="salaryReviseTitle"><i class="fa-solid fa-indian-rupee-sign"></i> Revise Decided Salary</h3>
+        <h3 id="salaryReviseTitle"><i class="fa-solid fa-indian-rupee-sign"></i> Add Increment Details</h3>
         <p class="salary-revise-sub">Existing salary + increase/decrease + from which date new salary starts</p>
         <div class="salary-revise-grid">
             <div class="form-group">
