@@ -68,25 +68,25 @@ if (isset($_GET['msg'])) {
 
         <div class="co-master-view-body">
             <?php foreach (($body['paragraphs'] ?? []) as $p): ?>
-                <p><?php echo nl2br(htmlspecialchars((string) $p)); ?></p>
+                <p><?php echo companyContentHighlightHtml((string) $p); ?></p>
             <?php endforeach; ?>
 
             <?php if (!empty($body['products_2021'])): ?>
                 <h3>2021 Expansion Products</h3>
-                <ul class="co-master-list">
+                <div class="co-about-chips is-blue">
                     <?php foreach ($body['products_2021'] as $item): ?>
-                        <li><?php echo htmlspecialchars((string) $item); ?></li>
+                        <span><?php echo htmlspecialchars((string) $item); ?></span>
                     <?php endforeach; ?>
-                </ul>
+                </div>
             <?php endif; ?>
 
             <?php if (!empty($body['products_today'])): ?>
                 <h3>Products Today</h3>
-                <ul class="co-master-list">
+                <div class="co-about-chips is-red">
                     <?php foreach ($body['products_today'] as $item): ?>
-                        <li><?php echo htmlspecialchars((string) $item); ?></li>
+                        <span><?php echo htmlspecialchars((string) $item); ?></span>
                     <?php endforeach; ?>
-                </ul>
+                </div>
             <?php endif; ?>
         </div>
     </div>

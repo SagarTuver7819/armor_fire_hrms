@@ -977,14 +977,28 @@ $denied = isset($_GET['msg']) && $_GET['msg'] === 'denied';
 <?php if ($showCompanyPopup && ($companyHistory || $companyVision)):
     $hBody = is_array($companyHistory['body'] ?? null) ? $companyHistory['body'] : companyContentDefaultHistory();
     $vBody = is_array($companyVision['body'] ?? null) ? $companyVision['body'] : companyContentDefaultVision();
+    $popupCompanyName = trim((string) ($hBody['company'] ?? ''));
+    if ($popupCompanyName === '') {
+        $popupCompanyName = 'Armor Steel Industries Pvt. Ltd.';
+    }
+    $popupLogoSrc = $logoSrc ?? app_url('assets/images/logo-placeholder.svg');
 ?>
 <div class="co-about-modal" id="coAboutModal" role="dialog" aria-modal="true" aria-labelledby="coAboutTitle">
     <div class="co-about-backdrop"></div>
     <div class="co-about-dialog">
         <div class="co-about-top">
-            <div>
-                <p class="co-about-eyebrow">ARMOR FIRE</p>
-                <h2 id="coAboutTitle">About Our Company</h2>
+            <div class="co-about-brand">
+                <div class="co-about-logo-wrap">
+                    <img src="<?php echo htmlspecialchars($popupLogoSrc); ?>"
+                         alt="<?php echo htmlspecialchars($popupCompanyName); ?>"
+                         class="co-about-logo"
+                         onerror="this.src='<?php echo app_url('assets/images/logo-placeholder.svg'); ?>'">
+                </div>
+                <div class="co-about-brand-text">
+                    <p class="co-about-eyebrow">ARMOR FIRE</p>
+                    <h2 id="coAboutTitle"><?php echo htmlspecialchars($popupCompanyName); ?></h2>
+                    <p class="co-about-sub">About Our Company · History · Vision · Mission · Values</p>
+                </div>
             </div>
             <button type="button" class="co-about-close" id="coAboutClose" aria-label="Close">
                 <i class="fa-solid fa-xmark"></i>
@@ -996,28 +1010,28 @@ $denied = isset($_GET['msg']) && $_GET['msg'] === 'denied';
                     <i class="fa-solid fa-book-open"></i>
                     <div>
                         <h3><?php echo htmlspecialchars((string) ($hBody['heading'] ?? 'Company History')); ?></h3>
-                        <p><?php echo htmlspecialchars((string) ($hBody['company'] ?? '')); ?></p>
+                        <p>Our journey · Manufacturing excellence</p>
                     </div>
                 </div>
                 <div class="co-about-scroll">
                     <?php foreach (($hBody['paragraphs'] ?? []) as $p): ?>
-                        <p><?php echo nl2br(htmlspecialchars((string) $p)); ?></p>
+                        <p><?php echo companyContentHighlightHtml((string) $p); ?></p>
                     <?php endforeach; ?>
                     <?php if (!empty($hBody['products_2021'])): ?>
-                        <h4>2021 Expansion Products</h4>
-                        <ul>
+                        <h4><i class="fa-solid fa-industry"></i> 2021 Expansion Products</h4>
+                        <div class="co-about-chips is-blue">
                             <?php foreach ($hBody['products_2021'] as $item): ?>
-                                <li><?php echo htmlspecialchars((string) $item); ?></li>
+                                <span><?php echo htmlspecialchars((string) $item); ?></span>
                             <?php endforeach; ?>
-                        </ul>
+                        </div>
                     <?php endif; ?>
                     <?php if (!empty($hBody['products_today'])): ?>
-                        <h4>Products Today</h4>
-                        <ul>
+                        <h4><i class="fa-solid fa-fire-extinguisher"></i> Products Today</h4>
+                        <div class="co-about-chips is-red">
                             <?php foreach ($hBody['products_today'] as $item): ?>
-                                <li><?php echo htmlspecialchars((string) $item); ?></li>
+                                <span><?php echo htmlspecialchars((string) $item); ?></span>
                             <?php endforeach; ?>
-                        </ul>
+                        </div>
                     <?php endif; ?>
                 </div>
             </section>
@@ -1031,20 +1045,25 @@ $denied = isset($_GET['msg']) && $_GET['msg'] === 'denied';
                 </div>
                 <div class="co-about-scroll">
                     <?php if (!empty($vBody['leadership'])): ?>
-                        <p class="co-about-lead"><?php echo nl2br(htmlspecialchars((string) $vBody['leadership'])); ?></p>
+                        <div class="co-about-lead">
+                            <span class="co-about-lead-label"><i class="fa-solid fa-user-tie"></i> Leadership</span>
+                            <p><?php echo companyContentHighlightHtml((string) $vBody['leadership']); ?></p>
+                        </div>
                     <?php endif; ?>
-                    <h4>Vision</h4>
-                    <p><?php echo nl2br(htmlspecialchars((string) ($vBody['vision'] ?? ''))); ?></p>
+                    <div class="co-about-callout is-vision-box">
+                        <h4><i class="fa-solid fa-eye"></i> Vision</h4>
+                        <p><?php echo companyContentHighlightHtml((string) ($vBody['vision'] ?? '')); ?></p>
+                    </div>
                     <?php if (!empty($vBody['mission'])): ?>
-                        <h4>Mission</h4>
-                        <ul>
+                        <h4><i class="fa-solid fa-flag"></i> Mission</h4>
+                        <ul class="co-about-mission">
                             <?php foreach ($vBody['mission'] as $item): ?>
-                                <li><?php echo htmlspecialchars((string) $item); ?></li>
+                                <li><i class="fa-solid fa-check"></i> <span><?php echo companyContentHighlightHtml((string) $item); ?></span></li>
                             <?php endforeach; ?>
                         </ul>
                     <?php endif; ?>
                     <?php if (!empty($vBody['core_values'])): ?>
-                        <h4>Core Values</h4>
+                        <h4><i class="fa-solid fa-gem"></i> Core Values</h4>
                         <div class="co-about-values">
                             <?php foreach ($vBody['core_values'] as $item): ?>
                                 <span><?php echo htmlspecialchars((string) $item); ?></span>

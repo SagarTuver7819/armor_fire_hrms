@@ -68,17 +68,19 @@ if (isset($_GET['msg'])) {
 
         <div class="co-master-view-body">
             <?php if (!empty($body['leadership'])): ?>
-                <div class="co-master-lead"><?php echo nl2br(htmlspecialchars((string) $body['leadership'])); ?></div>
+                <div class="co-master-lead"><?php echo companyContentHighlightHtml((string) $body['leadership']); ?></div>
             <?php endif; ?>
 
-            <h3>Vision</h3>
-            <p><?php echo nl2br(htmlspecialchars((string) ($body['vision'] ?? ''))); ?></p>
+            <div class="co-about-callout is-vision-box">
+                <h4 style="margin:0 0 6px;font-size:12.5px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;">Vision</h4>
+                <p><?php echo companyContentHighlightHtml((string) ($body['vision'] ?? '')); ?></p>
+            </div>
 
             <?php if (!empty($body['mission'])): ?>
                 <h3>Mission</h3>
-                <ul class="co-master-list">
+                <ul class="co-about-mission">
                     <?php foreach ($body['mission'] as $item): ?>
-                        <li><?php echo htmlspecialchars((string) $item); ?></li>
+                        <li><i class="fa-solid fa-check"></i> <span><?php echo companyContentHighlightHtml((string) $item); ?></span></li>
                     <?php endforeach; ?>
                 </ul>
             <?php endif; ?>
