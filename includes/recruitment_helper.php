@@ -98,6 +98,70 @@ if (!function_exists('ensureRecruitmentTables')) {
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
         );
 
+        $conn->query(
+            "CREATE TABLE IF NOT EXISTS recruitment_criteria (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                position_name VARCHAR(150) NOT NULL DEFAULT '',
+                criteria_label VARCHAR(500) NOT NULL,
+                answer_type VARCHAR(20) NOT NULL DEFAULT 'yesno',
+                sort_order INT NOT NULL DEFAULT 0,
+                status TINYINT(1) NOT NULL DEFAULT 1,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                INDEX idx_rec_crit_pos (position_name),
+                INDEX idx_rec_crit_status (status)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+        );
+
+        $conn->query(
+            "CREATE TABLE IF NOT EXISTS recruitment_application_marks (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                application_id INT NOT NULL,
+                criteria_id INT DEFAULT NULL,
+                criteria_label VARCHAR(500) NOT NULL DEFAULT '',
+                is_checked TINYINT(1) NOT NULL DEFAULT 0,
+                score_value INT DEFAULT NULL,
+                answer_value TEXT,
+                remarks TEXT,
+                updated_by INT DEFAULT NULL,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                UNIQUE KEY uq_rec_mark_app_label (application_id, criteria_label(191)),
+                INDEX idx_rec_mark_app (application_id)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+        );
+
+        // Column upgrades for existing installs
+        $critCols = [
+            'answer_type' => "VARCHAR(20) NOT NULL DEFAULT 'yesno' AFTER criteria_label",
+        ];
+        foreach ($critCols as $col => $def) {
+            $chk = $conn->query("SHOW COLUMNS FROM recruitment_criteria LIKE '" . $conn->real_escape_string($col) . "'");
+            if ($chk && $chk->num_rows === 0) {
+                @$conn->query("ALTER TABLE recruitment_criteria ADD COLUMN {$col} {$def}");
+            }
+        }
+        $markCols = [
+            'score_value' => 'INT DEFAULT NULL AFTER is_checked',
+            'answer_value' => 'TEXT AFTER score_value',
+        ];
+        foreach ($markCols as $col => $def) {
+            $chk = $conn->query("SHOW COLUMNS FROM recruitment_application_marks LIKE '" . $conn->real_escape_string($col) . "'");
+            if ($chk && $chk->num_rows === 0) {
+                @$conn->query("ALTER TABLE recruitment_application_marks ADD COLUMN {$col} {$def}");
+            }
+        }
+        // Widen remarks if still VARCHAR
+        $rm = $conn->query("SHOW COLUMNS FROM recruitment_application_marks LIKE 'remarks'");
+        if ($rm && ($rr = $rm->fetch_assoc()) && stripos((string) ($rr['Type'] ?? ''), 'varchar') !== false) {
+            @$conn->query('ALTER TABLE recruitment_application_marks MODIFY remarks TEXT');
+        }
+        $cl = $conn->query("SHOW COLUMNS FROM recruitment_criteria LIKE 'criteria_label'");
+        if ($cl && ($cr = $cl->fetch_assoc()) && stripos((string) ($cr['Type'] ?? ''), 'varchar(200)') !== false) {
+            @$conn->query('ALTER TABLE recruitment_criteria MODIFY criteria_label VARCHAR(500) NOT NULL');
+        }
+
+        // Seed / refresh HR interview matrix (blank position = all positions)
+        recruitmentEnsureHrMatrixSeeded($conn);
+
         $extraCols = [
             'age_years' => "INT DEFAULT NULL AFTER dob",
             'aadhaar_no' => "VARCHAR(20) DEFAULT NULL AFTER pincode",
@@ -334,6 +398,306 @@ if (!function_exists('ensureRecruitmentTables')) {
             'management' => 'Management',
             'employee' => 'Employee side',
         ];
+    }
+
+    /**
+     * HR Round interview matrix (reference checklist).
+     * type: yesno | score | text
+     */
+    function recruitmentDefaultHrCriteria()
+    {
+        return [
+            ['label' => 'Candidate behavior proper during interview?', 'type' => 'yesno'],
+            ['label' => 'English communication skill (out of 10)', 'type' => 'score'],
+            ['label' => 'Candidate has worked anywhere as team member / leader previously (social / college / any company)?', 'type' => 'yesno'],
+            ['label' => 'Candidate has made new initiate / innovation / change into previous / current company, which is beneficial to him / her / company?', 'type' => 'text'],
+            ['label' => 'What is important when candidate doing work — work or money?', 'type' => 'text'],
+            ['label' => 'Any self-learning done last 1 month?', 'type' => 'yesno'],
+            ['label' => 'Candidate has deep learning habits?', 'type' => 'yesno'],
+            ['label' => 'What is important from fundamental / framework for candidate? (Yes = fundamental)', 'type' => 'yesno'],
+            ['label' => 'Is candidate 5 years personal / professional goals defined?', 'type' => 'yesno'],
+            ['label' => 'Why candidate planning to work in Rajkot / Ahmedabad?', 'type' => 'text'],
+            ['label' => 'What family member (father, mother, brother, sister) background of candidate?', 'type' => 'text'],
+            ['label' => 'Do candidate / family member has any health issue (admitted into hospital in last 3 years)?', 'type' => 'text'],
+            ['label' => 'Candidate from outside city — how do they manage office / family life?', 'type' => 'text'],
+            ['label' => 'Candidate want to looking for master degree?', 'type' => 'yesno'],
+            ['label' => 'Candidate want to looking for government job?', 'type' => 'yesno'],
+            ['label' => 'Candidate want to move into foreign in future?', 'type' => 'yesno'],
+            ['label' => 'If married female candidate — any short term family planning?', 'type' => 'text'],
+            ['label' => 'If unmarried female candidate — when plan for marriage? If short term plan then Rajkot or other city?', 'type' => 'text'],
+            ['label' => 'Is candidate doing study / internal then want to appear into campus interview?', 'type' => 'yesno'],
+            ['label' => 'What is candidate strength?', 'type' => 'text'],
+            ['label' => 'What is candidate weakness?', 'type' => 'text'],
+            ['label' => 'Why we hire you?', 'type' => 'text'],
+            ['label' => 'Any reference received for interview / how appear into company?', 'type' => 'text'],
+            ['label' => 'Reason to Change', 'type' => 'text'],
+        ];
+    }
+
+    /**
+     * Ensure global HR matrix is seeded. Replaces old short checklist once.
+     */
+    function recruitmentEnsureHrMatrixSeeded($conn)
+    {
+        $hasMatrix = false;
+        $st = @$conn->query("SELECT id FROM recruitment_criteria WHERE position_name = '' AND criteria_label LIKE 'Reason to Change%' LIMIT 1");
+        if ($st && $st->num_rows > 0) {
+            $hasMatrix = true;
+        }
+        if ($hasMatrix) {
+            // Keep answer_type in sync for existing matrix rows
+            foreach (recruitmentDefaultHrCriteria() as $item) {
+                $label = $item['label'];
+                $type = $item['type'];
+                $up = $conn->prepare(
+                    "UPDATE recruitment_criteria SET answer_type = ? WHERE position_name = '' AND criteria_label = ?"
+                );
+                if ($up) {
+                    $up->bind_param('ss', $type, $label);
+                    $up->execute();
+                    $up->close();
+                }
+            }
+            return;
+        }
+
+        // Remove old global seed (Confidence / Communication Skills checklist)
+        $conn->query("DELETE FROM recruitment_criteria WHERE position_name = ''");
+
+        $ins = $conn->prepare(
+            'INSERT INTO recruitment_criteria (position_name, criteria_label, answer_type, sort_order, status) VALUES (\'\', ?, ?, ?, 1)'
+        );
+        if (!$ins) {
+            return;
+        }
+        $ord = 1;
+        foreach (recruitmentDefaultHrCriteria() as $item) {
+            $label = $item['label'];
+            $type = $item['type'];
+            $ins->bind_param('ssi', $label, $type, $ord);
+            $ins->execute();
+            $ord++;
+        }
+        $ins->close();
+    }
+
+    /**
+     * Criteria for a position: global (blank) + matching position_name.
+     */
+    function getRecruitmentCriteriaForPosition($positionName, $conn = null)
+    {
+        $close = false;
+        if ($conn === null) {
+            $conn = getDBConnection();
+            $close = true;
+        }
+        ensureRecruitmentTables($conn);
+        $positionName = trim((string) $positionName);
+        $rows = [];
+        $st = $conn->prepare(
+            "SELECT * FROM recruitment_criteria
+             WHERE status = 1 AND (position_name = '' OR position_name = ?)
+             ORDER BY (position_name = '') DESC, sort_order ASC, id ASC"
+        );
+        $st->bind_param('s', $positionName);
+        $st->execute();
+        $res = $st->get_result();
+        while ($r = $res->fetch_assoc()) {
+            if (empty($r['answer_type'])) {
+                $r['answer_type'] = 'yesno';
+            }
+            $rows[] = $r;
+        }
+        $st->close();
+        if ($close) {
+            $conn->close();
+        }
+        return $rows;
+    }
+
+    function getRecruitmentApplicationMarks($applicationId, $conn = null)
+    {
+        $close = false;
+        if ($conn === null) {
+            $conn = getDBConnection();
+            $close = true;
+        }
+        ensureRecruitmentTables($conn);
+        $applicationId = (int) $applicationId;
+        $map = [];
+        $st = $conn->prepare(
+            'SELECT * FROM recruitment_application_marks WHERE application_id = ?'
+        );
+        $st->bind_param('i', $applicationId);
+        $st->execute();
+        $res = $st->get_result();
+        while ($r = $res->fetch_assoc()) {
+            $key = strtolower(trim((string) $r['criteria_label']));
+            $map[$key] = $r;
+        }
+        $st->close();
+        if ($close) {
+            $conn->close();
+        }
+        return $map;
+    }
+
+    /**
+     * Save marks. $items = [ label, criteria_id, type, checked, score, answer, remarks ]
+     */
+    function saveRecruitmentApplicationMarks($applicationId, array $items, $userId = 0, $conn = null)
+    {
+        $close = false;
+        if ($conn === null) {
+            $conn = getDBConnection();
+            $close = true;
+        }
+        ensureRecruitmentTables($conn);
+        $applicationId = (int) $applicationId;
+        $userId = (int) $userId;
+
+        foreach ($items as $item) {
+            $label = trim((string) ($item['label'] ?? ''));
+            if ($label === '') {
+                continue;
+            }
+            $type = trim((string) ($item['type'] ?? 'yesno'));
+            $criteriaId = (int) ($item['criteria_id'] ?? 0);
+            $remarks = trim((string) ($item['remarks'] ?? ''));
+            $answer = trim((string) ($item['answer'] ?? ''));
+            $score = isset($item['score']) && $item['score'] !== '' ? (int) $item['score'] : null;
+            $checked = 0;
+
+            if ($type === 'yesno') {
+                if ($answer === 'Yes' || $answer === '1' || !empty($item['checked'])) {
+                    $checked = 1;
+                    $answer = 'Yes';
+                } elseif ($answer === 'No' || (isset($item['checked']) && $item['checked'] === '0')) {
+                    $checked = 0;
+                    $answer = 'No';
+                } elseif ($answer === '') {
+                    // leave unanswered
+                }
+            } elseif ($type === 'score') {
+                if ($score !== null) {
+                    $answer = (string) $score;
+                    $checked = $score > 0 ? 1 : 0;
+                }
+            } else {
+                // text
+                if ($answer === '' && $remarks !== '') {
+                    $answer = $remarks;
+                }
+                $checked = $answer !== '' ? 1 : 0;
+            }
+
+            $scoreSql = ($score !== null) ? (string) (int) $score : 'NULL';
+            $sql = 'INSERT INTO recruitment_application_marks
+                (application_id, criteria_id, criteria_label, is_checked, score_value, answer_value, remarks, updated_by)
+                VALUES (' .
+                $applicationId . ',' .
+                ($criteriaId > 0 ? $criteriaId : 'NULL') . ',' .
+                recruitmentSqlStr($conn, $label) . ',' .
+                $checked . ',' .
+                $scoreSql . ',' .
+                recruitmentSqlStr($conn, $answer) . ',' .
+                recruitmentSqlStr($conn, $remarks) . ',' .
+                ($userId > 0 ? $userId : 'NULL') .
+            ') ON DUPLICATE KEY UPDATE
+                is_checked = VALUES(is_checked),
+                score_value = VALUES(score_value),
+                answer_value = VALUES(answer_value),
+                remarks = VALUES(remarks),
+                criteria_id = VALUES(criteria_id),
+                updated_by = VALUES(updated_by)';
+            $conn->query($sql);
+        }
+
+        if ($close) {
+            $conn->close();
+        }
+        return ['ok' => true];
+    }
+
+    /**
+     * Add a custom / position criteria row.
+     */
+    function addRecruitmentCriteria($positionName, $label, $conn = null, $answerType = 'yesno')
+    {
+        $close = false;
+        if ($conn === null) {
+            $conn = getDBConnection();
+            $close = true;
+        }
+        ensureRecruitmentTables($conn);
+        $positionName = trim((string) $positionName);
+        $label = trim((string) $label);
+        $answerType = in_array($answerType, ['yesno', 'score', 'text'], true) ? $answerType : 'yesno';
+        if ($label === '') {
+            if ($close) {
+                $conn->close();
+            }
+            return ['ok' => false, 'error' => 'Criteria label required'];
+        }
+        $st = $conn->prepare(
+            'SELECT id FROM recruitment_criteria WHERE position_name = ? AND criteria_label = ? LIMIT 1'
+        );
+        $st->bind_param('ss', $positionName, $label);
+        $st->execute();
+        $ex = $st->get_result()->fetch_assoc();
+        $st->close();
+        if ($ex) {
+            $id = (int) $ex['id'];
+            if ($close) {
+                $conn->close();
+            }
+            return ['ok' => true, 'id' => $id, 'exists' => true];
+        }
+        $ord = 100;
+        $mx = $conn->query('SELECT COALESCE(MAX(sort_order),0) AS m FROM recruitment_criteria')->fetch_assoc();
+        $ord = (int) ($mx['m'] ?? 0) + 1;
+        $ins = $conn->prepare(
+            'INSERT INTO recruitment_criteria (position_name, criteria_label, answer_type, sort_order, status) VALUES (?, ?, ?, ?, 1)'
+        );
+        $ins->bind_param('sssi', $positionName, $label, $answerType, $ord);
+        $ok = $ins->execute();
+        $id = (int) $ins->insert_id;
+        $err = $ins->error;
+        $ins->close();
+        if ($close) {
+            $conn->close();
+        }
+        return $ok ? ['ok' => true, 'id' => $id] : ['ok' => false, 'error' => $err];
+    }
+
+    function recruitmentFormatMarkAnswer(array $mark, $type = 'yesno')
+    {
+        $type = $type ?: 'yesno';
+        $answer = trim((string) ($mark['answer_value'] ?? ''));
+        if ($type === 'score') {
+            if ($answer !== '') {
+                return $answer . ' / 10';
+            }
+            if (isset($mark['score_value']) && $mark['score_value'] !== null && $mark['score_value'] !== '') {
+                return ((int) $mark['score_value']) . ' / 10';
+            }
+            return '—';
+        }
+        if ($type === 'yesno') {
+            if ($answer === 'Yes' || $answer === 'No') {
+                return $answer;
+            }
+            if ($answer === '' && array_key_exists('is_checked', $mark)) {
+                // legacy checkbox-only rows without explicit No
+                return !empty($mark['is_checked']) ? 'Yes' : '—';
+            }
+            return $answer !== '' ? $answer : '—';
+        }
+        if ($answer !== '') {
+            return $answer;
+        }
+        $remarks = trim((string) ($mark['remarks'] ?? ''));
+        return $remarks !== '' ? $remarks : '—';
     }
 
     function recruitmentCalcAgeYears($dob)
