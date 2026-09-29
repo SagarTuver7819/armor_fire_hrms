@@ -300,7 +300,7 @@ $backUrl = app_url('employees/view.php?id=' . $id . ($isLeft ? '&from=exit' : ''
 
         <div class="el-period no-print"><?php echo $h($periodNote); ?></div>
         <div class="el-meta-row">
-            <span>Employee Code: <?php echo $h($empCode !== '' ? $empCode : '—'); ?></span>
+            <span></span>
             <span>Date: <?php echo $h($letterDate); ?></span>
         </div>
 
