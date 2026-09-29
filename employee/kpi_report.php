@@ -137,7 +137,7 @@ require_once __DIR__ . '/../includes/header.php';
         <?php if (!empty($sheet['responsibility_ack'])): ?>
             <div class="kpi-ack-done">
                 <i class="fa-solid fa-square-check"></i>
-                All mara aaj na KPI Responsible for me — Confirmed
+                Based on my best knowledge, the above information is correct, and I confirm its accuracy. — Confirmed
             </div>
         <?php endif; ?>
 

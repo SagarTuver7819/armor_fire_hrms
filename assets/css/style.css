@@ -8958,3 +8958,197 @@ a.emp-dash-row:hover {
         padding: 0 !important;
     }
 }
+
+/* ===================== HR KPI Report ===================== */
+.hr-kpi-rpt-stats {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 10px;
+    margin: 0 0 14px;
+}
+.hr-kpi-rpt-stat {
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 12px 14px 12px 16px;
+    position: relative;
+    overflow: hidden;
+    box-shadow: var(--shadow-sm);
+}
+.hr-kpi-rpt-stat::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 4px;
+    background: var(--brand, #d2232a);
+}
+.hr-kpi-rpt-stat.is-red::before { background: #d2232a; }
+.hr-kpi-rpt-stat.is-blue::before { background: #2563eb; }
+.hr-kpi-rpt-stat.is-slate::before { background: #475569; }
+.hr-kpi-rpt-stat.is-amber::before { background: #d97706; }
+.hr-kpi-rpt-stat span {
+    display: block;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: #64748b;
+}
+.hr-kpi-rpt-stat strong {
+    display: block;
+    margin-top: 4px;
+    font-size: 24px;
+    font-weight: 800;
+    color: #0f172a;
+    line-height: 1.1;
+}
+.hr-kpi-rpt-filters {
+    display: flex;
+    align-items: flex-end;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin: 0 0 16px;
+    padding: 12px 14px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+}
+.hr-kpi-rpt-field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+}
+.hr-kpi-rpt-field label {
+    font-size: 11px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: #64748b;
+    margin: 0;
+}
+.hr-kpi-rpt-field .form-control {
+    width: 150px;
+    min-height: 38px;
+    padding: 6px 10px;
+    font-size: 13px;
+}
+.hr-kpi-rpt-field.is-dept .form-control {
+    width: 220px;
+}
+.hr-kpi-rpt-actions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+.hr-kpi-rpt-actions .btn-primary,
+.hr-kpi-rpt-actions .btn-secondary {
+    min-height: 38px;
+    padding: 8px 14px;
+    white-space: nowrap;
+}
+.hr-kpi-rpt-date-label {
+    margin-left: auto;
+    font-size: 12px;
+    font-weight: 600;
+    color: #475569;
+    padding-bottom: 8px;
+}
+.hr-kpi-rpt-table td .btn-sm {
+    padding: 5px 10px;
+    font-size: 12px;
+}
+@media (max-width: 980px) {
+    .hr-kpi-rpt-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .hr-kpi-rpt-date-label { margin-left: 0; width: 100%; padding-bottom: 0; }
+}
+@media (max-width: 640px) {
+    .hr-kpi-rpt-stats { grid-template-columns: 1fr 1fr; }
+    .hr-kpi-rpt-field .form-control,
+    .hr-kpi-rpt-field.is-dept .form-control { width: 100%; }
+    .hr-kpi-rpt-field { flex: 1 1 140px; }
+}
+
+/* KPI per-hour submit + popup */
+.kpi-hour-action { text-align: center; vertical-align: middle; }
+.kpi-hour-submit {
+    padding: 7px 10px !important;
+    font-size: 12px !important;
+    white-space: nowrap;
+}
+.kpi-hour-done-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 10px;
+    border-radius: 999px;
+    background: #ecfdf5;
+    color: #047857;
+    font-size: 11px;
+    font-weight: 800;
+}
+.kpi-hour-table tr.is-hour-done td { background: #f0fdf4; }
+.kpi-activity-locked {
+    font-size: 13px;
+    font-weight: 600;
+    color: #0f172a;
+    white-space: pre-wrap;
+}
+.kpi-hour-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 12000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+}
+.kpi-hour-modal[hidden] { display: none !important; }
+.kpi-hour-modal-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.55);
+}
+.kpi-hour-modal-box {
+    position: relative;
+    z-index: 1;
+    width: min(440px, 100%);
+    background: #fff;
+    border-radius: 14px;
+    padding: 20px 18px 16px;
+    box-shadow: 0 20px 50px rgba(0,0,0,0.25);
+    text-align: center;
+}
+.kpi-hour-modal-icon {
+    width: 52px;
+    height: 52px;
+    margin: 0 auto 10px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #fff5f5;
+    color: #d2232a;
+    font-size: 22px;
+}
+.kpi-hour-modal-box h3 {
+    margin: 0 0 6px;
+    font-size: 18px;
+    color: #0f172a;
+}
+.kpi-hour-modal-box p {
+    margin: 0 0 12px;
+    font-size: 13px;
+    color: #64748b;
+    font-weight: 600;
+}
+.kpi-hour-modal-box textarea {
+    text-align: left;
+    margin-bottom: 12px;
+}
+.kpi-hour-modal-actions {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+}
+body.kpi-hour-modal-open { overflow: hidden; }

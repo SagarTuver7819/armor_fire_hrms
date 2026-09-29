@@ -1,6 +1,6 @@
 <?php
 /**
- * Save / submit employee KPI sheet
+ * Save / submit employee KPI sheet (draft / hour / final)
  */
 
 require_once __DIR__ . '/../config/app.php';
@@ -20,6 +20,7 @@ if ($empId <= 0 || !isEmployee() || $_SERVER['REQUEST_METHOD'] !== 'POST') {
 $sheetId = (int) ($_POST['sheet_id'] ?? 0);
 $action = strtolower(trim((string) ($_POST['action'] ?? 'draft')));
 $ack = !empty($_POST['responsibility_ack']);
+$slotIndex = (int) ($_POST['slot_index'] ?? 0);
 $activities = $_POST['activity'] ?? [];
 if (!is_array($activities)) {
     $activities = [];
@@ -44,6 +45,18 @@ if (($sheet['kpi_date'] ?? '') !== date('Y-m-d')) {
 $byIndex = [];
 foreach ($activities as $idx => $text) {
     $byIndex[(int) $idx] = $text;
+}
+
+if ($action === 'hour') {
+    $text = $byIndex[$slotIndex] ?? '';
+    $res = kpiSubmitHour($sheetId, $slotIndex, $text, $conn);
+    $conn->close();
+    if (!$res['ok']) {
+        header('Location: ' . app_url('employee/kpi.php?msg=error&err=' . urlencode($res['error'] ?? 'Hour submit failed')));
+        exit;
+    }
+    header('Location: ' . app_url('employee/kpi.php?msg=hour#slot-' . $slotIndex));
+    exit;
 }
 
 $save = kpiSaveDraft($sheetId, $byIndex, $conn);

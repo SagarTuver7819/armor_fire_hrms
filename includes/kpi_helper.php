@@ -41,12 +41,21 @@ if (!function_exists('ensureKpiTables')) {
                 time_from VARCHAR(20) NOT NULL DEFAULT '',
                 time_to VARCHAR(20) NOT NULL DEFAULT '',
                 activity_text TEXT,
+                slot_status ENUM('open','submitted') NOT NULL DEFAULT 'open',
+                slot_submitted_at DATETIME DEFAULT NULL,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
                 UNIQUE KEY uq_kpi_sheet_slot (sheet_id, slot_index),
                 INDEX idx_kpi_entries_sheet (sheet_id)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
         );
+
+        // Upgrade older installs
+        $colCheck = $conn->query("SHOW COLUMNS FROM kpi_entries LIKE 'slot_status'");
+        if (!$colCheck || $colCheck->num_rows === 0) {
+            $conn->query("ALTER TABLE kpi_entries ADD COLUMN slot_status ENUM('open','submitted') NOT NULL DEFAULT 'open' AFTER activity_text");
+            $conn->query("ALTER TABLE kpi_entries ADD COLUMN slot_submitted_at DATETIME DEFAULT NULL AFTER slot_status");
+        }
 
         if ($close) {
             $conn->close();
@@ -306,7 +315,8 @@ if (!function_exists('ensureKpiTables')) {
         }
 
         $st = $conn->prepare(
-            'UPDATE kpi_entries SET activity_text = ? WHERE sheet_id = ? AND slot_index = ?'
+            "UPDATE kpi_entries SET activity_text = ?
+             WHERE sheet_id = ? AND slot_index = ? AND slot_status = 'open'"
         );
         foreach ($activitiesByIndex as $idx => $text) {
             $idx = (int) $idx;
@@ -323,6 +333,59 @@ if (!function_exists('ensureKpiTables')) {
 
         if ($close) {
             $conn->close();
+        }
+        return ['ok' => true];
+    }
+
+    /**
+     * Submit one hourly slot (locks that hour).
+     */
+    function kpiSubmitHour($sheetId, $slotIndex, $activityText, $conn = null)
+    {
+        $close = false;
+        if ($conn === null) {
+            $conn = getDBConnection();
+            $close = true;
+        }
+        ensureKpiTables($conn);
+        $sheetId = (int) $sheetId;
+        $slotIndex = (int) $slotIndex;
+        $sheet = kpiGetSheetById($sheetId, $conn);
+        if (!$sheet || ($sheet['status'] ?? '') === 'submitted') {
+            if ($close) {
+                $conn->close();
+            }
+            return ['ok' => false, 'error' => 'Sheet not editable.'];
+        }
+
+        $activityText = trim((string) $activityText);
+        if (function_exists('mb_substr')) {
+            $activityText = mb_substr($activityText, 0, 2000);
+        } else {
+            $activityText = substr($activityText, 0, 2000);
+        }
+        if ($activityText === '') {
+            if ($close) {
+                $conn->close();
+            }
+            return ['ok' => false, 'error' => 'Please enter activity for this hour before Submit.'];
+        }
+
+        $st = $conn->prepare(
+            "UPDATE kpi_entries
+             SET activity_text = ?, slot_status = 'submitted', slot_submitted_at = NOW()
+             WHERE sheet_id = ? AND slot_index = ? AND slot_status = 'open'"
+        );
+        $st->bind_param('sii', $activityText, $sheetId, $slotIndex);
+        $st->execute();
+        $ok = $st->affected_rows > 0;
+        $st->close();
+
+        if ($close) {
+            $conn->close();
+        }
+        if (!$ok) {
+            return ['ok' => false, 'error' => 'This hour is already submitted or not found.'];
         }
         return ['ok' => true];
     }
@@ -353,7 +416,7 @@ if (!function_exists('ensureKpiTables')) {
             if ($close) {
                 $conn->close();
             }
-            return ['ok' => false, 'error' => 'Please confirm: All mara aaj na KPI Responsible for me.'];
+            return ['ok' => false, 'error' => 'Please confirm: Based on my best knowledge, the above information is correct, and I confirm its accuracy.'];
         }
 
         $entries = kpiGetEntries($sheetId, $conn);
@@ -363,11 +426,21 @@ if (!function_exists('ensureKpiTables')) {
             }
             return ['ok' => false, 'error' => 'No hourly slots found.'];
         }
+        $openCount = 0;
         $filled = 0;
         foreach ($entries as $e) {
+            if (($e['slot_status'] ?? 'open') !== 'submitted') {
+                $openCount++;
+            }
             if (trim((string) ($e['activity_text'] ?? '')) !== '') {
                 $filled++;
             }
+        }
+        if ($openCount > 0) {
+            if ($close) {
+                $conn->close();
+            }
+            return ['ok' => false, 'error' => 'Please Submit each hour first. ' . $openCount . ' hour(s) still pending.'];
         }
         if ($filled < 1) {
             if ($close) {
