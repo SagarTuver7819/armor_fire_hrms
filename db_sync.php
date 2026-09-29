@@ -116,6 +116,10 @@ try {
     ensureKpiTables($conn);
     $log[] = 'KPI tables ready (hourly employee sheets + entries).';
 
+    require_once __DIR__ . '/includes/company_content_helper.php';
+    ensureCompanyContentTables($conn);
+    $log[] = 'Company History + Vision/Mission/Core Values content ready (seeded Armor Fire text).';
+
     ensureRoleTables($conn);
     $log[] = 'Roles & permissions tables ready (custom roles, role_permissions, users.custom_role_id, users.employee_id).';
 

@@ -9152,3 +9152,275 @@ a.emp-dash-row:hover {
     justify-content: center;
 }
 body.kpi-hour-modal-open { overflow: hidden; }
+
+/* ===================== Company About Login Popup ===================== */
+body.co-about-open { overflow: hidden; }
+.co-about-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 13000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 18px;
+}
+.co-about-modal[hidden] { display: none !important; }
+.co-about-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.62);
+}
+.co-about-dialog {
+    position: relative;
+    z-index: 1;
+    width: min(1100px, 100%);
+    max-height: calc(100vh - 36px);
+    display: flex;
+    flex-direction: column;
+    background: #fff;
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow: 0 24px 60px rgba(0,0,0,0.28);
+}
+.co-about-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 16px 18px;
+    background: linear-gradient(135deg, #111 0%, #1e3a5f 55%, #d2232a 160%);
+    color: #fff;
+}
+.co-about-eyebrow {
+    margin: 0;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    opacity: 0.85;
+}
+.co-about-top h2 {
+    margin: 2px 0 0;
+    font-size: 22px;
+    font-weight: 800;
+}
+.co-about-close {
+    width: 36px;
+    height: 36px;
+    border: 0;
+    border-radius: 10px;
+    background: rgba(255,255,255,0.14);
+    color: #fff;
+    cursor: pointer;
+}
+.co-about-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0;
+    min-height: 0;
+    flex: 1;
+    overflow: hidden;
+}
+.co-about-pane {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    border-right: 1px solid #e2e8f0;
+}
+.co-about-pane.is-vision { border-right: 0; background: #fffafa; }
+.co-about-pane-head {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    padding: 14px 16px 10px;
+    border-bottom: 1px solid #e2e8f0;
+}
+.co-about-pane-head i {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #eff6ff;
+    color: #1d4ed8;
+    flex-shrink: 0;
+}
+.co-about-pane.is-vision .co-about-pane-head i {
+    background: #fee2e2;
+    color: #d2232a;
+}
+.co-about-pane-head h3 {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 800;
+    color: #0f172a;
+}
+.co-about-pane-head p {
+    margin: 2px 0 0;
+    font-size: 12px;
+    color: #64748b;
+    font-weight: 600;
+}
+.co-about-scroll {
+    padding: 12px 16px 16px;
+    overflow: auto;
+    max-height: min(58vh, 520px);
+    font-size: 13px;
+    line-height: 1.55;
+    color: #334155;
+}
+.co-about-scroll p { margin: 0 0 10px; }
+.co-about-scroll h4 {
+    margin: 12px 0 6px;
+    font-size: 13px;
+    font-weight: 800;
+    color: #0f172a;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+.co-about-scroll ul {
+    margin: 0 0 10px;
+    padding-left: 18px;
+}
+.co-about-scroll li { margin: 3px 0; }
+.co-about-lead {
+    padding: 10px 12px;
+    background: #fff;
+    border: 1px solid #fecaca;
+    border-radius: 10px;
+    font-weight: 600;
+}
+.co-about-values {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+.co-about-values span {
+    display: inline-flex;
+    padding: 6px 10px;
+    border-radius: 999px;
+    background: #fee2e2;
+    color: #9f1239;
+    font-size: 12px;
+    font-weight: 700;
+}
+.co-about-foot {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    padding: 12px 16px;
+    border-top: 1px solid #e2e8f0;
+    background: #f8fafc;
+}
+.co-about-foot span {
+    font-size: 12px;
+    font-weight: 700;
+    color: #64748b;
+}
+@media (max-width: 860px) {
+    .co-about-grid { grid-template-columns: 1fr; }
+    .co-about-pane { border-right: 0; border-bottom: 1px solid #e2e8f0; }
+    .co-about-scroll { max-height: 34vh; }
+}
+
+/* ===================== Company Content Master View ===================== */
+.co-master-view {
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 14px;
+    overflow: hidden;
+    box-shadow: 0 4px 18px rgba(15, 23, 42, 0.06);
+    max-width: 920px;
+}
+.co-master-view-head {
+    display: flex;
+    gap: 14px;
+    align-items: flex-start;
+    padding: 18px 20px;
+    background: linear-gradient(135deg, #eff6ff, #fff);
+    border-bottom: 1px solid #e2e8f0;
+}
+.co-master-view.is-vision .co-master-view-head {
+    background: linear-gradient(135deg, #fff5f5, #fff);
+}
+.co-master-view-ico {
+    width: 46px;
+    height: 46px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #dbeafe;
+    color: #1d4ed8;
+    font-size: 18px;
+    flex-shrink: 0;
+}
+.co-master-view.is-vision .co-master-view-ico {
+    background: #fee2e2;
+    color: #d2232a;
+}
+.co-master-view-eyebrow {
+    margin: 0;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: #64748b;
+}
+.co-master-view-head h1 {
+    margin: 2px 0 4px;
+    font-size: 22px;
+    font-weight: 800;
+    color: #0f172a;
+}
+.co-master-view-head p {
+    margin: 0;
+    font-size: 13px;
+    color: #64748b;
+    font-weight: 600;
+}
+.co-master-view-body {
+    padding: 18px 20px 22px;
+    font-size: 14px;
+    line-height: 1.65;
+    color: #334155;
+}
+.co-master-view-body p { margin: 0 0 12px; }
+.co-master-view-body h3 {
+    margin: 16px 0 8px;
+    font-size: 14px;
+    font-weight: 800;
+    color: #0f172a;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+.co-master-list {
+    margin: 0 0 12px;
+    padding-left: 18px;
+}
+.co-master-list li { margin: 4px 0; }
+.co-master-lead {
+    margin: 0 0 14px;
+    padding: 12px 14px;
+    background: #fff5f5;
+    border: 1px solid #fecaca;
+    border-radius: 10px;
+    font-weight: 600;
+    color: #7f1d1d;
+}
+.co-master-values {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+.co-master-values span {
+    display: inline-flex;
+    padding: 7px 12px;
+    border-radius: 999px;
+    background: #fee2e2;
+    color: #9f1239;
+    font-size: 12px;
+    font-weight: 700;
+}

@@ -118,11 +118,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
             refreshHeadedDepartmentsSession();
             $roleCode = strtoupper((string) ($_SESSION['role_code'] ?? ''));
-            if ($roleCode === 'OFFICE_STAFF') {
-                header('Location: ' . app_url('employee/dashboard.php'));
-            } elseif ($roleCode === 'DEPT_HEAD') {
+            $roleCode = strtoupper((string) ($_SESSION['role_code'] ?? ''));
+            if ($roleCode === 'DEPT_HEAD') {
                 $hd = $_SESSION['headed_department_ids'][0] ?? 0;
                 header('Location: ' . app_url($hd > 0 ? ('employees/index.php?department_id=' . (int) $hd) : 'hr/dashboard.php'));
+            } elseif ($userRole === 'employee' || $roleCode === 'OFFICE_STAFF') {
+                $_SESSION['show_company_popup'] = 1;
+                header('Location: ' . app_url('employee/dashboard.php'));
             } else {
                 // Admin / HR / staff → HR Dashboard
                 header('Location: ' . app_url('hr/dashboard.php'));

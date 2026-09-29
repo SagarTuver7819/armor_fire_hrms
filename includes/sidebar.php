@@ -444,6 +444,16 @@ $sidebarCompanyName = function_exists('getCompanyName') ? getCompanyName() : 'Ar
                         <i class="fa-solid fa-cubes"></i>
                         <span>Masters Hub (Boxes)</span>
                     </a>
+                    <a href="<?php echo app_url('masters/company_history/index.php'); ?>"
+                       class="sidebar-link sidebar-sublink <?php echo $sidebarActive === 'company_history' ? 'active' : ''; ?>">
+                        <i class="fa-solid fa-book-open"></i>
+                        <span>Company History</span>
+                    </a>
+                    <a href="<?php echo app_url('masters/company_vision/index.php'); ?>"
+                       class="sidebar-link sidebar-sublink <?php echo $sidebarActive === 'company_vision' ? 'active' : ''; ?>">
+                        <i class="fa-solid fa-bullseye"></i>
+                        <span>Vision Mission Values</span>
+                    </a>
                     <?php foreach ($mastersNav as $m): ?>
                         <a href="<?php echo app_url('masters/' . $m['folder'] . '/index.php'); ?>"
                            class="sidebar-link sidebar-sublink <?php echo $sidebarActive === $m['key'] ? 'active' : ''; ?>">

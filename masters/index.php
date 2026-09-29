@@ -13,6 +13,28 @@ requireAccess('masters', 'view');
 ensureMasterTables();
 $masters = getMastersConfig();
 
+require_once __DIR__ . '/../includes/company_content_helper.php';
+ensureCompanyContentTables();
+
+$extraCompanyMasters = [
+    [
+        'key' => 'company_history',
+        'title' => 'Company History',
+        'folder' => 'company_history',
+        'icon' => 'fa-book-open',
+        'color' => '#1e3a5f',
+        'meta' => 'View · Edit History',
+    ],
+    [
+        'key' => 'company_vision',
+        'title' => 'Vision Mission Values',
+        'folder' => 'company_vision',
+        'icon' => 'fa-bullseye',
+        'color' => '#d2232a',
+        'meta' => 'View · Vision · Mission · Values',
+    ],
+];
+
 $useSidebar = true;
 $sidebarMode = 'masters';
 $sidebarActive = 'hub';
@@ -32,6 +54,24 @@ require_once __DIR__ . '/../includes/header.php';
         <h1>MASTERS</h1>
         <p>MASTER DATA MANAGEMENT</p>
     </div>
+
+    <section class="module-section">
+        <div class="section-heading">
+            <i class="fa-solid fa-building"></i>
+            <span>COMPANY CONTENT</span>
+        </div>
+        <div class="module-grid masters-hub-grid">
+            <?php foreach ($extraCompanyMasters as $m): ?>
+                <a href="<?php echo app_url('masters/' . $m['folder'] . '/index.php'); ?>" class="module-card master-hub-card">
+                    <div class="module-icon" style="background-color: <?php echo htmlspecialchars($m['color']); ?>;">
+                        <i class="fa-solid <?php echo htmlspecialchars($m['icon']); ?>"></i>
+                    </div>
+                    <div class="module-label"><?php echo htmlspecialchars($m['title']); ?></div>
+                    <div class="module-meta"><?php echo htmlspecialchars($m['meta']); ?></div>
+                </a>
+            <?php endforeach; ?>
+        </div>
+    </section>
 
     <section class="module-section">
         <div class="section-heading">

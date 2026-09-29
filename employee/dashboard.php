@@ -11,8 +11,21 @@ require_once __DIR__ . '/../includes/department_head_helper.php';
 require_once __DIR__ . '/../includes/employee_helper.php';
 require_once __DIR__ . '/../includes/leave_helper.php';
 require_once __DIR__ . '/../includes/attendance_helper.php';
+require_once __DIR__ . '/../includes/company_content_helper.php';
 
 requireLogin();
+
+$showCompanyPopup = !empty($_SESSION['show_company_popup']);
+if ($showCompanyPopup) {
+    unset($_SESSION['show_company_popup']);
+}
+$companyHistory = null;
+$companyVision = null;
+if ($showCompanyPopup) {
+    ensureCompanyContentTables();
+    $companyHistory = getCompanyContent('history');
+    $companyVision = getCompanyContent('vision');
+}
 
 if (empty($_SESSION['role_code']) && !empty($_SESSION['custom_role_id'])) {
     refreshHeadedDepartmentsSession();
@@ -960,6 +973,109 @@ $denied = isset($_GET['msg']) && $_GET['msg'] === 'denied';
         </div>
     </section>
 </main>
+
+<?php if ($showCompanyPopup && ($companyHistory || $companyVision)):
+    $hBody = is_array($companyHistory['body'] ?? null) ? $companyHistory['body'] : companyContentDefaultHistory();
+    $vBody = is_array($companyVision['body'] ?? null) ? $companyVision['body'] : companyContentDefaultVision();
+?>
+<div class="co-about-modal" id="coAboutModal" role="dialog" aria-modal="true" aria-labelledby="coAboutTitle">
+    <div class="co-about-backdrop"></div>
+    <div class="co-about-dialog">
+        <div class="co-about-top">
+            <div>
+                <p class="co-about-eyebrow">ARMOR FIRE</p>
+                <h2 id="coAboutTitle">About Our Company</h2>
+            </div>
+            <button type="button" class="co-about-close" id="coAboutClose" aria-label="Close">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </div>
+        <div class="co-about-grid">
+            <section class="co-about-pane is-history">
+                <div class="co-about-pane-head">
+                    <i class="fa-solid fa-book-open"></i>
+                    <div>
+                        <h3><?php echo htmlspecialchars((string) ($hBody['heading'] ?? 'Company History')); ?></h3>
+                        <p><?php echo htmlspecialchars((string) ($hBody['company'] ?? '')); ?></p>
+                    </div>
+                </div>
+                <div class="co-about-scroll">
+                    <?php foreach (($hBody['paragraphs'] ?? []) as $p): ?>
+                        <p><?php echo nl2br(htmlspecialchars((string) $p)); ?></p>
+                    <?php endforeach; ?>
+                    <?php if (!empty($hBody['products_2021'])): ?>
+                        <h4>2021 Expansion Products</h4>
+                        <ul>
+                            <?php foreach ($hBody['products_2021'] as $item): ?>
+                                <li><?php echo htmlspecialchars((string) $item); ?></li>
+                            <?php endforeach; ?>
+                        </ul>
+                    <?php endif; ?>
+                    <?php if (!empty($hBody['products_today'])): ?>
+                        <h4>Products Today</h4>
+                        <ul>
+                            <?php foreach ($hBody['products_today'] as $item): ?>
+                                <li><?php echo htmlspecialchars((string) $item); ?></li>
+                            <?php endforeach; ?>
+                        </ul>
+                    <?php endif; ?>
+                </div>
+            </section>
+            <section class="co-about-pane is-vision">
+                <div class="co-about-pane-head">
+                    <i class="fa-solid fa-bullseye"></i>
+                    <div>
+                        <h3><?php echo htmlspecialchars((string) ($vBody['heading'] ?? 'Vision, Mission & Core Values')); ?></h3>
+                        <p>Who we are · What we stand for</p>
+                    </div>
+                </div>
+                <div class="co-about-scroll">
+                    <?php if (!empty($vBody['leadership'])): ?>
+                        <p class="co-about-lead"><?php echo nl2br(htmlspecialchars((string) $vBody['leadership'])); ?></p>
+                    <?php endif; ?>
+                    <h4>Vision</h4>
+                    <p><?php echo nl2br(htmlspecialchars((string) ($vBody['vision'] ?? ''))); ?></p>
+                    <?php if (!empty($vBody['mission'])): ?>
+                        <h4>Mission</h4>
+                        <ul>
+                            <?php foreach ($vBody['mission'] as $item): ?>
+                                <li><?php echo htmlspecialchars((string) $item); ?></li>
+                            <?php endforeach; ?>
+                        </ul>
+                    <?php endif; ?>
+                    <?php if (!empty($vBody['core_values'])): ?>
+                        <h4>Core Values</h4>
+                        <div class="co-about-values">
+                            <?php foreach ($vBody['core_values'] as $item): ?>
+                                <span><?php echo htmlspecialchars((string) $item); ?></span>
+                            <?php endforeach; ?>
+                        </div>
+                    <?php endif; ?>
+                </div>
+            </section>
+        </div>
+        <div class="co-about-foot">
+            <span><i class="fa-solid fa-shield-halved"></i> Protecting lives &amp; property</span>
+            <button type="button" class="btn-primary" id="coAboutContinue">Continue to Dashboard</button>
+        </div>
+    </div>
+</div>
+<script>
+(function () {
+    var modal = document.getElementById('coAboutModal');
+    if (!modal) return;
+    document.body.classList.add('co-about-open');
+    function closeAbout() {
+        modal.hidden = true;
+        document.body.classList.remove('co-about-open');
+    }
+    var closeBtn = document.getElementById('coAboutClose');
+    var contBtn = document.getElementById('coAboutContinue');
+    if (closeBtn) closeBtn.addEventListener('click', closeAbout);
+    if (contBtn) contBtn.addEventListener('click', closeAbout);
+})();
+</script>
+<?php endif; ?>
 
 <script src="<?php echo app_url('assets/js/emp_photo_view.js'); ?>?v=<?php echo (int) @filemtime(__DIR__ . '/../assets/js/emp_photo_view.js'); ?>"></script>
 <?php require_once __DIR__ . '/../includes/footer.php'; ?>
