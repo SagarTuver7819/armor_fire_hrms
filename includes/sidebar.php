@@ -131,9 +131,9 @@ if ($sidebarLogoSrc && strpos($sidebarLogoSrc, 'http') !== 0 && strpos($sidebarL
 $sidebarCompanyName = function_exists('getCompanyName') ? getCompanyName() : 'Armor Fire';
 ?>
 
-<aside class="app-sidebar" id="appSidebar" aria-label="Sidebar navigation">
+<aside class="app-sidebar<?php echo $isOfficeStaffNav ? ' app-sidebar--employee' : ''; ?>" id="appSidebar" aria-label="Sidebar navigation">
     <div class="sidebar-top">
-        <a href="<?php echo app_url('dashboard.php'); ?>" class="sidebar-logo-link" title="<?php echo htmlspecialchars($sidebarCompanyName); ?>">
+        <a href="<?php echo $isOfficeStaffNav ? app_url('employee/dashboard.php') : app_url('dashboard.php'); ?>" class="sidebar-logo-link" title="<?php echo htmlspecialchars($sidebarCompanyName); ?>">
             <img src="<?php echo htmlspecialchars($sidebarLogoSrc); ?>"
                  alt="<?php echo htmlspecialchars($sidebarCompanyName); ?>"
                  class="sidebar-logo-img"
@@ -162,71 +162,126 @@ $sidebarCompanyName = function_exists('getCompanyName') ? getCompanyName() : 'Ar
     </div>
 
     <div class="sidebar-scroll" id="sidebarScroll">
-        <div class="sidebar-section">
-            <div class="sidebar-section-title">Main</div>
-            <nav class="sidebar-nav">
-                <?php if ($isOfficeStaffNav): ?>
+        <?php if ($isOfficeStaffNav): ?>
+        <!-- ========== EMPLOYEE SIDE MENU ========== -->
+        <div class="sidebar-section sidebar-emp-section">
+            <div class="sidebar-section-title">Overview</div>
+            <nav class="sidebar-nav sidebar-emp-nav">
                 <a href="<?php echo app_url('employee/dashboard.php'); ?>"
-                   class="sidebar-link <?php echo $sidebarActive === 'emp_home' ? 'active' : ''; ?>">
-                    <i class="fa-solid fa-house"></i>
-                    <span>Home</span>
+                   class="sidebar-link sidebar-emp-link <?php echo $sidebarActive === 'emp_home' ? 'active' : ''; ?>">
+                    <span class="sidebar-emp-ico" style="--emp-ico:#d2232a;"><i class="fa-solid fa-house"></i></span>
+                    <span class="sidebar-emp-txt">
+                        <strong>Home</strong>
+                        <small>My dashboard</small>
+                    </span>
                 </a>
                 <?php if ($sessionEmpIdNav > 0): ?>
                 <a href="<?php echo app_url('employees/view.php?id=' . $sessionEmpIdNav); ?>"
-                   class="sidebar-link <?php echo $sidebarActive === 'my_profile' ? 'active' : ''; ?>">
-                    <i class="fa-solid fa-id-card"></i>
-                    <span>My Profile</span>
+                   class="sidebar-link sidebar-emp-link <?php echo $sidebarActive === 'my_profile' ? 'active' : ''; ?>">
+                    <span class="sidebar-emp-ico" style="--emp-ico:#7c3aed;"><i class="fa-solid fa-id-card"></i></span>
+                    <span class="sidebar-emp-txt">
+                        <strong>My Profile</strong>
+                        <small>Personal details</small>
+                    </span>
                 </a>
                 <?php endif; ?>
+            </nav>
+        </div>
+
+        <div class="sidebar-section sidebar-emp-section">
+            <div class="sidebar-section-title">My Work</div>
+            <nav class="sidebar-nav sidebar-emp-nav">
+                <?php if ($canLeave): ?>
+                <a href="<?php echo app_url('leave/index.php'); ?>"
+                   class="sidebar-link sidebar-emp-link <?php echo $sidebarActive === 'leave_request' ? 'active' : ''; ?>">
+                    <span class="sidebar-emp-ico" style="--emp-ico:#ea580c;"><i class="fa-solid fa-plane-departure"></i></span>
+                    <span class="sidebar-emp-txt">
+                        <strong>My Leave</strong>
+                        <small>Apply &amp; track leave</small>
+                    </span>
+                </a>
+                <?php endif; ?>
+                <a href="<?php echo app_url('employee/attendance.php'); ?>"
+                   class="sidebar-link sidebar-emp-link <?php echo $sidebarActive === 'my_attendance' ? 'active' : ''; ?>">
+                    <span class="sidebar-emp-ico" style="--emp-ico:#2563eb;"><i class="fa-solid fa-calendar-check"></i></span>
+                    <span class="sidebar-emp-txt">
+                        <strong>My Attendance</strong>
+                        <small>Daily punch summary</small>
+                    </span>
+                </a>
+                <a href="<?php echo app_url('employee/kpi.php'); ?>"
+                   class="sidebar-link sidebar-emp-link <?php echo $sidebarActive === 'my_kpi' ? 'active' : ''; ?>">
+                    <span class="sidebar-emp-ico" style="--emp-ico:#0d9488;"><i class="fa-solid fa-chart-line"></i></span>
+                    <span class="sidebar-emp-txt">
+                        <strong>My KPI</strong>
+                        <small>Performance score</small>
+                    </span>
+                </a>
+            </nav>
+        </div>
+
+        <div class="sidebar-section sidebar-emp-section">
+            <div class="sidebar-section-title">Company</div>
+            <nav class="sidebar-nav sidebar-emp-nav">
                 <?php if ($canCirc): ?>
                 <a href="<?php echo app_url('circulars/index.php'); ?>"
-                   class="sidebar-link <?php echo $sidebarActive === 'circulars' ? 'active' : ''; ?>">
-                    <i class="fa-solid fa-file-circle-plus"></i>
-                    <span>Circulars</span>
+                   class="sidebar-link sidebar-emp-link <?php echo $sidebarActive === 'circulars' ? 'active' : ''; ?>">
+                    <span class="sidebar-emp-ico" style="--emp-ico:#db2777;"><i class="fa-solid fa-bullhorn"></i></span>
+                    <span class="sidebar-emp-txt">
+                        <strong>Circulars</strong>
+                        <small>Company notices</small>
+                    </span>
                 </a>
                 <?php endif; ?>
                 <?php if ($canPol): ?>
                 <a href="<?php echo app_url('policies/index.php'); ?>"
-                   class="sidebar-link <?php echo $sidebarActive === 'policies' ? 'active' : ''; ?>">
-                    <i class="fa-solid fa-scroll"></i>
-                    <span>Policies</span>
+                   class="sidebar-link sidebar-emp-link <?php echo $sidebarActive === 'policies' ? 'active' : ''; ?>">
+                    <span class="sidebar-emp-ico" style="--emp-ico:#4f46e5;"><i class="fa-solid fa-scroll"></i></span>
+                    <span class="sidebar-emp-txt">
+                        <strong>Policies</strong>
+                        <small>HR policies</small>
+                    </span>
                 </a>
                 <?php endif; ?>
-                <?php if ($canLeave): ?>
-                <a href="<?php echo app_url('leave/index.php'); ?>"
-                   class="sidebar-link <?php echo $sidebarActive === 'leave_request' ? 'active' : ''; ?>">
-                    <i class="fa-solid fa-plane-departure"></i>
-                    <span>My Leave</span>
-                </a>
-                <?php endif; ?>
-                <a href="<?php echo app_url('employee/attendance.php'); ?>"
-                   class="sidebar-link <?php echo $sidebarActive === 'my_attendance' ? 'active' : ''; ?>">
-                    <i class="fa-solid fa-calendar-check"></i>
-                    <span>My Attendance</span>
-                </a>
-                <a href="<?php echo app_url('employee/kpi.php'); ?>"
-                   class="sidebar-link <?php echo $sidebarActive === 'my_kpi' ? 'active' : ''; ?>">
-                    <i class="fa-solid fa-clipboard-list"></i>
-                    <span>My KPI</span>
-                </a>
                 <?php if ($canEmployeeVoiceSubmit): ?>
                 <a href="<?php echo app_url('employee/voice/index.php'); ?>"
-                   class="sidebar-link <?php echo in_array((string) $sidebarActive, ['employee_voice', 'employee_voice_my'], true) ? 'active' : ''; ?>">
-                    <i class="fa-solid fa-comments"></i>
-                    <span>Employee Voice</span>
+                   class="sidebar-link sidebar-emp-link <?php echo in_array((string) $sidebarActive, ['employee_voice', 'employee_voice_my'], true) ? 'active' : ''; ?>">
+                    <span class="sidebar-emp-ico" style="--emp-ico:#d2232a;"><i class="fa-solid fa-comments"></i></span>
+                    <span class="sidebar-emp-txt">
+                        <strong>Employee Voice</strong>
+                        <small>Grievance · Suggestion · Safety</small>
+                    </span>
                 </a>
                 <?php endif; ?>
+            </nav>
+        </div>
+
+        <div class="sidebar-section sidebar-emp-section">
+            <div class="sidebar-section-title">Account</div>
+            <nav class="sidebar-nav sidebar-emp-nav">
                 <a href="<?php echo app_url('employee/salary_slips.php'); ?>"
-                   class="sidebar-link <?php echo $sidebarActive === 'my_salary_slip' ? 'active' : ''; ?>">
-                    <i class="fa-solid fa-file-invoice-dollar"></i>
-                    <span>My Salary Slip</span>
+                   class="sidebar-link sidebar-emp-link <?php echo $sidebarActive === 'my_salary_slip' ? 'active' : ''; ?>">
+                    <span class="sidebar-emp-ico" style="--emp-ico:#059669;"><i class="fa-solid fa-file-invoice-dollar"></i></span>
+                    <span class="sidebar-emp-txt">
+                        <strong>My Salary Slip</strong>
+                        <small>Download payslips</small>
+                    </span>
                 </a>
                 <a href="<?php echo app_url('employee/change_password.php'); ?>"
-                   class="sidebar-link <?php echo $sidebarActive === 'change_password' ? 'active' : ''; ?>">
-                    <i class="fa-solid fa-key"></i>
-                    <span>Change Password</span>
+                   class="sidebar-link sidebar-emp-link <?php echo $sidebarActive === 'change_password' ? 'active' : ''; ?>">
+                    <span class="sidebar-emp-ico" style="--emp-ico:#64748b;"><i class="fa-solid fa-key"></i></span>
+                    <span class="sidebar-emp-txt">
+                        <strong>Change Password</strong>
+                        <small>Secure your login</small>
+                    </span>
                 </a>
-                <?php else: ?>
+            </nav>
+        </div>
+
+        <?php else: ?>
+        <div class="sidebar-section">
+            <div class="sidebar-section-title">Main</div>
+            <nav class="sidebar-nav">
                 <a href="<?php echo app_url('dashboard.php'); ?>"
                    class="sidebar-link <?php echo $sidebarActive === 'dashboard' ? 'active' : ''; ?>">
                     <i class="fa-solid fa-house"></i>
@@ -281,9 +336,9 @@ $sidebarCompanyName = function_exists('getCompanyName') ? getCompanyName() : 'Ar
                     <span>Policies</span>
                 </a>
                 <?php endif; ?>
-                <?php endif; ?>
             </nav>
         </div>
+        <?php endif; ?>
 
         <?php if (!$isOfficeStaffNav): ?>
         <div class="sidebar-section">

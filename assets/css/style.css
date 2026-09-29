@@ -5156,6 +5156,157 @@ body.confirm-modal-open {
     cursor: default;
 }
 
+/* ========== Employee sidebar ========== */
+.app-sidebar--employee {
+    background:
+        linear-gradient(180deg, #fff 0%, #fbfcfe 42%, #f7f9fc 100%);
+}
+
+.app-sidebar--employee .sidebar-top {
+    background: linear-gradient(180deg, #ffffff 0%, #fff8f8 100%);
+    border-bottom: 1px solid rgba(210, 35, 42, 0.12);
+    min-height: 108px;
+    padding: 14px 12px 12px;
+}
+
+.app-sidebar--employee .sidebar-search-wrap {
+    background: transparent;
+    border-bottom-color: rgba(226, 232, 240, 0.9);
+}
+
+.app-sidebar--employee .sidebar-scroll {
+    padding: 8px 10px 18px;
+}
+
+.app-sidebar--employee .sidebar-emp-section {
+    margin-bottom: 10px;
+    padding: 4px 0 2px;
+}
+
+.app-sidebar--employee .sidebar-emp-section .sidebar-section-title {
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    color: #94a3b8;
+    padding: 8px 12px 6px;
+    margin: 0;
+    border-top: 0;
+    position: relative;
+}
+
+.app-sidebar--employee .sidebar-emp-section + .sidebar-emp-section .sidebar-section-title::before {
+    content: "";
+    display: block;
+    height: 1px;
+    margin: 0 8px 10px;
+    background: linear-gradient(90deg, transparent, #e8edf3 20%, #e8edf3 80%, transparent);
+}
+
+.app-sidebar--employee .sidebar-emp-nav {
+    gap: 4px;
+}
+
+.app-sidebar--employee .sidebar-emp-link {
+    align-items: center;
+    gap: 12px;
+    padding: 10px 10px;
+    margin: 0;
+    border-radius: 12px;
+    border: 1px solid transparent;
+    color: #334155;
+    background: transparent;
+    box-shadow: none;
+    transition: background 0.18s ease, border-color 0.18s ease, transform 0.18s ease, box-shadow 0.18s ease;
+}
+
+.app-sidebar--employee .sidebar-emp-link:hover {
+    background: #fff;
+    border-color: #e8edf3;
+    color: #0f172a;
+    box-shadow: 0 4px 14px rgba(15, 23, 42, 0.05);
+    transform: translateX(2px);
+}
+
+.app-sidebar--employee .sidebar-emp-link.active {
+    background: linear-gradient(135deg, #d2232a 0%, #b91c1c 100%);
+    border-color: transparent;
+    color: #fff;
+    box-shadow: 0 8px 18px rgba(210, 35, 42, 0.28);
+    transform: none;
+}
+
+.app-sidebar--employee .sidebar-emp-ico {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    background: color-mix(in srgb, var(--emp-ico, #d2232a) 14%, #fff);
+    color: var(--emp-ico, #d2232a);
+    transition: background 0.18s ease, color 0.18s ease, box-shadow 0.18s ease;
+}
+
+.app-sidebar--employee .sidebar-emp-ico i {
+    width: auto;
+    color: inherit;
+    font-size: 14px;
+}
+
+.app-sidebar--employee .sidebar-emp-link:hover .sidebar-emp-ico {
+    background: color-mix(in srgb, var(--emp-ico, #d2232a) 20%, #fff);
+    box-shadow: 0 2px 8px color-mix(in srgb, var(--emp-ico, #d2232a) 22%, transparent);
+}
+
+.app-sidebar--employee .sidebar-emp-link.active .sidebar-emp-ico {
+    background: rgba(255, 255, 255, 0.2);
+    color: #fff;
+    box-shadow: none;
+}
+
+.app-sidebar--employee .sidebar-emp-txt {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    min-width: 0;
+    line-height: 1.25;
+}
+
+.app-sidebar--employee .sidebar-emp-txt strong {
+    font-size: 13px;
+    font-weight: 700;
+    color: inherit;
+}
+
+.app-sidebar--employee .sidebar-emp-txt small {
+    font-size: 11px;
+    font-weight: 500;
+    color: #94a3b8;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.app-sidebar--employee .sidebar-emp-link:hover .sidebar-emp-txt small {
+    color: #64748b;
+}
+
+.app-sidebar--employee .sidebar-emp-link.active .sidebar-emp-txt small {
+    color: rgba(255, 255, 255, 0.78);
+}
+
+.app-sidebar--employee .sidebar-footer-mini {
+    background: #fff;
+    border-top: 1px solid rgba(210, 35, 42, 0.1);
+}
+
+@supports not (background: color-mix(in srgb, red 10%, white)) {
+    .app-sidebar--employee .sidebar-emp-ico {
+        background: #fff5f5;
+        color: #d2232a;
+    }
+}
+
 .sidebar-dot {
     width: 8px;
     height: 8px;
