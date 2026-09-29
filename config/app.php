@@ -65,6 +65,11 @@ if (!defined('APP_BASE')) {
             $scriptName = $m[1] === '' ? '/' : $m[1];
         }
 
+        // Nested recruitment (public apply + HR screens)
+        if (preg_match('#^(.*?)/recruitment$#', $scriptName, $m)) {
+            $scriptName = $m[1] === '' ? '/' : $m[1];
+        }
+
         // Nested leave / attendance / circulars / policies
         if (preg_match('#^(.*?)/(leave|attendance|circulars|policies)$#', $scriptName, $m)) {
             $scriptName = $m[1] === '' ? '/' : $m[1];

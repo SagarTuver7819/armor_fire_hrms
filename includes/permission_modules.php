@@ -47,6 +47,11 @@ function getPermissionModules()
             'label' => 'Contractor',
             'icon'  => 'fa-helmet-safety',
         ],
+        'recruitment' => [
+            'key'   => 'recruitment',
+            'label' => 'Recruitment',
+            'icon'  => 'fa-user-plus',
+        ],
         'departments' => [
             'key'   => 'departments',
             'label' => 'Departments Workspace',

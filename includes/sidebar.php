@@ -35,6 +35,7 @@ $canPay = canAccess('payroll', 'view');
 $canMasters = canAccess('masters', 'view');
 $canContractor = canAccess('contractor', 'view');
 $canDepts = canAccess('departments', 'view');
+$canRecruitment = isAdmin() || isHR() || (function_exists('isStaffUser') && isStaffUser()) || canAccess('recruitment', 'view');
 $allowedDeptIds = allowedDepartmentsFor('departments', 'view');
 $allowedEmpDepts = allowedDepartmentsFor('employees', 'view');
 
@@ -48,6 +49,7 @@ $primaryHeadDept = $headedDeptsNav[0] ?? 0;
 if ($isOfficeStaffNav) {
     $canEmp = false;
     $canAtt = false;
+    $canRecruitment = false;
     $canPay = false;
     $canMasters = false;
     $canContractor = false;
@@ -231,6 +233,13 @@ $sidebarCompanyName = function_exists('getCompanyName') ? getCompanyName() : 'Ar
                     <i class="fa-solid fa-clipboard-list"></i>
                     <span>KPI Reports</span>
                 </a>
+                <?php if ($canRecruitment): ?>
+                <a href="<?php echo app_url('recruitment/index.php'); ?>"
+                   class="sidebar-link <?php echo in_array($sidebarActive, ['recruitment', 'recruitment_qr'], true) ? 'active' : ''; ?>">
+                    <i class="fa-solid fa-user-plus"></i>
+                    <span>Recruitment</span>
+                </a>
+                <?php endif; ?>
                 <?php elseif (!$isDeptHeadNav && (canAccess('leave', 'edit', 0) || canAccess('payroll', 'view', 0))): ?>
                 <a href="<?php echo app_url('hr/dashboard.php'); ?>"
                    class="sidebar-link <?php echo $sidebarActive === 'hr_dashboard' ? 'active' : ''; ?>">
@@ -241,6 +250,19 @@ $sidebarCompanyName = function_exists('getCompanyName') ? getCompanyName() : 'Ar
                    class="sidebar-link <?php echo $sidebarActive === 'hr_kpi' ? 'active' : ''; ?>">
                     <i class="fa-solid fa-clipboard-list"></i>
                     <span>KPI Reports</span>
+                </a>
+                <?php if ($canRecruitment): ?>
+                <a href="<?php echo app_url('recruitment/index.php'); ?>"
+                   class="sidebar-link <?php echo in_array($sidebarActive, ['recruitment', 'recruitment_qr'], true) ? 'active' : ''; ?>">
+                    <i class="fa-solid fa-user-plus"></i>
+                    <span>Recruitment</span>
+                </a>
+                <?php endif; ?>
+                <?php elseif ($canRecruitment): ?>
+                <a href="<?php echo app_url('recruitment/index.php'); ?>"
+                   class="sidebar-link <?php echo in_array($sidebarActive, ['recruitment', 'recruitment_qr'], true) ? 'active' : ''; ?>">
+                    <i class="fa-solid fa-user-plus"></i>
+                    <span>Recruitment</span>
                 </a>
                 <?php endif; ?>
                 <?php if ($canCirc): ?>

@@ -25,6 +25,7 @@ require_once __DIR__ . '/includes/coff_helper.php';
 require_once __DIR__ . '/includes/circular_helper.php';
 require_once __DIR__ . '/includes/policy_helper.php';
 require_once __DIR__ . '/includes/kpi_helper.php';
+require_once __DIR__ . '/includes/recruitment_helper.php';
 require_once __DIR__ . '/includes/permission_helper.php';
 require_once __DIR__ . '/includes/department_head_helper.php';
 require_once __DIR__ . '/sql/seed_contractor_masters.php';
@@ -119,6 +120,9 @@ try {
     require_once __DIR__ . '/includes/company_content_helper.php';
     ensureCompanyContentTables($conn);
     $log[] = 'Company History + Vision/Mission/Core Values content ready (seeded Armor Fire text).';
+
+    ensureRecruitmentTables($conn);
+    $log[] = 'Recruitment tables ready (applications, education, experience + uploads).';
 
     ensureRoleTables($conn);
     $log[] = 'Roles & permissions tables ready (custom roles, role_permissions, users.custom_role_id, users.employee_id).';
