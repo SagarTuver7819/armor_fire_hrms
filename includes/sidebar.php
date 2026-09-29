@@ -36,6 +36,8 @@ $canMasters = canAccess('masters', 'view');
 $canContractor = canAccess('contractor', 'view');
 $canDepts = canAccess('departments', 'view');
 $canRecruitment = isAdmin() || isHR() || (function_exists('isStaffUser') && isStaffUser()) || canAccess('recruitment', 'view');
+$canEmployeeVoiceAdmin = isAdmin() || isHR() || (function_exists('isStaffUser') && isStaffUser()) || canAccess('employee_voice', 'view');
+$canEmployeeVoiceSubmit = ((int) ($_SESSION['employee_id'] ?? 0) > 0);
 $allowedDeptIds = allowedDepartmentsFor('departments', 'view');
 $allowedEmpDepts = allowedDepartmentsFor('employees', 'view');
 
@@ -99,6 +101,7 @@ $regType = (string) ($_GET['type'] ?? '');
 $openContractor = ($sidebarMode === 'contractor' || strpos((string) $sidebarActive, 'contractor') === 0 || $regType === 'jobwork_govt' || $regType === 'jobwork_actual' || $regType === 'contractor_main');
 $openAttendance = ($sidebarMode === 'attendance' || strpos((string) $sidebarActive, 'attendance') === 0);
 $openRecruitment = ($sidebarMode === 'recruitment' || strpos((string) $sidebarActive, 'recruitment') === 0);
+$openEmployeeVoice = ($sidebarMode === 'employee_voice' || strpos((string) $sidebarActive, 'ev_') === 0 || strpos((string) $sidebarActive, 'employee_voice') === 0);
 $openTraining = ($sidebarMode === 'training' || strpos((string) $sidebarActive, 'training') === 0 || in_array((string) $sidebarActive, ['training_induction', 'training_sales'], true));
 $openEmployeesMenu = in_array((string) $sidebarActive, ['all_employees', 'visiting_card', 'exit_employee', 'join_employee'], true)
     || $sidebarMode === 'employees';
@@ -205,6 +208,13 @@ $sidebarCompanyName = function_exists('getCompanyName') ? getCompanyName() : 'Ar
                     <i class="fa-solid fa-clipboard-list"></i>
                     <span>My KPI</span>
                 </a>
+                <?php if ($canEmployeeVoiceSubmit): ?>
+                <a href="<?php echo app_url('employee/voice/index.php'); ?>"
+                   class="sidebar-link <?php echo in_array((string) $sidebarActive, ['employee_voice', 'employee_voice_my'], true) ? 'active' : ''; ?>">
+                    <i class="fa-solid fa-comments"></i>
+                    <span>Employee Voice</span>
+                </a>
+                <?php endif; ?>
                 <a href="<?php echo app_url('employee/salary_slips.php'); ?>"
                    class="sidebar-link <?php echo $sidebarActive === 'my_salary_slip' ? 'active' : ''; ?>">
                     <i class="fa-solid fa-file-invoice-dollar"></i>
@@ -288,6 +298,21 @@ $sidebarCompanyName = function_exists('getCompanyName') ? getCompanyName() : 'Ar
                     <a href="<?php echo app_url('recruitment/index.php'); ?>" class="sidebar-link sidebar-sublink <?php echo $sidebarActive === 'recruitment' ? 'active' : ''; ?>"><i class="fa-solid fa-inbox"></i><span>Applications</span></a>
                     <a href="<?php echo app_url('recruitment/interviews.php'); ?>" class="sidebar-link sidebar-sublink <?php echo $sidebarActive === 'recruitment_interview' ? 'active' : ''; ?>"><i class="fa-solid fa-clipboard-user"></i><span>Interview Candidates</span></a>
                     <a href="<?php echo app_url('recruitment/qr.php'); ?>" class="sidebar-link sidebar-sublink <?php echo $sidebarActive === 'recruitment_qr' ? 'active' : ''; ?>"><i class="fa-solid fa-qrcode"></i><span>Apply QR Code</span></a>
+                </div>
+            </div>
+            <?php endif; ?>
+
+            <?php if ($canEmployeeVoiceAdmin): ?>
+            <div class="sidebar-accordion <?php echo $openEmployeeVoice ? 'is-open' : ''; ?>" data-accordion="employee_voice" data-default-open="<?php echo $openEmployeeVoice ? '1' : '0'; ?>">
+                <button type="button" class="sidebar-acc-btn <?php echo $openEmployeeVoice ? 'is-active' : ''; ?>" aria-expanded="<?php echo $openEmployeeVoice ? 'true' : 'false'; ?>">
+                    <span class="sidebar-acc-left"><i class="fa-solid fa-comments"></i><span>Employee Voice</span></span>
+                    <i class="fa-solid fa-chevron-down sidebar-acc-caret"></i>
+                </button>
+                <div class="sidebar-submenu">
+                    <a href="<?php echo app_url('employee_voice/index.php'); ?>" class="sidebar-link sidebar-sublink <?php echo $sidebarActive === 'ev_admin' ? 'active' : ''; ?>"><i class="fa-solid fa-gauge"></i><span>Dashboard / All Tickets</span></a>
+                    <a href="<?php echo app_url('employee_voice/index.php?type=GRIEVANCE'); ?>" class="sidebar-link sidebar-sublink"><i class="fa-solid fa-box-tissue" style="color:#dc2626;"></i><span>Grievance</span></a>
+                    <a href="<?php echo app_url('employee_voice/index.php?type=SUGGESTION'); ?>" class="sidebar-link sidebar-sublink"><i class="fa-solid fa-lightbulb" style="color:#16a34a;"></i><span>Suggestions</span></a>
+                    <a href="<?php echo app_url('employee_voice/index.php?type=SAFETY'); ?>" class="sidebar-link sidebar-sublink"><i class="fa-solid fa-shield-halved" style="color:#2563eb;"></i><span>Safety</span></a>
                 </div>
             </div>
             <?php endif; ?>

@@ -52,6 +52,11 @@ function getPermissionModules()
             'label' => 'Recruitment',
             'icon'  => 'fa-user-plus',
         ],
+        'employee_voice' => [
+            'key'   => 'employee_voice',
+            'label' => 'Employee Voice',
+            'icon'  => 'fa-comments',
+        ],
         'departments' => [
             'key'   => 'departments',
             'label' => 'Departments Workspace',
