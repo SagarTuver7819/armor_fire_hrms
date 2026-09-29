@@ -203,7 +203,7 @@ require_once __DIR__ . '/../includes/header.php';
                             <td>
                                 <?php echo htmlspecialchars($modes[$mode] ?? ($mode ?: '—')); ?>
                                 <?php if (!empty($r['interview_date'])): ?>
-                                    <br><small><?php echo htmlspecialchars(date('d M Y', strtotime($r['interview_date']))); ?></small>
+                                    <br><small><?php echo htmlspecialchars(formatDateDisplay($r['interview_date'])); ?></small>
                                 <?php endif; ?>
                             </td>
                             <td>
@@ -216,7 +216,7 @@ require_once __DIR__ . '/../includes/header.php';
                             </td>
                             <td>
                                 <?php if (!empty($r['next_followup_at'])): ?>
-                                    <?php echo htmlspecialchars(date('d M Y', strtotime($r['next_followup_at']))); ?>
+                                    <?php echo htmlspecialchars(formatDateDisplay($r['next_followup_at'])); ?>
                                     <?php if ($isDue): ?><br><span class="rec-due-tag">Due</span><?php endif; ?>
                                 <?php else: ?>—<?php endif; ?>
                             </td>
@@ -269,7 +269,7 @@ require_once __DIR__ . '/../includes/header.php';
                         <span><?php
                             echo htmlspecialchars($modes[$mode] ?? ($mode ?: 'Interview not set'));
                             if (!empty($r['interview_date'])) {
-                                echo ' · ' . htmlspecialchars(date('d M Y', strtotime($r['interview_date'])));
+                                echo ' · ' . htmlspecialchars(formatDateDisplay($r['interview_date']));
                             }
                         ?></span>
                     </div>
@@ -279,7 +279,7 @@ require_once __DIR__ . '/../includes/header.php';
                         <span><i class="fa-solid fa-phone-volume"></i> <?php echo (int) ($r['call_count'] ?? 0); ?> calls</span>
                         <span><i class="fa-solid fa-bell"></i> <?php
                             echo !empty($r['next_followup_at'])
-                                ? htmlspecialchars(date('d M Y', strtotime($r['next_followup_at'])))
+                                ? htmlspecialchars(formatDateDisplay($r['next_followup_at']))
                                 : 'No follow-up';
                         ?></span>
                     </div>

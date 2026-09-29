@@ -275,7 +275,7 @@ require_once __DIR__ . '/../includes/header.php';
                             ?>
                             <tr class="<?php echo $penaltyRow ? 'is-danger' : ''; ?>">
                                 <td class="sr"><?php echo $i + 1; ?></td>
-                                <td class="txt"><?php echo htmlspecialchars(date('d-m-Y', strtotime($r['attendance_date']))); ?></td>
+                                <td class="txt"><?php echo htmlspecialchars(formatDateDisplay($r['attendance_date'])); ?></td>
                                 <td class="emp-code"><?php echo htmlspecialchars($r['employee_code'] ?? ''); ?></td>
                                 <td class="txt"><?php echo htmlspecialchars($r['employee_name'] ?? ''); ?></td>
                                 <td class="txt"><?php echo htmlspecialchars($r['department_name'] ?? ''); ?></td>

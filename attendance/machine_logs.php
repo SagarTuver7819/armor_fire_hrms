@@ -295,7 +295,7 @@ require_once __DIR__ . '/../includes/header.php';
                         ?>
                         <tr>
                             <td><?php echo $offset + $i + 1; ?></td>
-                            <td><?php echo htmlspecialchars(date('d-m-Y', strtotime($r['attendance_date']))); ?></td>
+                            <td><?php echo htmlspecialchars(formatDateDisplay($r['attendance_date'])); ?></td>
                             <td class="bio-time"><?php echo htmlspecialchars(substr((string) $r['punch_time'], 0, 8)); ?></td>
                             <td>
                                 <span class="bio-punch bio-punch-<?php echo $pt; ?>">

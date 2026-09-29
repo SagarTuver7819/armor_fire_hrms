@@ -61,7 +61,7 @@ require_once __DIR__ . '/../includes/header.php';
                     <tr>
                         <td><strong><?php echo htmlspecialchars(formatDateDisplay($r['kpi_date'])); ?></strong></td>
                         <td><?php echo htmlspecialchars(trim(($r['shift_in'] ?? '') . ' TO ' . ($r['shift_out'] ?? ''))); ?></td>
-                        <td><?php echo !empty($r['submitted_at']) ? htmlspecialchars(date('d-m-Y H:i', strtotime($r['submitted_at']))) : '—'; ?></td>
+                        <td><?php echo !empty($r['submitted_at']) ? htmlspecialchars(formatDateTimeDisplay($r['submitted_at'])) : '—'; ?></td>
                         <td>
                             <a class="btn-secondary" href="<?php echo app_url('employee/kpi_report.php?id=' . (int) $r['id']); ?>">
                                 <i class="fa-solid fa-file-lines"></i> View Report

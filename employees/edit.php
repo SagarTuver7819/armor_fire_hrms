@@ -496,7 +496,7 @@ $ob = empField($employee, 'overtime_benefits', 'No');
                                                 . ((string) ($h['new_location_name'] ?? '') !== '' ? $h['new_location_name'] : '—')
                                             );
                                             $when = !empty($h['created_at'])
-                                                ? date('d-m-Y H:i', strtotime($h['created_at']))
+                                                ? formatDateTimeDisplay($h['created_at'])
                                                 : '—';
                                             ?>
                                             <tr>

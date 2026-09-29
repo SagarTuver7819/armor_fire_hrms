@@ -1,11 +1,19 @@
 <?php
 /**
- * Global date format: DD-MM-YYYY (display & form)
- * Database / MySQL still uses Y-m-d.
+ * Global date/time formats
+ * Display date: DD-MM-YYYY
+ * Display time: 12-hour (h:i A)
+ * Database / MySQL still uses Y-m-d / H:i:s.
  */
 
 if (!defined('APP_DATE_DISPLAY')) {
     define('APP_DATE_DISPLAY', 'd-m-Y');
+}
+if (!defined('APP_TIME_DISPLAY')) {
+    define('APP_TIME_DISPLAY', 'h:i A');
+}
+if (!defined('APP_DATETIME_DISPLAY')) {
+    define('APP_DATETIME_DISPLAY', 'd-m-Y h:i A');
 }
 
 /**
@@ -20,7 +28,7 @@ function formatDateDisplay($date)
         return $date->format(APP_DATE_DISPLAY);
     }
     $raw = trim((string) $date);
-    if ($raw === '') {
+    if ($raw === '' || $raw === '0000-00-00 00:00:00') {
         return '';
     }
     // Already DD-MM-YYYY
@@ -38,6 +46,54 @@ function formatDateDisplay($date)
         return '';
     }
     return date(APP_DATE_DISPLAY, $ts);
+}
+
+/**
+ * Display time as 12-hour (e.g. 02:58 PM).
+ */
+function formatTimeDisplay($time)
+{
+    if ($time === null || $time === '' || $time === '00:00:00') {
+        return '';
+    }
+    if ($time instanceof DateTimeInterface) {
+        return $time->format(APP_TIME_DISPLAY);
+    }
+    $raw = trim((string) $time);
+    if ($raw === '') {
+        return '';
+    }
+    $ts = strtotime($raw);
+    if ($ts === false) {
+        return '';
+    }
+    return date(APP_TIME_DISPLAY, $ts);
+}
+
+/**
+ * Display date+time as DD-MM-YYYY hh:mm AM/PM.
+ */
+function formatDateTimeDisplay($datetime)
+{
+    if ($datetime === null || $datetime === '' || $datetime === '0000-00-00' || $datetime === '0000-00-00 00:00:00') {
+        return '';
+    }
+    if ($datetime instanceof DateTimeInterface) {
+        return $datetime->format(APP_DATETIME_DISPLAY);
+    }
+    $raw = trim((string) $datetime);
+    if ($raw === '') {
+        return '';
+    }
+    // Date only
+    if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $raw) || preg_match('/^\d{2}-\d{2}-\d{4}$/', $raw)) {
+        return formatDateDisplay($raw);
+    }
+    $ts = strtotime($raw);
+    if ($ts === false) {
+        return '';
+    }
+    return date(APP_DATETIME_DISPLAY, $ts);
 }
 
 /**

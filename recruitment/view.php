@@ -121,7 +121,7 @@ if (isset($_GET['msg']) && $_GET['msg'] === 'saved') {
             </div>
             <div class="emp-stat-item">
                 <div class="emp-stat-icon"><i class="fa-solid fa-calendar"></i></div>
-                <div><span>Applied</span><strong><?php echo !empty($row['created_at']) ? htmlspecialchars(date('d M Y', strtotime($row['created_at']))) : '—'; ?></strong></div>
+                <div><span>Applied</span><strong><?php echo !empty($row['created_at']) ? htmlspecialchars(formatDateDisplay($row['created_at'])) : '—'; ?></strong></div>
             </div>
         </div>
     </section>
@@ -161,7 +161,7 @@ if (isset($_GET['msg']) && $_GET['msg'] === 'saved') {
             </div>
             <div class="view-body view-body-3">
                 <?php
-                $show('Date of Birth', !empty($row['dob']) ? htmlspecialchars(date('d M Y', strtotime($row['dob']))) : '—');
+                $show('Date of Birth', !empty($row['dob']) ? htmlspecialchars(formatDateDisplay($row['dob'])) : '—');
                 $show('Age', !empty($row['age_years']) ? ((int) $row['age_years'] . ' years') : '—');
                 $show('Gender', htmlspecialchars($v($row['gender'] ?? '')));
                 $show('Marital Status', htmlspecialchars($v($row['marital_status'] ?? '')));

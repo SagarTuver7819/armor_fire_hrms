@@ -38,7 +38,7 @@ $offerNo = trim((string) ($row['offer_letter_no'] ?? ($issued['offer_letter_no']
 $offerDateRaw = !empty($row['offer_letter_date'])
     ? (string) $row['offer_letter_date']
     : date('Y-m-d');
-$offerDate = date('d-m-Y', strtotime($offerDateRaw));
+$offerDate = formatDateDisplay($offerDateRaw);
 
 $position = trim((string) ($row['position_name'] ?? ''));
 $department = trim((string) ($row['department_name'] ?? ''));
@@ -55,7 +55,7 @@ $displayName = trim(($title !== '' ? $title . ' ' : '') . $fullName);
 
 $region = 'RAJKOT - GUJARAT Region';
 $joiningDate = !empty($row['joining_date'])
-    ? date('d/m/Y', strtotime((string) $row['joining_date']))
+    ? formatDateDisplay((string) $row['joining_date'])
     : 'as mutually agreed';
 
 $workLocation = $companyShort . ', Rajkot, Gujarat';

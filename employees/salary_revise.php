@@ -48,7 +48,7 @@ try {
             'effective_date' => formatDateDisplay($h['effective_date']),
             'remarks' => (string) ($h['remarks'] ?? ''),
             'changed_by' => (string) ($h['changed_by_label'] ?? '—'),
-            'created_at' => !empty($h['created_at']) ? date('d-m-Y H:i', strtotime($h['created_at'])) : '',
+            'created_at' => !empty($h['created_at']) ? formatDateTimeDisplay($h['created_at']) : '',
             'is_increase' => $chg >= 0,
         ];
     }

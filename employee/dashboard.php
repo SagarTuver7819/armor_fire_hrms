@@ -680,7 +680,7 @@ $denied = isset($_GET['msg']) && $_GET['msg'] === 'denied';
                         $joinDateRaw = trim((string) ($je['date_of_joining'] ?? ''));
                         $joinDateDisp = ($joinDateRaw !== '' && $joinDateRaw !== '0000-00-00' && function_exists('formatDateDisplay'))
                             ? formatDateDisplay($joinDateRaw)
-                            : (($joinDateRaw !== '' && $joinDateRaw !== '0000-00-00') ? date('d-m-Y', strtotime($joinDateRaw)) : '—');
+                            : (($joinDateRaw !== '' && $joinDateRaw !== '0000-00-00') ? formatDateDisplay($joinDateRaw) : '—');
                     ?>
                         <div class="emp-move-chip is-join">
                             <b class="emp-move-code"><?php echo htmlspecialchars((string) ($je['employee_code'] ?? '—')); ?></b>
@@ -717,7 +717,7 @@ $denied = isset($_GET['msg']) && $_GET['msg'] === 'denied';
                         $leftDateRaw = trim((string) ($le['date_of_exit'] ?? ''));
                         $leftDateDisp = ($leftDateRaw !== '' && $leftDateRaw !== '0000-00-00' && function_exists('formatDateDisplay'))
                             ? formatDateDisplay($leftDateRaw)
-                            : (($leftDateRaw !== '' && $leftDateRaw !== '0000-00-00') ? date('d-m-Y', strtotime($leftDateRaw)) : '—');
+                            : (($leftDateRaw !== '' && $leftDateRaw !== '0000-00-00') ? formatDateDisplay($leftDateRaw) : '—');
                     ?>
                         <div class="emp-move-chip is-left">
                             <b class="emp-move-code"><?php echo htmlspecialchars((string) ($le['employee_code'] ?? '—')); ?></b>

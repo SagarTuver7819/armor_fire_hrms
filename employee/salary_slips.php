@@ -124,7 +124,7 @@ if ($slip && !empty($slip['breakup_json'])) {
 $monthLabel = date('F Y', mktime(0, 0, 0, $month, 1, $year));
 $dojDisplay = $dojYmd !== '' && function_exists('formatDateDisplay')
     ? formatDateDisplay($dojYmd)
-    : ($dojYmd !== '' ? date('d-m-Y', strtotime($dojYmd)) : '—');
+    : ($dojYmd !== '' ? formatDateDisplay($dojYmd) : '—');
 
 $pageTitle = 'My Salary Slip';
 $useSidebar = true;
@@ -235,7 +235,7 @@ require_once __DIR__ . '/../includes/header.php';
                     </b></div>
                     <div><span>Generated</span><b><?php
                         $ca = (string) ($slip['created_at'] ?? '');
-                        echo $ca !== '' ? htmlspecialchars(date('d-m-Y H:i', strtotime($ca))) : '—';
+                        echo $ca !== '' ? htmlspecialchars(formatDateTimeDisplay($ca)) : '—';
                     ?></b></div>
                 </div>
 

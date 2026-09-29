@@ -50,7 +50,7 @@ if ($deptId > 0) {
 $pendingDate = max(0, $activeEmp - $countDate);
 $conn->close();
 
-$dateDisp = function_exists('formatDateDisplay') ? formatDateDisplay($date) : date('d-m-Y', strtotime($date));
+$dateDisp = function_exists('formatDateDisplay') ? formatDateDisplay($date) : formatDateDisplay($date);
 $isToday = ($date === $today);
 
 $pageTitle = 'KPI Reports';
@@ -154,7 +154,7 @@ require_once __DIR__ . '/../includes/header.php';
                             <td><?php echo htmlspecialchars((string) ($r['department_name'] ?? '—')); ?></td>
                             <td><?php echo htmlspecialchars((string) ($r['designation'] ?? '—')); ?></td>
                             <td><?php echo htmlspecialchars(trim(($r['shift_in'] ?? '') . ' – ' . ($r['shift_out'] ?? ''))); ?></td>
-                            <td><?php echo !empty($r['submitted_at']) ? htmlspecialchars(date('d-m-Y H:i', strtotime($r['submitted_at']))) : '—'; ?></td>
+                            <td><?php echo !empty($r['submitted_at']) ? htmlspecialchars(formatDateTimeDisplay($r['submitted_at'])) : '—'; ?></td>
                             <td>
                                 <a class="btn-secondary btn-sm" href="<?php echo app_url('employee/kpi_report.php?id=' . (int) $r['id']); ?>">
                                     <i class="fa-solid fa-eye"></i> View

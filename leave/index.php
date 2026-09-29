@@ -276,7 +276,7 @@ $canAddLeave = canAccess('leave', 'add', $deptId);
                                 —
                             <?php endif; ?>
                         </td>
-                        <td><?php echo htmlspecialchars(!empty($r['created_at']) ? date('d-m-Y', strtotime($r['created_at'])) : '—'); ?></td>
+                        <td><?php echo htmlspecialchars(!empty($r['created_at']) ? formatDateDisplay($r['created_at']) : '—'); ?></td>
                     </tr>
                 <?php endforeach; ?>
                 </tbody>

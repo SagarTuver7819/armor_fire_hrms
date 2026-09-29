@@ -550,7 +550,7 @@ $tabUrl = function ($t) use ($baseQs, $year, $month) {
                             <td><strong><?php echo number_format((float) $r['days'], 1); ?></strong></td>
                             <td><strong style="<?php echo $cls; ?>"><?php echo htmlspecialchars($st); ?></strong></td>
                             <td><?php echo htmlspecialchars($r['reason'] ?: '-'); ?></td>
-                            <td><?php echo htmlspecialchars(!empty($r['created_at']) ? date('d-m-Y', strtotime($r['created_at'])) : '-'); ?></td>
+                            <td><?php echo htmlspecialchars(!empty($r['created_at']) ? formatDateDisplay($r['created_at']) : '-'); ?></td>
                         </tr>
                     <?php endforeach; ?>
                     </tbody>
@@ -793,7 +793,7 @@ $tabUrl = function ($t) use ($baseQs, $year, $month) {
                                         $newShow = ((string) ($h['new_state_name'] ?? '') !== '' ? $h['new_state_name'] : '—')
                                             . ' / '
                                             . ((string) ($h['new_location_name'] ?? '') !== '' ? $h['new_location_name'] : '—');
-                                        $when = !empty($h['created_at']) ? date('d-m-Y H:i', strtotime($h['created_at'])) : '—';
+                                        $when = !empty($h['created_at']) ? formatDateTimeDisplay($h['created_at']) : '—';
                                         ?>
                                         <tr>
                                             <td class="col-eff"><?php echo htmlspecialchars($when); ?></td>

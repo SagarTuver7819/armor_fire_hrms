@@ -111,7 +111,7 @@ require_once __DIR__ . '/../includes/header.php';
             <div class="bio-stat">
                 <span class="bio-stat-label">Last Sync</span>
                 <span class="bio-stat-value bio-stat-value-sm">
-                    <?php echo $stats['last_sync_at'] ? htmlspecialchars(date('d-m-Y H:i', strtotime($stats['last_sync_at']))) : '—'; ?>
+                    <?php echo $stats['last_sync_at'] ? htmlspecialchars(formatDateTimeDisplay($stats['last_sync_at'])) : '—'; ?>
                 </span>
                 <span class="bio-stat-sub">from Ocean / devices</span>
             </div>
@@ -200,7 +200,7 @@ require_once __DIR__ . '/../includes/header.php';
                             </td>
                             <td>
                                 <?php if (!empty($m['last_sync_at'])): ?>
-                                    <div><?php echo htmlspecialchars(date('d-m-Y H:i', strtotime($m['last_sync_at']))); ?></div>
+                                    <div><?php echo htmlspecialchars(formatDateTimeDisplay($m['last_sync_at'])); ?></div>
                                     <div class="bio-meta">
                                         <?php echo htmlspecialchars((string) $m['last_sync_status']); ?>
                                         · <?php echo (int) $m['last_sync_count']; ?>

@@ -81,7 +81,7 @@ foreach ($slots as $s) {
     }
 }
 $companyName = function_exists('getCompanyName') ? getCompanyName() : 'ARMOR';
-$dateDisp = function_exists('formatDateDisplay') ? formatDateDisplay($date) : date('d-m-Y', strtotime($date));
+$dateDisp = function_exists('formatDateDisplay') ? formatDateDisplay($date) : formatDateDisplay($date);
 $shiftDisp = trim((string) ($sheet['shift_in'] ?? $built['shift_in']) . ' TO ' . (string) ($sheet['shift_out'] ?? $built['shift_out']));
 
 $pageTitle = 'My KPI';
@@ -192,7 +192,7 @@ if (isset($_GET['msg'])) {
                     <i class="fa-solid fa-square-check"></i>
                     Based on my best knowledge, the above information is correct, and I confirm its accuracy. — Confirmed
                     <?php if (!empty($sheet['submitted_at'])): ?>
-                        · <?php echo htmlspecialchars(date('d-m-Y H:i', strtotime($sheet['submitted_at']))); ?>
+                        · <?php echo htmlspecialchars(formatDateTimeDisplay($sheet['submitted_at'])); ?>
                     <?php endif; ?>
                 </div>
             <?php endif; ?>

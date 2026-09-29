@@ -202,7 +202,7 @@ $qsBase = http_build_query(array_filter([
                                     <?php echo htmlspecialchars($labels[$stKey] ?? $stKey); ?>
                                 </span>
                             </td>
-                            <td><?php echo htmlspecialchars(date('d M Y', strtotime((string) $r['created_at']))); ?></td>
+                            <td><?php echo htmlspecialchars(formatDateDisplay((string) $r['created_at'])); ?></td>
                             <td class="rec-list-actions" onclick="event.stopPropagation();">
                                 <a href="<?php echo htmlspecialchars($pdfUrl); ?>" class="action-btn edit" target="_blank" title="PDF"><i class="fa-solid fa-file-pdf"></i></a>
                                 <a href="<?php echo htmlspecialchars($viewUrl); ?>" class="action-btn edit" title="View"><i class="fa-solid fa-eye"></i></a>
@@ -254,7 +254,7 @@ $qsBase = http_build_query(array_filter([
                         ?></small></span>
                     </div>
                     <div><i class="fa-solid fa-calendar"></i>
-                        <span>Applied <?php echo htmlspecialchars(date('d M Y', strtotime((string) $r['created_at']))); ?></span>
+                        <span>Applied <?php echo htmlspecialchars(formatDateDisplay((string) $r['created_at'])); ?></span>
                     </div>
                 </div>
                 <div class="rec-cand-foot">

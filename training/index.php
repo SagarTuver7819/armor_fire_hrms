@@ -217,7 +217,7 @@ $statusSaveUrl = app_url('training/status_save.php');
                         <td><?php echo htmlspecialchars((string) ($r['department_name'] ?: '—')); ?></td>
                         <td><?php
                             echo !empty($r['date_of_joining']) && $r['date_of_joining'] !== '0000-00-00'
-                                ? htmlspecialchars(date('d M Y', strtotime($r['date_of_joining'])))
+                                ? htmlspecialchars(formatDateDisplay($r['date_of_joining']))
                                 : '—';
                         ?></td>
                         <td>

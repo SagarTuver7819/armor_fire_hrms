@@ -64,7 +64,7 @@ for ($d = 1; $d <= $monthDays; $d++) {
     $date = sprintf('%04d-%02d-%02d', $year, $month, $d);
     $title = trim((string) ($days[$d]['title'] ?? ''));
     if ($title === '') {
-        $title = 'Holiday ' . date('d M Y', strtotime($date));
+        $title = 'Holiday ' . formatDateDisplay($date);
     }
     $isPaid = (($days[$d]['is_paid'] ?? 'Yes') === 'No') ? 'No' : 'Yes';
     $deptBind = $scopeDeptId > 0 ? $scopeDeptId : null;

@@ -97,7 +97,7 @@ require_once __DIR__ . '/../includes/header.php';
             <div class="bio-stat">
                 <span class="bio-stat-label">Last Sync</span>
                 <span class="bio-stat-value bio-stat-value-sm">
-                    <?php echo $stats['last_sync_at'] ? htmlspecialchars(date('d-m H:i', strtotime($stats['last_sync_at']))) : '—'; ?>
+                    <?php echo $stats['last_sync_at'] ? htmlspecialchars(formatDateTimeDisplay($stats['last_sync_at'])) : '—'; ?>
                 </span>
             </div>
         </div>

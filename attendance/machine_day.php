@@ -137,7 +137,7 @@ require_once __DIR__ . '/../includes/header.php';
                     <tbody>
                     <?php foreach ($sheet['days'] as $day): ?>
                         <tr class="<?php echo $day['status'] === 'O' ? 'is-present-row' : 'is-absent-row'; ?>">
-                            <td><?php echo htmlspecialchars(date('d/m/Y', strtotime($day['date']))); ?></td>
+                            <td><?php echo htmlspecialchars(formatDateDisplay($day['date'])); ?></td>
                             <td style="text-align:center;font-weight:800;"><?php echo $day['status']; ?></td>
                             <?php for ($i = 0; $i < $max; $i++): ?>
                                 <td style="text-align:center;">

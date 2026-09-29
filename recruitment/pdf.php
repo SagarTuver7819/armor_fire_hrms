@@ -253,7 +253,7 @@ $cell = static function ($label, $value, $span = 1) {
                 &nbsp;|&nbsp; <?php echo htmlspecialchars($v($row['position_name'] ?? '')); ?>
                 &nbsp;|&nbsp; <?php echo htmlspecialchars($v($row['department_name'] ?? '')); ?>
                 <?php if (!empty($row['created_at'])): ?>
-                    &nbsp;|&nbsp; Applied <?php echo htmlspecialchars(date('d M Y', strtotime($row['created_at']))); ?>
+                    &nbsp;|&nbsp; Applied <?php echo htmlspecialchars(formatDateDisplay($row['created_at'])); ?>
                 <?php endif; ?>
             </div>
         </div>
@@ -272,7 +272,7 @@ $cell = static function ($label, $value, $span = 1) {
             </tr>
             <tr>
                 <?php
-                $dobAge = (!empty($row['dob']) ? date('d M Y', strtotime($row['dob'])) : '—')
+                $dobAge = (!empty($row['dob']) ? formatDateDisplay($row['dob']) : '—')
                     . (!empty($row['age_years']) ? (' / ' . (int) $row['age_years'] . ' yrs') : '');
                 $cell('Date of Birth / Age', htmlspecialchars($dobAge));
                 $cell('Gender', htmlspecialchars($v($row['gender'] ?? '')));
@@ -401,7 +401,7 @@ $cell = static function ($label, $value, $span = 1) {
                 $m = (string) ($row['interview_mode'] ?? '');
                 $aw = (string) ($row['awaited_with'] ?? '');
                 $cell('Interview Mode', htmlspecialchars($modes[$m] ?? $v($m)));
-                $cell('Interview Date', !empty($row['interview_date']) ? htmlspecialchars(date('d M Y', strtotime($row['interview_date']))) : '—');
+                $cell('Interview Date', !empty($row['interview_date']) ? htmlspecialchars(formatDateDisplay($row['interview_date'])) : '—');
                 $cell('Awaited With', htmlspecialchars($sides[$aw] ?? $v($aw)));
                 $cell('Status', htmlspecialchars($labels[$row['status']] ?? $row['status']));
                 ?>
@@ -421,7 +421,7 @@ $cell = static function ($label, $value, $span = 1) {
     </div>
 
     <div class="foot">
-        <div class="gen">Generated on <?php echo date('d M Y H:i'); ?> · <?php echo htmlspecialchars($company); ?></div>
+        <div class="gen">Generated on <?php echo htmlspecialchars(formatDateTimeDisplay(date('Y-m-d H:i:s'))); ?> · <?php echo htmlspecialchars($company); ?></div>
         <div style="display:flex;gap:24px;width:70%;justify-content:flex-end;">
             <div class="sign">HR Signature</div>
             <div class="sign">Interviewer Signature</div>

@@ -152,7 +152,7 @@ require_once __DIR__ . '/../includes/header.php';
                         <td><?php echo htmlspecialchars((string) $r['subject']); ?></td>
                         <td><span class="status-badge" style="<?php echo evPriorityBadgeStyle($r['priority']); ?>"><?php echo htmlspecialchars((string) $r['priority']); ?></span></td>
                         <td><span class="status-badge" style="<?php echo evStatusBadgeStyle($r['status']); ?>"><?php echo htmlspecialchars((string) $r['status']); ?></span></td>
-                        <td><?php echo !empty($r['submitted_at']) ? htmlspecialchars(date('d M Y H:i', strtotime($r['submitted_at']))) : '—'; ?></td>
+                        <td><?php echo !empty($r['submitted_at']) ? htmlspecialchars(formatDateTimeDisplay($r['submitted_at'])) : '—'; ?></td>
                         <td>
                             <a class="btn-ghost" style="padding:5px 10px;font-size:12px;"
                                href="<?php echo app_url('employee_voice/view.php?id=' . (int) $r['id']); ?>">Open</a>

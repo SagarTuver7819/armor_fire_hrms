@@ -36,7 +36,7 @@ if ($company === '' || strcasecmp($company, 'Armor Fire') === 0) {
 
 $empName = trim((string) ($emp['employee_name'] ?? ''));
 $joinDate = !empty($emp['date_of_joining']) && $emp['date_of_joining'] !== '0000-00-00'
-    ? date('d/m/Y', strtotime((string) $emp['date_of_joining']))
+    ? formatDateDisplay((string) $emp['date_of_joining'])
     : '';
 $designation = trim((string) ($emp['designation'] ?? ''));
 $deptName = trim((string) ($emp['department_name'] ?? ''));

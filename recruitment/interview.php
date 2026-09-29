@@ -107,7 +107,7 @@ if (isset($_GET['msg'])) {
     <?php if ($isDue): ?>
     <div class="rec-iv-alert">
         <i class="fa-solid fa-bell"></i>
-        Follow-up due since <strong><?php echo htmlspecialchars(date('d M Y', strtotime((string) $row['next_followup_at']))); ?></strong>
+        Follow-up due since <strong><?php echo htmlspecialchars(formatDateDisplay((string) $row['next_followup_at'])); ?></strong>
     </div>
     <?php endif; ?>
 
@@ -165,7 +165,7 @@ if (isset($_GET['msg'])) {
             </div>
             <div class="emp-stat-item">
                 <div class="emp-stat-icon"><i class="fa-solid fa-calendar"></i></div>
-                <div><span>Applied</span><strong><?php echo !empty($row['created_at']) ? htmlspecialchars(date('d M Y', strtotime($row['created_at']))) : '—'; ?></strong></div>
+                <div><span>Applied</span><strong><?php echo !empty($row['created_at']) ? htmlspecialchars(formatDateDisplay($row['created_at'])) : '—'; ?></strong></div>
             </div>
         </div>
     </section>
@@ -206,7 +206,7 @@ if (isset($_GET['msg'])) {
             </div>
             <div class="view-body view-body-3">
                 <?php
-                $show('Date of Birth', !empty($row['dob']) ? htmlspecialchars(date('d M Y', strtotime($row['dob']))) : '—');
+                $show('Date of Birth', !empty($row['dob']) ? htmlspecialchars(formatDateDisplay($row['dob'])) : '—');
                 $show('Age', !empty($row['age_years']) ? ((int) $row['age_years'] . ' years') : '—');
                 $show('Gender', htmlspecialchars($v($row['gender'] ?? '')));
                 $show('Marital Status', htmlspecialchars($v($row['marital_status'] ?? '')));
@@ -525,9 +525,9 @@ if (isset($_GET['msg'])) {
                         <?php foreach ($row['followups'] as $fu): ?>
                             <tr>
                                 <td><?php echo (int) $fu['call_no']; ?></td>
-                                <td><?php echo htmlspecialchars(date('d M Y H:i', strtotime((string) $fu['call_at']))); ?></td>
+                                <td><?php echo htmlspecialchars(formatDateTimeDisplay((string) $fu['call_at'])); ?></td>
                                 <td><?php echo htmlspecialchars($v($fu['outcome'] ?? '')); ?></td>
-                                <td><?php echo !empty($fu['next_followup_at']) ? htmlspecialchars(date('d M Y', strtotime($fu['next_followup_at']))) : '—'; ?></td>
+                                <td><?php echo !empty($fu['next_followup_at']) ? htmlspecialchars(formatDateDisplay($fu['next_followup_at'])) : '—'; ?></td>
                                 <td><?php echo nl2br(htmlspecialchars($v($fu['notes'] ?? ''))); ?></td>
                             </tr>
                         <?php endforeach; ?>

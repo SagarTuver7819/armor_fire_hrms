@@ -199,7 +199,7 @@ $qs = [
                             <td><strong><?php echo number_format((float) $r['days'], 1); ?></strong></td>
                             <td><strong style="<?php echo $cls; ?>"><?php echo htmlspecialchars($st); ?></strong></td>
                             <td><?php echo htmlspecialchars($r['reason'] ?: '-'); ?></td>
-                            <td><?php echo htmlspecialchars(!empty($r['created_at']) ? date('d-m-Y', strtotime($r['created_at'])) : '-'); ?></td>
+                            <td><?php echo htmlspecialchars(!empty($r['created_at']) ? formatDateDisplay($r['created_at']) : '-'); ?></td>
                         </tr>
                     <?php endforeach; ?>
                     </tbody>
