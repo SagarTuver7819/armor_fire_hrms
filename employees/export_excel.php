@@ -69,7 +69,7 @@ header('Cache-Control: max-age=0');
 $headers = [
     'Sr', 'Employee Code', 'Pay Type', 'Employee Name', 'Father / Husband Name',
     'Department', 'Assigned State', 'Assigned Location', 'Designation', 'Date of Birth', 'Gender', 'Blood Group', 'Date of Joining', 'Exit Date',
-    'Mobile', 'Emergency Mobile', 'Aadhar', 'PAN',
+    'Mobile', 'Emergency Mobile', 'Emergency Contact Name', 'Emergency Contact Relation', 'Aadhar', 'PAN',
     'Permanent Address', 'Present Address',
     'Shift Type', 'Shift Time', 'PF Deduction', 'PF Start Date', 'Employee PF Contribution', 'UAN',
     'Bank Name', 'Account Number', 'IFSC', 'Bank Branch',
@@ -106,6 +106,8 @@ if ($result) {
             formatDateDisplay($row['date_of_exit'] ?? ''),
             $row['mobile_number'] ?? '',
             $row['emergency_mobile'] ?? '',
+            $row['emergency_contact_name'] ?? '',
+            $row['emergency_contact_relation'] ?? '',
             $row['aadhar_number'] ?? '',
             $row['pan_number'] ?? '',
             $row['permanent_address'] ?? '',

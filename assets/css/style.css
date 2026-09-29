@@ -1,6 +1,6 @@
-/* =====================================================
+﻿/* =====================================================
    Armor Fire HRMS - Main Stylesheet
-   Professional ERP look ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ· Brand red #d2232a (Armor Fire logo)
+   Professional ERP look ÃƒÂƒÃ‚ÂƒÃƒÂ‚Ã‚ÂƒÃƒÂƒÃ‚Â‚ÃƒÂ‚Ã‚ÂƒÃƒÂƒÃ‚ÂƒÃƒÂ‚Ã‚Â‚ÃƒÂƒÃ‚Â‚ÃƒÂ‚Ã‚Â‚ÃƒÂƒÃ‚ÂƒÃƒÂ‚Ã‚ÂƒÃƒÂƒÃ‚Â‚ÃƒÂ‚Ã‚Â‚ÃƒÂƒÃ‚ÂƒÃƒÂ‚Ã‚Â‚ÃƒÂƒÃ‚Â‚ÃƒÂ‚Ã‚Â· Brand red #d2232a (Armor Fire logo)
    ===================================================== */
 
 :root {
@@ -1844,7 +1844,7 @@ input.js-date,
     letter-spacing: 0.02em;
 }
 
-/* Flatpickr ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ month dropdown + year must stay clickable (no Select2 / no arrow overlap) */
+/* Flatpickr ÃƒÂƒÃ‚ÂƒÃƒÂ‚Ã‚ÂƒÃƒÂƒÃ‚Â‚ÃƒÂ‚Ã‚ÂƒÃƒÂƒÃ‚ÂƒÃƒÂ‚Ã‚Â‚ÃƒÂƒÃ‚Â‚ÃƒÂ‚Ã‚Â¢ÃƒÂƒÃ‚ÂƒÃƒÂ‚Ã‚ÂƒÃƒÂƒÃ‚Â‚ÃƒÂ‚Ã‚Â‚ÃƒÂƒÃ‚ÂƒÃƒÂ‚Ã‚Â‚ÃƒÂƒÃ‚Â‚ÃƒÂ‚Ã‚Â€ÃƒÂƒÃ‚ÂƒÃƒÂ‚Ã‚ÂƒÃƒÂƒÃ‚Â‚ÃƒÂ‚Ã‚Â‚ÃƒÂƒÃ‚ÂƒÃƒÂ‚Ã‚Â‚ÃƒÂƒÃ‚Â‚ÃƒÂ‚Ã‚Â” month dropdown + year must stay clickable (no Select2 / no arrow overlap) */
 .flatpickr-calendar {
     font-family: inherit;
     box-shadow: 0 12px 28px rgba(15, 23, 42, 0.18);
@@ -1891,7 +1891,7 @@ input.js-date,
     z-index: 5;
 }
 
-/* Native month <select> ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ never hide / never Select2 */
+/* Native month <select> ÃƒÂƒÃ‚ÂƒÃƒÂ‚Ã‚ÂƒÃƒÂƒÃ‚Â‚ÃƒÂ‚Ã‚ÂƒÃƒÂƒÃ‚ÂƒÃƒÂ‚Ã‚Â‚ÃƒÂƒÃ‚Â‚ÃƒÂ‚Ã‚Â¢ÃƒÂƒÃ‚ÂƒÃƒÂ‚Ã‚ÂƒÃƒÂƒÃ‚Â‚ÃƒÂ‚Ã‚Â‚ÃƒÂƒÃ‚ÂƒÃƒÂ‚Ã‚Â‚ÃƒÂƒÃ‚Â‚ÃƒÂ‚Ã‚Â€ÃƒÂƒÃ‚ÂƒÃƒÂ‚Ã‚ÂƒÃƒÂƒÃ‚Â‚ÃƒÂ‚Ã‚Â‚ÃƒÂƒÃ‚ÂƒÃƒÂ‚Ã‚Â‚ÃƒÂƒÃ‚Â‚ÃƒÂ‚Ã‚Â” never hide / never Select2 */
 .flatpickr-current-month .flatpickr-monthDropdown-months,
 .flatpickr-calendar select.flatpickr-monthDropdown-months {
     display: inline-block !important;
@@ -2581,7 +2581,7 @@ input.js-date,
     display: none !important;
 }
 
-/* Keep save bar in flow ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ sticky overlay was covering last grid rows */
+/* Keep save bar in flow ÃƒÂƒÃ‚ÂƒÃƒÂ‚Ã‚ÂƒÃƒÂƒÃ‚Â‚ÃƒÂ‚Ã‚ÂƒÃƒÂƒÃ‚ÂƒÃƒÂ‚Ã‚Â‚ÃƒÂƒÃ‚Â‚ÃƒÂ‚Ã‚Â¢ÃƒÂƒÃ‚ÂƒÃƒÂ‚Ã‚ÂƒÃƒÂƒÃ‚Â‚ÃƒÂ‚Ã‚Â‚ÃƒÂƒÃ‚ÂƒÃƒÂ‚Ã‚Â‚ÃƒÂƒÃ‚Â‚ÃƒÂ‚Ã‚Â€ÃƒÂƒÃ‚ÂƒÃƒÂ‚Ã‚ÂƒÃƒÂƒÃ‚Â‚ÃƒÂ‚Ã‚Â‚ÃƒÂƒÃ‚ÂƒÃƒÂ‚Ã‚Â‚ÃƒÂƒÃ‚Â‚ÃƒÂ‚Ã‚Â” sticky overlay was covering last grid rows */
 .sticky-actions {
     position: relative;
     bottom: auto;
@@ -2680,7 +2680,7 @@ input.js-date,
     background: #fecaca;
 }
 
-/* Round MDTimePicker ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ full screen center */
+/* Round MDTimePicker ÃƒÂƒÃ‚ÂƒÃƒÂ‚Ã‚ÂƒÃƒÂƒÃ‚Â‚ÃƒÂ‚Ã‚ÂƒÃƒÂƒÃ‚ÂƒÃƒÂ‚Ã‚Â‚ÃƒÂƒÃ‚Â‚ÃƒÂ‚Ã‚Â¢ÃƒÂƒÃ‚ÂƒÃƒÂ‚Ã‚ÂƒÃƒÂƒÃ‚Â‚ÃƒÂ‚Ã‚Â‚ÃƒÂƒÃ‚ÂƒÃƒÂ‚Ã‚Â‚ÃƒÂƒÃ‚Â‚ÃƒÂ‚Ã‚Â€ÃƒÂƒÃ‚ÂƒÃƒÂ‚Ã‚ÂƒÃƒÂƒÃ‚Â‚ÃƒÂ‚Ã‚Â‚ÃƒÂƒÃ‚ÂƒÃƒÂ‚Ã‚Â‚ÃƒÂƒÃ‚Â‚ÃƒÂ‚Ã‚Â” full screen center */
 .mdtimepicker {
     z-index: 120000 !important;
     display: flex !important;
@@ -3110,7 +3110,7 @@ body > .select2-container--open {
     background-color: #dc2626 !important;
 }
 
-/* Leave apply staff toaster — card design */
+/* Leave apply staff toaster â€” card design */
 #toast-container > .hrms-leave-toast-wrap.toast-info {
     background: #fff !important;
     color: #0f172a !important;
@@ -3231,7 +3231,7 @@ body > .select2-container--open {
 }
 
 /* =====================================================
-   Employee Profile ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ Professional ID Card
+   Employee Profile ÃƒÂƒÃ‚ÂƒÃƒÂ‚Ã‚ÂƒÃƒÂƒÃ‚Â‚ÃƒÂ‚Ã‚ÂƒÃƒÂƒÃ‚ÂƒÃƒÂ‚Ã‚Â‚ÃƒÂƒÃ‚Â‚ÃƒÂ‚Ã‚Â¢ÃƒÂƒÃ‚ÂƒÃƒÂ‚Ã‚ÂƒÃƒÂƒÃ‚Â‚ÃƒÂ‚Ã‚Â‚ÃƒÂƒÃ‚ÂƒÃƒÂ‚Ã‚Â‚ÃƒÂƒÃ‚Â‚ÃƒÂ‚Ã‚Â€ÃƒÂƒÃ‚ÂƒÃƒÂ‚Ã‚ÂƒÃƒÂƒÃ‚Â‚ÃƒÂ‚Ã‚Â‚ÃƒÂƒÃ‚ÂƒÃƒÂ‚Ã‚Â‚ÃƒÂƒÃ‚Â‚ÃƒÂ‚Ã‚Â” Professional ID Card
    ===================================================== */
 
 .toolbar-actions {
@@ -4802,7 +4802,7 @@ body.confirm-modal-open {
 }
 
 /* =====================================================
-   App Sidebar ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ scrollable + toggle
+   App Sidebar ÃƒÂƒÃ‚ÂƒÃƒÂ‚Ã‚ÂƒÃƒÂƒÃ‚Â‚ÃƒÂ‚Ã‚ÂƒÃƒÂƒÃ‚ÂƒÃƒÂ‚Ã‚Â‚ÃƒÂƒÃ‚Â‚ÃƒÂ‚Ã‚Â¢ÃƒÂƒÃ‚ÂƒÃƒÂ‚Ã‚ÂƒÃƒÂƒÃ‚Â‚ÃƒÂ‚Ã‚Â‚ÃƒÂƒÃ‚ÂƒÃƒÂ‚Ã‚Â‚ÃƒÂƒÃ‚Â‚ÃƒÂ‚Ã‚Â€ÃƒÂƒÃ‚ÂƒÃƒÂ‚Ã‚ÂƒÃƒÂƒÃ‚Â‚ÃƒÂ‚Ã‚Â‚ÃƒÂƒÃ‚ÂƒÃƒÂ‚Ã‚Â‚ÃƒÂƒÃ‚Â‚ÃƒÂ‚Ã‚Â” scrollable + toggle
    ===================================================== */
 
 .has-app-sidebar {
@@ -5156,34 +5156,34 @@ body.confirm-modal-open {
     cursor: default;
 }
 
-/* ========== Employee sidebar ========== */
-.app-sidebar--employee {
+/* ========== Styled sidebar (Admin + Employee) ========== */
+.app-sidebar--styled {
     background:
         linear-gradient(180deg, #fff 0%, #fbfcfe 42%, #f7f9fc 100%);
 }
 
-.app-sidebar--employee .sidebar-top {
+.app-sidebar--styled .sidebar-top {
     background: linear-gradient(180deg, #ffffff 0%, #fff8f8 100%);
     border-bottom: 1px solid rgba(210, 35, 42, 0.12);
     min-height: 108px;
     padding: 14px 12px 12px;
 }
 
-.app-sidebar--employee .sidebar-search-wrap {
+.app-sidebar--styled .sidebar-search-wrap {
     background: transparent;
     border-bottom-color: rgba(226, 232, 240, 0.9);
 }
 
-.app-sidebar--employee .sidebar-scroll {
+.app-sidebar--styled .sidebar-scroll {
     padding: 8px 10px 18px;
 }
 
-.app-sidebar--employee .sidebar-emp-section {
+.app-sidebar--styled .sidebar-emp-section {
     margin-bottom: 10px;
     padding: 4px 0 2px;
 }
 
-.app-sidebar--employee .sidebar-emp-section .sidebar-section-title {
+.app-sidebar--styled .sidebar-emp-section .sidebar-section-title {
     font-size: 10px;
     letter-spacing: 0.1em;
     color: #94a3b8;
@@ -5193,7 +5193,7 @@ body.confirm-modal-open {
     position: relative;
 }
 
-.app-sidebar--employee .sidebar-emp-section + .sidebar-emp-section .sidebar-section-title::before {
+.app-sidebar--styled .sidebar-emp-section + .sidebar-emp-section .sidebar-section-title::before {
     content: "";
     display: block;
     height: 1px;
@@ -5201,11 +5201,11 @@ body.confirm-modal-open {
     background: linear-gradient(90deg, transparent, #e8edf3 20%, #e8edf3 80%, transparent);
 }
 
-.app-sidebar--employee .sidebar-emp-nav {
+.app-sidebar--styled .sidebar-emp-nav {
     gap: 4px;
 }
 
-.app-sidebar--employee .sidebar-emp-link {
+.app-sidebar--styled .sidebar-emp-link {
     align-items: center;
     gap: 12px;
     padding: 10px 10px;
@@ -5218,7 +5218,7 @@ body.confirm-modal-open {
     transition: background 0.18s ease, border-color 0.18s ease, transform 0.18s ease, box-shadow 0.18s ease;
 }
 
-.app-sidebar--employee .sidebar-emp-link:hover {
+.app-sidebar--styled .sidebar-emp-link:hover {
     background: #fff;
     border-color: #e8edf3;
     color: #0f172a;
@@ -5226,7 +5226,7 @@ body.confirm-modal-open {
     transform: translateX(2px);
 }
 
-.app-sidebar--employee .sidebar-emp-link.active {
+.app-sidebar--styled .sidebar-emp-link.active {
     background: linear-gradient(135deg, #d2232a 0%, #b91c1c 100%);
     border-color: transparent;
     color: #fff;
@@ -5234,7 +5234,7 @@ body.confirm-modal-open {
     transform: none;
 }
 
-.app-sidebar--employee .sidebar-emp-ico {
+.app-sidebar--styled .sidebar-emp-ico {
     width: 36px;
     height: 36px;
     border-radius: 10px;
@@ -5247,24 +5247,24 @@ body.confirm-modal-open {
     transition: background 0.18s ease, color 0.18s ease, box-shadow 0.18s ease;
 }
 
-.app-sidebar--employee .sidebar-emp-ico i {
+.app-sidebar--styled .sidebar-emp-ico i {
     width: auto;
     color: inherit;
     font-size: 14px;
 }
 
-.app-sidebar--employee .sidebar-emp-link:hover .sidebar-emp-ico {
+.app-sidebar--styled .sidebar-emp-link:hover .sidebar-emp-ico {
     background: color-mix(in srgb, var(--emp-ico, #d2232a) 20%, #fff);
     box-shadow: 0 2px 8px color-mix(in srgb, var(--emp-ico, #d2232a) 22%, transparent);
 }
 
-.app-sidebar--employee .sidebar-emp-link.active .sidebar-emp-ico {
+.app-sidebar--styled .sidebar-emp-link.active .sidebar-emp-ico {
     background: rgba(255, 255, 255, 0.2);
     color: #fff;
     box-shadow: none;
 }
 
-.app-sidebar--employee .sidebar-emp-txt {
+.app-sidebar--styled .sidebar-emp-txt {
     display: flex;
     flex-direction: column;
     gap: 1px;
@@ -5272,13 +5272,13 @@ body.confirm-modal-open {
     line-height: 1.25;
 }
 
-.app-sidebar--employee .sidebar-emp-txt strong {
+.app-sidebar--styled .sidebar-emp-txt strong {
     font-size: 13px;
     font-weight: 700;
     color: inherit;
 }
 
-.app-sidebar--employee .sidebar-emp-txt small {
+.app-sidebar--styled .sidebar-emp-txt small {
     font-size: 11px;
     font-weight: 500;
     color: #94a3b8;
@@ -5287,21 +5287,132 @@ body.confirm-modal-open {
     text-overflow: ellipsis;
 }
 
-.app-sidebar--employee .sidebar-emp-link:hover .sidebar-emp-txt small {
+.app-sidebar--styled .sidebar-emp-link:hover .sidebar-emp-txt small {
     color: #64748b;
 }
 
-.app-sidebar--employee .sidebar-emp-link.active .sidebar-emp-txt small {
+.app-sidebar--styled .sidebar-emp-link.active .sidebar-emp-txt small {
     color: rgba(255, 255, 255, 0.78);
 }
 
-.app-sidebar--employee .sidebar-footer-mini {
+.app-sidebar--styled .sidebar-footer-mini {
     background: #fff;
     border-top: 1px solid rgba(210, 35, 42, 0.1);
 }
 
+.app-sidebar--styled .sidebar-section-title {
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    color: #94a3b8;
+    border-top: 0;
+}
+
+.app-sidebar--styled .sidebar-accordion {
+    margin: 0 0 4px;
+}
+
+.app-sidebar--styled .sidebar-acc-btn {
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+    border-radius: 12px;
+    border: 1px solid transparent;
+    background: transparent;
+    color: #334155;
+    font-weight: 700;
+    transition: background 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+}
+
+.app-sidebar--styled .sidebar-acc-btn:hover {
+    background: #fff;
+    border-color: #e8edf3;
+    color: #0f172a;
+    box-shadow: 0 4px 14px rgba(15, 23, 42, 0.05);
+}
+
+.app-sidebar--styled .sidebar-acc-btn.is-active,
+.app-sidebar--styled .sidebar-accordion.is-open > .sidebar-acc-btn {
+    background: #fff;
+    border-color: rgba(210, 35, 42, 0.18);
+    color: #b91c1c;
+    box-shadow: 0 4px 14px rgba(210, 35, 42, 0.08);
+}
+
+.app-sidebar--styled .sidebar-acc-left {
+    gap: 12px;
+    min-width: 0;
+    flex: 1;
+}
+
+.app-sidebar--styled .sidebar-acc-left .sidebar-emp-ico {
+    width: 36px;
+    height: 36px;
+}
+
+.app-sidebar--styled .sidebar-acc-left .sidebar-emp-txt {
+    text-align: left;
+}
+
+.app-sidebar--styled .sidebar-acc-left .sidebar-emp-txt strong {
+    font-size: 13px;
+    font-weight: 700;
+    color: inherit;
+    display: block;
+}
+
+.app-sidebar--styled .sidebar-acc-left .sidebar-emp-txt small {
+    font-size: 11px;
+    font-weight: 500;
+    color: #94a3b8;
+    display: block;
+}
+
+.app-sidebar--styled .sidebar-acc-btn:hover .sidebar-emp-ico,
+.app-sidebar--styled .sidebar-accordion.is-open > .sidebar-acc-btn .sidebar-emp-ico {
+    background: color-mix(in srgb, var(--emp-ico, #d2232a) 20%, #fff);
+    box-shadow: 0 2px 8px color-mix(in srgb, var(--emp-ico, #d2232a) 22%, transparent);
+}
+
+.app-sidebar--styled .sidebar-acc-btn .sidebar-acc-caret {
+    color: #94a3b8;
+    flex-shrink: 0;
+}
+
+.app-sidebar--styled .sidebar-submenu {
+    margin: 2px 0 6px 8px;
+    padding: 4px 0 4px 10px;
+    border-left: 2px solid #f1f5f9;
+}
+
+.app-sidebar--styled .sidebar-sublink {
+    border-radius: 10px;
+    padding: 8px 10px;
+    margin: 1px 0;
+    font-size: 12.5px;
+}
+
+.app-sidebar--styled .sidebar-sublink i {
+    width: 18px;
+    color: #94a3b8;
+}
+
+.app-sidebar--styled .sidebar-sublink.active {
+    background: #d2232a;
+    color: #fff;
+}
+
+.app-sidebar--styled .sidebar-sublink.active i {
+    color: #fff;
+}
+
+.app-sidebar--styled .sidebar-footer-mini .sidebar-link {
+    border-radius: 12px;
+    gap: 12px;
+    padding: 10px;
+}
+
 @supports not (background: color-mix(in srgb, red 10%, white)) {
-    .app-sidebar--employee .sidebar-emp-ico {
+    .app-sidebar--styled .sidebar-emp-ico {
         background: #fff5f5;
         color: #d2232a;
     }
@@ -5564,7 +5675,7 @@ body.confirm-modal-open {
 }
 
 /*
- * Body-attached open dropdowns must NEVER be width:100% ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ
+ * Body-attached open dropdowns must NEVER be width:100% ÃƒÂƒÃ‚ÂƒÃƒÂ‚Ã‚ÂƒÃƒÂƒÃ‚Â‚ÃƒÂ‚Ã‚ÂƒÃƒÂƒÃ‚ÂƒÃƒÂ‚Ã‚Â‚ÃƒÂƒÃ‚Â‚ÃƒÂ‚Ã‚Â¢ÃƒÂƒÃ‚ÂƒÃƒÂ‚Ã‚ÂƒÃƒÂƒÃ‚Â‚ÃƒÂ‚Ã‚Â‚ÃƒÂƒÃ‚ÂƒÃƒÂ‚Ã‚Â‚ÃƒÂƒÃ‚Â‚ÃƒÂ‚Ã‚Â€ÃƒÂƒÃ‚ÂƒÃƒÂ‚Ã‚ÂƒÃƒÂƒÃ‚Â‚ÃƒÂ‚Ã‚Â‚ÃƒÂƒÃ‚ÂƒÃƒÂ‚Ã‚Â‚ÃƒÂƒÃ‚Â‚ÃƒÂ‚Ã‚Â”
  * that paints a full-viewport white layer (looks like blank page).
  */
 body > .select2-container {
@@ -5905,7 +6016,7 @@ body > .select2-container .select2-dropdown {
     max-width: 100% !important;
 }
 
-/* Native select hidden ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ custom combo trigger shown instead (Select2 removed from grid) */
+/* Native select hidden ÃƒÂƒÃ‚ÂƒÃƒÂ‚Ã‚ÂƒÃƒÂƒÃ‚Â‚ÃƒÂ‚Ã‚ÂƒÃƒÂƒÃ‚ÂƒÃƒÂ‚Ã‚Â‚ÃƒÂƒÃ‚Â‚ÃƒÂ‚Ã‚Â¢ÃƒÂƒÃ‚ÂƒÃƒÂ‚Ã‚ÂƒÃƒÂƒÃ‚Â‚ÃƒÂ‚Ã‚Â‚ÃƒÂƒÃ‚ÂƒÃƒÂ‚Ã‚Â‚ÃƒÂƒÃ‚Â‚ÃƒÂ‚Ã‚Â€ÃƒÂƒÃ‚ÂƒÃƒÂ‚Ã‚ÂƒÃƒÂƒÃ‚Â‚ÃƒÂ‚Ã‚Â‚ÃƒÂƒÃ‚ÂƒÃƒÂ‚Ã‚Â‚ÃƒÂƒÃ‚Â‚ÃƒÂ‚Ã‚Â” custom combo trigger shown instead (Select2 removed from grid) */
 .ops-grid select.ops-combo-native,
 .ops-grid select.product-select.no-select2,
 .ops-grid select.grade-select.no-select2 {
@@ -6283,7 +6394,7 @@ body > .select2-container .select2-dropdown {
     z-index: 2;
 }
 
-/* Crosshair ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ row (horizontal) + column (vertical) like reference */
+/* Crosshair ÃƒÂƒÃ‚ÂƒÃƒÂ‚Ã‚ÂƒÃƒÂƒÃ‚Â‚ÃƒÂ‚Ã‚ÂƒÃƒÂƒÃ‚ÂƒÃƒÂ‚Ã‚Â‚ÃƒÂƒÃ‚Â‚ÃƒÂ‚Ã‚Â¢ÃƒÂƒÃ‚ÂƒÃƒÂ‚Ã‚ÂƒÃƒÂƒÃ‚Â‚ÃƒÂ‚Ã‚Â‚ÃƒÂƒÃ‚ÂƒÃƒÂ‚Ã‚Â‚ÃƒÂƒÃ‚Â‚ÃƒÂ‚Ã‚Â€ÃƒÂƒÃ‚ÂƒÃƒÂ‚Ã‚ÂƒÃƒÂƒÃ‚Â‚ÃƒÂ‚Ã‚Â‚ÃƒÂƒÃ‚ÂƒÃƒÂ‚Ã‚Â‚ÃƒÂƒÃ‚Â‚ÃƒÂ‚Ã‚Â” row (horizontal) + column (vertical) like reference */
 .ops-grid tbody tr.cross-row > td {
     background: #fef2f2 !important;
 }
@@ -6306,7 +6417,7 @@ body > .select2-container .select2-dropdown {
 .ops-grid tbody td.cross-cell {
     background: rgba(210, 35, 42, 0.4) !important;
     box-shadow: inset 0 0 0 2px #d2232a;
-    /* DO NOT set position:relative ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ it overrides sticky and shifts Process sideways */
+    /* DO NOT set position:relative ÃƒÂƒÃ‚ÂƒÃƒÂ‚Ã‚ÂƒÃƒÂƒÃ‚Â‚ÃƒÂ‚Ã‚ÂƒÃƒÂƒÃ‚ÂƒÃƒÂ‚Ã‚Â‚ÃƒÂƒÃ‚Â‚ÃƒÂ‚Ã‚Â¢ÃƒÂƒÃ‚ÂƒÃƒÂ‚Ã‚ÂƒÃƒÂƒÃ‚Â‚ÃƒÂ‚Ã‚Â‚ÃƒÂƒÃ‚ÂƒÃƒÂ‚Ã‚Â‚ÃƒÂƒÃ‚Â‚ÃƒÂ‚Ã‚Â€ÃƒÂƒÃ‚ÂƒÃƒÂ‚Ã‚ÂƒÃƒÂƒÃ‚Â‚ÃƒÂ‚Ã‚Â‚ÃƒÂƒÃ‚ÂƒÃƒÂ‚Ã‚Â‚ÃƒÂƒÃ‚Â‚ÃƒÂ‚Ã‚Â” it overrides sticky and shifts Process sideways */
     z-index: 8;
 }
 
@@ -7988,7 +8099,7 @@ body.confirm-modal-open .flatpickr-calendar {
 }
 .header-notify-meta small { font-size: 11px; color: #64748b; line-height: 1.35; }
 
-/* Circular form ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ Select2 multi departments (proper design) */
+/* Circular form ÃƒÂƒÃ‚ÂƒÃƒÂ‚Ã‚ÂƒÃƒÂƒÃ‚Â‚ÃƒÂ‚Ã‚ÂƒÃƒÂƒÃ‚ÂƒÃƒÂ‚Ã‚Â‚ÃƒÂƒÃ‚Â‚ÃƒÂ‚Ã‚Â¢ÃƒÂƒÃ‚ÂƒÃƒÂ‚Ã‚ÂƒÃƒÂƒÃ‚Â‚ÃƒÂ‚Ã‚Â‚ÃƒÂƒÃ‚ÂƒÃƒÂ‚Ã‚Â‚ÃƒÂƒÃ‚Â‚ÃƒÂ‚Ã‚Â€ÃƒÂƒÃ‚ÂƒÃƒÂ‚Ã‚ÂƒÃƒÂƒÃ‚Â‚ÃƒÂ‚Ã‚Â‚ÃƒÂƒÃ‚ÂƒÃƒÂ‚Ã‚Â‚ÃƒÂƒÃ‚Â‚ÃƒÂ‚Ã‚Â” Select2 multi departments (proper design) */
 .circ-dept-field {
     padding: 14px 16px;
     border: 1px solid #e2e8f0;
@@ -8357,7 +8468,7 @@ body.confirm-modal-open .flatpickr-calendar {
 .is-voice .emp-dash-date { color: #b91c1c; border-color: #fecaca; }
 .is-holiday .emp-dash-date { color: #0f766e; border-color: #99f6e4; }
 
-/* HR dashboard — employee-structure extras */
+/* HR dashboard â€” employee-structure extras */
 .hr-emp-quickbar {
     display: flex;
     flex-wrap: wrap;
@@ -8783,7 +8894,7 @@ a.emp-dash-row:hover {
     color: #BE185D;
 }
 
-/* Monthly Join / Left ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ same card family as leave balance */
+/* Monthly Join / Left ÃƒÂƒÃ‚ÂƒÃƒÂ‚Ã‚ÂƒÃƒÂƒÃ‚Â‚ÃƒÂ‚Ã‚ÂƒÃƒÂƒÃ‚ÂƒÃƒÂ‚Ã‚Â‚ÃƒÂƒÃ‚Â‚ÃƒÂ‚Ã‚Â¢ÃƒÂƒÃ‚ÂƒÃƒÂ‚Ã‚ÂƒÃƒÂƒÃ‚Â‚ÃƒÂ‚Ã‚Â‚ÃƒÂƒÃ‚ÂƒÃƒÂ‚Ã‚Â‚ÃƒÂƒÃ‚Â‚ÃƒÂ‚Ã‚Â€ÃƒÂƒÃ‚ÂƒÃƒÂ‚Ã‚ÂƒÃƒÂƒÃ‚Â‚ÃƒÂ‚Ã‚Â‚ÃƒÂƒÃ‚ÂƒÃƒÂ‚Ã‚Â‚ÃƒÂƒÃ‚Â‚ÃƒÂ‚Ã‚Â” same card family as leave balance */
 .emp-leave-bal-card.is-join {
     border-color: #93C5FD;
     background: linear-gradient(145deg, #EFF6FF 0%, #FFFFFF 55%);
@@ -8993,7 +9104,7 @@ a.emp-dash-row:hover {
     .emp-leave-bal-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
-/* Employee Matrix ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ¢ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ Heads directory */
+/* Employee Matrix ÃƒÂƒÃ‚ÂƒÃƒÂ‚Ã‚ÂƒÃƒÂƒÃ‚Â‚ÃƒÂ‚Ã‚ÂƒÃƒÂƒÃ‚ÂƒÃƒÂ‚Ã‚Â‚ÃƒÂƒÃ‚Â‚ÃƒÂ‚Ã‚Â¢ÃƒÂƒÃ‚ÂƒÃƒÂ‚Ã‚ÂƒÃƒÂƒÃ‚Â‚ÃƒÂ‚Ã‚Â‚ÃƒÂƒÃ‚ÂƒÃƒÂ‚Ã‚Â‚ÃƒÂƒÃ‚Â‚ÃƒÂ‚Ã‚Â€ÃƒÂƒÃ‚ÂƒÃƒÂ‚Ã‚ÂƒÃƒÂƒÃ‚Â‚ÃƒÂ‚Ã‚Â‚ÃƒÂƒÃ‚ÂƒÃƒÂ‚Ã‚Â‚ÃƒÂƒÃ‚Â‚ÃƒÂ‚Ã‚Â” Heads directory */
 .emp-matrix-card {
     margin-top: 16px;
     padding: 0;
@@ -9180,7 +9291,7 @@ a.emp-dash-row:hover {
     font-weight: 700;
 }
 
-/* ââ Biometric Machines (Armor Fire) ââ */
+/* Ã¢Â€Â”Ã¢Â€Â” Biometric Machines (Armor Fire) Ã¢Â€Â”Ã¢Â€Â” */
 .bio-stat-grid {
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -9683,7 +9794,7 @@ a.emp-dash-row:hover {
     background: #f0fdf4;
 }
 
-/* Alignment helpers — apply same class on BOTH th and td */
+/* Alignment helpers â€” apply same class on BOTH th and td */
 .leave-rpt-table th.ctr,
 .leave-rpt-table td.ctr,
 .leave-rpt-table th.col-ctr,

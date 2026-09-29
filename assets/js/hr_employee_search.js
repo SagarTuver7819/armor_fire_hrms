@@ -148,6 +148,9 @@
             ['Blood Group', e.blood_group, ''],
             ['Official Mobile', e.office_mobile, ''],
             ['Official Mail ID', e.office_email, ''],
+            ['Emergency Mobile', e.emergency_mobile, ''],
+            ['Emergency Contact', e.emergency_contact_name, ''],
+            ['Emergency Relation', e.emergency_contact_relation, ''],
             ['Desk Number', e.desk_no, 'is-desk'],
         ];
 

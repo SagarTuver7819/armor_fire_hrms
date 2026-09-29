@@ -32,6 +32,8 @@ function ensureEmployeesTable($conn = null)
         present_address TEXT,
         mobile_number VARCHAR(15) DEFAULT NULL,
         emergency_mobile VARCHAR(15) DEFAULT NULL,
+        emergency_contact_name VARCHAR(150) DEFAULT NULL,
+        emergency_contact_relation VARCHAR(100) DEFAULT NULL,
         aadhar_number VARCHAR(20) DEFAULT NULL,
         pan_number VARCHAR(20) DEFAULT NULL,
         date_of_birth DATE DEFAULT NULL,
@@ -69,6 +71,8 @@ function ensureEmployeesTable($conn = null)
     ensureEmployeeColumn($conn, 'date_of_exit', "date_of_exit DATE DEFAULT NULL AFTER date_of_joining");
     ensureEmployeeColumn($conn, 'office_email', "office_email VARCHAR(150) DEFAULT NULL AFTER emergency_mobile");
     ensureEmployeeColumn($conn, 'office_mobile', "office_mobile VARCHAR(15) DEFAULT NULL AFTER office_email");
+    ensureEmployeeColumn($conn, 'emergency_contact_name', "emergency_contact_name VARCHAR(150) DEFAULT NULL AFTER emergency_mobile");
+    ensureEmployeeColumn($conn, 'emergency_contact_relation', "emergency_contact_relation VARCHAR(100) DEFAULT NULL AFTER emergency_contact_name");
     ensureEmployeeColumn($conn, 'desk_no', "desk_no VARCHAR(50) DEFAULT NULL AFTER office_mobile");
     ensureEmployeeColumn($conn, 'gender', "gender VARCHAR(20) DEFAULT NULL AFTER desk_no");
     ensureEmployeeColumn($conn, 'blood_group', "blood_group VARCHAR(10) DEFAULT NULL AFTER gender");
@@ -1375,6 +1379,8 @@ function employeeImportHeaders($omitDepartment = false)
         'date_of_exit',
         'mobile_number',
         'emergency_mobile',
+        'emergency_contact_name',
+        'emergency_contact_relation',
         'aadhar_number',
         'pan_number',
         'permanent_address',
@@ -1614,9 +1620,18 @@ function employeeImportFile($conn, $filePath, $originalName, $defaultDeptId = 0,
             if (!in_array($genderImp, ['Male', 'Female'], true)) {
                 $genderImp = '';
             }
-            if ($newId > 0 && ($bloodGroup !== '' || $genderImp !== '')) {
-                $up = $conn->prepare('UPDATE employees SET blood_group = IF(? = \'\', blood_group, ?), gender = IF(? = \'\', gender, ?) WHERE id = ?');
-                $up->bind_param('ssssi', $bloodGroup, $bloodGroup, $genderImp, $genderImp, $newId);
+            $emgName = employeeImportGet($row, ['emergency_contact_name', 'emergency_name']);
+            $emgRel = employeeImportGet($row, ['emergency_contact_relation', 'emergency_relation']);
+            if ($newId > 0 && ($bloodGroup !== '' || $genderImp !== '' || $emgName !== '' || $emgRel !== '')) {
+                $up = $conn->prepare(
+                    'UPDATE employees SET
+                        blood_group = IF(? = \'\', blood_group, ?),
+                        gender = IF(? = \'\', gender, ?),
+                        emergency_contact_name = IF(? = \'\', emergency_contact_name, ?),
+                        emergency_contact_relation = IF(? = \'\', emergency_contact_relation, ?)
+                     WHERE id = ?'
+                );
+                $up->bind_param('ssssssssi', $bloodGroup, $bloodGroup, $genderImp, $genderImp, $emgName, $emgName, $emgRel, $emgRel, $newId);
                 $up->execute();
                 $up->close();
             }

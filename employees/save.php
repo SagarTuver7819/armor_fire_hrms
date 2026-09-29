@@ -39,6 +39,8 @@ $permanentAddr = forceDetailUpper($_POST['permanent_address'] ?? '');
 $presentAddr   = forceDetailUpper($_POST['present_address'] ?? '');
 $mobile        = forceDetailUpper($_POST['mobile_number'] ?? '');
 $emergency     = forceDetailUpper($_POST['emergency_mobile'] ?? '');
+$emergencyName = forceDetailUpper($_POST['emergency_contact_name'] ?? '');
+$emergencyRel  = forceDetailUpper($_POST['emergency_contact_relation'] ?? '');
 $officeEmail   = forceEmailLower($_POST['office_email'] ?? '');
 $officeMobile  = forceDetailUpper($_POST['office_mobile'] ?? '');
 $deskNo        = forceDetailUpper($_POST['desk_no'] ?? '');
@@ -298,10 +300,11 @@ if ($savedId > 0) {
     $pfEmpBind = $pfEmpContrib === null ? '' : (string) $pfEmpContrib;
     $extraStmt = $conn->prepare(
         'UPDATE employees SET office_email = ?, office_mobile = ?, desk_no = ?, gender = ?, blood_group = ?, marital_status = ?, marital_remark = ?,
+         emergency_contact_name = ?, emergency_contact_relation = ?,
          pf_start_date = NULLIF(?, \'\'), pf_employee_contribution = NULLIF(?, \'\'), pf_employer_contribution = NULL WHERE id = ?'
     );
     $extraStmt->bind_param(
-        'sssssssssi',
+        'sssssssssssi',
         $officeEmail,
         $officeMobile,
         $deskNo,
@@ -309,6 +312,8 @@ if ($savedId > 0) {
         $bloodGroup,
         $maritalStatus,
         $maritalRemark,
+        $emergencyName,
+        $emergencyRel,
         $pfStartDate,
         $pfEmpBind,
         $savedId

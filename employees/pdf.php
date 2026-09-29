@@ -79,8 +79,11 @@ $gender = trim((string) ($emp['gender'] ?? ''));
 $marital = trim((string) ($emp['marital_status'] ?? ''));
 $blood = trim((string) ($emp['blood_group'] ?? ''));
 $email = trim((string) ($emp['office_email'] ?? ''));
+$officeMobile = trim((string) ($emp['office_mobile'] ?? ''));
 $mobile = trim((string) ($emp['mobile_number'] ?? ''));
 $altMobile = trim((string) ($emp['emergency_mobile'] ?? ''));
+$emergencyName = trim((string) ($emp['emergency_contact_name'] ?? ''));
+$emergencyRel = trim((string) ($emp['emergency_contact_relation'] ?? ''));
 $aadhar = trim((string) ($emp['aadhar_number'] ?? ''));
 $pan = trim((string) ($emp['pan_number'] ?? ''));
 $name = trim((string) ($emp['employee_name'] ?? ''));
@@ -122,9 +125,12 @@ $L = $isHi ? [
     'unmarried' => 'अविवाहित',
     'widow' => 'विधवा',
     'blood' => 'ब्लड ग्रुप',
-    'email' => 'ईमेल आईडी',
+    'email' => 'आधिकारिक ईमेल आईडी',
+    'office_mobile' => 'आधिकारिक मोबाइल नंबर',
     'mobile' => 'मोबाइल नंबर',
-    'alt_mobile' => 'वैकल्पिक नंबर',
+    'alt_mobile' => 'आपातकालीन मोबाइल',
+    'emergency_name' => 'आपातकालीन संपर्क नाम',
+    'emergency_relation' => 'आपातकालीन संपर्क संबंध',
     'aadhar' => 'आधार नंबर',
     'pan' => 'पैन नंबर',
     'deg_name' => 'डिग्री का नाम',
@@ -187,9 +193,12 @@ $L = $isHi ? [
     'unmarried' => 'UNMARRIED',
     'widow' => 'WIDOW',
     'blood' => 'BLOOD GROUP',
-    'email' => 'EMAIL ID',
+    'email' => 'OFFICIAL MAIL ID',
+    'office_mobile' => 'OFFICIAL MOBILE NO.',
     'mobile' => 'MOBILE NUMBER',
-    'alt_mobile' => 'ALTERNATE NUMBER',
+    'alt_mobile' => 'EMERGENCY MOBILE',
+    'emergency_name' => 'EMERGENCY CONTACT NAME',
+    'emergency_relation' => 'EMERGENCY CONTACT RELATION',
     'aadhar' => 'AADHAR NO.',
     'pan' => 'PAN NO',
     'deg_name' => 'NAME OF DEGREE',
@@ -253,49 +262,49 @@ if ($isHi && $genderDisp !== '') {
     <style>
         <?php echo companyDocPrintCss(); ?>
         .cdoc-header {
-            gap: 16px;
-            padding-bottom: 10px;
-            margin-bottom: 8px;
-            border-bottom-width: 2.5px;
+            gap: 12px;
+            padding-bottom: 6px;
+            margin-bottom: 4px;
+            border-bottom-width: 2px;
             align-items: center;
             flex-shrink: 0;
         }
         .cdoc-header-logo {
-            width: 98px;
-            height: 98px;
+            width: 72px;
+            height: 72px;
             border: 0;
             padding: 0;
             background: transparent;
         }
         .cdoc-header-text .cdoc-company {
-            font-size: 26px;
+            font-size: 20px;
             font-weight: 800;
             color: #b91c1c;
             font-family: Calibri, Candara, Segoe UI, Arial, sans-serif;
-            margin: 0 0 5px;
-            line-height: 1.12;
+            margin: 0 0 3px;
+            line-height: 1.1;
             text-transform: uppercase;
         }
         .cdoc-header-text .cdoc-header-details {
-            font-size: 12.5px;
+            font-size: 11px;
             font-weight: 700;
             color: #1e293b;
             font-family: Calibri, Candara, Segoe UI, Arial, sans-serif;
-            line-height: 1.4;
+            line-height: 1.3;
         }
         .cdoc-footer {
             margin-top: auto;
-            padding-top: 10px;
+            padding-top: 6px;
             border-top-width: 1.5px;
-            font-size: 11px;
-            line-height: 1.4;
+            font-size: 10px;
+            line-height: 1.35;
             font-family: Calibri, Candara, Segoe UI, Arial, sans-serif;
             flex-shrink: 0;
         }
         .cdoc-watermark img {
-            width: min(48%, 280px);
-            max-height: 280px;
-            opacity: 0.06;
+            width: min(42%, 240px);
+            max-height: 240px;
+            opacity: 0.05;
         }
     </style>
 </head>
@@ -326,7 +335,7 @@ if ($isHi && $genderDisp !== '') {
             <h1 class="af-doc-title"><?php echo e($L['app_title']); ?></h1>
             <h2 class="af-sec-title"><?php echo e($L['personal']); ?></h2>
 
-            <table class="af-grid af-stretch">
+            <table class="af-grid af-personal">
                 <tr>
                     <td class="lbl"><?php echo e($L['full_name']); ?></td>
                     <td class="val" colspan="5"><?php echo e(blank($name)); ?></td>
@@ -363,15 +372,21 @@ if ($isHi && $genderDisp !== '') {
                 </tr>
                 <tr>
                     <td class="lbl"><?php echo e($L['email']); ?></td>
-                    <td class="val" colspan="5"><?php echo e(blank($email)); ?></td>
+                    <td class="val" colspan="2"><?php echo e(blank($email)); ?></td>
+                    <td class="lbl"><?php echo e($L['office_mobile']); ?></td>
+                    <td class="val" colspan="2"><?php echo e(blank($officeMobile)); ?></td>
                 </tr>
                 <tr>
                     <td class="lbl"><?php echo e($L['mobile']); ?></td>
-                    <td class="val" colspan="5"><?php echo e(blank($mobile)); ?></td>
+                    <td class="val" colspan="2"><?php echo e(blank($mobile)); ?></td>
+                    <td class="lbl"><?php echo e($L['alt_mobile']); ?></td>
+                    <td class="val" colspan="2"><?php echo e(blank($altMobile)); ?></td>
                 </tr>
                 <tr>
-                    <td class="lbl"><?php echo e($L['alt_mobile']); ?></td>
-                    <td class="val" colspan="5"><?php echo e(blank($altMobile)); ?></td>
+                    <td class="lbl"><?php echo e($L['emergency_name']); ?></td>
+                    <td class="val" colspan="2"><?php echo e(blank($emergencyName)); ?></td>
+                    <td class="lbl"><?php echo e($L['emergency_relation']); ?></td>
+                    <td class="val" colspan="2"><?php echo e(blank($emergencyRel)); ?></td>
                 </tr>
                 <tr>
                     <td class="lbl"><?php echo e($L['aadhar']); ?></td>
@@ -382,7 +397,7 @@ if ($isHi && $genderDisp !== '') {
             </table>
 
             <h2 class="af-sec-title"><?php echo e($L['education']); ?></h2>
-            <table class="af-table af-stretch">
+            <table class="af-table af-stretch af-edu">
                 <thead>
                     <tr>
                         <th style="width:28%;"><?php echo e($L['deg_name']); ?></th>
@@ -392,7 +407,7 @@ if ($isHi && $genderDisp !== '') {
                     </tr>
                 </thead>
                 <tbody>
-                    <?php for ($i = 0; $i < 5; $i++): ?>
+                    <?php for ($i = 0; $i < 4; $i++): ?>
                     <tr>
                         <td>&nbsp;</td>
                         <td>&nbsp;</td>
@@ -602,15 +617,18 @@ if ($isHi && $genderDisp !== '') {
         var weights = [];
         var total = 0;
         rows.forEach(function (tr) {
-            var w = tr.querySelector('.val.tall') ? 1.6 : 1;
+            var w = tr.querySelector('.val.tall') ? 1.45 : 1;
             weights.push(w);
             total += w;
         });
 
+        var minRow = table.classList.contains('af-edu') ? 18 : 22;
         rows.forEach(function (tr, i) {
-            var per = Math.max(32, Math.floor((targetH * weights[i]) / total));
+            var per = Math.max(minRow, Math.floor((targetH * weights[i]) / total));
             tr.querySelectorAll('th, td').forEach(function (td) {
                 td.style.height = per + 'px';
+                td.style.paddingTop = '4px';
+                td.style.paddingBottom = '4px';
             });
         });
     }
@@ -623,11 +641,12 @@ if ($isHi && $genderDisp !== '') {
             var tables = [].slice.call(fill.querySelectorAll('table.af-stretch'));
             if (!tables.length) return;
 
-            // Reset so we can measure natural non-table height
             tables.forEach(function (t) {
                 t.style.height = 'auto';
                 t.querySelectorAll('th, td').forEach(function (td) {
                     td.style.height = '';
+                    td.style.paddingTop = '';
+                    td.style.paddingBottom = '';
                 });
             });
 
@@ -639,14 +658,32 @@ if ($isHi && $genderDisp !== '') {
                 used += (parseFloat(cs.marginTop) || 0) + (parseFloat(cs.marginBottom) || 0);
             });
 
-            var avail = fill.clientHeight - used - 8;
-            if (avail < 60) return;
+            var avail = fill.clientHeight - used - 4;
+            if (avail < 48) {
+                // Page too full — shrink personal rows slightly
+                var personal = fill.querySelector('table.af-personal');
+                if (personal) {
+                    personal.querySelectorAll('th, td').forEach(function (td) {
+                        td.style.paddingTop = '3px';
+                        td.style.paddingBottom = '3px';
+                    });
+                    used = 0;
+                    [].slice.call(fill.children).forEach(function (el) {
+                        if (el.matches('table.af-stretch')) return;
+                        used += el.offsetHeight;
+                        var cs = window.getComputedStyle(el);
+                        used += (parseFloat(cs.marginTop) || 0) + (parseFloat(cs.marginBottom) || 0);
+                    });
+                    avail = fill.clientHeight - used - 4;
+                }
+            }
+            if (avail < 40) return;
 
-            // Weight: first table (main block) gets more space when multiple
             var weights = tables.map(function (t, i) {
                 if (tables.length === 1) return 1;
+                if (t.classList.contains('af-edu')) return 1.1;
                 if (t.classList.contains('af-job')) return 1.15;
-                if (i === 0) return 1.35;
+                if (i === 0) return 1.2;
                 return 1;
             });
             var wSum = weights.reduce(function (a, b) { return a + b; }, 0);
@@ -655,13 +692,15 @@ if ($isHi && $genderDisp !== '') {
                 fitTable(t, Math.floor((avail * weights[i]) / wSum));
             });
 
-            // If still overflowing, shrink proportionally
             var overflow = fill.scrollHeight - fill.clientHeight;
-            if (overflow > 2) {
+            var guard = 0;
+            while (overflow > 2 && guard < 4) {
                 tables.forEach(function (t) {
-                    var nh = Math.max(80, t.offsetHeight - Math.ceil(overflow / tables.length) - 2);
+                    var nh = Math.max(64, t.offsetHeight - Math.ceil(overflow / tables.length) - 2);
                     fitTable(t, nh);
                 });
+                overflow = fill.scrollHeight - fill.clientHeight;
+                guard++;
             }
         });
     }

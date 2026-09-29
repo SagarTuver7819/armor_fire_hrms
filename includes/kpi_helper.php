@@ -597,4 +597,117 @@ if (!function_exists('ensureKpiTables')) {
         }
         return $rows;
     }
+
+    /**
+     * Due open hour slots for employee reminder (shift-wise).
+     * Due when current time >= slot end, or within last 5 minutes of the hour.
+     *
+     * @return array{ok:bool,sheet_id?:int,submitted?:bool,slots?:array<int,array>,error?:string}
+     */
+    function kpiGetDueReminderPayload($employeeId, $conn = null)
+    {
+        $close = false;
+        if ($conn === null) {
+            $conn = getDBConnection();
+            $close = true;
+        }
+
+        $employeeId = (int) $employeeId;
+        if ($employeeId <= 0) {
+            if ($close) {
+                $conn->close();
+            }
+            return ['ok' => false, 'error' => 'Invalid employee'];
+        }
+
+        if (!function_exists('getEmployeeById')) {
+            require_once __DIR__ . '/employee_helper.php';
+        }
+        $emp = getEmployeeById($employeeId);
+        if (!$emp) {
+            if ($close) {
+                $conn->close();
+            }
+            return ['ok' => false, 'error' => 'Employee not found'];
+        }
+
+        ensureKpiTables($conn);
+        $today = date('Y-m-d');
+        $shifts = [];
+        if (function_exists('getActiveMasterRows')) {
+            $shifts = getActiveMasterRows('shifts', 'name ASC');
+        } else {
+            require_once __DIR__ . '/master_helper.php';
+            if (function_exists('ensureMasterTables')) {
+                ensureMasterTables($conn);
+            }
+            if (function_exists('getActiveMasterRows')) {
+                $shifts = getActiveMasterRows('shifts', 'name ASC');
+            }
+        }
+
+        $sheet = kpiEnsureDraftSheet($employeeId, $today, $emp, $shifts, $conn);
+        if (!$sheet) {
+            if ($close) {
+                $conn->close();
+            }
+            return ['ok' => false, 'error' => 'Could not load KPI sheet'];
+        }
+
+        if (($sheet['status'] ?? '') === 'submitted') {
+            if ($close) {
+                $conn->close();
+            }
+            return [
+                'ok' => true,
+                'sheet_id' => (int) $sheet['id'],
+                'submitted' => true,
+                'slots' => [],
+            ];
+        }
+
+        $entries = kpiGetEntries((int) $sheet['id'], $conn);
+        $nowMins = ((int) date('G')) * 60 + (int) date('i');
+        $due = [];
+        foreach ($entries as $e) {
+            if (($e['slot_status'] ?? 'open') === 'submitted') {
+                continue;
+            }
+            $from = (string) ($e['time_from'] ?? '');
+            $to = (string) ($e['time_to'] ?? '');
+            $start = kpiTimeToMinutes($from);
+            $end = kpiTimeToMinutes($to);
+            if ($end <= $start) {
+                $end += 24 * 60;
+            }
+            $isDue = ($nowMins >= $end) || ($nowMins >= $start && $nowMins >= ($end - 5));
+            if (!$isDue) {
+                continue;
+            }
+            $due[] = [
+                'slot_index' => (int) $e['slot_index'],
+                'time_from' => $from,
+                'time_to' => $to,
+                'label' => $from . ' – ' . $to,
+                'activity_text' => (string) ($e['activity_text'] ?? ''),
+            ];
+        }
+
+        usort($due, static function ($a, $b) {
+            return $a['slot_index'] <=> $b['slot_index'];
+        });
+
+        if ($close) {
+            $conn->close();
+        }
+
+        return [
+            'ok' => true,
+            'sheet_id' => (int) $sheet['id'],
+            'submitted' => false,
+            'kpi_date' => $today,
+            'slots' => $due,
+            'kpi_url' => function_exists('app_url') ? app_url('employee/kpi.php') : '/employee/kpi.php',
+        ];
+    }
 }

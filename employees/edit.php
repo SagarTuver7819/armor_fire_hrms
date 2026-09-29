@@ -274,13 +274,24 @@ $ob = empField($employee, 'overtime_benefits', 'No');
                                value="<?php echo htmlspecialchars(empField($employee, 'emergency_mobile')); ?>">
                     </div>
                     <div class="form-group">
-                        <label>10. Office Mail ID</label>
+                        <label>10. Emergency Contact Name</label>
+                        <input type="text" name="emergency_contact_name" class="form-control" maxlength="150"
+                               value="<?php echo htmlspecialchars(empField($employee, 'emergency_contact_name')); ?>">
+                    </div>
+                    <div class="form-group">
+                        <label>11. Emergency Contact Relation</label>
+                        <input type="text" name="emergency_contact_relation" class="form-control" maxlength="100"
+                               placeholder="Father / Mother / Spouse…"
+                               value="<?php echo htmlspecialchars(empField($employee, 'emergency_contact_relation')); ?>">
+                    </div>
+                    <div class="form-group">
+                        <label>12. Office Mail ID</label>
                         <input type="email" name="office_email" class="form-control" maxlength="150"
                                placeholder="name@company.com"
                                value="<?php echo htmlspecialchars(empField($employee, 'office_email')); ?>">
                     </div>
                     <div class="form-group">
-                        <label>11. Office Mobile Number</label>
+                        <label>13. Office Mobile Number</label>
                         <input type="text" name="office_mobile" class="form-control" maxlength="15"
                                value="<?php echo htmlspecialchars(empField($employee, 'office_mobile')); ?>">
                     </div>
@@ -289,7 +300,7 @@ $ob = empField($employee, 'overtime_benefits', 'No');
                 <div class="emp-subhead">Photo &amp; documents</div>
                 <div class="form-grid form-grid-3">
                     <div class="form-group">
-                        <label>12. Photo Upload</label>
+                        <label>14. Photo Upload</label>
                         <div class="emp-photo-upload">
                             <div class="emp-photo-preview" id="photoPreview">
                                 <?php if ($photoFileUrl !== ''): ?>
@@ -310,7 +321,7 @@ $ob = empField($employee, 'overtime_benefits', 'No');
                         </div>
                     </div>
                     <div class="form-group">
-                        <label>13. Aadhar Card Number</label>
+                        <label>15. Aadhar Card Number</label>
                         <input type="text" name="aadhar_number" class="form-control" maxlength="20"
                                value="<?php echo htmlspecialchars(empField($employee, 'aadhar_number')); ?>">
                         <div class="doc-attach-row">
@@ -324,7 +335,7 @@ $ob = empField($employee, 'overtime_benefits', 'No');
                         </div>
                     </div>
                     <div class="form-group">
-                        <label>14. PAN Card Number</label>
+                        <label>16. PAN Card Number</label>
                         <input type="text" name="pan_number" class="form-control" maxlength="20"
                                value="<?php echo htmlspecialchars(empField($employee, 'pan_number')); ?>">
                         <div class="doc-attach-row">
@@ -345,8 +356,7 @@ $ob = empField($employee, 'overtime_benefits', 'No');
                 <h3><span class="emp-sec-no">2</span><i class="fa-solid fa-briefcase"></i> Job Information</h3>
                 <div class="emp-subhead">Employment type &amp; codes</div>
                 <div class="form-grid form-grid-3">
-                    <div class="form-group">
-                        <label>15. Pay Type</label>
+                    <div class="form-group"><label>17. Pay Type</label>
                         <?php if ($fromContractor): ?>
                             <input type="hidden" name="pay_type" id="payType" value="Jobwork">
                             <input type="text" class="form-control" value="Jobwork" readonly>
@@ -358,8 +368,7 @@ $ob = empField($employee, 'overtime_benefits', 'No');
                         </select>
                         <?php endif; ?>
                     </div>
-                    <div class="form-group" id="mainContractorWrap" style="<?php echo $currentPayType === 'Jobwork' ? '' : 'display:none;'; ?>">
-                        <label>16. Contractor Main</label>
+                    <div class="form-group" id="mainContractorWrap" style="<?php echo $currentPayType === 'Jobwork' ? '' : 'display:none;'; ?>"><label>18. Contractor Main</label>
                         <select name="main_contractor_id" id="mainContractorId" class="form-control">
                             <option value="0">— None —</option>
                             <?php foreach ($contractorMains as $cm): ?>
@@ -369,8 +378,7 @@ $ob = empField($employee, 'overtime_benefits', 'No');
                             <?php endforeach; ?>
                         </select>
                     </div>
-                    <div class="form-group">
-                        <label>17. Employee Code <small>(auto by pay type)</small></label>
+                    <div class="form-group"><label>19. Employee Code <small>(auto by pay type)</small></label>
                         <div class="code-input-row">
                             <input type="text" name="employee_code" id="employeeCode" class="form-control" required
                                    maxlength="30" value="<?php echo htmlspecialchars($currentEmpCode); ?>">
@@ -379,8 +387,7 @@ $ob = empField($employee, 'overtime_benefits', 'No');
                             </button>
                         </div>
                     </div>
-                    <div class="form-group">
-                        <label>18. Biometric User ID</label>
+                    <div class="form-group"><label>20. Biometric User ID</label>
                         <input type="text" name="biometric_user_id" class="form-control" maxlength="50"
                                value="<?php echo htmlspecialchars(empField($employee, 'biometric_user_id')); ?>">
                     </div>
@@ -388,8 +395,7 @@ $ob = empField($employee, 'overtime_benefits', 'No');
 
                 <div class="emp-subhead">Job Description</div>
                 <div class="form-grid form-grid-3">
-                    <div class="form-group">
-                        <label>19. Department</label>
+                    <div class="form-group"><label>21. Department</label>
                         <select name="department_id" id="empDepartmentId" class="form-control" required>
                             <?php foreach ($departments as $dept): ?>
                                 <option value="<?php echo (int) $dept['id']; ?>"
@@ -400,15 +406,13 @@ $ob = empField($employee, 'overtime_benefits', 'No');
                             <?php endforeach; ?>
                         </select>
                     </div>
-                    <div class="form-group">
-                        <label>20. Sub Department</label>
+                    <div class="form-group"><label>22. Sub Department</label>
                         <select name="sub_department_id" class="form-control"
                                 data-selected="<?php echo (int) empField($employee, 'sub_department_id', 0); ?>">
                             <option value="">Select Sub Department</option>
                         </select>
                     </div>
-                    <div class="form-group">
-                        <label>21. Designation</label>
+                    <div class="form-group"><label>23. Designation</label>
                         <select name="designation" class="form-control">
                             <option value="">— Select designation —</option>
                             <?php foreach ($designations as $des): ?>
@@ -515,19 +519,16 @@ $ob = empField($employee, 'overtime_benefits', 'No');
 
                 <div class="emp-subhead">Joining &amp; status</div>
                 <div class="form-grid form-grid-3">
-                    <div class="form-group">
-                        <label>22. Date of Joining <small>(DD-MM-YYYY)</small></label>
+                    <div class="form-group"><label>24. Date of Joining <small>(DD-MM-YYYY)</small></label>
                         <input type="text" name="date_of_joining" class="form-control js-date" placeholder="DD-MM-YYYY"
                                value="<?php echo htmlspecialchars(dateInputValue(empField($employee, 'date_of_joining'))); ?>">
                     </div>
-                    <div class="form-group">
-                        <label>23. Exit Date <small>(DD-MM-YYYY)</small></label>
+                    <div class="form-group"><label>25. Exit Date <small>(DD-MM-YYYY)</small></label>
                         <input type="text" name="date_of_exit" id="dateOfExitInput" class="form-control js-date" placeholder="DD-MM-YYYY"
                                value="<?php echo htmlspecialchars(dateInputValue(empField($employee, 'date_of_exit'))); ?>">
                         <small class="form-hint">Exit date → Exit Employees tab. Status Active (from Exit tab) → exit date clears, employee runs again.</small>
                     </div>
-                    <div class="form-group">
-                        <label>24. Employee Status</label>
+                    <div class="form-group"><label>26. Employee Status</label>
                         <select name="status" id="empStatusSelect" class="form-control">
                             <option value="1" <?php echo !$isExited ? 'selected' : ''; ?>>Active</option>
                             <option value="0" <?php echo $isExited ? 'selected' : ''; ?>>Deactive (Exit / Inactive)</option>
@@ -537,8 +538,7 @@ $ob = empField($employee, 'overtime_benefits', 'No');
 
                 <div class="emp-subhead">Shift</div>
                 <div class="form-grid form-grid-3">
-                    <div class="form-group">
-                        <label>25. Shift</label>
+                    <div class="form-group"><label>27. Shift</label>
                         <select name="shift_id" id="shiftSelect" class="form-control">
                             <option value="">— Select shift —</option>
                             <?php foreach ($shifts as $shift): ?>
@@ -556,14 +556,12 @@ $ob = empField($employee, 'overtime_benefits', 'No');
                             <?php endforeach; ?>
                         </select>
                     </div>
-                    <div class="form-group">
-                        <label>26. Shift Type</label>
+                    <div class="form-group"><label>28. Shift Type</label>
                         <input type="text" id="shiftTypeDisplay" class="form-control" readonly
                                value="<?php echo htmlspecialchars($currentShiftType); ?>">
                         <input type="hidden" name="shift_type" id="shiftType" value="<?php echo htmlspecialchars($currentShiftType); ?>">
                     </div>
-                    <div class="form-group">
-                        <label>27. Shift Time</label>
+                    <div class="form-group"><label>29. Shift Time</label>
                         <input type="text" name="shift_time" id="shiftTime" class="form-control" readonly
                                placeholder="Select shift to auto-fill"
                                value="<?php echo htmlspecialchars($currentShiftTime); ?>">
@@ -572,32 +570,27 @@ $ob = empField($employee, 'overtime_benefits', 'No');
 
                 <div class="emp-subhead">Salary &amp; reporting</div>
                 <div class="form-grid form-grid-3">
-                    <div class="form-group">
-                        <label>28. PF Deduction</label>
+                    <div class="form-group"><label>30. PF Deduction</label>
                         <div class="radio-row">
                             <label><input type="radio" name="pf_deduction" value="Yes" <?php echo $pf === 'Yes' ? 'checked' : ''; ?>> Yes</label>
                             <label><input type="radio" name="pf_deduction" value="No" <?php echo $pf === 'No' ? 'checked' : ''; ?>> No</label>
                         </div>
                     </div>
-                    <div class="form-group">
-                        <label>29. PF Start Date <small>(DD-MM-YYYY)</small></label>
+                    <div class="form-group"><label>31. PF Start Date <small>(DD-MM-YYYY)</small></label>
                         <input type="text" name="pf_start_date" class="form-control js-date" placeholder="DD-MM-YYYY"
                                value="<?php echo htmlspecialchars(dateInputValue(empField($employee, 'pf_start_date'))); ?>">
                     </div>
-                    <div class="form-group">
-                        <label>30. Employee PF Contribution <small>(12% of basic)</small></label>
+                    <div class="form-group"><label>32. Employee PF Contribution <small>(12% of basic)</small></label>
                         <input type="number" step="0.01" min="0" name="pf_employee_contribution" id="pfEmployeeContribution" class="form-control"
                                placeholder="Auto from Decided Salary"
                                value="<?php echo htmlspecialchars(empField($employee, 'pf_employee_contribution')); ?>">
                         <small class="form-hint">Basic ceiling ₹15,000 × 12% · deducts from salary</small>
                     </div>
-                    <div class="form-group">
-                        <label>31. UAN Number</label>
+                    <div class="form-group"><label>33. UAN Number</label>
                         <input type="text" name="uan_number" class="form-control"
                                value="<?php echo htmlspecialchars(empField($employee, 'uan_number')); ?>">
                     </div>
-                    <div class="form-group">
-                        <label>32. Decided Salary</label>
+                    <div class="form-group"><label>34. Decided Salary</label>
                         <?php if ($empId > 0): ?>
                             <div class="salary-revise-wrap">
                                 <input type="number" step="0.01" name="decided_salary" id="decidedSalary" class="form-control"
@@ -654,8 +647,7 @@ $ob = empField($employee, 'overtime_benefits', 'No');
                         </div>
                     </div>
                     <?php endif; ?>
-                    <div class="form-group">
-                        <label>33. Reporting Person</label>
+                    <div class="form-group"><label>35. Reporting Person</label>
                         <select name="reporting_employee_id" class="form-control">
                             <option value="">— Select reporting person —</option>
                             <?php foreach ($reporters as $rep): ?>
@@ -674,8 +666,7 @@ $ob = empField($employee, 'overtime_benefits', 'No');
                 <h3><span class="emp-sec-no">3</span><i class="fa-solid fa-people-roof"></i> Family Details</h3>
                 <div class="emp-subhead">Enter member count — rows open below</div>
                 <div class="form-grid form-grid-3">
-                    <div class="form-group">
-                        <label>34. Family Members</label>
+                    <div class="form-group"><label>36. Family Members</label>
                         <input type="number" id="familyMemberCount" class="form-control" min="0" max="10" step="1"
                                value="<?php echo (int) $familyCount; ?>" placeholder="e.g. 3 or 4">
                         <small class="form-hint">0–10 members</small>
@@ -733,32 +724,27 @@ $ob = empField($employee, 'overtime_benefits', 'No');
             <div class="form-section">
                 <h3><span class="emp-sec-no">4</span><i class="fa-solid fa-building-columns"></i> Bank Information</h3>
                 <div class="form-grid form-grid-3">
-                    <div class="form-group">
-                        <label>35. Bank Name</label>
+                    <div class="form-group"><label>37. Bank Name</label>
                         <input type="text" name="bank_name" class="form-control"
                                value="<?php echo htmlspecialchars(empField($employee, 'bank_name')); ?>">
                     </div>
-                    <div class="form-group">
-                        <label>36. Bank Account Number</label>
+                    <div class="form-group"><label>38. Bank Account Number</label>
                         <input type="text" name="bank_account_number" id="bankAccountNumber" class="form-control"
                                autocomplete="off"
                                value="<?php echo htmlspecialchars(empField($employee, 'bank_account_number')); ?>">
                     </div>
-                    <div class="form-group">
-                        <label>37. Confirm Account Number</label>
+                    <div class="form-group"><label>39. Confirm Account Number</label>
                         <input type="text" name="bank_account_number_confirm" id="bankAccountNumberConfirm" class="form-control"
                                autocomplete="off"
                                value="<?php echo htmlspecialchars(empField($employee, 'bank_account_number')); ?>"
                                placeholder="Re-enter account number">
                         <small id="bankAccountConfirmError" class="form-error-msg" hidden>Must match account number above</small>
                     </div>
-                    <div class="form-group">
-                        <label>38. IFSC Code</label>
+                    <div class="form-group"><label>40. IFSC Code</label>
                         <input type="text" name="ifsc_code" class="form-control"
                                value="<?php echo htmlspecialchars(empField($employee, 'ifsc_code')); ?>">
                     </div>
-                    <div class="form-group full">
-                        <label>39. Bank Branch Address</label>
+                    <div class="form-group full"><label>41. Bank Branch Address</label>
                         <textarea name="bank_branch_address" class="form-control" rows="2"><?php echo htmlspecialchars(empField($employee, 'bank_branch_address')); ?></textarea>
                     </div>
                 </div>
@@ -768,8 +754,7 @@ $ob = empField($employee, 'overtime_benefits', 'No');
             <div class="form-section">
                 <h3><span class="emp-sec-no">5</span><i class="fa-solid fa-clipboard-list"></i> Other Details</h3>
                 <div class="form-grid form-grid-3">
-                    <div class="form-group">
-                        <label>40. Week-off Day <span class="req">*</span></label>
+                    <div class="form-group"><label>42. Week-off Day <span class="req">*</span></label>
                         <select name="week_off_day" class="form-control" required>
                             <option value="">— Select —</option>
                             <?php foreach ($weekOffDays as $day): ?>
@@ -784,29 +769,27 @@ $ob = empField($employee, 'overtime_benefits', 'No');
                             <?php endif; ?>
                         </select>
                     </div>
-                    <div class="form-group">
-                        <label>41. Week-off Benefits</label>
+                    <div class="form-group"><label>43. Week-off Benefits</label>
                         <div class="radio-row">
                             <label><input type="radio" name="week_off_benefits" value="Yes" <?php echo $wob === 'Yes' ? 'checked' : ''; ?>> Yes</label>
                             <label><input type="radio" name="week_off_benefits" value="No" <?php echo $wob === 'No' ? 'checked' : ''; ?>> No</label>
                         </div>
                     </div>
-                    <div class="form-group">
-                        <label>42. Holiday Benefits</label>
+                    <div class="form-group"><label>44. Holiday Benefits</label>
                         <div class="radio-row">
                             <label><input type="radio" name="holiday_benefits" value="Yes" <?php echo $hb === 'Yes' ? 'checked' : ''; ?>> Yes</label>
                             <label><input type="radio" name="holiday_benefits" value="No" <?php echo $hb === 'No' ? 'checked' : ''; ?>> No</label>
                         </div>
                     </div>
                     <div class="form-group">
-                        <label>43. Overtime Benefits</label>
+                        <label>45. Overtime Benefits</label>
                         <div class="radio-row">
                             <label><input type="radio" name="overtime_benefits" value="Yes" <?php echo $ob === 'Yes' ? 'checked' : ''; ?>> Yes</label>
                             <label><input type="radio" name="overtime_benefits" value="No" <?php echo $ob === 'No' ? 'checked' : ''; ?>> No</label>
                         </div>
                     </div>
                     <div class="form-group span-2">
-                        <label>44. Extra Note</label>
+                        <label>46. Extra Note</label>
                         <textarea name="extra_note" class="form-control" rows="2"><?php echo htmlspecialchars(empField($employee, 'extra_note')); ?></textarea>
                     </div>
                 </div>

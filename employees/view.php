@@ -861,6 +861,8 @@ $tabUrl = function ($t) use ($baseQs, $year, $month) {
                 <dl class="info-list">
                     <div class="info-row"><dt>Mobile Number</dt><dd><?php echo showVal($emp['mobile_number']); ?></dd></div>
                     <div class="info-row"><dt>Emergency Mobile</dt><dd><?php echo showVal($emp['emergency_mobile']); ?></dd></div>
+                    <div class="info-row"><dt>Emergency Contact Name</dt><dd><?php echo showVal($emp['emergency_contact_name'] ?? ''); ?></dd></div>
+                    <div class="info-row"><dt>Emergency Contact Relation</dt><dd><?php echo showVal($emp['emergency_contact_relation'] ?? ''); ?></dd></div>
                     <div class="info-row"><dt>Office Mail ID</dt><dd class="is-email"><?php echo showVal($emp['office_email'] ?? ''); ?></dd></div>
                     <div class="info-row"><dt>Office Mobile</dt><dd><?php echo showVal($emp['office_mobile'] ?? ''); ?></dd></div>
                 </dl>

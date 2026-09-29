@@ -131,7 +131,7 @@ if ($sidebarLogoSrc && strpos($sidebarLogoSrc, 'http') !== 0 && strpos($sidebarL
 $sidebarCompanyName = function_exists('getCompanyName') ? getCompanyName() : 'Armor Fire';
 ?>
 
-<aside class="app-sidebar<?php echo $isOfficeStaffNav ? ' app-sidebar--employee' : ''; ?>" id="appSidebar" aria-label="Sidebar navigation">
+<aside class="app-sidebar app-sidebar--styled" id="appSidebar" aria-label="Sidebar navigation">
     <div class="sidebar-top">
         <a href="<?php echo $isOfficeStaffNav ? app_url('employee/dashboard.php') : app_url('dashboard.php'); ?>" class="sidebar-logo-link" title="<?php echo htmlspecialchars($sidebarCompanyName); ?>">
             <img src="<?php echo htmlspecialchars($sidebarLogoSrc); ?>"
@@ -279,61 +279,88 @@ $sidebarCompanyName = function_exists('getCompanyName') ? getCompanyName() : 'Ar
         </div>
 
         <?php else: ?>
-        <div class="sidebar-section">
+        <div class="sidebar-section sidebar-emp-section">
             <div class="sidebar-section-title">Main</div>
-            <nav class="sidebar-nav">
+            <nav class="sidebar-nav sidebar-emp-nav">
                 <a href="<?php echo app_url('dashboard.php'); ?>"
-                   class="sidebar-link <?php echo $sidebarActive === 'dashboard' ? 'active' : ''; ?>">
-                    <i class="fa-solid fa-house"></i>
-                    <span>Dashboard</span>
+                   class="sidebar-link sidebar-emp-link <?php echo $sidebarActive === 'dashboard' ? 'active' : ''; ?>">
+                    <span class="sidebar-emp-ico" style="--emp-ico:#d2232a;"><i class="fa-solid fa-house"></i></span>
+                    <span class="sidebar-emp-txt">
+                        <strong>Dashboard</strong>
+                        <small>Company overview</small>
+                    </span>
                 </a>
                 <?php if ($sessionEmpIdNav > 0 && function_exists('isEmployee') && isEmployee()): ?>
                 <a href="<?php echo app_url('employee/salary_slips.php'); ?>"
-                   class="sidebar-link <?php echo $sidebarActive === 'my_salary_slip' ? 'active' : ''; ?>">
-                    <i class="fa-solid fa-file-invoice-dollar"></i>
-                    <span>My Salary Slip</span>
+                   class="sidebar-link sidebar-emp-link <?php echo $sidebarActive === 'my_salary_slip' ? 'active' : ''; ?>">
+                    <span class="sidebar-emp-ico" style="--emp-ico:#059669;"><i class="fa-solid fa-file-invoice-dollar"></i></span>
+                    <span class="sidebar-emp-txt">
+                        <strong>My Salary Slip</strong>
+                        <small>Download payslips</small>
+                    </span>
                 </a>
                 <a href="<?php echo app_url('employee/change_password.php'); ?>"
-                   class="sidebar-link <?php echo $sidebarActive === 'change_password' ? 'active' : ''; ?>">
-                    <i class="fa-solid fa-key"></i>
-                    <span>Change Password</span>
+                   class="sidebar-link sidebar-emp-link <?php echo $sidebarActive === 'change_password' ? 'active' : ''; ?>">
+                    <span class="sidebar-emp-ico" style="--emp-ico:#64748b;"><i class="fa-solid fa-key"></i></span>
+                    <span class="sidebar-emp-txt">
+                        <strong>Change Password</strong>
+                        <small>Secure your login</small>
+                    </span>
                 </a>
                 <?php endif; ?>
                 <?php if (function_exists('isStaffUser') && isStaffUser()): ?>
                 <a href="<?php echo app_url('hr/dashboard.php'); ?>"
-                   class="sidebar-link <?php echo $sidebarActive === 'hr_dashboard' ? 'active' : ''; ?>">
-                    <i class="fa-solid fa-user-tie"></i>
-                    <span>HR Dashboard</span>
+                   class="sidebar-link sidebar-emp-link <?php echo $sidebarActive === 'hr_dashboard' ? 'active' : ''; ?>">
+                    <span class="sidebar-emp-ico" style="--emp-ico:#7c3aed;"><i class="fa-solid fa-user-tie"></i></span>
+                    <span class="sidebar-emp-txt">
+                        <strong>HR Dashboard</strong>
+                        <small>HR workspace</small>
+                    </span>
                 </a>
                 <a href="<?php echo app_url('hr/kpi.php'); ?>"
-                   class="sidebar-link <?php echo $sidebarActive === 'hr_kpi' ? 'active' : ''; ?>">
-                    <i class="fa-solid fa-clipboard-list"></i>
-                    <span>KPI Reports</span>
+                   class="sidebar-link sidebar-emp-link <?php echo $sidebarActive === 'hr_kpi' ? 'active' : ''; ?>">
+                    <span class="sidebar-emp-ico" style="--emp-ico:#0d9488;"><i class="fa-solid fa-chart-line"></i></span>
+                    <span class="sidebar-emp-txt">
+                        <strong>KPI Reports</strong>
+                        <small>Team performance</small>
+                    </span>
                 </a>
                 <?php elseif (!$isDeptHeadNav && (canAccess('leave', 'edit', 0) || canAccess('payroll', 'view', 0))): ?>
                 <a href="<?php echo app_url('hr/dashboard.php'); ?>"
-                   class="sidebar-link <?php echo $sidebarActive === 'hr_dashboard' ? 'active' : ''; ?>">
-                    <i class="fa-solid fa-user-tie"></i>
-                    <span>Workspace</span>
+                   class="sidebar-link sidebar-emp-link <?php echo $sidebarActive === 'hr_dashboard' ? 'active' : ''; ?>">
+                    <span class="sidebar-emp-ico" style="--emp-ico:#7c3aed;"><i class="fa-solid fa-user-tie"></i></span>
+                    <span class="sidebar-emp-txt">
+                        <strong>Workspace</strong>
+                        <small>HR tools</small>
+                    </span>
                 </a>
                 <a href="<?php echo app_url('hr/kpi.php'); ?>"
-                   class="sidebar-link <?php echo $sidebarActive === 'hr_kpi' ? 'active' : ''; ?>">
-                    <i class="fa-solid fa-clipboard-list"></i>
-                    <span>KPI Reports</span>
+                   class="sidebar-link sidebar-emp-link <?php echo $sidebarActive === 'hr_kpi' ? 'active' : ''; ?>">
+                    <span class="sidebar-emp-ico" style="--emp-ico:#0d9488;"><i class="fa-solid fa-chart-line"></i></span>
+                    <span class="sidebar-emp-txt">
+                        <strong>KPI Reports</strong>
+                        <small>Team performance</small>
+                    </span>
                 </a>
                 <?php endif; ?>
                 <?php if ($canCirc): ?>
                 <a href="<?php echo app_url('circulars/index.php'); ?>"
-                   class="sidebar-link <?php echo $sidebarActive === 'circulars' ? 'active' : ''; ?>">
-                    <i class="fa-solid fa-file-circle-plus"></i>
-                    <span>Circulars</span>
+                   class="sidebar-link sidebar-emp-link <?php echo $sidebarActive === 'circulars' ? 'active' : ''; ?>">
+                    <span class="sidebar-emp-ico" style="--emp-ico:#db2777;"><i class="fa-solid fa-bullhorn"></i></span>
+                    <span class="sidebar-emp-txt">
+                        <strong>Circulars</strong>
+                        <small>Company notices</small>
+                    </span>
                 </a>
                 <?php endif; ?>
                 <?php if ($canPol): ?>
                 <a href="<?php echo app_url('policies/index.php'); ?>"
-                   class="sidebar-link <?php echo $sidebarActive === 'policies' ? 'active' : ''; ?>">
-                    <i class="fa-solid fa-scroll"></i>
-                    <span>Policies</span>
+                   class="sidebar-link sidebar-emp-link <?php echo $sidebarActive === 'policies' ? 'active' : ''; ?>">
+                    <span class="sidebar-emp-ico" style="--emp-ico:#4f46e5;"><i class="fa-solid fa-scroll"></i></span>
+                    <span class="sidebar-emp-txt">
+                        <strong>Policies</strong>
+                        <small>HR policies</small>
+                    </span>
                 </a>
                 <?php endif; ?>
             </nav>
@@ -341,13 +368,16 @@ $sidebarCompanyName = function_exists('getCompanyName') ? getCompanyName() : 'Ar
         <?php endif; ?>
 
         <?php if (!$isOfficeStaffNav): ?>
-        <div class="sidebar-section">
+        <div class="sidebar-section sidebar-emp-section">
             <div class="sidebar-section-title">Modules</div>
 
             <?php if ($canRecruitment): ?>
             <div class="sidebar-accordion <?php echo $openRecruitment ? 'is-open' : ''; ?>" data-accordion="recruitment" data-default-open="<?php echo $openRecruitment ? '1' : '0'; ?>">
                 <button type="button" class="sidebar-acc-btn <?php echo $openRecruitment ? 'is-active' : ''; ?>" aria-expanded="<?php echo $openRecruitment ? 'true' : 'false'; ?>">
-                    <span class="sidebar-acc-left"><i class="fa-solid fa-user-plus"></i><span>Recruitment</span></span>
+                    <span class="sidebar-acc-left">
+                        <span class="sidebar-emp-ico" style="--emp-ico:#2563eb;"><i class="fa-solid fa-user-plus"></i></span>
+                        <span class="sidebar-emp-txt"><strong>Recruitment</strong><small>Hiring pipeline</small></span>
+                    </span>
                     <i class="fa-solid fa-chevron-down sidebar-acc-caret"></i>
                 </button>
                 <div class="sidebar-submenu">
@@ -361,7 +391,10 @@ $sidebarCompanyName = function_exists('getCompanyName') ? getCompanyName() : 'Ar
             <?php if ($canEmployeeVoiceAdmin): ?>
             <div class="sidebar-accordion <?php echo $openEmployeeVoice ? 'is-open' : ''; ?>" data-accordion="employee_voice" data-default-open="<?php echo $openEmployeeVoice ? '1' : '0'; ?>">
                 <button type="button" class="sidebar-acc-btn <?php echo $openEmployeeVoice ? 'is-active' : ''; ?>" aria-expanded="<?php echo $openEmployeeVoice ? 'true' : 'false'; ?>">
-                    <span class="sidebar-acc-left"><i class="fa-solid fa-comments"></i><span>Employee Voice</span></span>
+                    <span class="sidebar-acc-left">
+                        <span class="sidebar-emp-ico" style="--emp-ico:#d2232a;"><i class="fa-solid fa-comments"></i></span>
+                        <span class="sidebar-emp-txt"><strong>Employee Voice</strong><small>Grievance · Suggestion · Safety</small></span>
+                    </span>
                     <i class="fa-solid fa-chevron-down sidebar-acc-caret"></i>
                 </button>
                 <div class="sidebar-submenu">
@@ -377,7 +410,10 @@ $sidebarCompanyName = function_exists('getCompanyName') ? getCompanyName() : 'Ar
             <?php if ($canEmp): ?>
             <div class="sidebar-accordion <?php echo $openTraining ? 'is-open' : ''; ?>" data-accordion="training" data-default-open="<?php echo $openTraining ? '1' : '0'; ?>">
                 <button type="button" class="sidebar-acc-btn <?php echo $openTraining ? 'is-active' : ''; ?>" aria-expanded="<?php echo $openTraining ? 'true' : 'false'; ?>">
-                    <span class="sidebar-acc-left"><i class="fa-solid fa-chalkboard-user"></i><span>Training</span></span>
+                    <span class="sidebar-acc-left">
+                        <span class="sidebar-emp-ico" style="--emp-ico:#ea580c;"><i class="fa-solid fa-chalkboard-user"></i></span>
+                        <span class="sidebar-emp-txt"><strong>Training</strong><small>Induction &amp; programs</small></span>
+                    </span>
                     <i class="fa-solid fa-chevron-down sidebar-acc-caret"></i>
                 </button>
                 <div class="sidebar-submenu">
@@ -391,7 +427,10 @@ $sidebarCompanyName = function_exists('getCompanyName') ? getCompanyName() : 'Ar
             <?php if ($canEmp): ?>
             <div class="sidebar-accordion <?php echo $openEmployeesMenu ? 'is-open' : ''; ?>" data-accordion="employees_menu" data-default-open="<?php echo $openEmployeesMenu ? '1' : '0'; ?>">
                 <button type="button" class="sidebar-acc-btn <?php echo $openEmployeesMenu ? 'is-active' : ''; ?>" aria-expanded="<?php echo $openEmployeesMenu ? 'true' : 'false'; ?>">
-                    <span class="sidebar-acc-left"><i class="fa-solid fa-users"></i><span>Employees</span></span>
+                    <span class="sidebar-acc-left">
+                        <span class="sidebar-emp-ico" style="--emp-ico:#7c3aed;"><i class="fa-solid fa-users"></i></span>
+                        <span class="sidebar-emp-txt"><strong>Employees</strong><small>Staff directory</small></span>
+                    </span>
                     <i class="fa-solid fa-chevron-down sidebar-acc-caret"></i>
                 </button>
                 <div class="sidebar-submenu">
@@ -409,7 +448,10 @@ $sidebarCompanyName = function_exists('getCompanyName') ? getCompanyName() : 'Ar
             <?php if ($canLeave): ?>
             <div class="sidebar-accordion <?php echo $openLeaveMenu ? 'is-open' : ''; ?>" data-accordion="leave_menu" data-default-open="<?php echo $openLeaveMenu ? '1' : '0'; ?>">
                 <button type="button" class="sidebar-acc-btn <?php echo $openLeaveMenu ? 'is-active' : ''; ?>" aria-expanded="<?php echo $openLeaveMenu ? 'true' : 'false'; ?>">
-                    <span class="sidebar-acc-left"><i class="fa-solid fa-plane-departure"></i><span>Leave</span></span>
+                    <span class="sidebar-acc-left">
+                        <span class="sidebar-emp-ico" style="--emp-ico:#ea580c;"><i class="fa-solid fa-plane-departure"></i></span>
+                        <span class="sidebar-emp-txt"><strong>Leave</strong><small>Requests &amp; reports</small></span>
+                    </span>
                     <i class="fa-solid fa-chevron-down sidebar-acc-caret"></i>
                 </button>
                 <div class="sidebar-submenu">
@@ -426,7 +468,10 @@ $sidebarCompanyName = function_exists('getCompanyName') ? getCompanyName() : 'Ar
             <?php if ($canAtt): ?>
             <div class="sidebar-accordion <?php echo $openAttendance ? 'is-open' : ''; ?>" data-accordion="attendance" data-default-open="<?php echo $openAttendance ? '1' : '0'; ?>">
                 <button type="button" class="sidebar-acc-btn <?php echo $openAttendance ? 'is-active' : ''; ?>" aria-expanded="<?php echo $openAttendance ? 'true' : 'false'; ?>">
-                    <span class="sidebar-acc-left"><i class="fa-solid fa-calendar-check"></i><span>Attendance</span></span>
+                    <span class="sidebar-acc-left">
+                        <span class="sidebar-emp-ico" style="--emp-ico:#2563eb;"><i class="fa-solid fa-calendar-check"></i></span>
+                        <span class="sidebar-emp-txt"><strong>Attendance</strong><small>Punch &amp; reports</small></span>
+                    </span>
                     <i class="fa-solid fa-chevron-down sidebar-acc-caret"></i>
                 </button>
                 <div class="sidebar-submenu">
@@ -446,7 +491,10 @@ $sidebarCompanyName = function_exists('getCompanyName') ? getCompanyName() : 'Ar
             <?php if ($canPay): ?>
             <div class="sidebar-accordion <?php echo $openPayrollMenu ? 'is-open' : ''; ?>" data-accordion="payroll_menu" data-default-open="<?php echo $openPayrollMenu ? '1' : '0'; ?>">
                 <button type="button" class="sidebar-acc-btn <?php echo $openPayrollMenu ? 'is-active' : ''; ?>" aria-expanded="<?php echo $openPayrollMenu ? 'true' : 'false'; ?>">
-                    <span class="sidebar-acc-left"><i class="fa-solid fa-wallet"></i><span>Payroll</span></span>
+                    <span class="sidebar-acc-left">
+                        <span class="sidebar-emp-ico" style="--emp-ico:#059669;"><i class="fa-solid fa-wallet"></i></span>
+                        <span class="sidebar-emp-txt"><strong>Payroll</strong><small>Salary &amp; NEFT</small></span>
+                    </span>
                     <i class="fa-solid fa-chevron-down sidebar-acc-caret"></i>
                 </button>
                 <div class="sidebar-submenu">
@@ -461,7 +509,10 @@ $sidebarCompanyName = function_exists('getCompanyName') ? getCompanyName() : 'Ar
             <?php if ($canContractor): ?>
             <div class="sidebar-accordion <?php echo $openContractor ? 'is-open' : ''; ?>" data-accordion="contractor" data-default-open="<?php echo $openContractor ? '1' : '0'; ?>">
                 <button type="button" class="sidebar-acc-btn <?php echo $openContractor ? 'is-active' : ''; ?>" aria-expanded="<?php echo $openContractor ? 'true' : 'false'; ?>">
-                    <span class="sidebar-acc-left"><i class="fa-solid fa-helmet-safety"></i><span>Contractor</span></span>
+                    <span class="sidebar-acc-left">
+                        <span class="sidebar-emp-ico" style="--emp-ico:#ca8a04;"><i class="fa-solid fa-helmet-safety"></i></span>
+                        <span class="sidebar-emp-txt"><strong>Contractor</strong><small>Jobwork &amp; rates</small></span>
+                    </span>
                     <i class="fa-solid fa-chevron-down sidebar-acc-caret"></i>
                 </button>
                 <div class="sidebar-submenu">
@@ -479,7 +530,10 @@ $sidebarCompanyName = function_exists('getCompanyName') ? getCompanyName() : 'Ar
             <?php if ($canDepts): ?>
             <div class="sidebar-accordion <?php echo $openDepartments ? 'is-open' : ''; ?>" data-accordion="departments" data-default-open="<?php echo $openDepartments ? '1' : '0'; ?>">
                 <button type="button" class="sidebar-acc-btn <?php echo $openDepartments ? 'is-active' : ''; ?>" aria-expanded="<?php echo $openDepartments ? 'true' : 'false'; ?>">
-                    <span class="sidebar-acc-left"><i class="fa-solid fa-building"></i><span>Departments</span></span>
+                    <span class="sidebar-acc-left">
+                        <span class="sidebar-emp-ico" style="--emp-ico:#0ea5e9;"><i class="fa-solid fa-building"></i></span>
+                        <span class="sidebar-emp-txt"><strong>Departments</strong><small>All department boxes</small></span>
+                    </span>
                     <i class="fa-solid fa-chevron-down sidebar-acc-caret"></i>
                 </button>
                 <div class="sidebar-submenu sidebar-submenu-scroll">
@@ -497,7 +551,10 @@ $sidebarCompanyName = function_exists('getCompanyName') ? getCompanyName() : 'Ar
             <?php if ($canMasters): ?>
             <div class="sidebar-accordion <?php echo $openMasters ? 'is-open' : ''; ?>" data-accordion="masters" data-default-open="<?php echo $openMasters ? '1' : '0'; ?>">
                 <button type="button" class="sidebar-acc-btn <?php echo $openMasters ? 'is-active' : ''; ?>" aria-expanded="<?php echo $openMasters ? 'true' : 'false'; ?>">
-                    <span class="sidebar-acc-left"><i class="fa-solid fa-database"></i><span>Masters</span></span>
+                    <span class="sidebar-acc-left">
+                        <span class="sidebar-emp-ico" style="--emp-ico:#64748b;"><i class="fa-solid fa-database"></i></span>
+                        <span class="sidebar-emp-txt"><strong>Masters</strong><small>Master data setup</small></span>
+                    </span>
                     <i class="fa-solid fa-chevron-down sidebar-acc-caret"></i>
                 </button>
                 <div class="sidebar-submenu sidebar-submenu-scroll">

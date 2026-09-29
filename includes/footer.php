@@ -70,5 +70,24 @@ require_once __DIR__ . '/../config/app.php';
         <script src="<?php echo app_url('assets/js/staff_leave_toast.js'); ?>?v=<?php echo (int) @filemtime(__DIR__ . '/../assets/js/staff_leave_toast.js'); ?>"></script>
     <?php endif; ?>
     <script src="<?php echo app_url('assets/js/select2_init.js'); ?>?v=<?php echo (int) @filemtime(__DIR__ . '/../assets/js/select2_init.js'); ?>"></script>
+    <?php
+    // Global shift-wise KPI hour reminder for employee login (any page)
+    $kpiReminderEmpId = (int) ($_SESSION['employee_id'] ?? 0);
+    $enableKpiReminder = $kpiReminderEmpId > 0
+        && function_exists('isEmployee')
+        && isEmployee()
+        && empty($disableKpiReminder);
+    if ($enableKpiReminder):
+    ?>
+    <script>
+        window.KPI_REMINDER = {
+            dueUrl: <?php echo json_encode(app_url('employee/ajax_kpi_due.php')); ?>,
+            hourUrl: <?php echo json_encode(app_url('employee/ajax_kpi_hour.php')); ?>,
+            kpiUrl: <?php echo json_encode(app_url('employee/kpi.php')); ?>,
+            today: <?php echo json_encode(date('Y-m-d')); ?>
+        };
+    </script>
+    <script src="<?php echo app_url('assets/js/kpi_reminder.js'); ?>?v=<?php echo (int) @filemtime(__DIR__ . '/../assets/js/kpi_reminder.js'); ?>"></script>
+    <?php endif; ?>
 </body>
 </html>

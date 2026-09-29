@@ -68,7 +68,7 @@ $conn = getDBConnection();
 
 try {
     ensureEmployeesTable($conn);
-    $log[] = 'Employees table + extra columns ready (pay_type, office fields, gender, blood_group, marital, photo, pf_start_date, pf contributions, family).';
+    $log[] = 'Employees table + extra columns ready (pay_type, office fields, emergency contact name/relation, gender, blood_group, marital, photo, pf_start_date, pf contributions, family).';
 
     ensureMasterTables($conn);
     $log[] = 'Masters tables ready (incl. holidays.from/to dates). Sub Department seeded from Department names where missing.';
@@ -175,6 +175,8 @@ try {
         'employees.pf_employer_contribution' => dbSyncHasColumn($conn, 'employees', 'pf_employer_contribution'),
         'employees.office_email' => dbSyncHasColumn($conn, 'employees', 'office_email'),
         'employees.office_mobile' => dbSyncHasColumn($conn, 'employees', 'office_mobile'),
+        'employees.emergency_contact_name' => dbSyncHasColumn($conn, 'employees', 'emergency_contact_name'),
+        'employees.emergency_contact_relation' => dbSyncHasColumn($conn, 'employees', 'emergency_contact_relation'),
         'employees.photo_file' => dbSyncHasColumn($conn, 'employees', 'photo_file'),
         'employee_family_members table' => dbSyncHasTable($conn, 'employee_family_members'),
         'holidays.department_id' => dbSyncHasColumn($conn, 'holidays', 'department_id'),

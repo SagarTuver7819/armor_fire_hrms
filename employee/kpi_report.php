@@ -97,8 +97,8 @@ $h = static function ($s) {
             background: #e5e7eb;
             color: #111;
             font-family: Calibri, Candara, Segoe UI, Arial, Helvetica, sans-serif;
-            font-size: 12.5px;
-            line-height: 1.45;
+            font-size: 15px;
+            line-height: 1.5;
             -webkit-print-color-adjust: exact;
             print-color-adjust: exact;
         }
@@ -147,7 +147,7 @@ $h = static function ($s) {
         }
         .page-inner {
             min-height: 297mm;
-            padding: 10mm 12mm 10mm;
+            padding: 7mm 8mm 6mm;
             display: flex;
             flex-direction: column;
             position: relative;
@@ -155,54 +155,54 @@ $h = static function ($s) {
         }
 
         .cdoc-header {
-            gap: 14px;
-            padding-bottom: 10px;
-            margin-bottom: 12px;
+            gap: 12px;
+            padding-bottom: 8px;
+            margin-bottom: 8px;
             border-bottom-width: 2.5px;
             align-items: center;
             flex-shrink: 0;
         }
         .cdoc-header-logo {
-            width: 88px;
-            height: 88px;
+            width: 78px;
+            height: 78px;
             border: 0;
             padding: 0;
             background: transparent;
         }
         .cdoc-header-text .cdoc-company {
-            font-size: 22px;
+            font-size: 24px;
             font-weight: 800;
             color: #b91c1c;
-            margin: 0 0 4px;
+            margin: 0 0 3px;
             line-height: 1.12;
             text-transform: uppercase;
         }
         .cdoc-header-text .cdoc-header-details {
-            font-size: 12.5px;
+            font-size: 13.5px;
             font-weight: 700;
             color: #1e293b;
-            line-height: 1.4;
+            line-height: 1.35;
         }
         .cdoc-footer {
             margin-top: auto;
-            padding-top: 10px;
+            padding-top: 8px;
             border-top-width: 1.5px;
-            font-size: 10.5px;
+            font-size: 11.5px;
             line-height: 1.4;
             flex-shrink: 0;
         }
         .cdoc-watermark img {
-            width: min(52%, 320px);
-            max-height: 320px;
-            opacity: 0.055;
+            width: min(58%, 360px);
+            max-height: 360px;
+            opacity: 0.05;
         }
 
         .kpi-title {
             text-align: center;
-            margin: 2px 0 10px;
-            font-size: 18px;
+            margin: 2px 0 8px;
+            font-size: 20px;
             font-weight: 800;
-            letter-spacing: .05em;
+            letter-spacing: .04em;
             text-transform: uppercase;
             text-decoration: underline;
             text-underline-offset: 4px;
@@ -213,8 +213,8 @@ $h = static function ($s) {
             justify-content: space-between;
             align-items: center;
             gap: 10px;
-            margin: 0 0 10px;
-            font-size: 12.5px;
+            margin: 0 0 8px;
+            font-size: 14.5px;
             font-weight: 700;
             color: #334155;
         }
@@ -222,12 +222,12 @@ $h = static function ($s) {
             display: inline-flex;
             align-items: center;
             gap: 5px;
-            padding: 3px 10px;
+            padding: 4px 12px;
             border-radius: 999px;
             background: #ecfdf5;
             color: #047857;
             border: 1px solid #a7f3d0;
-            font-size: 11.5px;
+            font-size: 13px;
             font-weight: 800;
         }
 
@@ -236,26 +236,27 @@ $h = static function ($s) {
             width: 100%;
             border-collapse: collapse;
             table-layout: fixed;
-            margin-bottom: 10px;
+            margin-bottom: 8px;
         }
         .kpi-info th,
         .kpi-info td,
         .kpi-hours th,
         .kpi-hours td {
             border: 1px solid #1e293b;
-            padding: 5px 8px;
+            padding: 7px 10px;
             vertical-align: top;
             word-break: break-word;
+            font-size: 14px;
         }
         .kpi-info th,
         .kpi-hours th {
             background: #f1f5f9;
             font-weight: 800;
             text-align: left;
-            font-size: 11.5px;
+            font-size: 13.5px;
         }
         .kpi-info td:first-child {
-            width: 38%;
+            width: 36%;
             font-weight: 700;
             color: #334155;
             background: #fafafa;
@@ -263,36 +264,38 @@ $h = static function ($s) {
         .kpi-hours th {
             text-align: center;
             text-transform: uppercase;
-            font-size: 10.5px;
+            font-size: 12.5px;
             letter-spacing: .03em;
         }
         .kpi-hours td.num {
             text-align: center;
             font-weight: 800;
-            width: 56px;
+            width: 58px;
+            font-size: 14.5px;
         }
         .kpi-hours td.time {
             text-align: center;
             font-weight: 700;
             white-space: nowrap;
-            width: 130px;
+            width: 140px;
+            font-size: 14px;
         }
 
         .kpi-section {
             margin: 2px 0 6px;
-            font-size: 13px;
+            font-size: 15px;
             font-weight: 800;
             color: #0f172a;
             letter-spacing: .02em;
         }
 
         .kpi-ack {
-            margin: 8px 0 12px;
-            padding: 8px 10px;
+            margin: 6px 0 10px;
+            padding: 9px 12px;
             border: 1px solid #a7f3d0;
             background: #ecfdf5;
             color: #065f46;
-            font-size: 11.5px;
+            font-size: 13.5px;
             font-weight: 700;
             border-radius: 4px;
         }
@@ -300,16 +303,16 @@ $h = static function ($s) {
         .kpi-signs {
             display: grid;
             grid-template-columns: 1fr 1fr 1fr;
-            gap: 14px;
-            margin: 8px 0 6px;
+            gap: 16px;
+            margin: 6px 0 4px;
         }
         .kpi-sign-box {
-            border-top: 1.5px solid #111;
+            border-top: 1.75px solid #111;
             padding-top: 8px;
-            min-height: 62px;
+            min-height: 58px;
         }
         .kpi-sign-box .lbl {
-            font-size: 10.5px;
+            font-size: 12px;
             font-weight: 800;
             text-transform: uppercase;
             letter-spacing: .04em;
@@ -317,7 +320,7 @@ $h = static function ($s) {
             margin-bottom: 6px;
         }
         .kpi-sign-box .val {
-            font-size: 12.5px;
+            font-size: 14.5px;
             font-weight: 700;
             color: #0f172a;
             min-height: 1.4em;
@@ -326,7 +329,13 @@ $h = static function ($s) {
         @media print {
             @page { size: A4; margin: 0; }
             .no-print { display: none !important; }
-            body { background: #fff; padding: 0; }
+            html, body {
+                width: 210mm;
+                height: 297mm;
+                background: #fff;
+                padding: 0;
+                margin: 0;
+            }
             .page {
                 width: 210mm;
                 min-height: 297mm;
@@ -344,6 +353,7 @@ $h = static function ($s) {
             .page-inner {
                 min-height: 297mm;
                 height: 297mm;
+                padding: 6mm 7mm 5mm;
             }
         }
         @media screen and (max-width: 900px) {
