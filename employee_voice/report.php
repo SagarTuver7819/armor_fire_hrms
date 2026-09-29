@@ -1,7 +1,7 @@
 <?php
 /**
  * Employee Voice Report — Admin / HR
- * Grievance · Suggestions · Safety
+ * Category-wise: Grievance · Suggestions · Safety
  */
 
 require_once __DIR__ . '/../config/app.php';
@@ -9,6 +9,7 @@ require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/permission_helper.php';
 require_once __DIR__ . '/../includes/employee_voice_helper.php';
+require_once __DIR__ . '/../includes/employee_voice_report_helper.php';
 
 requireLogin();
 if (!canManageEmployeeVoice()) {
@@ -16,96 +17,48 @@ if (!canManageEmployeeVoice()) {
     exit;
 }
 
-ensureEmployeeVoiceTables();
-$types = evModuleTypes();
+$data = evReportLoadData();
+$types = $data['types'] ?? [];
+$rows = $data['rows'] ?? [];
+$departments = $data['departments'] ?? [];
+$statusOptions = $data['status_options'] ?? [];
+$query = $data['query'] ?? [];
+$m = is_array($data['meta'] ?? null) ? $data['meta'] : [];
 
-$typeFilter = strtoupper(trim((string) ($_GET['type'] ?? '')));
-$statusFilter = trim((string) ($_GET['status'] ?? ''));
-$deptId = (int) ($_GET['department_id'] ?? 0);
-$dateFrom = trim((string) ($_GET['date_from'] ?? ''));
-$dateTo = trim((string) ($_GET['date_to'] ?? ''));
-$q = trim((string) ($_GET['q'] ?? ''));
+$typeFilter = (string) ($m['type'] ?? '');
+$statusFilter = (string) ($m['status'] ?? '');
+$deptId = (int) ($m['department_id'] ?? 0);
+$dateFrom = (string) ($m['date_from'] ?? '');
+$dateTo = (string) ($m['date_to'] ?? '');
+$q = (string) ($m['q'] ?? '');
+$byType = is_array($m['by_type'] ?? null) ? $m['by_type'] : ['GRIEVANCE' => 0, 'SUGGESTION' => 0, 'SAFETY' => 0];
+$openCount = (int) ($m['open'] ?? 0);
+$closedCount = (int) ($m['closed'] ?? 0);
+$totalCount = isset($m['total']) ? (int) $m['total'] : count($rows);
 
-if ($dateFrom === '' && $dateTo === '') {
-    $dateFrom = date('Y-m-01');
-    $dateTo = date('Y-m-d');
-}
-
-$filters = [];
-if (isset($types[$typeFilter])) {
-    $filters['module_type'] = $typeFilter;
-}
-if ($statusFilter !== '') {
-    $filters['status'] = $statusFilter;
-}
-if ($deptId > 0) {
-    $filters['department_id'] = $deptId;
-}
-if ($dateFrom !== '' && preg_match('/^\d{4}-\d{2}-\d{2}$/', $dateFrom)) {
-    $filters['date_from'] = $dateFrom;
-}
-if ($dateTo !== '' && preg_match('/^\d{4}-\d{2}-\d{2}$/', $dateTo)) {
-    $filters['date_to'] = $dateTo;
-}
-if ($q !== '') {
-    $filters['q'] = $q;
-}
-
-$conn = getDBConnection();
-$departments = [];
-$dres = $conn->query('SELECT id, department_name FROM departments WHERE status = 1 ORDER BY sort_order ASC, department_name ASC');
-if ($dres) {
-    while ($r = $dres->fetch_assoc()) {
-        $departments[] = $r;
+// All-time category totals (ignore date filter) for top tabs clarity
+$allTime = ['GRIEVANCE' => 0, 'SUGGESTION' => 0, 'SAFETY' => 0, 'total' => 0];
+try {
+    $c = getDBConnection();
+    ensureEmployeeVoiceTables($c);
+    $rs = $c->query("SELECT module_type, COUNT(*) AS c FROM ev_ticket WHERE is_deleted = 0 GROUP BY module_type");
+    if ($rs) {
+        while ($row = $rs->fetch_assoc()) {
+            $mt = strtoupper((string) ($row['module_type'] ?? ''));
+            $cnt = (int) ($row['c'] ?? 0);
+            if (isset($allTime[$mt])) {
+                $allTime[$mt] = $cnt;
+            }
+            $allTime['total'] += $cnt;
+        }
     }
+    $c->close();
+} catch (Throwable $e) {
+    // keep zeros
 }
 
-$rows = evListTickets($filters, $conn);
-$conn->close();
-
-$byType = ['GRIEVANCE' => 0, 'SUGGESTION' => 0, 'SAFETY' => 0];
-$byStatus = [];
-$openCount = 0;
-$closedCount = 0;
-foreach ($rows as $r) {
-    $mt = strtoupper((string) ($r['module_type'] ?? ''));
-    if (isset($byType[$mt])) {
-        $byType[$mt]++;
-    }
-    $st = trim((string) ($r['status'] ?? ''));
-    if ($st !== '') {
-        $byStatus[$st] = ($byStatus[$st] ?? 0) + 1;
-    }
-    if (in_array($st, ['Closed', 'Withdrawn', 'Resolved', 'Verified'], true)) {
-        $closedCount++;
-    } else {
-        $openCount++;
-    }
-}
-
-$statusOptions = [];
-foreach (array_keys($types) as $tk) {
-    foreach (evStatusesByModule($tk) as $st) {
-        $statusOptions[$st] = true;
-    }
-}
-$statusOptions = array_keys($statusOptions);
-sort($statusOptions);
-
-$queryBase = [
-    'type' => $typeFilter,
-    'status' => $statusFilter,
-    'department_id' => $deptId,
-    'date_from' => $dateFrom,
-    'date_to' => $dateTo,
-    'q' => $q,
-];
-$excelUrl = app_url('employee_voice/report_excel.php?' . http_build_query(array_filter(
-    $queryBase,
-    static function ($v) {
-        return $v !== '' && $v !== 0 && $v !== '0';
-    }
-)));
+$excelUrl = evReportQueryUrl('employee_voice/report_excel.php', $query);
+$printUrl = evReportQueryUrl('employee_voice/report_print.php', $query);
 
 $pageTitle = 'Employee Voice Report';
 $useSidebar = true;
@@ -120,8 +73,11 @@ require_once __DIR__ . '/../includes/header.php';
         <a href="<?php echo app_url('employee_voice/index.php'); ?>" class="back-link">
             <i class="fa-solid fa-arrow-left"></i> Employee Voice
         </a>
-        <div class="toolbar-actions">
-            <a href="<?php echo htmlspecialchars($excelUrl); ?>" class="btn-secondary">
+        <div class="toolbar-actions" style="display:flex;gap:8px;flex-wrap:wrap;">
+            <a href="<?php echo htmlspecialchars($printUrl); ?>" class="btn-secondary" target="_blank" rel="noopener">
+                <i class="fa-solid fa-print"></i> Print / PDF
+            </a>
+            <a href="<?php echo htmlspecialchars($excelUrl); ?>" class="btn-primary">
                 <i class="fa-solid fa-file-excel"></i> Export Excel
             </a>
         </div>
@@ -130,22 +86,39 @@ require_once __DIR__ . '/../includes/header.php';
     <div class="form-page-card">
         <div class="form-page-header">
             <h1><i class="fa-solid fa-chart-column" style="color:#d2232a;"></i> Employee Voice Report</h1>
-            <p>Employee-submitted complaints report — Grievance, Suggestions &amp; Safety</p>
+            <p>Admin / HR report — employee complaints by Grievance, Suggestions &amp; Safety</p>
         </div>
 
-        <div class="leave-rpt-rules" style="margin-bottom:14px;">
-            <a href="<?php echo app_url('employee_voice/report.php?' . http_build_query(array_merge($queryBase, ['type' => '']))); ?>"
-               class="leave-rpt-rule" style="text-decoration:none;<?php echo $typeFilter === '' ? 'background:#fef2f2;border-color:#fecaca;color:#b91c1c;font-weight:800;' : ''; ?>">
-                <i class="fa-solid fa-list"></i> All Types
+        <div class="ev-rpt-type-tabs">
+            <a href="<?php echo htmlspecialchars(evReportQueryUrl('employee_voice/report.php', $query, ['type' => ''])); ?>"
+               class="ev-rpt-type-tab <?php echo $typeFilter === '' ? 'is-active' : ''; ?>">
+                <i class="fa-solid fa-list"></i>
+                <span>All</span>
+                <strong><?php echo (int) $totalCount; ?></strong>
             </a>
             <?php foreach ($types as $t): ?>
-            <a href="<?php echo app_url('employee_voice/report.php?' . http_build_query(array_merge($queryBase, ['type' => $t['key']]))); ?>"
-               class="leave-rpt-rule" style="text-decoration:none;<?php echo $typeFilter === $t['key'] ? 'background:' . htmlspecialchars($t['bg']) . ';border-color:' . htmlspecialchars($t['color']) . ';color:' . htmlspecialchars($t['color']) . ';font-weight:800;' : ''; ?>">
+            <a href="<?php echo htmlspecialchars(evReportQueryUrl('employee_voice/report.php', $query, ['type' => $t['key']])); ?>"
+               class="ev-rpt-type-tab <?php echo $typeFilter === $t['key'] ? 'is-active' : ''; ?>"
+               style="--ev-c:<?php echo htmlspecialchars($t['color']); ?>;--ev-bg:<?php echo htmlspecialchars($t['bg']); ?>;">
                 <i class="fa-solid <?php echo htmlspecialchars($t['icon']); ?>" style="color:<?php echo htmlspecialchars($t['color']); ?>;"></i>
-                <?php echo htmlspecialchars($t['short']); ?>
+                <span><?php echo htmlspecialchars($t['short']); ?></span>
+                <strong style="color:<?php echo htmlspecialchars($t['color']); ?>;"><?php echo (int) ($byType[$t['key']] ?? 0); ?></strong>
             </a>
             <?php endforeach; ?>
         </div>
+
+        <?php if ($allTime['total'] > 0 && $totalCount === 0): ?>
+        <div style="margin:0 0 14px;padding:10px 14px;border-radius:10px;background:#fff7ed;border:1px solid #fed7aa;color:#9a3412;font-weight:700;">
+            <i class="fa-solid fa-circle-info"></i>
+            Selected date range ma 0 tickets che. Database ma total <?php echo (int) $allTime['total']; ?> tickets available che —
+            date range badli ne “Show Report” dabavo.
+        </div>
+        <?php elseif ($allTime['total'] === 0): ?>
+        <div style="margin:0 0 14px;padding:10px 14px;border-radius:10px;background:#f8fafc;border:1px solid #e2e8f0;color:#475569;font-weight:700;">
+            <i class="fa-solid fa-inbox"></i>
+            Haji koi Employee Voice ticket submit thayelo nathi (Grievance / Suggestions / Safety).
+        </div>
+        <?php endif; ?>
 
         <form method="get" class="employee-form leave-rpt-filters">
             <div class="form-grid form-grid-4">
@@ -205,29 +178,29 @@ require_once __DIR__ . '/../includes/header.php';
         <div class="leave-rpt-kpis">
             <div class="leave-rpt-kpi kpi-slate">
                 <div class="leave-rpt-kpi-label">Total Tickets</div>
-                <div class="leave-rpt-kpi-value"><?php echo count($rows); ?></div>
-                <div class="leave-rpt-kpi-sub">In selected period</div>
+                <div class="leave-rpt-kpi-value"><?php echo (int) $totalCount; ?></div>
+                <div class="leave-rpt-kpi-sub"><?php echo htmlspecialchars($dateFrom); ?> → <?php echo htmlspecialchars($dateTo); ?></div>
             </div>
             <div class="leave-rpt-kpi kpi-amber">
                 <div class="leave-rpt-kpi-label">Open / In Progress</div>
-                <div class="leave-rpt-kpi-value"><?php echo (int) $openCount; ?></div>
+                <div class="leave-rpt-kpi-value"><?php echo $openCount; ?></div>
                 <div class="leave-rpt-kpi-sub">Needs attention</div>
             </div>
             <div class="leave-rpt-kpi kpi-green">
                 <div class="leave-rpt-kpi-label">Closed / Resolved</div>
-                <div class="leave-rpt-kpi-value green"><?php echo (int) $closedCount; ?></div>
+                <div class="leave-rpt-kpi-value green"><?php echo $closedCount; ?></div>
                 <div class="leave-rpt-kpi-sub">Completed</div>
             </div>
             <?php foreach ($types as $t): ?>
             <div class="leave-rpt-kpi" style="border-color:<?php echo htmlspecialchars($t['color']); ?>;background:<?php echo htmlspecialchars($t['bg']); ?>;">
-                <div class="leave-rpt-kpi-label" style="color:<?php echo htmlspecialchars($t['color']); };">
+                <div class="leave-rpt-kpi-label" style="color:<?php echo htmlspecialchars($t['color']); ?>;">
                     <i class="fa-solid <?php echo htmlspecialchars($t['icon']); ?>"></i>
                     <?php echo htmlspecialchars($t['short']); ?>
                 </div>
                 <div class="leave-rpt-kpi-value" style="color:<?php echo htmlspecialchars($t['color']); ?>;">
                     <?php echo (int) ($byType[$t['key']] ?? 0); ?>
                 </div>
-                <div class="leave-rpt-kpi-sub">Employee complaints</div>
+                <div class="leave-rpt-kpi-sub">Category count</div>
             </div>
             <?php endforeach; ?>
         </div>
@@ -304,5 +277,38 @@ require_once __DIR__ . '/../includes/header.php';
         </div>
     </div>
 </main>
+
+<style>
+.ev-rpt-type-tabs {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 10px;
+    margin: 0 0 16px;
+}
+.ev-rpt-type-tab {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 14px;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    background: #fff;
+    text-decoration: none;
+    color: #334155;
+    font-weight: 700;
+    transition: .15s ease;
+}
+.ev-rpt-type-tab span { flex: 1; }
+.ev-rpt-type-tab strong { font-size: 18px; }
+.ev-rpt-type-tab:hover { border-color: #cbd5e1; box-shadow: 0 4px 14px rgba(15,23,42,.06); }
+.ev-rpt-type-tab.is-active {
+    background: var(--ev-bg, #fef2f2);
+    border-color: var(--ev-c, #dc2626);
+    color: var(--ev-c, #b91c1c);
+}
+@media (max-width: 900px) {
+    .ev-rpt-type-tabs { grid-template-columns: 1fr 1fr; }
+}
+</style>
 
 <?php require_once __DIR__ . '/../includes/footer.php'; ?>

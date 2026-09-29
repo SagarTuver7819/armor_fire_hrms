@@ -311,9 +311,10 @@ $sidebarCompanyName = function_exists('getCompanyName') ? getCompanyName() : 'Ar
                 </button>
                 <div class="sidebar-submenu">
                     <a href="<?php echo app_url('employee_voice/index.php'); ?>" class="sidebar-link sidebar-sublink <?php echo $sidebarActive === 'ev_admin' ? 'active' : ''; ?>"><i class="fa-solid fa-gauge"></i><span>Dashboard / All Tickets</span></a>
-                    <a href="<?php echo app_url('employee_voice/index.php?type=GRIEVANCE'); ?>" class="sidebar-link sidebar-sublink"><i class="fa-solid fa-box-tissue" style="color:#dc2626;"></i><span>Grievance</span></a>
+                    <a href="<?php echo app_url('employee_voice/index.php?type=GRIEVANCE'); ?>" class="sidebar-link sidebar-sublink <?php echo ($sidebarActive === 'ev_admin' && (($_GET['type'] ?? '') === 'GRIEVANCE')) ? 'active' : ''; ?>"><i class="fa-solid fa-box-tissue" style="color:#dc2626;"></i><span>Grievance</span></a>
                     <a href="<?php echo app_url('employee_voice/index.php?type=SUGGESTION'); ?>" class="sidebar-link sidebar-sublink"><i class="fa-solid fa-lightbulb" style="color:#16a34a;"></i><span>Suggestions</span></a>
                     <a href="<?php echo app_url('employee_voice/index.php?type=SAFETY'); ?>" class="sidebar-link sidebar-sublink"><i class="fa-solid fa-shield-halved" style="color:#2563eb;"></i><span>Safety</span></a>
+                    <a href="<?php echo app_url('employee_voice/report.php'); ?>" class="sidebar-link sidebar-sublink <?php echo $sidebarActive === 'ev_report' ? 'active' : ''; ?>"><i class="fa-solid fa-chart-column" style="color:#d2232a;"></i><span>Report</span></a>
                 </div>
             </div>
             <?php endif; ?>

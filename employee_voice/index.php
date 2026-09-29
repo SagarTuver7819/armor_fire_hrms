@@ -47,6 +47,11 @@ require_once __DIR__ . '/../includes/header.php';
         <a href="<?php echo app_url('dashboard.php'); ?>" class="back-link">
             <i class="fa-solid fa-arrow-left"></i> Dashboard
         </a>
+        <div class="toolbar-actions">
+            <a href="<?php echo app_url('employee_voice/report.php'); ?>" class="btn-primary">
+                <i class="fa-solid fa-chart-column"></i> Voice Report
+            </a>
+        </div>
     </div>
 
     <div class="form-page-card">
