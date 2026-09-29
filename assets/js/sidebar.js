@@ -71,10 +71,15 @@
         if (!btn) return;
 
         // Keep page-forced open menus; only restore when not already open for context
-        var forcedOpen = acc.classList.contains('is-open');
-        if (!forcedOpen && Object.prototype.hasOwnProperty.call(accState, name)) {
+        var forcedOpen = acc.classList.contains('is-open') || acc.getAttribute('data-default-open') === '1';
+        if (forcedOpen) {
+            acc.classList.add('is-open');
+            btn.setAttribute('aria-expanded', 'true');
+            btn.classList.add('is-active');
+        } else if (Object.prototype.hasOwnProperty.call(accState, name)) {
             acc.classList.toggle('is-open', !!accState[name]);
             btn.setAttribute('aria-expanded', acc.classList.contains('is-open') ? 'true' : 'false');
+            btn.classList.toggle('is-active', acc.classList.contains('is-open'));
         }
 
         btn.addEventListener('click', function () {
@@ -83,8 +88,25 @@
                 return;
             }
             var open = !acc.classList.contains('is-open');
+
+            // Exclusive open/close: close other menus when opening one
+            if (open) {
+                document.querySelectorAll('.sidebar-accordion').forEach(function (other) {
+                    if (other === acc) return;
+                    other.classList.remove('is-open');
+                    var ob = other.querySelector('.sidebar-acc-btn');
+                    if (ob) {
+                        ob.setAttribute('aria-expanded', 'false');
+                        ob.classList.remove('is-active');
+                    }
+                    var on = other.getAttribute('data-accordion') || '';
+                    if (on) accState[on] = false;
+                });
+            }
+
             acc.classList.toggle('is-open', open);
             btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+            btn.classList.toggle('is-active', open);
             accState[name] = open;
             try {
                 localStorage.setItem(ACC_KEY, JSON.stringify(accState));

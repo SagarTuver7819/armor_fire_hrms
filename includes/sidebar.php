@@ -273,337 +273,149 @@ $sidebarCompanyName = function_exists('getCompanyName') ? getCompanyName() : 'Ar
             </nav>
         </div>
 
-        <?php if (!$isOfficeStaffNav && $canRecruitment): ?>
+        <?php if (!$isOfficeStaffNav): ?>
         <div class="sidebar-section">
-            <div class="sidebar-section-title">1 · Recruitment</div>
-            <nav class="sidebar-nav">
-                <a href="<?php echo app_url('recruitment/index.php'); ?>"
-                   class="sidebar-link <?php echo $sidebarActive === 'recruitment' ? 'active' : ''; ?>">
-                    <i class="fa-solid fa-inbox"></i>
-                    <span>Applications</span>
-                </a>
-                <a href="<?php echo app_url('recruitment/interviews.php'); ?>"
-                   class="sidebar-link <?php echo $sidebarActive === 'recruitment_interview' ? 'active' : ''; ?>">
-                    <i class="fa-solid fa-clipboard-user"></i>
-                    <span>Interview Candidates</span>
-                </a>
-                <a href="<?php echo app_url('recruitment/qr.php'); ?>"
-                   class="sidebar-link <?php echo $sidebarActive === 'recruitment_qr' ? 'active' : ''; ?>">
-                    <i class="fa-solid fa-qrcode"></i>
-                    <span>Apply QR Code</span>
-                </a>
-            </nav>
-        </div>
-        <?php endif; ?>
+            <div class="sidebar-section-title">Modules</div>
 
-        <?php if (!$isOfficeStaffNav && $canEmp): ?>
-        <div class="sidebar-section">
-            <div class="sidebar-section-title">2 · Employees</div>
-            <nav class="sidebar-nav">
-                <?php if ($isDeptHeadNav && $primaryHeadDept > 0): ?>
-                <a href="<?php echo app_url('employees/index.php?department_id=' . $primaryHeadDept); ?>"
-                   class="sidebar-link <?php echo $sidebarActive === 'join_employee' || $sidebarActive === 'all_employees' ? 'active' : ''; ?>">
-                    <i class="fa-solid fa-users"></i>
-                    <span>Department Employees</span>
-                </a>
-                <?php else: ?>
-                <a href="<?php echo app_url('employees/index.php'); ?>"
-                   class="sidebar-link <?php echo $sidebarActive === 'all_employees' ? 'active' : ''; ?>">
-                    <i class="fa-solid fa-users"></i>
-                    <span>All Employees</span>
-                </a>
-                <a href="<?php echo app_url('employees/visiting_card.php'); ?>"
-                   class="sidebar-link <?php echo $sidebarActive === 'visiting_card' ? 'active' : ''; ?>">
-                    <i class="fa-solid fa-id-card"></i>
-                    <span>Visiting Card</span>
-                </a>
-                <a href="<?php echo app_url('employees/exit_list.php'); ?>"
-                   class="sidebar-link <?php echo $sidebarActive === 'exit_employee' ? 'active' : ''; ?>">
-                    <i class="fa-solid fa-user-xmark"></i>
-                    <span>Exit Employees</span>
-                </a>
-                <?php endif; ?>
-            </nav>
-        </div>
-        <?php endif; ?>
+            <?php if ($canRecruitment): ?>
+            <div class="sidebar-accordion <?php echo $openRecruitment ? 'is-open' : ''; ?>" data-accordion="recruitment" data-default-open="<?php echo $openRecruitment ? '1' : '0'; ?>">
+                <button type="button" class="sidebar-acc-btn <?php echo $openRecruitment ? 'is-active' : ''; ?>" aria-expanded="<?php echo $openRecruitment ? 'true' : 'false'; ?>">
+                    <span class="sidebar-acc-left"><i class="fa-solid fa-user-plus"></i><span>Recruitment</span></span>
+                    <i class="fa-solid fa-chevron-down sidebar-acc-caret"></i>
+                </button>
+                <div class="sidebar-submenu">
+                    <a href="<?php echo app_url('recruitment/index.php'); ?>" class="sidebar-link sidebar-sublink <?php echo $sidebarActive === 'recruitment' ? 'active' : ''; ?>"><i class="fa-solid fa-inbox"></i><span>Applications</span></a>
+                    <a href="<?php echo app_url('recruitment/interviews.php'); ?>" class="sidebar-link sidebar-sublink <?php echo $sidebarActive === 'recruitment_interview' ? 'active' : ''; ?>"><i class="fa-solid fa-clipboard-user"></i><span>Interview Candidates</span></a>
+                    <a href="<?php echo app_url('recruitment/qr.php'); ?>" class="sidebar-link sidebar-sublink <?php echo $sidebarActive === 'recruitment_qr' ? 'active' : ''; ?>"><i class="fa-solid fa-qrcode"></i><span>Apply QR Code</span></a>
+                </div>
+            </div>
+            <?php endif; ?>
 
-        <?php if (!$isOfficeStaffNav && $canLeave): ?>
-        <div class="sidebar-section">
-            <div class="sidebar-section-title">3 · Leave</div>
-            <nav class="sidebar-nav">
-                <a href="<?php echo app_url('leave/index.php' . ($isDeptHeadNav && $primaryHeadDept > 0 ? ('?department_id=' . $primaryHeadDept) : '')); ?>"
-                   class="sidebar-link <?php echo $sidebarActive === 'leave_request' ? 'active' : ''; ?>">
-                    <i class="fa-solid fa-list-check"></i>
-                    <span>Leave Requests</span>
-                </a>
-                <a href="<?php echo app_url('leave/encashment.php'); ?>"
-                   class="sidebar-link <?php echo $sidebarActive === 'leave_encashment' ? 'active' : ''; ?>">
-                    <i class="fa-solid fa-money-bill-wave"></i>
-                    <span>Leave Encashment</span>
-                </a>
-                <a href="<?php echo app_url('leave/coff_history.php'); ?>"
-                   class="sidebar-link <?php echo $sidebarActive === 'coff_history' ? 'active' : ''; ?>">
-                    <i class="fa-solid fa-clock-rotate-left"></i>
-                    <span>C-Off History</span>
-                </a>
-                <a href="<?php echo app_url('leave/coff_report.php'); ?>"
-                   class="sidebar-link <?php echo $sidebarActive === 'coff_report' ? 'active' : ''; ?>">
-                    <i class="fa-solid fa-file-invoice"></i>
-                    <span>C-Off Report</span>
-                </a>
-                <a href="<?php echo app_url('leave/dl_report.php'); ?>"
-                   class="sidebar-link <?php echo $sidebarActive === 'dl_report' ? 'active' : ''; ?>">
-                    <i class="fa-solid fa-briefcase"></i>
-                    <span>Duty Leave Report</span>
-                </a>
-                <a href="<?php echo app_url('leave/lwp_report.php'); ?>"
-                   class="sidebar-link <?php echo $sidebarActive === 'lwp_report' ? 'active' : ''; ?>">
-                    <i class="fa-solid fa-user-slash"></i>
-                    <span>LWP Report</span>
-                </a>
-            </nav>
-        </div>
-        <?php endif; ?>
+            <?php if ($canEmp): ?>
+            <div class="sidebar-accordion <?php echo $openEmployeesMenu ? 'is-open' : ''; ?>" data-accordion="employees_menu" data-default-open="<?php echo $openEmployeesMenu ? '1' : '0'; ?>">
+                <button type="button" class="sidebar-acc-btn <?php echo $openEmployeesMenu ? 'is-active' : ''; ?>" aria-expanded="<?php echo $openEmployeesMenu ? 'true' : 'false'; ?>">
+                    <span class="sidebar-acc-left"><i class="fa-solid fa-users"></i><span>Employees</span></span>
+                    <i class="fa-solid fa-chevron-down sidebar-acc-caret"></i>
+                </button>
+                <div class="sidebar-submenu">
+                    <?php if ($isDeptHeadNav && $primaryHeadDept > 0): ?>
+                    <a href="<?php echo app_url('employees/index.php?department_id=' . $primaryHeadDept); ?>" class="sidebar-link sidebar-sublink <?php echo ($sidebarActive === 'join_employee' || $sidebarActive === 'all_employees') ? 'active' : ''; ?>"><i class="fa-solid fa-users"></i><span>Department Employees</span></a>
+                    <?php else: ?>
+                    <a href="<?php echo app_url('employees/index.php'); ?>" class="sidebar-link sidebar-sublink <?php echo $sidebarActive === 'all_employees' ? 'active' : ''; ?>"><i class="fa-solid fa-users"></i><span>All Employees</span></a>
+                    <a href="<?php echo app_url('employees/visiting_card.php'); ?>" class="sidebar-link sidebar-sublink <?php echo $sidebarActive === 'visiting_card' ? 'active' : ''; ?>"><i class="fa-solid fa-id-card"></i><span>Visiting Card</span></a>
+                    <a href="<?php echo app_url('employees/exit_list.php'); ?>" class="sidebar-link sidebar-sublink <?php echo $sidebarActive === 'exit_employee' ? 'active' : ''; ?>"><i class="fa-solid fa-user-xmark"></i><span>Exit Employees</span></a>
+                    <?php endif; ?>
+                </div>
+            </div>
+            <?php endif; ?>
 
-        <?php if ($canAtt): ?>
-        <div class="sidebar-section">
-            <div class="sidebar-section-title">4 · Attendance</div>
+            <?php if ($canLeave): ?>
+            <div class="sidebar-accordion <?php echo $openLeaveMenu ? 'is-open' : ''; ?>" data-accordion="leave_menu" data-default-open="<?php echo $openLeaveMenu ? '1' : '0'; ?>">
+                <button type="button" class="sidebar-acc-btn <?php echo $openLeaveMenu ? 'is-active' : ''; ?>" aria-expanded="<?php echo $openLeaveMenu ? 'true' : 'false'; ?>">
+                    <span class="sidebar-acc-left"><i class="fa-solid fa-plane-departure"></i><span>Leave</span></span>
+                    <i class="fa-solid fa-chevron-down sidebar-acc-caret"></i>
+                </button>
+                <div class="sidebar-submenu">
+                    <a href="<?php echo app_url('leave/index.php' . ($isDeptHeadNav && $primaryHeadDept > 0 ? ('?department_id=' . $primaryHeadDept) : '')); ?>" class="sidebar-link sidebar-sublink <?php echo $sidebarActive === 'leave_request' ? 'active' : ''; ?>"><i class="fa-solid fa-list-check"></i><span>Leave Requests</span></a>
+                    <a href="<?php echo app_url('leave/encashment.php'); ?>" class="sidebar-link sidebar-sublink <?php echo $sidebarActive === 'leave_encashment' ? 'active' : ''; ?>"><i class="fa-solid fa-money-bill-wave"></i><span>Leave Encashment</span></a>
+                    <a href="<?php echo app_url('leave/coff_history.php'); ?>" class="sidebar-link sidebar-sublink <?php echo $sidebarActive === 'coff_history' ? 'active' : ''; ?>"><i class="fa-solid fa-clock-rotate-left"></i><span>C-Off History</span></a>
+                    <a href="<?php echo app_url('leave/coff_report.php'); ?>" class="sidebar-link sidebar-sublink <?php echo $sidebarActive === 'coff_report' ? 'active' : ''; ?>"><i class="fa-solid fa-file-invoice"></i><span>C-Off Report</span></a>
+                    <a href="<?php echo app_url('leave/dl_report.php'); ?>" class="sidebar-link sidebar-sublink <?php echo $sidebarActive === 'dl_report' ? 'active' : ''; ?>"><i class="fa-solid fa-briefcase"></i><span>Duty Leave Report</span></a>
+                    <a href="<?php echo app_url('leave/lwp_report.php'); ?>" class="sidebar-link sidebar-sublink <?php echo $sidebarActive === 'lwp_report' ? 'active' : ''; ?>"><i class="fa-solid fa-user-slash"></i><span>LWP Report</span></a>
+                </div>
+            </div>
+            <?php endif; ?>
+
+            <?php if ($canAtt): ?>
             <div class="sidebar-accordion <?php echo $openAttendance ? 'is-open' : ''; ?>" data-accordion="attendance" data-default-open="<?php echo $openAttendance ? '1' : '0'; ?>">
                 <button type="button" class="sidebar-acc-btn <?php echo $openAttendance ? 'is-active' : ''; ?>" aria-expanded="<?php echo $openAttendance ? 'true' : 'false'; ?>">
-                    <span class="sidebar-acc-left">
-                        <i class="fa-solid fa-calendar-check"></i>
-                        <span>Attendance Menu</span>
-                    </span>
+                    <span class="sidebar-acc-left"><i class="fa-solid fa-calendar-check"></i><span>Attendance</span></span>
                     <i class="fa-solid fa-chevron-down sidebar-acc-caret"></i>
                 </button>
                 <div class="sidebar-submenu">
-                    <a href="<?php echo app_url('attendance/index.php'); ?>"
-                       class="sidebar-link sidebar-sublink <?php echo $sidebarActive === 'attendance_list' ? 'active' : ''; ?>">
-                        <i class="fa-solid fa-list"></i>
-                        <span>Attendance List</span>
-                    </a>
-                    <a href="<?php echo app_url('attendance/manual.php'); ?>"
-                       class="sidebar-link sidebar-sublink <?php echo $sidebarActive === 'attendance_manual' ? 'active' : ''; ?>">
-                        <i class="fa-solid fa-pen-to-square"></i>
-                        <span>Manual Entry</span>
-                    </a>
-                    <a href="<?php echo app_url('attendance/import.php'); ?>"
-                       class="sidebar-link sidebar-sublink <?php echo $sidebarActive === 'attendance_import' ? 'active' : ''; ?>">
-                        <i class="fa-solid fa-file-import"></i>
-                        <span>Import</span>
-                    </a>
-                    <a href="<?php echo app_url('attendance/report.php'); ?>"
-                       class="sidebar-link sidebar-sublink <?php echo $sidebarActive === 'attendance_report' ? 'active' : ''; ?>">
-                        <i class="fa-solid fa-chart-simple"></i>
-                        <span>Report</span>
-                    </a>
-                    <a href="<?php echo app_url('attendance/late_report.php'); ?>"
-                       class="sidebar-link sidebar-sublink <?php echo $sidebarActive === 'attendance_late' ? 'active' : ''; ?>">
-                        <i class="fa-solid fa-user-clock"></i>
-                        <span>Late / Early</span>
-                    </a>
-                    <a href="<?php echo app_url('attendance/history.php'); ?>"
-                       class="sidebar-link sidebar-sublink <?php echo $sidebarActive === 'attendance_history' ? 'active' : ''; ?>">
-                        <i class="fa-solid fa-clock-rotate-left"></i>
-                        <span>Import History</span>
-                    </a>
-                    <a href="<?php echo app_url('attendance/machines.php'); ?>"
-                       class="sidebar-link sidebar-sublink <?php echo $sidebarActive === 'attendance_machines' ? 'active' : ''; ?>">
-                        <i class="fa-solid fa-server"></i>
-                        <span>Biometric Machines</span>
-                    </a>
-                    <a href="<?php echo app_url('attendance/machine_logs.php'); ?>"
-                       class="sidebar-link sidebar-sublink <?php echo $sidebarActive === 'attendance_machine_logs' ? 'active' : ''; ?>">
-                        <i class="fa-solid fa-fingerprint"></i>
-                        <span>Machine Logs</span>
-                    </a>
-                    <a href="<?php echo app_url('attendance/machine_report.php'); ?>"
-                       class="sidebar-link sidebar-sublink <?php echo $sidebarActive === 'attendance_machine_report' ? 'active' : ''; ?>">
-                        <i class="fa-solid fa-table"></i>
-                        <span>Machine Report</span>
-                    </a>
+                    <a href="<?php echo app_url('attendance/index.php'); ?>" class="sidebar-link sidebar-sublink <?php echo $sidebarActive === 'attendance_list' ? 'active' : ''; ?>"><i class="fa-solid fa-list"></i><span>Attendance List</span></a>
+                    <a href="<?php echo app_url('attendance/manual.php'); ?>" class="sidebar-link sidebar-sublink <?php echo $sidebarActive === 'attendance_manual' ? 'active' : ''; ?>"><i class="fa-solid fa-pen-to-square"></i><span>Manual Entry</span></a>
+                    <a href="<?php echo app_url('attendance/import.php'); ?>" class="sidebar-link sidebar-sublink <?php echo $sidebarActive === 'attendance_import' ? 'active' : ''; ?>"><i class="fa-solid fa-file-import"></i><span>Import</span></a>
+                    <a href="<?php echo app_url('attendance/report.php'); ?>" class="sidebar-link sidebar-sublink <?php echo $sidebarActive === 'attendance_report' ? 'active' : ''; ?>"><i class="fa-solid fa-chart-simple"></i><span>Report</span></a>
+                    <a href="<?php echo app_url('attendance/late_report.php'); ?>" class="sidebar-link sidebar-sublink <?php echo $sidebarActive === 'attendance_late' ? 'active' : ''; ?>"><i class="fa-solid fa-user-clock"></i><span>Late / Early</span></a>
+                    <a href="<?php echo app_url('attendance/history.php'); ?>" class="sidebar-link sidebar-sublink <?php echo $sidebarActive === 'attendance_history' ? 'active' : ''; ?>"><i class="fa-solid fa-clock-rotate-left"></i><span>Import History</span></a>
+                    <a href="<?php echo app_url('attendance/machines.php'); ?>" class="sidebar-link sidebar-sublink <?php echo $sidebarActive === 'attendance_machines' ? 'active' : ''; ?>"><i class="fa-solid fa-server"></i><span>Biometric Machines</span></a>
+                    <a href="<?php echo app_url('attendance/machine_logs.php'); ?>" class="sidebar-link sidebar-sublink <?php echo $sidebarActive === 'attendance_machine_logs' ? 'active' : ''; ?>"><i class="fa-solid fa-fingerprint"></i><span>Machine Logs</span></a>
+                    <a href="<?php echo app_url('attendance/machine_report.php'); ?>" class="sidebar-link sidebar-sublink <?php echo $sidebarActive === 'attendance_machine_report' ? 'active' : ''; ?>"><i class="fa-solid fa-table"></i><span>Machine Report</span></a>
                 </div>
             </div>
-        </div>
-        <?php endif; ?>
+            <?php endif; ?>
 
-        <?php if (!$isOfficeStaffNav && $canPay): ?>
-        <div class="sidebar-section">
-            <div class="sidebar-section-title">5 · Payroll</div>
-            <nav class="sidebar-nav">
-                <a href="<?php echo app_url('payroll/register.php'); ?>"
-                   class="sidebar-link <?php echo $sidebarActive === 'salary_register' ? 'active' : ''; ?>">
-                    <i class="fa-solid fa-table"></i>
-                    <span>Salary Register</span>
-                </a>
-                <a href="<?php echo app_url('payroll/joining_exit.php'); ?>"
-                   class="sidebar-link <?php echo $sidebarActive === 'joining_exit_report' ? 'active' : ''; ?>">
-                    <i class="fa-solid fa-user-plus"></i>
-                    <span>Joining / Exit</span>
-                </a>
-                <a href="<?php echo app_url('payroll/cost_summary.php'); ?>"
-                   class="sidebar-link <?php echo $sidebarActive === 'dept_cost_summary' ? 'active' : ''; ?>">
-                    <i class="fa-solid fa-chart-pie"></i>
-                    <span>Dept Cost Summary</span>
-                </a>
-                <a href="<?php echo app_url('payroll/neft.php'); ?>"
-                   class="sidebar-link <?php echo $sidebarActive === 'neft_sheet' ? 'active' : ''; ?>">
-                    <i class="fa-solid fa-building-columns"></i>
-                    <span>NEFT Sheet</span>
-                </a>
-            </nav>
-        </div>
-        <?php endif; ?>
+            <?php if ($canPay): ?>
+            <div class="sidebar-accordion <?php echo $openPayrollMenu ? 'is-open' : ''; ?>" data-accordion="payroll_menu" data-default-open="<?php echo $openPayrollMenu ? '1' : '0'; ?>">
+                <button type="button" class="sidebar-acc-btn <?php echo $openPayrollMenu ? 'is-active' : ''; ?>" aria-expanded="<?php echo $openPayrollMenu ? 'true' : 'false'; ?>">
+                    <span class="sidebar-acc-left"><i class="fa-solid fa-wallet"></i><span>Payroll</span></span>
+                    <i class="fa-solid fa-chevron-down sidebar-acc-caret"></i>
+                </button>
+                <div class="sidebar-submenu">
+                    <a href="<?php echo app_url('payroll/register.php'); ?>" class="sidebar-link sidebar-sublink <?php echo $sidebarActive === 'salary_register' ? 'active' : ''; ?>"><i class="fa-solid fa-table"></i><span>Salary Register</span></a>
+                    <a href="<?php echo app_url('payroll/joining_exit.php'); ?>" class="sidebar-link sidebar-sublink <?php echo $sidebarActive === 'joining_exit_report' ? 'active' : ''; ?>"><i class="fa-solid fa-user-plus"></i><span>Joining / Exit</span></a>
+                    <a href="<?php echo app_url('payroll/cost_summary.php'); ?>" class="sidebar-link sidebar-sublink <?php echo $sidebarActive === 'dept_cost_summary' ? 'active' : ''; ?>"><i class="fa-solid fa-chart-pie"></i><span>Dept Cost Summary</span></a>
+                    <a href="<?php echo app_url('payroll/neft.php'); ?>" class="sidebar-link sidebar-sublink <?php echo $sidebarActive === 'neft_sheet' ? 'active' : ''; ?>"><i class="fa-solid fa-building-columns"></i><span>NEFT Sheet</span></a>
+                </div>
+            </div>
+            <?php endif; ?>
 
-        <?php if ($canContractor): ?>
-        <div class="sidebar-section">
-            <div class="sidebar-section-title">6 · Contractor</div>
+            <?php if ($canContractor): ?>
             <div class="sidebar-accordion <?php echo $openContractor ? 'is-open' : ''; ?>" data-accordion="contractor" data-default-open="<?php echo $openContractor ? '1' : '0'; ?>">
                 <button type="button" class="sidebar-acc-btn <?php echo $openContractor ? 'is-active' : ''; ?>" aria-expanded="<?php echo $openContractor ? 'true' : 'false'; ?>">
-                    <span class="sidebar-acc-left">
-                        <i class="fa-solid fa-helmet-safety"></i>
-                        <span>Contractor Menu</span>
-                    </span>
+                    <span class="sidebar-acc-left"><i class="fa-solid fa-helmet-safety"></i><span>Contractor</span></span>
                     <i class="fa-solid fa-chevron-down sidebar-acc-caret"></i>
                 </button>
                 <div class="sidebar-submenu">
-                    <a href="<?php echo app_url('contractor/index.php'); ?>"
-                       class="sidebar-link sidebar-sublink <?php echo $sidebarActive === 'contractor_hub' ? 'active' : ''; ?>">
-                        <i class="fa-solid fa-border-all"></i>
-                        <span>Hub</span>
-                    </a>
-                    <a href="<?php echo app_url('contractor/employees/index.php'); ?>"
-                       class="sidebar-link sidebar-sublink <?php echo $sidebarActive === 'contractor_employees' ? 'active' : ''; ?>">
-                        <i class="fa-solid fa-users"></i>
-                        <span>Employees</span>
-                    </a>
-                    <a href="<?php echo app_url('contractor/employment/index.php'); ?>"
-                       class="sidebar-link sidebar-sublink <?php echo $sidebarActive === 'contractor_employment' ? 'active' : ''; ?>">
-                        <i class="fa-solid fa-file-contract"></i>
-                        <span>Employment Details</span>
-                    </a>
-                    <a href="<?php echo app_url('contractor/products/index.php'); ?>"
-                       class="sidebar-link sidebar-sublink <?php echo $sidebarActive === 'contractor_products' ? 'active' : ''; ?>">
-                        <i class="fa-solid fa-box"></i>
-                        <span>Product Master</span>
-                    </a>
-                    <a href="<?php echo app_url('contractor/grades/index.php'); ?>"
-                       class="sidebar-link sidebar-sublink <?php echo $sidebarActive === 'contractor_grades' ? 'active' : ''; ?>">
-                        <i class="fa-solid fa-layer-group"></i>
-                        <span>Grade Master</span>
-                    </a>
-                    <a href="<?php echo app_url('contractor/operations/index.php'); ?>"
-                       class="sidebar-link sidebar-sublink <?php echo $sidebarActive === 'contractor_operations' ? 'active' : ''; ?>">
-                        <i class="fa-solid fa-gears"></i>
-                        <span>Operations Rate</span>
-                    </a>
-                    <a href="<?php echo app_url('payroll/register.php?type=jobwork_govt'); ?>"
-                       class="sidebar-link sidebar-sublink <?php echo in_array($regType, ['jobwork_govt', 'jobwork_actual', 'contractor_main'], true) ? 'active' : ''; ?>">
-                        <i class="fa-solid fa-file-invoice-dollar"></i>
-                        <span>Jobwork Salary</span>
-                    </a>
+                    <a href="<?php echo app_url('contractor/index.php'); ?>" class="sidebar-link sidebar-sublink <?php echo $sidebarActive === 'contractor_hub' ? 'active' : ''; ?>"><i class="fa-solid fa-border-all"></i><span>Hub</span></a>
+                    <a href="<?php echo app_url('contractor/employees/index.php'); ?>" class="sidebar-link sidebar-sublink <?php echo $sidebarActive === 'contractor_employees' ? 'active' : ''; ?>"><i class="fa-solid fa-users"></i><span>Employees</span></a>
+                    <a href="<?php echo app_url('contractor/employment/index.php'); ?>" class="sidebar-link sidebar-sublink <?php echo $sidebarActive === 'contractor_employment' ? 'active' : ''; ?>"><i class="fa-solid fa-file-contract"></i><span>Employment Details</span></a>
+                    <a href="<?php echo app_url('contractor/products/index.php'); ?>" class="sidebar-link sidebar-sublink <?php echo $sidebarActive === 'contractor_products' ? 'active' : ''; ?>"><i class="fa-solid fa-box"></i><span>Product Master</span></a>
+                    <a href="<?php echo app_url('contractor/grades/index.php'); ?>" class="sidebar-link sidebar-sublink <?php echo $sidebarActive === 'contractor_grades' ? 'active' : ''; ?>"><i class="fa-solid fa-layer-group"></i><span>Grade Master</span></a>
+                    <a href="<?php echo app_url('contractor/operations/index.php'); ?>" class="sidebar-link sidebar-sublink <?php echo $sidebarActive === 'contractor_operations' ? 'active' : ''; ?>"><i class="fa-solid fa-gears"></i><span>Operations Rate</span></a>
+                    <a href="<?php echo app_url('payroll/register.php?type=jobwork_govt'); ?>" class="sidebar-link sidebar-sublink <?php echo in_array($regType, ['jobwork_govt', 'jobwork_actual', 'contractor_main'], true) ? 'active' : ''; ?>"><i class="fa-solid fa-file-invoice-dollar"></i><span>Jobwork Salary</span></a>
                 </div>
             </div>
-        </div>
-        <?php endif; ?>
+            <?php endif; ?>
 
-        <?php if ($canDepts): ?>
-        <div class="sidebar-section">
-            <div class="sidebar-section-title">7 · Departments</div>
+            <?php if ($canDepts): ?>
             <div class="sidebar-accordion <?php echo $openDepartments ? 'is-open' : ''; ?>" data-accordion="departments" data-default-open="<?php echo $openDepartments ? '1' : '0'; ?>">
                 <button type="button" class="sidebar-acc-btn <?php echo $openDepartments ? 'is-active' : ''; ?>" aria-expanded="<?php echo $openDepartments ? 'true' : 'false'; ?>">
-                    <span class="sidebar-acc-left">
-                        <i class="fa-solid fa-building"></i>
-                        <span>Department List</span>
-                    </span>
+                    <span class="sidebar-acc-left"><i class="fa-solid fa-building"></i><span>Departments</span></span>
                     <i class="fa-solid fa-chevron-down sidebar-acc-caret"></i>
                 </button>
                 <div class="sidebar-submenu sidebar-submenu-scroll">
-                    <a href="<?php echo app_url('dashboard.php#department-workspace'); ?>"
-                       class="sidebar-link sidebar-sublink <?php echo $sidebarActive === 'dashboard' ? 'active' : ''; ?>">
-                        <i class="fa-solid fa-border-all"></i>
-                        <span>All Department Boxes</span>
-                    </a>
+                    <a href="<?php echo app_url('dashboard.php#department-workspace'); ?>" class="sidebar-link sidebar-sublink <?php echo $sidebarActive === 'dashboard' ? 'active' : ''; ?>"><i class="fa-solid fa-border-all"></i><span>All Department Boxes</span></a>
                     <?php foreach ($sidebarDepartments as $d): ?>
-                        <a href="<?php echo app_url('department.php?id=' . (int) $d['id']); ?>"
-                           class="sidebar-link sidebar-sublink <?php echo ((int) $d['id'] === $sidebarDeptId && $sidebarActive === 'modules') ? 'active' : ''; ?>"
-                           title="<?php echo htmlspecialchars($d['department_name']); ?>">
-                            <span class="sidebar-dot" style="background: <?php echo htmlspecialchars($d['icon_color']); ?>;"></span>
-                            <span><?php echo htmlspecialchars($d['department_name']); ?></span>
-                        </a>
+                    <a href="<?php echo app_url('department.php?id=' . (int) $d['id']); ?>" class="sidebar-link sidebar-sublink <?php echo ((int) $d['id'] === $sidebarDeptId && $sidebarActive === 'modules') ? 'active' : ''; ?>" title="<?php echo htmlspecialchars($d['department_name']); ?>">
+                        <span class="sidebar-dot" style="background: <?php echo htmlspecialchars($d['icon_color']); ?>;"></span>
+                        <span><?php echo htmlspecialchars($d['department_name']); ?></span>
+                    </a>
                     <?php endforeach; ?>
                 </div>
             </div>
-        </div>
-        <?php endif; ?>
+            <?php endif; ?>
 
-        <?php if ($canMasters): ?>
-        <div class="sidebar-section">
-            <div class="sidebar-section-title">8 · Masters</div>
+            <?php if ($canMasters): ?>
             <div class="sidebar-accordion <?php echo $openMasters ? 'is-open' : ''; ?>" data-accordion="masters" data-default-open="<?php echo $openMasters ? '1' : '0'; ?>">
                 <button type="button" class="sidebar-acc-btn <?php echo $openMasters ? 'is-active' : ''; ?>" aria-expanded="<?php echo $openMasters ? 'true' : 'false'; ?>">
-                    <span class="sidebar-acc-left">
-                        <i class="fa-solid fa-database"></i>
-                        <span>All Masters</span>
-                    </span>
+                    <span class="sidebar-acc-left"><i class="fa-solid fa-database"></i><span>Masters</span></span>
                     <i class="fa-solid fa-chevron-down sidebar-acc-caret"></i>
                 </button>
                 <div class="sidebar-submenu sidebar-submenu-scroll">
-                    <a href="<?php echo app_url('masters/index.php'); ?>"
-                       class="sidebar-link sidebar-sublink <?php echo $sidebarActive === 'hub' ? 'active' : ''; ?>">
-                        <i class="fa-solid fa-cubes"></i>
-                        <span>Masters Hub</span>
-                    </a>
-                    <a href="<?php echo app_url('masters/company_history/index.php'); ?>"
-                       class="sidebar-link sidebar-sublink <?php echo $sidebarActive === 'company_history' ? 'active' : ''; ?>">
-                        <i class="fa-solid fa-book-open"></i>
-                        <span>Company History</span>
-                    </a>
-                    <a href="<?php echo app_url('masters/company_vision/index.php'); ?>"
-                       class="sidebar-link sidebar-sublink <?php echo $sidebarActive === 'company_vision' ? 'active' : ''; ?>">
-                        <i class="fa-solid fa-bullseye"></i>
-                        <span>Vision / Mission</span>
-                    </a>
+                    <a href="<?php echo app_url('masters/index.php'); ?>" class="sidebar-link sidebar-sublink <?php echo $sidebarActive === 'hub' ? 'active' : ''; ?>"><i class="fa-solid fa-cubes"></i><span>Masters Hub</span></a>
+                    <a href="<?php echo app_url('masters/company_history/index.php'); ?>" class="sidebar-link sidebar-sublink <?php echo $sidebarActive === 'company_history' ? 'active' : ''; ?>"><i class="fa-solid fa-book-open"></i><span>Company History</span></a>
+                    <a href="<?php echo app_url('masters/company_vision/index.php'); ?>" class="sidebar-link sidebar-sublink <?php echo $sidebarActive === 'company_vision' ? 'active' : ''; ?>"><i class="fa-solid fa-bullseye"></i><span>Vision / Mission</span></a>
                     <?php foreach ($mastersNav as $m): ?>
-                        <a href="<?php echo app_url('masters/' . $m['folder'] . '/index.php'); ?>"
-                           class="sidebar-link sidebar-sublink <?php echo $sidebarActive === $m['key'] ? 'active' : ''; ?>">
-                            <i class="fa-solid <?php echo htmlspecialchars($m['icon']); ?>"></i>
-                            <span><?php echo htmlspecialchars($m['title']); ?></span>
-                        </a>
+                    <a href="<?php echo app_url('masters/' . $m['folder'] . '/index.php'); ?>" class="sidebar-link sidebar-sublink <?php echo $sidebarActive === $m['key'] ? 'active' : ''; ?>">
+                        <i class="fa-solid <?php echo htmlspecialchars($m['icon']); ?>"></i>
+                        <span><?php echo htmlspecialchars($m['title']); ?></span>
+                    </a>
                     <?php endforeach; ?>
                 </div>
             </div>
-        </div>
-        <?php endif; ?>
-
-        <?php if (!$isOfficeStaffNav && ((function_exists('isAdmin') && isAdmin()) || (function_exists('canManageDepartmentHeads') && canManageDepartmentHeads()))): ?>
-        <div class="sidebar-section">
-            <div class="sidebar-section-title">9 · Admin</div>
-            <nav class="sidebar-nav">
-                <?php if (function_exists('isAdmin') && isAdmin()): ?>
-                <a href="<?php echo app_url('roles/index.php'); ?>"
-                   class="sidebar-link <?php echo $sidebarActive === 'roles' ? 'active' : ''; ?>">
-                    <i class="fa-solid fa-user-shield"></i>
-                    <span>Roles &amp; Access</span>
-                </a>
-                <a href="<?php echo app_url('users/index.php'); ?>"
-                   class="sidebar-link <?php echo $sidebarActive === 'staff_users' ? 'active' : ''; ?>">
-                    <i class="fa-solid fa-user-gear"></i>
-                    <span>Staff Users</span>
-                </a>
-                <a href="<?php echo app_url('company_settings.php'); ?>"
-                   class="sidebar-link <?php echo $sidebarActive === 'settings' ? 'active' : ''; ?>">
-                    <i class="fa-solid fa-building"></i>
-                    <span>Company Settings</span>
-                </a>
-                <?php elseif (function_exists('canManageDepartmentHeads') && canManageDepartmentHeads()): ?>
-                <a href="<?php echo app_url('roles/department_heads.php'); ?>"
-                   class="sidebar-link <?php echo $sidebarActive === 'dept_heads' ? 'active' : ''; ?>">
-                    <i class="fa-solid fa-user-tie"></i>
-                    <span>Department Heads</span>
-                </a>
-                <?php endif; ?>
-            </nav>
+            <?php endif; ?>
         </div>
         <?php endif; ?>
 
@@ -723,6 +535,28 @@ $sidebarCompanyName = function_exists('getCompanyName') ? getCompanyName() : 'Ar
                 </nav>
             </div>
         <?php endif; ?>
+
+        <?php if (!$isOfficeStaffNav && ((function_exists('isAdmin') && isAdmin()) || (function_exists('canManageDepartmentHeads') && canManageDepartmentHeads()))): ?>
+        <div class="sidebar-section">
+            <div class="sidebar-section-title">Admin</div>
+            <div class="sidebar-accordion <?php echo $openAdminMenu ? 'is-open' : ''; ?>" data-accordion="admin_menu" data-default-open="<?php echo $openAdminMenu ? '1' : '0'; ?>">
+                <button type="button" class="sidebar-acc-btn <?php echo $openAdminMenu ? 'is-active' : ''; ?>" aria-expanded="<?php echo $openAdminMenu ? 'true' : 'false'; ?>">
+                    <span class="sidebar-acc-left"><i class="fa-solid fa-gears"></i><span>System Setup</span></span>
+                    <i class="fa-solid fa-chevron-down sidebar-acc-caret"></i>
+                </button>
+                <div class="sidebar-submenu">
+                    <?php if (function_exists('isAdmin') && isAdmin()): ?>
+                    <a href="<?php echo app_url('roles/index.php'); ?>" class="sidebar-link sidebar-sublink <?php echo $sidebarActive === 'roles' ? 'active' : ''; ?>"><i class="fa-solid fa-user-shield"></i><span>Roles &amp; Access</span></a>
+                    <a href="<?php echo app_url('users/index.php'); ?>" class="sidebar-link sidebar-sublink <?php echo $sidebarActive === 'staff_users' ? 'active' : ''; ?>"><i class="fa-solid fa-user-gear"></i><span>Staff Users</span></a>
+                    <a href="<?php echo app_url('company_settings.php'); ?>" class="sidebar-link sidebar-sublink <?php echo $sidebarActive === 'settings' ? 'active' : ''; ?>"><i class="fa-solid fa-building"></i><span>Company Settings</span></a>
+                    <?php elseif (function_exists('canManageDepartmentHeads') && canManageDepartmentHeads()): ?>
+                    <a href="<?php echo app_url('roles/department_heads.php'); ?>" class="sidebar-link sidebar-sublink <?php echo $sidebarActive === 'dept_heads' ? 'active' : ''; ?>"><i class="fa-solid fa-user-tie"></i><span>Department Heads</span></a>
+                    <?php endif; ?>
+                </div>
+            </div>
+        </div>
+        <?php endif; ?>
+
     </div>
 
     <div class="sidebar-footer-mini">
