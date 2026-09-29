@@ -69,70 +69,90 @@ $workLocation = $companyShort . ', Rajkot, Gujarat';
         * { box-sizing: border-box; }
         body {
             margin: 0;
-            padding: 18px;
+            padding: 12px;
             background: #e5e7eb;
             color: #111;
             font-family: Calibri, Candara, Segoe UI, Optima, Arial, sans-serif;
-            font-size: 14px;
-            line-height: 1.55;
+            font-size: 12.5px;
+            line-height: 1.4;
         }
         .bar {
-            max-width: 820px;
-            margin: 0 auto 12px;
+            max-width: 794px;
+            margin: 0 auto 10px;
             display: flex;
             justify-content: space-between;
             align-items: center;
             background: #fff;
             border: 1px solid #cbd5e1;
-            padding: 10px 14px;
+            padding: 8px 12px;
             font-size: 13px;
         }
         .bar button {
             background: #d2232a;
             color: #fff;
             border: 0;
-            padding: 9px 14px;
+            padding: 8px 12px;
             font-weight: 700;
             cursor: pointer;
             font-family: Calibri, Candara, Segoe UI, Arial, sans-serif;
         }
         .sheet {
-            max-width: 820px;
+            width: 210mm;
+            max-width: 210mm;
+            min-height: 297mm;
             margin: 0 auto;
-            border: 1.5px solid #111;
-            padding: 26px 34px 28px;
-            min-height: 1040px;
+            border: 1px solid #111;
+            padding: 10mm 12mm 8mm;
             background: #fff;
         }
         <?php echo companyDocPrintCss(); ?>
+        .cdoc-header {
+            gap: 10px;
+            padding-bottom: 8px;
+            margin-bottom: 8px;
+            border-bottom-width: 2.5px;
+            align-items: center;
+        }
         .cdoc-header-logo {
-            width: 82px;
-            height: 82px;
+            width: 58px;
+            height: 58px;
         }
         .cdoc-header-text .cdoc-company {
-            font-size: 24px;
+            font-size: 18px;
             font-weight: 800;
             color: #b91c1c;
             font-family: Calibri, Candara, Segoe UI, Arial, sans-serif;
+            margin: 0 0 3px;
+            line-height: 1.15;
         }
         .cdoc-header-text .cdoc-header-details {
-            font-size: 13.5px;
+            font-size: 11.5px;
             font-weight: 700;
             color: #1e293b;
             font-family: Calibri, Candara, Segoe UI, Arial, sans-serif;
-            line-height: 1.5;
+            line-height: 1.35;
         }
         .cdoc-footer {
-            font-family: Calibri, Candara, Segoe UI, Optima, Arial, sans-serif;
+            margin-top: 10px;
+            padding-top: 6px;
+            border-top-width: 1.5px;
+            font-size: 9.5px;
+            line-height: 1.35;
+            font-family: Calibri, Candara, Segoe UI, Arial, sans-serif;
+        }
+        .cdoc-watermark img {
+            width: min(48%, 280px);
+            max-height: 280px;
+            opacity: 0.07;
         }
 
         .ref-date-row {
             display: flex;
             justify-content: space-between;
             align-items: baseline;
-            gap: 16px;
-            margin: 10px 0 8px;
-            font-size: 14px;
+            gap: 12px;
+            margin: 4px 0 4px;
+            font-size: 12.5px;
             font-weight: 600;
         }
         .ref-date-row .ref-no,
@@ -142,25 +162,25 @@ $workLocation = $companyShort . ', Rajkot, Gujarat';
 
         .doc-title {
             text-align: center;
-            margin: 10px 0 22px;
-            font-size: 18px;
+            margin: 6px 0 10px;
+            font-size: 15px;
             font-weight: 700;
             letter-spacing: .04em;
             text-transform: uppercase;
             text-decoration: underline;
-            text-underline-offset: 4px;
+            text-underline-offset: 3px;
         }
 
         .letter-body {
-            font-size: 14px;
-            line-height: 1.62;
+            font-size: 12.5px;
+            line-height: 1.42;
             text-align: justify;
         }
-        .letter-body p { margin: 0 0 12px; }
+        .letter-body p { margin: 0 0 7px; }
         .letter-body .to-block {
-            margin: 0 0 14px;
+            margin: 0 0 8px;
             text-align: left;
-            line-height: 1.45;
+            line-height: 1.35;
         }
         .letter-body .to-block .name {
             font-weight: 700;
@@ -169,61 +189,86 @@ $workLocation = $companyShort . ', Rajkot, Gujarat';
         .letter-body strong { font-weight: 700; }
 
         .docs-head {
-            margin: 16px 0 8px;
+            margin: 8px 0 4px;
             font-weight: 700;
             text-decoration: underline;
-            text-underline-offset: 3px;
+            text-underline-offset: 2px;
             text-align: left;
         }
         .docs-list {
-            margin: 0 0 14px;
-            padding-left: 22px;
+            margin: 0 0 8px;
+            padding-left: 18px;
             text-align: left;
         }
         .docs-list li {
-            margin: 0 0 3px;
+            margin: 0 0 1px;
             padding-left: 2px;
+            line-height: 1.35;
         }
 
         .closing-block {
-            margin-top: 18px;
+            margin-top: 8px;
             text-align: left;
+            page-break-inside: avoid;
         }
         .closing-block .sincerely {
-            margin: 0 0 28px;
+            margin: 0 0 14px;
         }
         .sign-row {
             display: flex;
             justify-content: space-between;
             align-items: flex-end;
-            gap: 24px;
-            margin-top: 8px;
+            gap: 18px;
+            margin-top: 4px;
         }
         .sign-left {
             font-weight: 700;
-            line-height: 1.45;
+            line-height: 1.35;
+            font-size: 12.5px;
         }
         .sign-right {
-            width: 42%;
+            width: 40%;
             text-align: center;
             font-weight: 700;
+            font-size: 12.5px;
         }
         .sign-right .line {
             border-top: 1.5px solid #111;
-            margin: 0 0 6px;
+            margin: 28px 0 4px;
             min-height: 1px;
         }
 
         @media print {
-            body { background: #fff; padding: 0; }
+            html, body {
+                background: #fff !important;
+                padding: 0 !important;
+                margin: 0 !important;
+                width: 210mm;
+                height: 297mm;
+            }
             .bar { display: none !important; }
             .sheet {
-                max-width: none;
-                border: 0;
+                width: 210mm;
+                max-width: 210mm;
                 min-height: auto;
-                padding: 10mm 12mm;
+                height: auto;
+                margin: 0;
+                border: 0;
+                padding: 8mm 10mm 6mm;
+                box-shadow: none;
+                page-break-after: avoid;
+                page-break-inside: avoid;
             }
-            @page { size: A4; margin: 10mm; }
+            .cdoc-footer,
+            .closing-block,
+            .sign-row {
+                page-break-inside: avoid;
+                page-break-before: avoid;
+            }
+            @page {
+                size: A4 portrait;
+                margin: 0;
+            }
         }
     </style>
 </head>
