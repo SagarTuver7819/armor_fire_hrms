@@ -1,6 +1,6 @@
 <?php
 /**
- * Appointment Letter — company letterhead + full terms (16 clauses)
+ * Appointment Letter — 3-page A4, letterhead + full terms
  * Doc No: ASIPL/HR/APPOINT/{FY}/####
  */
 
@@ -88,12 +88,16 @@ if ($reportingTo === '') {
 
 $postingPlace = 'Lothda, Rajkot, Gujarat';
 $workHours = '09:00 AM to 06:00 PM';
+
+$h = function ($s) {
+    return htmlspecialchars((string) $s, ENT_QUOTES, 'UTF-8');
+};
 ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Appointment Letter · <?php echo htmlspecialchars($appointNo ?: $empCode); ?></title>
+    <title>Appointment Letter · <?php echo $h($appointNo ?: $empCode); ?></title>
     <style>
         * { box-sizing: border-box; }
         body {
@@ -101,9 +105,9 @@ $workHours = '09:00 AM to 06:00 PM';
             padding: 12px;
             background: #e5e7eb;
             color: #111;
-            font-family: Calibri, Candara, Segoe UI, Optima, Arial, sans-serif;
-            font-size: 12.5px;
-            line-height: 1.45;
+            font-family: Calibri, Candara, Segoe UI, Arial, sans-serif;
+            font-size: 13.5px;
+            line-height: 1.5;
         }
         .bar {
             width: 210mm;
@@ -116,6 +120,7 @@ $workHours = '09:00 AM to 06:00 PM';
             border: 1px solid #cbd5e1;
             padding: 8px 12px;
             font-size: 13px;
+            font-family: Calibri, Segoe UI, Arial, sans-serif;
         }
         .bar button {
             background: #d2232a;
@@ -124,67 +129,82 @@ $workHours = '09:00 AM to 06:00 PM';
             padding: 8px 12px;
             font-weight: 700;
             cursor: pointer;
-            font-family: Calibri, Candara, Segoe UI, Arial, sans-serif;
-        }
-        .sheet {
-            width: 210mm;
-            max-width: 100%;
-            min-height: 297mm;
-            margin: 0 auto;
-            border: 1px solid #111;
-            padding: 11mm 14mm 12mm;
-            background: #fff;
-            position: relative;
+            font-family: Calibri, Segoe UI, Arial, sans-serif;
         }
         <?php echo companyDocPrintCss(); ?>
-        .cdoc-sheet > .cdoc-inner {
+        .page {
+            width: 210mm;
+            max-width: 100%;
+            height: 297mm;
+            margin: 0 auto 14px;
+            border: 1px solid #111;
+            padding: 12mm 16mm 12mm;
+            background: #fff;
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+        .page > .cdoc-inner {
             position: relative;
             z-index: 1;
+            flex: 1 1 auto;
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+            height: 100%;
         }
         .cdoc-header {
             gap: 12px;
-            padding-bottom: 10px;
-            margin-bottom: 10px;
+            padding-bottom: 8px;
+            margin-bottom: 8px;
             border-bottom-width: 2.5px;
             align-items: center;
+            flex-shrink: 0;
         }
-        .cdoc-header-logo { width: 68px; height: 68px; }
+        .cdoc-header-logo { width: 88px; height: 88px; }
         .cdoc-header-text .cdoc-company {
-            font-size: 20px;
+            font-size: 24px;
             font-weight: 800;
             color: #b91c1c;
             font-family: Calibri, Candara, Segoe UI, Arial, sans-serif;
-            margin: 0 0 4px;
+            margin: 0 0 3px;
             line-height: 1.2;
         }
         .cdoc-header-text .cdoc-header-details {
-            font-size: 12.5px;
+            font-size: 12px;
             font-weight: 700;
             color: #1e293b;
             font-family: Calibri, Candara, Segoe UI, Arial, sans-serif;
-            line-height: 1.4;
+            line-height: 1.35;
         }
         .cdoc-footer {
-            margin-top: 18px;
+            margin-top: auto;
             padding-top: 8px;
             border-top-width: 1.5px;
             font-size: 10.5px;
-            line-height: 1.4;
+            line-height: 1.35;
             font-family: Calibri, Candara, Segoe UI, Arial, sans-serif;
+            flex-shrink: 0;
         }
         .cdoc-watermark img {
-            width: min(55%, 340px);
-            max-height: 340px;
-            opacity: 0.07;
+            width: min(52%, 320px);
+            max-height: 320px;
+            opacity: 0.06;
+        }
+        .page-body {
+            flex: 1 1 auto;
+            min-height: 0;
         }
         .ref-date-row {
             display: flex;
             justify-content: space-between;
             align-items: baseline;
             gap: 12px;
-            margin: 0 0 8px;
-            font-size: 12.5px;
-            font-weight: 600;
+            margin: 0 0 10px;
+            font-size: 13.5px;
+            font-weight: 700;
+            flex-shrink: 0;
         }
         .to-head {
             display: flex;
@@ -195,8 +215,9 @@ $workHours = '09:00 AM to 06:00 PM';
         }
         .to-block {
             text-align: left;
-            line-height: 1.45;
+            line-height: 1.5;
             flex: 1 1 auto;
+            font-size: 13.5px;
         }
         .to-block .name {
             font-weight: 700;
@@ -206,11 +227,15 @@ $workHours = '09:00 AM to 06:00 PM';
             flex: 0 0 auto;
             font-weight: 700;
             white-space: nowrap;
+            font-size: 13.5px;
+            text-align: right;
+            line-height: 1.45;
         }
+        .to-date .lbl { font-weight: 700; }
         .doc-title {
             text-align: center;
-            margin: 8px 0 12px;
-            font-size: 15px;
+            margin: 6px 0 12px;
+            font-size: 15.5px;
             font-weight: 700;
             letter-spacing: .04em;
             text-transform: uppercase;
@@ -218,53 +243,64 @@ $workHours = '09:00 AM to 06:00 PM';
             text-underline-offset: 3px;
         }
         .letter-body {
-            font-size: 12.5px;
-            line-height: 1.45;
+            font-size: 13.5px;
+            line-height: 1.5;
             text-align: justify;
         }
         .letter-body p { margin: 0 0 9px; }
         .letter-body strong { font-weight: 700; }
-        .clause {
+        .cont-label {
+            font-size: 12.5px;
+            font-weight: 700;
             margin: 0 0 10px;
+            color: #334155;
         }
+        .clause { margin: 0 0 11px; }
         .clause-title {
             font-weight: 700;
-            margin: 0 0 3px;
+            margin: 0 0 4px;
+            font-size: 13.5px;
         }
         .clause p { margin: 0 0 5px; }
-        .clause ol,
-        .clause ul {
+        .clause ol, .clause ul {
             margin: 4px 0 6px;
             padding-left: 22px;
         }
-        .clause li { margin: 0 0 3px; }
+        .clause li { margin: 0 0 4px; }
         .clause .note {
             margin: 6px 0 0;
-            font-size: 12px;
+            font-size: 12.5px;
         }
-        .closing {
-            margin-top: 16px;
-        }
+        .closing { margin-top: 14px; }
         .closing .mgmt {
-            margin-top: 28px;
+            margin-top: 26px;
             font-weight: 700;
-            line-height: 1.4;
+            line-height: 1.45;
+            font-size: 13.5px;
         }
         .sign-accept {
             margin-top: 28px;
             display: flex;
             justify-content: space-between;
             gap: 24px;
-            page-break-inside: avoid;
         }
         .sign-box {
             width: 42%;
             text-align: center;
             font-weight: 700;
+            font-size: 13.5px;
         }
         .sign-box .line {
             border-top: 1.5px solid #111;
-            margin: 42px 0 6px;
+            margin: 46px 0 6px;
+        }
+        .page-no {
+            text-align: center;
+            font-size: 11px;
+            color: #64748b;
+            margin-top: 6px;
+            flex-shrink: 0;
+            font-family: Calibri, Segoe UI, Arial, sans-serif;
         }
         @media print {
             html, body {
@@ -273,94 +309,97 @@ $workHours = '09:00 AM to 06:00 PM';
                 margin: 0 !important;
             }
             .bar { display: none !important; }
-            .sheet {
+            .page {
                 width: 210mm;
                 max-width: 210mm;
-                min-height: auto;
+                height: 297mm;
+                min-height: 297mm;
                 margin: 0;
                 border: 0;
-                padding: 12mm 14mm 12mm;
+                padding: 12mm 16mm 10mm;
                 box-shadow: none;
+                page-break-after: always;
+                break-after: page;
+                overflow: hidden;
             }
-            .cdoc-header { page-break-after: avoid; }
-            .clause { page-break-inside: avoid; }
-            .sign-accept, .cdoc-footer { page-break-inside: avoid; }
-            @page { size: A4 portrait; margin: 10mm 0; }
+            .page:last-child {
+                page-break-after: auto;
+                break-after: auto;
+            }
+            .page-no { display: none; }
+            @page { size: A4 portrait; margin: 0; }
         }
     </style>
 </head>
 <body>
 <div class="bar">
     <div>
-        <strong><?php echo htmlspecialchars($appointNo !== '' ? $appointNo : $empCode); ?></strong>
-        · Appointment Letter
+        <strong><?php echo $h($appointNo !== '' ? $appointNo : $empCode); ?></strong>
+        · Appointment Letter (3 pages)
         <?php if ($empCode !== ''): ?>
-            · <?php echo htmlspecialchars($empCode); ?>
+            · <?php echo $h($empCode); ?>
         <?php endif; ?>
     </div>
     <button type="button" onclick="window.print()">Print / Save PDF</button>
 </div>
 
-<div class="sheet cdoc-sheet">
+<!-- ===================== PAGE 1 ===================== -->
+<div class="page cdoc-sheet">
     <?php echo companyDocRenderWatermark($brand); ?>
     <div class="cdoc-inner">
         <?php echo companyDocRenderHeader($brand, 'Human Resource · Appointment'); ?>
 
         <div class="ref-date-row">
-            <div class="ref-no">Ref: <?php echo htmlspecialchars($appointNo !== '' ? $appointNo : '—'); ?></div>
-            <div class="ref-date">Date:- <?php echo htmlspecialchars($appointDate); ?></div>
+            <div>Ref: <?php echo $h($appointNo !== '' ? $appointNo : '—'); ?></div>
+            <div>Letter Date: <?php echo $h($appointDate); ?></div>
         </div>
 
         <div class="to-head">
             <div class="to-block">
                 To,<br>
-                <span class="name"><?php echo htmlspecialchars($displayName); ?></span><br>
-                <?php echo htmlspecialchars($position); ?><br>
-                <?php echo htmlspecialchars($department); ?><br>
-                <?php echo htmlspecialchars($companyShort); ?>
+                <span class="name"><?php echo $h($displayName); ?></span><br>
+                <?php echo $h($position); ?><br>
+                <?php echo $h($department); ?><br>
+                <?php echo $h($companyShort); ?>
                 <?php if ($mobile !== '' || $email !== ''): ?>
                     <br>
-                    <?php if ($mobile !== ''): ?>
-                        Mobile: <?php echo htmlspecialchars($mobile); ?>
-                    <?php endif; ?>
-                    <?php if ($mobile !== '' && $email !== ''): ?>
-                        &nbsp;
-                    <?php endif; ?>
-                    <?php if ($email !== ''): ?>
-                        E Mail: <?php echo htmlspecialchars($email); ?>
-                    <?php endif; ?>
+                    <?php if ($mobile !== ''): ?>Mobile: <?php echo $h($mobile); ?><?php endif; ?>
+                    <?php if ($mobile !== '' && $email !== ''): ?>&nbsp; <?php endif; ?>
+                    <?php if ($email !== ''): ?>E Mail: <?php echo $h($email); ?><?php endif; ?>
                 <?php endif; ?>
                 <?php if ($empCode !== ''): ?>
-                    <br>Emp. Code: <strong><?php echo htmlspecialchars($empCode); ?></strong>
+                    <br>Emp. Code: <strong><?php echo $h($empCode); ?></strong>
                 <?php endif; ?>
             </div>
-            <div class="to-date">Date: <?php echo htmlspecialchars($appointDate); ?></div>
+            <div class="to-date">
+                <span class="lbl">Date of Joining:</span><br>
+                <?php echo $h($joiningDate); ?>
+            </div>
         </div>
 
         <h2 class="doc-title">Subject : Appointment Letter</h2>
 
-        <div class="letter-body">
-            <p>Dear <?php echo htmlspecialchars($dearName); ?>,</p>
-
+        <div class="page-body letter-body">
+            <p>Dear <?php echo $h($dearName); ?>,</p>
             <p>
                 We are pleased to offer you, the position of
-                <strong><?php echo htmlspecialchars($position); ?></strong>
+                <strong><?php echo $h($position); ?></strong>
                 with
-                <strong><?php echo htmlspecialchars($companyShort); ?></strong>
+                <strong><?php echo $h($companyShort); ?></strong>
                 on the following terms and conditions:
             </p>
 
             <div class="clause">
                 <div class="clause-title">1. Commencement of Employment</div>
-                <p>Your employment will be effective, as of <strong><?php echo htmlspecialchars($joiningDate); ?></strong></p>
+                <p>Your employment will be effective, as of <strong><?php echo $h($joiningDate); ?></strong></p>
             </div>
 
             <div class="clause">
                 <div class="clause-title">2. Job Title</div>
                 <p>
-                    Your job title will be <strong><?php echo htmlspecialchars($position); ?></strong>
+                    Your job title will be <strong><?php echo $h($position); ?></strong>
                     and you will report to
-                    <strong><?php echo htmlspecialchars($reportingTo); ?></strong>
+                    <strong><?php echo $h($reportingTo); ?></strong>
                 </p>
             </div>
 
@@ -372,7 +411,7 @@ $workHours = '09:00 AM to 06:00 PM';
             <div class="clause">
                 <div class="clause-title">4. Place of Posting</div>
                 <p>
-                    You will be posted at <strong><?php echo htmlspecialchars($postingPlace); ?></strong>.
+                    You will be posted at <strong><?php echo $h($postingPlace); ?></strong>.
                     You may however be required to work at any place of business at where Company has, or may later acquire.
                 </p>
             </div>
@@ -393,7 +432,7 @@ $workHours = '09:00 AM to 06:00 PM';
                 <p>
                     You will be required to work for such hours as necessary for the proper discharge of your duties to
                     the Company. The normal working hours are from
-                    <strong><?php echo htmlspecialchars($workHours); ?></strong>.
+                    <strong><?php echo $h($workHours); ?></strong>.
                 </p>
             </div>
 
@@ -409,7 +448,26 @@ $workHours = '09:00 AM to 06:00 PM';
                     <strong>NOTE:</strong> Candidate Must have to attain calls and responses from Clientele or Company Side on any kind of Leaves.
                 </p>
             </div>
+        </div>
 
+        <div class="page-no">Page 1 of 3</div>
+        <?php echo companyDocRenderFooter($brand); ?>
+    </div>
+</div>
+
+<!-- ===================== PAGE 2 ===================== -->
+<div class="page cdoc-sheet">
+    <?php echo companyDocRenderWatermark($brand); ?>
+    <div class="cdoc-inner">
+        <?php echo companyDocRenderHeader($brand, 'Human Resource · Appointment'); ?>
+
+        <div class="ref-date-row">
+            <div>Ref: <?php echo $h($appointNo !== '' ? $appointNo : '—'); ?></div>
+            <div>Date of Joining: <?php echo $h($joiningDate); ?></div>
+        </div>
+        <div class="cont-label">Appointment Letter (Continued) · <?php echo $h($displayName); ?></div>
+
+        <div class="page-body letter-body">
             <div class="clause">
                 <div class="clause-title">8. Nature of Duties</div>
                 <p>
@@ -480,6 +538,29 @@ $workHours = '09:00 AM to 06:00 PM';
                     manuals, drawing, designs, specifications, and all papers, resumes, records and other documents
                     containing such Confidential Information.
                 </p>
+            </div>
+        </div>
+
+        <div class="page-no">Page 2 of 3</div>
+        <?php echo companyDocRenderFooter($brand); ?>
+    </div>
+</div>
+
+<!-- ===================== PAGE 3 ===================== -->
+<div class="page cdoc-sheet">
+    <?php echo companyDocRenderWatermark($brand); ?>
+    <div class="cdoc-inner">
+        <?php echo companyDocRenderHeader($brand, 'Human Resource · Appointment'); ?>
+
+        <div class="ref-date-row">
+            <div>Ref: <?php echo $h($appointNo !== '' ? $appointNo : '—'); ?></div>
+            <div>Date of Joining: <?php echo $h($joiningDate); ?></div>
+        </div>
+        <div class="cont-label">Appointment Letter (Continued) · <?php echo $h($displayName); ?></div>
+
+        <div class="page-body letter-body">
+            <div class="clause">
+                <div class="clause-title">12. Confidential Information (Continued)</div>
                 <p><strong>12.3</strong> At no time, will you remove any Confidential Information from the office without permission.</p>
                 <p>
                     <strong>12.4</strong> Your duty to safeguard and not disclose Confidential Information will survive the expiration or
@@ -529,7 +610,7 @@ $workHours = '09:00 AM to 06:00 PM';
                 <p>We welcome you, and look forward to receiving your acceptance and to working with you</p>
                 <div class="mgmt">
                     Management<br>
-                    <?php echo htmlspecialchars($companyShort); ?><br>
+                    <?php echo $h($companyShort); ?><br>
                     Rajkot, Gujarat
                 </div>
             </div>
@@ -546,6 +627,7 @@ $workHours = '09:00 AM to 06:00 PM';
             </div>
         </div>
 
+        <div class="page-no">Page 3 of 3</div>
         <?php echo companyDocRenderFooter($brand); ?>
     </div>
 </div>

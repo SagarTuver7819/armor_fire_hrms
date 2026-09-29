@@ -115,7 +115,7 @@ function companyDocPrintCss()
     font-size: 10.5px;
     line-height: 1.45;
     color: #475569;
-    font-family: Arial, Helvetica, sans-serif;
+    font-family: Calibri, Candara, Segoe UI, Arial, Helvetica, sans-serif;
     white-space: pre-wrap;
     text-align: center;
 }
