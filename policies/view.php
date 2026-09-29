@@ -11,12 +11,11 @@ require_once __DIR__ . '/../includes/policy_helper.php';
 requireStaff();
 ensurePolicyTables();
 require_once __DIR__ . '/../includes/permission_helper.php';
-requireAccess('policies', 'view');
 
 $id = (int) ($_GET['id'] ?? 0);
 $row = getPolicyById($id);
-if (!$row) {
-    header('Location: ' . app_url('policies/index.php?msg=error&err=' . rawurlencode('Policy not found.')));
+if (!$row || !canCurrentUserViewPolicy($row)) {
+    header('Location: ' . app_url('policies/index.php?msg=error&err=' . rawurlencode('Policy not found or access denied.')));
     exit;
 }
 

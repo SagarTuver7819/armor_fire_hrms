@@ -12,14 +12,38 @@ require_once __DIR__ . '/../includes/circular_helper.php';
 requireStaff();
 ensureCircularTables();
 require_once __DIR__ . '/../includes/permission_helper.php';
-requireAccess('circulars', 'view');
+
+$hasModuleAccess = canAccess('circulars', 'view');
+$isEmpOnly = !$hasModuleAccess && function_exists('isEmployee') && isEmployee();
+if (!$hasModuleAccess && !$isEmpOnly) {
+    requireAccess('circulars', 'view');
+}
 
 $year = (int) ($_GET['year'] ?? 0);
 $deptFilter = (int) ($_GET['department_id'] ?? 0);
-$rows = fetchCirculars($year, $deptFilter);
-$departments = getActiveMasterRows('departments', 'sort_order ASC, department_name ASC');
-$canEditCircular = canAccess('circulars', 'edit');
-$canDeleteCircular = canAccess('circulars', 'delete');
+if ($isEmpOnly) {
+    $empId = (int) ($_SESSION['employee_id'] ?? 0);
+    $empDept = 0;
+    if ($empId > 0) {
+        $connTmp = getDBConnection();
+        $st = $connTmp->prepare('SELECT department_id FROM employees WHERE id = ? LIMIT 1');
+        $st->bind_param('i', $empId);
+        $st->execute();
+        $er = $st->get_result()->fetch_assoc();
+        $st->close();
+        $connTmp->close();
+        $empDept = (int) ($er['department_id'] ?? 0);
+    }
+    $deptFilter = $empDept > 0 ? $empDept : -1; // -1 → force empty via helper below
+}
+if ($deptFilter < 0) {
+    $rows = [];
+} else {
+    $rows = fetchCirculars($year, $deptFilter);
+}
+$departments = $isEmpOnly ? [] : getActiveMasterRows('departments', 'sort_order ASC, department_name ASC');
+$canEditCircular = $hasModuleAccess && canAccess('circulars', 'edit');
+$canDeleteCircular = $hasModuleAccess && canAccess('circulars', 'delete');
 // Employee portal roles (except HR Head): view/PDF only — never show edit/delete
 if (isEmployee()) {
     $roleCode = strtoupper((string) ($_SESSION['role_code'] ?? ''));

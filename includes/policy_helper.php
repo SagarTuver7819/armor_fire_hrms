@@ -603,7 +603,9 @@ function deletePolicy($id)
 }
 
 /**
- * Unread Policy notifications for logged-in staff
+ * Unread Policy notifications for logged-in portal user.
+ * Employees: only policies for their department (or All Departments).
+ * Admin/HR: all unread policies.
  * @return array<int,array>
  */
 function fetchUnreadPolicyNotifications($userId, $limit = 12)
@@ -616,21 +618,74 @@ function fetchUnreadPolicyNotifications($userId, $limit = 12)
     $conn = getDBConnection();
     ensurePolicyTables($conn);
 
-    // Portal is HR/Admin only — show all unread policies in the bell.
-    // Department targeting controls list filter / assignment display.
-    $sql = "SELECT c.id, c.title, c.policy_no, c.policy_date, c.added_date,
-                   c.apply_all_departments, c.created_at
-            FROM policies c
-            WHERE c.status = 1
-              AND NOT EXISTS (
-                  SELECT 1 FROM policy_reads cr
-                  WHERE cr.policy_id = c.id AND cr.user_id = ?
-              )
-            ORDER BY c.created_at DESC, c.id DESC
-            LIMIT " . max(1, min(30, (int) $limit));
+    $employeeDeptId = 0;
+    $ust = $conn->prepare('SELECT role, employee_id FROM users WHERE id = ? LIMIT 1');
+    $ust->bind_param('i', $userId);
+    $ust->execute();
+    $urow = $ust->get_result()->fetch_assoc();
+    $ust->close();
+    if ($urow && strtolower((string) ($urow['role'] ?? '')) === 'employee') {
+        $empId = (int) ($urow['employee_id'] ?? 0);
+        if ($empId > 0) {
+            $est = $conn->prepare('SELECT department_id FROM employees WHERE id = ? LIMIT 1');
+            $est->bind_param('i', $empId);
+            $est->execute();
+            $erow = $est->get_result()->fetch_assoc();
+            $est->close();
+            $employeeDeptId = (int) ($erow['department_id'] ?? 0);
+        }
+    }
 
-    $st = $conn->prepare($sql);
-    $st->bind_param('i', $userId);
+    $limit = max(1, min(30, (int) $limit));
+    if ($employeeDeptId > 0) {
+        $sql = "SELECT c.id, c.title, c.policy_no, c.policy_date, c.added_date,
+                       c.apply_all_departments, c.created_at
+                FROM policies c
+                WHERE c.status = 1
+                  AND NOT EXISTS (
+                      SELECT 1 FROM policy_reads cr
+                      WHERE cr.policy_id = c.id AND cr.user_id = ?
+                  )
+                  AND (
+                      c.apply_all_departments = 1
+                      OR EXISTS (
+                          SELECT 1 FROM policy_departments cd
+                          WHERE cd.policy_id = c.id AND cd.department_id = ?
+                      )
+                  )
+                ORDER BY c.created_at DESC, c.id DESC
+                LIMIT " . $limit;
+        $st = $conn->prepare($sql);
+        $st->bind_param('ii', $userId, $employeeDeptId);
+    } elseif ($urow && strtolower((string) ($urow['role'] ?? '')) === 'employee') {
+        $sql = "SELECT c.id, c.title, c.policy_no, c.policy_date, c.added_date,
+                       c.apply_all_departments, c.created_at
+                FROM policies c
+                WHERE c.status = 1
+                  AND c.apply_all_departments = 1
+                  AND NOT EXISTS (
+                      SELECT 1 FROM policy_reads cr
+                      WHERE cr.policy_id = c.id AND cr.user_id = ?
+                  )
+                ORDER BY c.created_at DESC, c.id DESC
+                LIMIT " . $limit;
+        $st = $conn->prepare($sql);
+        $st->bind_param('i', $userId);
+    } else {
+        $sql = "SELECT c.id, c.title, c.policy_no, c.policy_date, c.added_date,
+                       c.apply_all_departments, c.created_at
+                FROM policies c
+                WHERE c.status = 1
+                  AND NOT EXISTS (
+                      SELECT 1 FROM policy_reads cr
+                      WHERE cr.policy_id = c.id AND cr.user_id = ?
+                  )
+                ORDER BY c.created_at DESC, c.id DESC
+                LIMIT " . $limit;
+        $st = $conn->prepare($sql);
+        $st->bind_param('i', $userId);
+    }
+
     $st->execute();
     $res = $st->get_result();
     $rows = [];
@@ -646,6 +701,57 @@ function fetchUnreadPolicyNotifications($userId, $limit = 12)
 function countUnreadPolicyNotifications($userId)
 {
     return count(fetchUnreadPolicyNotifications($userId, 30));
+}
+
+/**
+ * Whether a policy applies to this employee (All Depts or their department).
+ */
+function policyAppliesToEmployee($policyRow, $employeeId)
+{
+    $employeeId = (int) $employeeId;
+    if ($employeeId <= 0 || !$policyRow) {
+        return false;
+    }
+    if (!empty($policyRow['apply_all_departments'])) {
+        return true;
+    }
+    $deptIds = $policyRow['department_ids'] ?? null;
+    if (!is_array($deptIds)) {
+        $pid = (int) ($policyRow['id'] ?? 0);
+        $deptIds = $pid > 0 ? getPolicyDepartmentIds($pid) : [];
+    }
+    $conn = getDBConnection();
+    $st = $conn->prepare('SELECT department_id FROM employees WHERE id = ? LIMIT 1');
+    $st->bind_param('i', $employeeId);
+    $st->execute();
+    $erow = $st->get_result()->fetch_assoc();
+    $st->close();
+    $conn->close();
+    $empDept = (int) ($erow['department_id'] ?? 0);
+    if ($empDept <= 0) {
+        return false;
+    }
+    return in_array($empDept, array_map('intval', (array) $deptIds), true);
+}
+
+/**
+ * Portal user may open this policy (module permission OR employee-targeted).
+ */
+function canCurrentUserViewPolicy($policyRow)
+{
+    if (!$policyRow) {
+        return false;
+    }
+    if (!function_exists('canAccess')) {
+        require_once __DIR__ . '/permission_helper.php';
+    }
+    if (canAccess('policies', 'view')) {
+        return true;
+    }
+    if (function_exists('isEmployee') && isEmployee()) {
+        return policyAppliesToEmployee($policyRow, (int) ($_SESSION['employee_id'] ?? 0));
+    }
+    return false;
 }
 
 function markPolicyRead($policyId, $userId)

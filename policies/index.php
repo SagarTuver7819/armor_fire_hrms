@@ -12,14 +12,38 @@ require_once __DIR__ . '/../includes/policy_helper.php';
 requireStaff();
 ensurePolicyTables();
 require_once __DIR__ . '/../includes/permission_helper.php';
-requireAccess('policies', 'view');
+
+$hasModuleAccess = canAccess('policies', 'view');
+$isEmpOnly = !$hasModuleAccess && function_exists('isEmployee') && isEmployee();
+if (!$hasModuleAccess && !$isEmpOnly) {
+    requireAccess('policies', 'view');
+}
 
 $year = (int) ($_GET['year'] ?? 0);
 $deptFilter = (int) ($_GET['department_id'] ?? 0);
-$rows = fetchPolicies($year, $deptFilter);
-$departments = getActiveMasterRows('departments', 'sort_order ASC, department_name ASC');
-$canEditPolicy = canAccess('policies', 'edit');
-$canDeletePolicy = canAccess('policies', 'delete');
+if ($isEmpOnly) {
+    $empId = (int) ($_SESSION['employee_id'] ?? 0);
+    $empDept = 0;
+    if ($empId > 0) {
+        $connTmp = getDBConnection();
+        $st = $connTmp->prepare('SELECT department_id FROM employees WHERE id = ? LIMIT 1');
+        $st->bind_param('i', $empId);
+        $st->execute();
+        $er = $st->get_result()->fetch_assoc();
+        $st->close();
+        $connTmp->close();
+        $empDept = (int) ($er['department_id'] ?? 0);
+    }
+    $deptFilter = $empDept > 0 ? $empDept : -1;
+}
+if ($deptFilter < 0) {
+    $rows = [];
+} else {
+    $rows = fetchPolicies($year, $deptFilter);
+}
+$departments = $isEmpOnly ? [] : getActiveMasterRows('departments', 'sort_order ASC, department_name ASC');
+$canEditPolicy = $hasModuleAccess && canAccess('policies', 'edit');
+$canDeletePolicy = $hasModuleAccess && canAccess('policies', 'delete');
 // Employee portal roles (except HR Head): view/PDF only — never show edit/delete
 if (isEmployee()) {
     $roleCode = strtoupper((string) ($_SESSION['role_code'] ?? ''));

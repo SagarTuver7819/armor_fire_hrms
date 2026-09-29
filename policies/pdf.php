@@ -18,11 +18,10 @@ require_once __DIR__ . '/../includes/permission_helper.php';
 
 requireStaff();
 ensurePolicyTables();
-requireAccess('policies', 'view');
 
 $id = (int) ($_GET['id'] ?? 0);
 $row = getPolicyById($id);
-if (!$row || !policyFileExists($row['pdf_file'] ?? '')) {
+if (!$row || !canCurrentUserViewPolicy($row) || !policyFileExists($row['pdf_file'] ?? '')) {
     while (ob_get_level() > 0) {
         ob_end_clean();
     }

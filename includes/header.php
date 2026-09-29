@@ -41,6 +41,7 @@ if (function_exists('isPortalUser') && isPortalUser()) {
     require_once __DIR__ . '/circular_helper.php';
     require_once __DIR__ . '/policy_helper.php';
     require_once __DIR__ . '/leave_helper.php';
+    require_once __DIR__ . '/employee_voice_helper.php';
     if (function_exists('ensureCircularTables')) {
         ensureCircularTables();
         foreach (fetchUnreadCircularNotifications($uid, 8) as $n) {
@@ -81,6 +82,31 @@ if (function_exists('isPortalUser') && isPortalUser()) {
                 $n['_icon'] = 'fa-ban';
             }
             $n['_label'] = 'Leave · ' . ($event !== '' ? $event : 'Update');
+            $headerNotifyItems[] = $n;
+        }
+    }
+    if (function_exists('ensureEmployeeVoiceTables')) {
+        ensureEmployeeVoiceTables();
+        foreach (fetchUnreadEvNotifications($uid, 8) as $n) {
+            $event = (string) ($n['event_type'] ?? '');
+            $n['_type'] = 'employee_voice';
+            $n['_date'] = $n['notify_date'] ?? substr((string) ($n['created_at'] ?? ''), 0, 10);
+            $n['_dept_label'] = (string) ($n['body'] ?? '');
+            $n['_url'] = app_url('employee_voice/mark_read.php?id=' . (int) $n['id']);
+            if (strcasecmp($event, 'New') === 0) {
+                $n['_icon'] = 'fa-inbox';
+                $n['_label'] = 'Employee Voice · New';
+            } elseif (strcasecmp($event, 'Reply') === 0) {
+                $n['_icon'] = 'fa-reply';
+                $n['_label'] = 'Employee Voice · Reply';
+            } elseif (strcasecmp($event, 'Status') === 0) {
+                $n['_icon'] = 'fa-arrows-rotate';
+                $n['_label'] = 'Employee Voice · Status';
+            } else {
+                $n['_icon'] = 'fa-comments';
+                $n['_label'] = 'Employee Voice';
+            }
+            // Header expects `title` field (already on row)
             $headerNotifyItems[] = $n;
         }
     }
@@ -204,6 +230,8 @@ if (function_exists('isPortalUser') && isPortalUser()) {
                                 <a href="<?php echo app_url('policies/mark_read.php?all=1'); ?>">Read policies</a>
                                 ·
                                 <a href="<?php echo app_url('leave/mark_read.php?all=1'); ?>">Read leave</a>
+                                ·
+                                <a href="<?php echo app_url('employee_voice/mark_read.php?all=1'); ?>">Read voice</a>
                             </span>
                         <?php endif; ?>
                     </div>
@@ -234,6 +262,12 @@ if (function_exists('isPortalUser') && isPortalUser()) {
                         <a href="<?php echo app_url('policies/index.php'); ?>">Policies</a>
                         <span aria-hidden="true">·</span>
                         <a href="<?php echo app_url('leave/index.php'); ?>">My Leave</a>
+                        <span aria-hidden="true">·</span>
+                        <?php if (function_exists('canManageEmployeeVoice') && canManageEmployeeVoice()): ?>
+                            <a href="<?php echo app_url('employee_voice/index.php'); ?>">Employee Voice</a>
+                        <?php else: ?>
+                            <a href="<?php echo app_url('employee/voice/my.php'); ?>">My Voice</a>
+                        <?php endif; ?>
                     </div>
                 </div>
             </div>

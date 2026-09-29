@@ -31,21 +31,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $id > 0) {
         $msg = 'Notes saved.';
         $msgType = 'success';
     } elseif ($action === 'comment') {
-        $text = trim((string) ($_POST['comment_text'] ?? ''));
-        $visible = !empty($_POST['visible_to_employee']);
-        if ($text !== '') {
-            $conn = getDBConnection();
-            ensureEmployeeVoiceTables($conn);
-            $by = (int) ($_SESSION['user_id'] ?? 0);
-            $conn->query(
-                'INSERT INTO ev_comments (ticket_id, comment_text, is_internal, created_by, created_at) VALUES ('
-                . $id . ', ' . evSqlStr($conn, $text) . ', ' . ($visible ? '0' : '1') . ', '
-                . ($by > 0 ? $by : 'NULL') . ', NOW())'
-            );
-            $conn->close();
-            $msg = 'Comment added.';
-            $msgType = 'success';
-        }
+        $res = evAddComment(
+            $id,
+            $_POST['comment_text'] ?? '',
+            !empty($_POST['visible_to_employee']),
+            (int) ($_SESSION['user_id'] ?? 0)
+        );
+        $msg = !empty($res['ok']) ? 'Comment added.' : ($res['error'] ?? 'Could not add comment');
+        $msgType = !empty($res['ok']) ? 'success' : 'error';
     }
 }
 

@@ -224,6 +224,23 @@ function ensureEmployeeVoiceTables($conn = null)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
     );
 
+    $conn->query(
+        "CREATE TABLE IF NOT EXISTS ev_notifications (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            ticket_id INT NOT NULL,
+            user_id INT NOT NULL,
+            employee_id INT DEFAULT NULL,
+            event_type VARCHAR(30) NOT NULL,
+            title VARCHAR(255) NOT NULL,
+            body VARCHAR(500) DEFAULT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            read_at DATETIME DEFAULT NULL,
+            INDEX idx_evn_user_unread (user_id, read_at),
+            INDEX idx_evn_ticket (ticket_id),
+            INDEX idx_evn_employee (employee_id)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+    );
+
     if ($close) {
         $conn->close();
     }
@@ -409,6 +426,8 @@ function evCreateTicket(array $data, $conn = null)
          VALUES (' . $ticketId . ', NULL, ' . evSqlStr($conn, $status) . ', ' . $bySql . ',
          ' . evSqlStr($conn, 'Ticket created') . ', NOW())'
     );
+
+    evNotifyStaffOnNewTicket($ticketId, $conn);
 
     if ($close) {
         $conn->close();
@@ -602,10 +621,55 @@ function evListTickets(array $filters = [], $conn = null)
             $rows[] = $r;
         }
     }
+    if (!empty($filters['with_hr_reply']) && $rows) {
+        evAttachLatestHrReplies($rows, $conn);
+    }
     if ($close) {
         $conn->close();
     }
     return $rows;
+}
+
+/**
+ * Attach latest employee-visible HR comment to each ticket row.
+ * @param array<int,array> $rows
+ */
+function evAttachLatestHrReplies(array &$rows, $conn)
+{
+    $ids = [];
+    foreach ($rows as $r) {
+        $id = (int) ($r['id'] ?? 0);
+        if ($id > 0) {
+            $ids[] = $id;
+        }
+    }
+    if (!$ids) {
+        return;
+    }
+    $idList = implode(',', array_map('intval', $ids));
+    $map = [];
+    $res = $conn->query(
+        "SELECT c.ticket_id, c.comment_text, c.created_at
+         FROM ev_comments c
+         INNER JOIN (
+             SELECT ticket_id, MAX(id) AS max_id
+             FROM ev_comments
+             WHERE is_internal = 0 AND ticket_id IN ({$idList})
+             GROUP BY ticket_id
+         ) x ON x.max_id = c.id"
+    );
+    if ($res) {
+        while ($row = $res->fetch_assoc()) {
+            $map[(int) $row['ticket_id']] = $row;
+        }
+    }
+    foreach ($rows as &$r) {
+        $tid = (int) ($r['id'] ?? 0);
+        $reply = $map[$tid] ?? null;
+        $r['hr_reply'] = $reply ? (string) ($reply['comment_text'] ?? '') : '';
+        $r['hr_reply_at'] = $reply ? (string) ($reply['created_at'] ?? '') : '';
+    }
+    unset($r);
 }
 
 function evUpdateStatus($ticketId, $newStatus, $reason = '', $changedBy = 0, $conn = null)
@@ -649,6 +713,10 @@ function evUpdateStatus($ticketId, $newStatus, $reason = '', $changedBy = 0, $co
          VALUES (' . (int) $ticketId . ', ' . evSqlStr($conn, $old) . ', ' . evSqlStr($conn, $newStatus) . ',
          ' . $bySql . ', ' . evSqlStr($conn, $reason) . ', NOW())'
     );
+    if ($old !== $newStatus) {
+        $body = $reason !== '' ? $reason : ('Status: ' . $old . ' → ' . $newStatus);
+        evNotifyEmployeeOnTicketUpdate((int) $ticketId, 'Status', $body, $conn);
+    }
     if ($close) {
         $conn->close();
     }
@@ -747,4 +815,313 @@ function evPriorityBadgeStyle($priority)
         return 'background:#f1f5f9;color:#64748b;';
     }
     return 'background:#e0e7ff;color:#3730a3;';
+}
+
+/**
+ * Active Admin/HR user IDs for Employee Voice alerts
+ * @return int[]
+ */
+function evStaffNotifyUserIds($conn)
+{
+    $ids = [];
+    $res = $conn->query(
+        "SELECT id FROM users
+         WHERE status = 1 AND role IN ('admin', 'hr')
+         ORDER BY id ASC"
+    );
+    if ($res) {
+        while ($row = $res->fetch_assoc()) {
+            $ids[] = (int) $row['id'];
+        }
+    }
+    return $ids;
+}
+
+/**
+ * Portal login user linked to an employee
+ */
+function evEmployeePortalUserId($employeeId, $conn)
+{
+    $employeeId = (int) $employeeId;
+    if ($employeeId <= 0) {
+        return 0;
+    }
+    $st = $conn->prepare(
+        "SELECT id FROM users
+         WHERE employee_id = ? AND role = 'employee' AND status = 1
+         ORDER BY id DESC
+         LIMIT 1"
+    );
+    $st->bind_param('i', $employeeId);
+    $st->execute();
+    $row = $st->get_result()->fetch_assoc();
+    $st->close();
+    return $row ? (int) $row['id'] : 0;
+}
+
+function evInsertNotification($ticketId, $userId, $employeeId, $eventType, $title, $body, $conn)
+{
+    $ticketId = (int) $ticketId;
+    $userId = (int) $userId;
+    $employeeId = (int) $employeeId;
+    if ($ticketId <= 0 || $userId <= 0) {
+        return false;
+    }
+    $eventType = substr(trim((string) $eventType), 0, 30);
+    $title = substr(trim((string) $title), 0, 255);
+    $body = substr(trim((string) $body), 0, 500);
+    $empSql = $employeeId > 0 ? (string) $employeeId : 'NULL';
+    return (bool) $conn->query(
+        'INSERT INTO ev_notifications
+            (ticket_id, user_id, employee_id, event_type, title, body, created_at)
+         VALUES ('
+        . $ticketId . ', ' . $userId . ', ' . $empSql . ', '
+        . evSqlStr($conn, $eventType) . ', '
+        . evSqlStr($conn, $title) . ', '
+        . evSqlStr($conn, $body !== '' ? $body : null) . ', NOW())'
+    );
+}
+
+/**
+ * New ticket → notify all Admin/HR users
+ */
+function evNotifyStaffOnNewTicket($ticketId, $conn = null)
+{
+    $close = false;
+    if ($conn === null) {
+        $conn = getDBConnection();
+        $close = true;
+    }
+    ensureEmployeeVoiceTables($conn);
+    $ticket = evGetTicket($ticketId, $conn);
+    if (!$ticket) {
+        if ($close) {
+            $conn->close();
+        }
+        return false;
+    }
+
+    $types = evModuleTypes();
+    $module = (string) ($ticket['module_type'] ?? '');
+    $label = $types[$module]['short'] ?? $module;
+    $ticketNo = (string) ($ticket['ticket_no'] ?? '');
+    $subject = (string) ($ticket['subject'] ?? '');
+    $priority = (string) ($ticket['priority'] ?? 'Medium');
+    $title = $label . ' raised · ' . $ticketNo;
+    $body = $subject;
+    if ($priority === 'Critical' || $priority === 'High') {
+        $body = $priority . ' · ' . $body;
+    }
+    $empId = (int) ($ticket['employee_id'] ?? 0);
+    $excludeUser = (int) ($ticket['created_by'] ?? 0);
+
+    $ok = false;
+    foreach (evStaffNotifyUserIds($conn) as $uid) {
+        if ($excludeUser > 0 && $uid === $excludeUser) {
+            continue;
+        }
+        if (evInsertNotification((int) $ticketId, $uid, $empId, 'New', $title, $body, $conn)) {
+            $ok = true;
+        }
+    }
+    if ($close) {
+        $conn->close();
+    }
+    return $ok;
+}
+
+/**
+ * Status change / HR reply → notify employee portal user
+ */
+function evNotifyEmployeeOnTicketUpdate($ticketId, $eventType, $body = '', $conn = null)
+{
+    $close = false;
+    if ($conn === null) {
+        $conn = getDBConnection();
+        $close = true;
+    }
+    ensureEmployeeVoiceTables($conn);
+    $ticket = evGetTicket($ticketId, $conn);
+    if (!$ticket) {
+        if ($close) {
+            $conn->close();
+        }
+        return false;
+    }
+    $empId = (int) ($ticket['employee_id'] ?? 0);
+    $userId = evEmployeePortalUserId($empId, $conn);
+    if ($userId <= 0) {
+        if ($close) {
+            $conn->close();
+        }
+        return false;
+    }
+
+    $types = evModuleTypes();
+    $module = (string) ($ticket['module_type'] ?? '');
+    $label = $types[$module]['short'] ?? $module;
+    $ticketNo = (string) ($ticket['ticket_no'] ?? '');
+    $eventType = trim((string) $eventType);
+    if ($eventType === '') {
+        $eventType = 'Update';
+    }
+    if (strcasecmp($eventType, 'Reply') === 0) {
+        $title = 'HR reply · ' . $ticketNo;
+    } elseif (strcasecmp($eventType, 'Status') === 0) {
+        $title = 'Status update · ' . $ticketNo;
+    } else {
+        $title = $label . ' update · ' . $ticketNo;
+    }
+    $body = trim((string) $body);
+    if ($body === '') {
+        $body = (string) ($ticket['subject'] ?? '');
+    }
+
+    $ok = evInsertNotification((int) $ticketId, $userId, $empId, $eventType, $title, $body, $conn);
+    if ($close) {
+        $conn->close();
+    }
+    return $ok;
+}
+
+/**
+ * Add admin comment; notify employee when visible
+ */
+function evAddComment($ticketId, $text, $visibleToEmployee = false, $createdBy = 0, $conn = null)
+{
+    $close = false;
+    if ($conn === null) {
+        $conn = getDBConnection();
+        $close = true;
+    }
+    ensureEmployeeVoiceTables($conn);
+    $ticketId = (int) $ticketId;
+    $text = trim((string) $text);
+    if ($ticketId <= 0 || $text === '') {
+        if ($close) {
+            $conn->close();
+        }
+        return ['ok' => false, 'error' => 'Comment required'];
+    }
+    $createdBy = (int) $createdBy;
+    $isInternal = $visibleToEmployee ? 0 : 1;
+    $bySql = $createdBy > 0 ? (string) $createdBy : 'NULL';
+    $ok = $conn->query(
+        'INSERT INTO ev_comments (ticket_id, comment_text, is_internal, created_by, created_at) VALUES ('
+        . $ticketId . ', ' . evSqlStr($conn, $text) . ', ' . $isInternal . ', '
+        . $bySql . ', NOW())'
+    );
+    if (!$ok) {
+        if ($close) {
+            $conn->close();
+        }
+        return ['ok' => false, 'error' => 'Could not save comment'];
+    }
+    if ($visibleToEmployee) {
+        $snippet = (strlen($text) > 120) ? (substr($text, 0, 117) . '...') : $text;
+        evNotifyEmployeeOnTicketUpdate($ticketId, 'Reply', $snippet, $conn);
+    }
+    if ($close) {
+        $conn->close();
+    }
+    return ['ok' => true];
+}
+
+/**
+ * @return array<int,array>
+ */
+function fetchUnreadEvNotifications($userId, $limit = 12)
+{
+    $userId = (int) $userId;
+    if ($userId <= 0) {
+        return [];
+    }
+    $conn = getDBConnection();
+    ensureEmployeeVoiceTables($conn);
+    $limit = max(1, min(30, (int) $limit));
+    $st = $conn->prepare(
+        "SELECT id, ticket_id, event_type, title, body, created_at,
+                DATE(created_at) AS notify_date
+         FROM ev_notifications
+         WHERE user_id = ?
+           AND read_at IS NULL
+         ORDER BY created_at DESC, id DESC
+         LIMIT " . $limit
+    );
+    $st->bind_param('i', $userId);
+    $st->execute();
+    $res = $st->get_result();
+    $rows = [];
+    while ($row = $res->fetch_assoc()) {
+        $rows[] = $row;
+    }
+    $st->close();
+    $conn->close();
+    return $rows;
+}
+
+function markEvNotificationRead($id, $userId)
+{
+    $id = (int) $id;
+    $userId = (int) $userId;
+    if ($id <= 0 || $userId <= 0) {
+        return false;
+    }
+    $conn = getDBConnection();
+    ensureEmployeeVoiceTables($conn);
+    $st = $conn->prepare(
+        "UPDATE ev_notifications
+         SET read_at = NOW()
+         WHERE id = ? AND user_id = ? AND read_at IS NULL"
+    );
+    $st->bind_param('ii', $id, $userId);
+    $ok = $st->execute();
+    $st->close();
+    $conn->close();
+    return (bool) $ok;
+}
+
+function markAllEvNotificationsRead($userId)
+{
+    $userId = (int) $userId;
+    if ($userId <= 0) {
+        return false;
+    }
+    $conn = getDBConnection();
+    ensureEmployeeVoiceTables($conn);
+    $st = $conn->prepare(
+        "UPDATE ev_notifications
+         SET read_at = NOW()
+         WHERE user_id = ? AND read_at IS NULL"
+    );
+    $st->bind_param('i', $userId);
+    $ok = $st->execute();
+    $st->close();
+    $conn->close();
+    return (bool) $ok;
+}
+
+function getEvNotificationById($id, $userId = 0)
+{
+    $id = (int) $id;
+    if ($id <= 0) {
+        return null;
+    }
+    $conn = getDBConnection();
+    ensureEmployeeVoiceTables($conn);
+    if ($userId > 0) {
+        $st = $conn->prepare(
+            'SELECT * FROM ev_notifications WHERE id = ? AND user_id = ? LIMIT 1'
+        );
+        $uid = (int) $userId;
+        $st->bind_param('ii', $id, $uid);
+    } else {
+        $st = $conn->prepare('SELECT * FROM ev_notifications WHERE id = ? LIMIT 1');
+        $st->bind_param('i', $id);
+    }
+    $st->execute();
+    $row = $st->get_result()->fetch_assoc();
+    $st->close();
+    $conn->close();
+    return $row ?: null;
 }

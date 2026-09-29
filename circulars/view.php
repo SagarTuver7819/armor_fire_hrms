@@ -11,12 +11,11 @@ require_once __DIR__ . '/../includes/circular_helper.php';
 requireStaff();
 ensureCircularTables();
 require_once __DIR__ . '/../includes/permission_helper.php';
-requireAccess('circulars', 'view');
 
 $id = (int) ($_GET['id'] ?? 0);
 $row = getCircularById($id);
-if (!$row) {
-    header('Location: ' . app_url('circulars/index.php?msg=error&err=' . rawurlencode('Circular not found.')));
+if (!$row || !canCurrentUserViewCircular($row)) {
+    header('Location: ' . app_url('circulars/index.php?msg=error&err=' . rawurlencode('Circular not found or access denied.')));
     exit;
 }
 

@@ -17,11 +17,10 @@ require_once __DIR__ . '/../includes/permission_helper.php';
 
 requireStaff();
 ensureCircularTables();
-requireAccess('circulars', 'view');
 
 $id = (int) ($_GET['id'] ?? 0);
 $row = getCircularById($id);
-if (!$row || !circularFileExists($row['pdf_file'] ?? '')) {
+if (!$row || !canCurrentUserViewCircular($row) || !circularFileExists($row['pdf_file'] ?? '')) {
     while (ob_get_level() > 0) {
         ob_end_clean();
     }

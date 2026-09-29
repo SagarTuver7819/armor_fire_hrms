@@ -17,7 +17,7 @@ if (!canSubmitEmployeeVoice()) {
 
 $empId = (int) $_SESSION['employee_id'];
 $typeFilter = strtoupper(trim((string) ($_GET['type'] ?? '')));
-$filters = ['employee_id' => $empId];
+$filters = ['employee_id' => $empId, 'with_hr_reply' => true];
 if (isset(evModuleTypes()[$typeFilter])) {
     $filters['module_type'] = $typeFilter;
 }
@@ -45,21 +45,23 @@ require_once __DIR__ . '/../../includes/header.php';
     <div class="form-page-card">
         <div class="form-page-header">
             <h1>My Submissions</h1>
-            <p>Only your own tickets are listed here.</p>
+            <p>Type-wise list with status and HR department response.</p>
         </div>
 
-        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;">
-            <a class="btn-ghost" href="<?php echo app_url('employee/voice/my.php'); ?>">All</a>
+        <div class="ev-type-filters" style="margin-bottom:14px;">
+            <a class="ev-type-chip<?php echo $typeFilter === '' ? ' is-active' : ''; ?>" href="<?php echo app_url('employee/voice/my.php'); ?>">All</a>
             <?php foreach ($types as $t): ?>
-                <a class="btn-ghost" href="<?php echo app_url('employee/voice/my.php?type=' . urlencode($t['key'])); ?>"
-                   style="border-color:<?php echo htmlspecialchars($t['color']); ?>;color:<?php echo htmlspecialchars($t['color']); ?>;">
+                <a class="ev-type-chip<?php echo $typeFilter === $t['key'] ? ' is-active' : ''; ?>"
+                   href="<?php echo app_url('employee/voice/my.php?type=' . urlencode($t['key'])); ?>"
+                   style="--ev-accent:<?php echo htmlspecialchars($t['color']); ?>;">
+                    <i class="fa-solid <?php echo htmlspecialchars($t['icon']); ?>"></i>
                     <?php echo htmlspecialchars($t['short']); ?>
                 </a>
             <?php endforeach; ?>
         </div>
 
         <div class="table-wrap">
-            <table class="data-table">
+            <table class="data-table ev-my-table">
                 <thead>
                     <tr>
                         <th>Ticket</th>
@@ -67,30 +69,52 @@ require_once __DIR__ . '/../../includes/header.php';
                         <th>Subject</th>
                         <th>Priority</th>
                         <th>Status</th>
+                        <th>HR Response</th>
                         <th>Submitted</th>
                         <th></th>
                     </tr>
                 </thead>
                 <tbody>
                 <?php if (!$rows): ?>
-                    <tr><td colspan="7" style="text-align:center;padding:24px;color:#64748b;">No submissions yet.</td></tr>
+                    <tr><td colspan="8" class="ev-empty-cell">No submissions yet.</td></tr>
                 <?php else: foreach ($rows as $r):
                     $mt = (string) $r['module_type'];
                     $meta = $types[$mt] ?? null;
+                    $hrReply = trim((string) ($r['hr_reply'] ?? ''));
+                    $hrAt = (string) ($r['hr_reply_at'] ?? '');
+                    $hrPreview = $hrReply !== ''
+                        ? ((strlen($hrReply) > 90) ? (substr($hrReply, 0, 87) . '…') : $hrReply)
+                        : '';
                 ?>
                     <tr>
-                        <td><strong><?php echo htmlspecialchars((string) $r['ticket_no']); ?></strong></td>
+                        <td><strong class="ev-ticket-no"><?php echo htmlspecialchars((string) $r['ticket_no']); ?></strong></td>
                         <td>
                             <span class="status-badge" style="background:<?php echo htmlspecialchars($meta['bg'] ?? '#eee'); ?>;color:<?php echo htmlspecialchars($meta['color'] ?? '#333'); ?>;">
                                 <?php echo htmlspecialchars($meta['short'] ?? $mt); ?>
                             </span>
                         </td>
-                        <td><?php echo htmlspecialchars((string) $r['subject']); ?></td>
+                        <td>
+                            <div class="ev-subj"><?php echo htmlspecialchars((string) $r['subject']); ?></div>
+                            <div class="ev-subj-cat"><?php echo htmlspecialchars((string) ($r['category'] ?? '')); ?></div>
+                        </td>
                         <td><span class="status-badge" style="<?php echo evPriorityBadgeStyle($r['priority']); ?>"><?php echo htmlspecialchars((string) $r['priority']); ?></span></td>
                         <td><span class="status-badge" style="<?php echo evStatusBadgeStyle($r['status']); ?>"><?php echo htmlspecialchars((string) $r['status']); ?></span></td>
+                        <td class="ev-hr-cell">
+                            <?php if ($hrPreview !== ''): ?>
+                                <div class="ev-hr-reply">
+                                    <i class="fa-solid fa-reply"></i>
+                                    <span><?php echo htmlspecialchars($hrPreview); ?></span>
+                                </div>
+                                <?php if ($hrAt !== ''): ?>
+                                    <div class="ev-hr-at"><?php echo htmlspecialchars(formatDateTimeDisplay($hrAt)); ?></div>
+                                <?php endif; ?>
+                            <?php else: ?>
+                                <span class="ev-hr-pending">Awaiting HR response</span>
+                            <?php endif; ?>
+                        </td>
                         <td><?php echo !empty($r['submitted_at']) ? htmlspecialchars(formatDateTimeDisplay($r['submitted_at'])) : '—'; ?></td>
                         <td>
-                            <a class="btn-ghost" style="padding:5px 10px;font-size:12px;"
+                            <a class="btn-ghost ev-view-btn"
                                href="<?php echo app_url('employee/voice/view.php?id=' . (int) $r['id']); ?>">View</a>
                         </td>
                     </tr>
