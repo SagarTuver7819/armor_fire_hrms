@@ -138,6 +138,7 @@ $sidebarCompanyName = function_exists('getCompanyName') ? getCompanyName() : 'Ar
                  alt="<?php echo htmlspecialchars($sidebarCompanyName); ?>"
                  class="sidebar-logo-img"
                  onerror="this.src='<?php echo app_url('assets/images/logo-placeholder.svg'); ?>'">
+            <span class="sidebar-company-name"><?php echo htmlspecialchars($sidebarCompanyName); ?></span>
         </a>
         <button type="button" class="sidebar-toggle" id="sidebarToggle" title="Hide / Show sidebar" aria-label="Toggle sidebar">
             <i class="fa-solid fa-angles-left"></i>

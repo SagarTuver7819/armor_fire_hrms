@@ -4322,24 +4322,43 @@ body.confirm-modal-open {
     border-bottom: 1px solid #eef2f7;
     flex-shrink: 0;
     background: #fff;
-    min-height: 96px;
+    min-height: 118px;
 }
 
 .sidebar-logo-link {
     display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
     flex: 1;
     min-width: 0;
     padding: 4px 6px;
+    gap: 6px;
+    text-decoration: none;
 }
 
 .sidebar-logo-img {
     width: auto;
     max-width: 180px;
-    height: 78px;
+    height: 64px;
     object-fit: contain;
     display: block;
+}
+
+.sidebar-company-name {
+    display: block;
+    width: 100%;
+    text-align: center;
+    font-size: 13px;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    line-height: 1.25;
+    color: #0f172a;
+    text-transform: uppercase;
+}
+
+.app-shell.sidebar-collapsed .sidebar-company-name {
+    display: none;
 }
 
 .sidebar-brand-mini {
@@ -5704,6 +5723,230 @@ body > .select2-container .select2-dropdown {
 
 
 /* ===================== HR Dashboard ===================== */
+
+/* Clean / sakho HR dashboard layout */
+.hr-dash-clean {
+    padding-bottom: 32px;
+}
+.hr-clean-hero {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+    margin-bottom: 14px;
+    padding: 18px 20px;
+    background: #fff;
+    border: 1px solid #e8ecf1;
+    border-radius: 14px;
+}
+.hr-clean-eyebrow {
+    margin: 0 0 4px;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: #64748b;
+}
+.hr-clean-hero h1 {
+    margin: 0;
+    font-size: clamp(22px, 2.4vw, 28px);
+    font-weight: 800;
+    color: #0f172a;
+    letter-spacing: -0.02em;
+}
+.hr-clean-sub {
+    margin: 6px 0 0;
+    color: #64748b;
+    font-size: 13px;
+    font-weight: 500;
+}
+.hr-clean-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    justify-content: flex-end;
+}
+.hr-clean-kpi {
+    display: grid;
+    grid-template-columns: repeat(8, minmax(0, 1fr));
+    gap: 10px;
+    margin-bottom: 14px;
+}
+.hr-clean-kpi-card {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 12px;
+    background: #fff;
+    border: 1px solid #e8ecf1;
+    border-radius: 12px;
+    text-decoration: none;
+    color: inherit;
+    min-width: 0;
+    transition: border-color .15s ease, box-shadow .15s ease;
+}
+a.hr-clean-kpi-card:hover {
+    border-color: #cbd5e1;
+    box-shadow: 0 4px 14px rgba(15, 23, 42, 0.06);
+}
+.hr-clean-kpi-card i {
+    font-size: 16px;
+    width: 28px;
+    text-align: center;
+    flex-shrink: 0;
+}
+.hr-clean-kpi-card span {
+    display: block;
+    font-size: 11px;
+    font-weight: 700;
+    color: #64748b;
+    line-height: 1.2;
+}
+.hr-clean-kpi-card strong {
+    display: block;
+    font-size: 18px;
+    font-weight: 800;
+    color: #0f172a;
+    line-height: 1.2;
+    margin-top: 2px;
+}
+.hr-clean-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1.7fr) minmax(280px, 0.9fr);
+    gap: 14px;
+    align-items: start;
+}
+.hr-clean-main,
+.hr-clean-side {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    min-width: 0;
+}
+.hr-clean-split {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+}
+.hr-clean-card {
+    background: #fff;
+    border: 1px solid #e8ecf1;
+    border-radius: 14px;
+    padding: 14px 16px;
+}
+.hr-clean-card-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 10px;
+}
+.hr-clean-card-head h2 {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 800;
+    color: #0f172a;
+}
+.hr-clean-card-head p {
+    margin: 3px 0 0;
+    font-size: 12px;
+    color: #94a3b8;
+    font-weight: 600;
+}
+.hr-clean-empty {
+    padding: 18px 8px;
+    text-align: center;
+    color: #94a3b8;
+    font-size: 13px;
+    font-weight: 600;
+}
+.hr-clean-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    max-height: 280px;
+    overflow: auto;
+}
+.hr-clean-list li a,
+.hr-clean-list li > div {
+    display: block;
+    padding: 8px 10px;
+    border-radius: 8px;
+    text-decoration: none;
+    color: inherit;
+    border: 1px solid transparent;
+}
+.hr-clean-list li a:hover {
+    background: #f8fafc;
+    border-color: #eef2f7;
+}
+.hr-clean-list strong {
+    display: block;
+    font-size: 13px;
+    font-weight: 700;
+    color: #1e293b;
+    line-height: 1.3;
+}
+.hr-clean-list span {
+    display: block;
+    margin-top: 2px;
+    font-size: 11.5px;
+    color: #94a3b8;
+    font-weight: 600;
+}
+.hr-clean-links {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+}
+.hr-clean-links a {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 9px 10px;
+    border: 1px solid #e8ecf1;
+    border-radius: 10px;
+    text-decoration: none;
+    color: #334155;
+    font-size: 12.5px;
+    font-weight: 700;
+    background: #f8fafc;
+}
+.hr-clean-links a:hover {
+    border-color: #d2232a;
+    color: #d2232a;
+    background: #fff;
+}
+.hr-clean-links a i {
+    width: 16px;
+    text-align: center;
+    color: #d2232a;
+}
+@media (max-width: 1200px) {
+    .hr-clean-kpi {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+}
+@media (max-width: 980px) {
+    .hr-clean-grid {
+        grid-template-columns: 1fr;
+    }
+    .hr-clean-kpi {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+@media (max-width: 640px) {
+    .hr-clean-split {
+        grid-template-columns: 1fr;
+    }
+    .hr-clean-kpi {
+        grid-template-columns: 1fr 1fr;
+    }
+}
 
 .hr-dash {
     padding-bottom: 40px;
@@ -7402,6 +7645,62 @@ body.confirm-modal-open .flatpickr-calendar {
 .emp-dash-panel.is-circulars { border-top: 4px solid #1D4ED8; }
 .emp-dash-panel.is-anniv { border-top: 4px solid #B45309; }
 .emp-dash-panel.is-bday { border-top: 4px solid #DB2777; }
+.emp-dash-panel.is-leave-q { border-top: 4px solid #d97706; }
+.emp-dash-panel.is-voice { border-top: 4px solid #d2232a; }
+.emp-dash-panel.is-holiday { border-top: 4px solid #0d9488; }
+
+.is-leave-q .emp-dash-row { background: #fffbeb; border-color: #fde68a; }
+.is-leave-q a.emp-dash-row:hover { background: #fef3c7; border-color: #fbbf24; }
+.is-voice .emp-dash-row { background: #fef2f2; border-color: #fecaca; }
+.is-voice a.emp-dash-row:hover { background: #fee2e2; border-color: #f87171; }
+.is-holiday .emp-dash-row { background: #f0fdfa; border-color: #99f6e4; }
+
+.is-leave-q .emp-dash-date { color: #b45309; border-color: #fde68a; }
+.is-voice .emp-dash-date { color: #b91c1c; border-color: #fecaca; }
+.is-holiday .emp-dash-date { color: #0f766e; border-color: #99f6e4; }
+
+/* HR dashboard — employee-structure extras */
+.hr-emp-quickbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 0 0 14px;
+}
+.hr-ops-panels {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    margin-top: 14px;
+}
+a.emp-leave-chip {
+    text-decoration: none;
+    color: inherit;
+    transition: transform .12s ease, box-shadow .12s ease;
+}
+a.emp-leave-chip:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08);
+}
+a.emp-move-chip {
+    text-decoration: none;
+    color: inherit;
+}
+a.emp-move-chip:hover {
+    filter: brightness(0.98);
+}
+@media (max-width: 1100px) {
+    .hr-ops-panels {
+        grid-template-columns: 1fr 1fr;
+    }
+}
+@media (max-width: 720px) {
+    .hr-ops-panels {
+        grid-template-columns: 1fr;
+    }
+    .hr-emp-quickbar .btn-ghost,
+    .hr-emp-quickbar .btn-primary {
+        flex: 1 1 auto;
+        justify-content: center;
+    }
+}
 
 .emp-dash-panel-head {
     display: flex;
@@ -7554,6 +7853,19 @@ a.emp-dash-row:hover {
     height: 88px !important;
     border-radius: 20px !important;
     font-size: 28px !important;
+}
+.emp-dash-avatar.hr-dash-brand-logo {
+    background: #fff !important;
+    border: 1px solid #e8ecf1;
+    padding: 8px;
+    box-sizing: border-box;
+    overflow: hidden;
+}
+.emp-dash-avatar.hr-dash-brand-logo img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    display: block;
 }
 .emp-dash-greet {
     margin: 0 !important;
