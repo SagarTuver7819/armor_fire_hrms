@@ -9298,7 +9298,17 @@ body.co-about-open { overflow: hidden; }
     line-height: 1.62;
     color: #334155;
 }
-.co-about-scroll > p { margin: 0 0 12px; }
+.co-about-scroll > p,
+.co-about-para {
+    margin: 0 0 12px;
+    color: #1e293b;
+    font-weight: 500;
+}
+.co-about-scroll strong.co-strong,
+.co-master-view-body strong.co-strong {
+    font-weight: 800;
+    color: #0f172a;
+}
 .co-about-scroll h4 {
     margin: 14px 0 8px;
     font-size: 12.5px;
@@ -9352,7 +9362,8 @@ body.co-about-open { overflow: hidden; }
     color: #d2232a;
     margin-bottom: 6px;
 }
-.co-about-lead p { margin: 0; font-weight: 600; color: #7f1d1d; }
+.co-about-lead p { margin: 0; font-weight: 600; color: #1e293b; }
+.co-about-lead p strong.co-strong { font-weight: 800; color: #0f172a; }
 .co-about-callout {
     padding: 12px 14px;
     border-radius: 12px;
@@ -9363,7 +9374,7 @@ body.co-about-open { overflow: hidden; }
     border: 1px solid #fecaca;
 }
 .co-about-callout h4 { margin-top: 0 !important; }
-.co-about-callout p { margin: 0; font-weight: 700; color: #0f172a; font-size: 14px; }
+.co-about-callout p { margin: 0; font-weight: 800; color: #0f172a; font-size: 14px; }
 .co-about-mission {
     list-style: none;
     margin: 0 0 12px;
@@ -9385,7 +9396,11 @@ body.co-about-open { overflow: hidden; }
     font-size: 12px;
     flex-shrink: 0;
 }
-.co-about-mission li span { flex: 1; }
+.co-about-mission li span {
+    flex: 1;
+    font-weight: 700;
+    color: #0f172a;
+}
 .co-about-values {
     display: flex;
     flex-wrap: wrap;

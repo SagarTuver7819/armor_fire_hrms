@@ -68,7 +68,7 @@ if (isset($_GET['msg'])) {
 
         <div class="co-master-view-body">
             <?php foreach (($body['paragraphs'] ?? []) as $p): ?>
-                <p><?php echo nl2br(htmlspecialchars((string) $p)); ?></p>
+                <p><?php echo companyContentBoldHtml((string) $p); ?></p>
             <?php endforeach; ?>
 
             <?php if (!empty($body['products_2021'])): ?>

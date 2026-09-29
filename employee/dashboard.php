@@ -1014,7 +1014,7 @@ $denied = isset($_GET['msg']) && $_GET['msg'] === 'denied';
                 </div>
                 <div class="co-about-scroll">
                     <?php foreach (($hBody['paragraphs'] ?? []) as $p): ?>
-                        <p><?php echo nl2br(htmlspecialchars((string) $p)); ?></p>
+                        <p class="co-about-para"><?php echo companyContentBoldHtml((string) $p); ?></p>
                     <?php endforeach; ?>
                     <?php if (!empty($hBody['products_2021'])): ?>
                         <h4><i class="fa-solid fa-industry"></i> 2021 Expansion Products</h4>
@@ -1046,12 +1046,12 @@ $denied = isset($_GET['msg']) && $_GET['msg'] === 'denied';
                     <?php if (!empty($vBody['leadership'])): ?>
                         <div class="co-about-lead">
                             <span class="co-about-lead-label"><i class="fa-solid fa-user-tie"></i> Leadership</span>
-                            <p><?php echo nl2br(htmlspecialchars((string) $vBody['leadership'])); ?></p>
+                            <p><?php echo companyContentBoldHtml((string) $vBody['leadership']); ?></p>
                         </div>
                     <?php endif; ?>
                     <div class="co-about-callout is-vision-box">
                         <h4><i class="fa-solid fa-eye"></i> Vision</h4>
-                        <p><?php echo nl2br(htmlspecialchars((string) ($vBody['vision'] ?? ''))); ?></p>
+                        <p><?php echo companyContentBoldHtml((string) ($vBody['vision'] ?? '')); ?></p>
                     </div>
                     <?php if (!empty($vBody['mission'])): ?>
                         <h4><i class="fa-solid fa-flag"></i> Mission</h4>

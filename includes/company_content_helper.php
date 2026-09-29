@@ -195,4 +195,57 @@ if (!function_exists('ensureCompanyContentTables')) {
         }
         return $out;
     }
+
+    /**
+     * Escape text and bold key company facts (no color highlight).
+     */
+    function companyContentBoldHtml($text)
+    {
+        $html = htmlspecialchars((string) $text, ENT_QUOTES, 'UTF-8');
+        $phrases = [
+            'Armor Steel Industries Private Limited',
+            'Armor Steel Industries Pvt. Ltd.',
+            'Armor Steel Industries',
+            'Managing Director Mr. Pritesh Babariya',
+            'Founder Mr. Ankur Babariya',
+            'Mr. Pritesh Babariya',
+            'Mr. Ankur Babariya',
+            'Mahadev Casting',
+            'ARMOR FIRE',
+            'Make in India',
+            'Startup India',
+            '26,100 sq. ft.',
+            'UL Listed',
+            'BIS/ISI standards',
+            'BIS/ISI',
+            'ISO-certified',
+            '2021',
+            '2024',
+            'Rajkot, Gujarat',
+            'India\'s first manufacturer',
+            'in-house manufacturing',
+            'self-reliance',
+        ];
+        usort($phrases, static function ($a, $b) {
+            return strlen($b) - strlen($a);
+        });
+        $tokens = [];
+        $i = 0;
+        foreach ($phrases as $phrase) {
+            $escaped = preg_quote(htmlspecialchars($phrase, ENT_QUOTES, 'UTF-8'), '/');
+            $html = preg_replace_callback(
+                '/' . $escaped . '/i',
+                static function ($m) use (&$tokens, &$i) {
+                    $key = "\x00B" . $i++ . "\x00";
+                    $tokens[$key] = '<strong class="co-strong">' . $m[0] . '</strong>';
+                    return $key;
+                },
+                $html
+            );
+        }
+        if ($tokens) {
+            $html = strtr($html, $tokens);
+        }
+        return nl2br($html);
+    }
 }

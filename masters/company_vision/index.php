@@ -68,12 +68,12 @@ if (isset($_GET['msg'])) {
 
         <div class="co-master-view-body">
             <?php if (!empty($body['leadership'])): ?>
-                <div class="co-master-lead"><?php echo nl2br(htmlspecialchars((string) $body['leadership'])); ?></div>
+                <div class="co-master-lead"><?php echo companyContentBoldHtml((string) $body['leadership']); ?></div>
             <?php endif; ?>
 
             <div class="co-about-callout is-vision-box">
                 <h4 style="margin:0 0 6px;font-size:12.5px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;">Vision</h4>
-                <p><?php echo nl2br(htmlspecialchars((string) ($body['vision'] ?? ''))); ?></p>
+                <p><?php echo companyContentBoldHtml((string) ($body['vision'] ?? '')); ?></p>
             </div>
 
             <?php if (!empty($body['mission'])): ?>
