@@ -1130,6 +1130,10 @@ function leaveApplyRequest($conn, array $data)
     }
     $id = (int) $conn->insert_id;
     $stmt->close();
+
+    // Bell + toaster for Admin / HR / HR Head / Dept Head
+    leaveNotifyStaffOnApplied($conn, $id, $appliedBy);
+
     return $id;
 }
 
@@ -1755,7 +1759,7 @@ function leaveCreateStatusNotification($conn, $requestId, $eventType)
 
     $stmt = $conn->prepare(
         "SELECT lr.id, lr.employee_id, lr.from_date, lr.to_date, lr.days, lr.leave_half,
-                lt.code, lt.name AS leave_type_name,
+                lt.code, lt.leave_type AS leave_type_name,
                 e.employee_name
          FROM leave_requests lr
          INNER JOIN leave_types lt ON lt.id = lr.leave_type_id
@@ -1832,6 +1836,201 @@ function leaveCreateStatusNotification($conn, $requestId, $eventType)
     $ok = $ins->execute();
     $ins->close();
     return (bool) $ok;
+}
+
+/**
+ * Portal user IDs that should be notified when leave is applied
+ * (Admin, HR, HR Head, and Department Heads of the employee department).
+ *
+ * @return int[]
+ */
+function leaveStaffNotifyUserIds($conn, $departmentId = 0)
+{
+    $ids = [];
+    $res = $conn->query(
+        "SELECT id FROM users
+         WHERE status = 1 AND role IN ('admin', 'hr')
+         ORDER BY id ASC"
+    );
+    if ($res) {
+        while ($row = $res->fetch_assoc()) {
+            $ids[] = (int) $row['id'];
+        }
+    }
+
+    // HR Head custom role
+    $res = $conn->query(
+        "SELECT u.id
+         FROM users u
+         INNER JOIN roles r ON r.id = u.custom_role_id AND r.status = 1
+         WHERE u.status = 1
+           AND UPPER(TRIM(r.code)) = 'HR_HEAD'"
+    );
+    if ($res) {
+        while ($row = $res->fetch_assoc()) {
+            $ids[] = (int) $row['id'];
+        }
+    }
+
+    $departmentId = (int) $departmentId;
+    if ($departmentId > 0) {
+        $st = $conn->prepare(
+            "SELECT DISTINCT u.id
+             FROM department_heads dh
+             INNER JOIN users u ON u.employee_id = dh.employee_id AND u.status = 1
+             WHERE dh.department_id = ? AND dh.status = 1"
+        );
+        if ($st) {
+            $st->bind_param('i', $departmentId);
+            $st->execute();
+            $r = $st->get_result();
+            while ($row = $r->fetch_assoc()) {
+                $ids[] = (int) $row['id'];
+            }
+            $st->close();
+        }
+    }
+
+    $ids = array_values(array_unique(array_filter($ids)));
+    sort($ids);
+    return $ids;
+}
+
+/**
+ * Notify Admin / HR / HR Head / Dept Head when a leave request is applied.
+ */
+function leaveNotifyStaffOnApplied($conn, $requestId, $excludeUserId = 0)
+{
+    ensureLeaveTables($conn);
+    $requestId = (int) $requestId;
+    $excludeUserId = (int) $excludeUserId;
+    if ($requestId <= 0) {
+        return false;
+    }
+
+    $stmt = $conn->prepare(
+        "SELECT lr.id, lr.employee_id, lr.from_date, lr.to_date, lr.days, lr.leave_half,
+                lt.code, lt.leave_type AS leave_type_name,
+                e.employee_code, e.employee_name, e.department_id,
+                d.department_name
+         FROM leave_requests lr
+         INNER JOIN leave_types lt ON lt.id = lr.leave_type_id
+         INNER JOIN employees e ON e.id = lr.employee_id
+         LEFT JOIN departments d ON d.id = e.department_id
+         WHERE lr.id = ?
+         LIMIT 1"
+    );
+    $stmt->bind_param('i', $requestId);
+    $stmt->execute();
+    $req = $stmt->get_result()->fetch_assoc();
+    $stmt->close();
+    if (!$req) {
+        return false;
+    }
+
+    $employeeId = (int) ($req['employee_id'] ?? 0);
+    $deptId = (int) ($req['department_id'] ?? 0);
+    $code = trim((string) ($req['code'] ?? ''));
+    $typeName = trim((string) ($req['leave_type_name'] ?? ''));
+    $typeLabel = $code !== '' ? $code : ($typeName !== '' ? $typeName : 'Leave');
+    $empCode = trim((string) ($req['employee_code'] ?? ''));
+    $empName = trim((string) ($req['employee_name'] ?? ''));
+    $deptName = trim((string) ($req['department_name'] ?? ''));
+    $who = trim(($empCode !== '' ? $empCode . ' · ' : '') . $empName);
+    if ($who === '') {
+        $who = 'Employee #' . $employeeId;
+    }
+
+    $from = (string) ($req['from_date'] ?? '');
+    $to = (string) ($req['to_date'] ?? '');
+    $fromShow = function_exists('formatDateDisplay') ? formatDateDisplay($from) : $from;
+    $toShow = function_exists('formatDateDisplay') ? formatDateDisplay($to) : $to;
+    $days = (float) ($req['days'] ?? 0);
+    $daysLabel = rtrim(rtrim(number_format($days, 2, '.', ''), '0'), '.');
+    $half = strtoupper(trim((string) ($req['leave_half'] ?? 'FULL')));
+    $datePart = ($from === $to || $to === '')
+        ? $fromShow
+        : ($fromShow . ' to ' . $toShow);
+    if ($half !== '' && $half !== 'FULL') {
+        $datePart .= ' · ' . $half;
+    }
+
+    $title = 'New leave applied · ' . $typeLabel;
+    $body = $who . ' · ' . $datePart . ' · ' . $daysLabel . ' day(s)';
+    if ($deptName !== '') {
+        $body .= ' · ' . $deptName;
+    }
+    $eventType = 'Applied';
+
+    $ok = false;
+    foreach (leaveStaffNotifyUserIds($conn, $deptId) as $uid) {
+        if ($excludeUserId > 0 && $uid === $excludeUserId) {
+            continue;
+        }
+        $ins = $conn->prepare(
+            "INSERT INTO leave_notifications
+                (leave_request_id, user_id, employee_id, event_type, title, body, created_at)
+             VALUES (?, ?, ?, ?, ?, ?, NOW())"
+        );
+        $ins->bind_param(
+            'iiisss',
+            $requestId,
+            $uid,
+            $employeeId,
+            $eventType,
+            $title,
+            $body
+        );
+        if ($ins->execute()) {
+            $ok = true;
+        }
+        $ins->close();
+    }
+    return $ok;
+}
+
+/**
+ * Unread "Applied" leave notifications for Admin/HR toaster.
+ *
+ * @return array<int,array>
+ */
+function fetchUnreadLeaveAppliedNotifications($userId, $limit = 6)
+{
+    $userId = (int) $userId;
+    if ($userId <= 0) {
+        return [];
+    }
+    $conn = getDBConnection();
+    ensureLeaveTables($conn);
+    $limit = max(1, min(20, (int) $limit));
+    $st = $conn->prepare(
+        "SELECT n.id, n.leave_request_id, n.event_type, n.title, n.body, n.created_at,
+                DATE(n.created_at) AS notify_date,
+                e.employee_code, e.employee_name, e.department_id,
+                d.department_name,
+                lt.code AS leave_code, lt.leave_type AS leave_type_name,
+                lr.from_date, lr.to_date, lr.days, lr.leave_half, lr.status
+         FROM leave_notifications n
+         LEFT JOIN employees e ON e.id = n.employee_id
+         LEFT JOIN departments d ON d.id = e.department_id
+         LEFT JOIN leave_requests lr ON lr.id = n.leave_request_id
+         LEFT JOIN leave_types lt ON lt.id = lr.leave_type_id
+         WHERE n.user_id = ?
+           AND n.read_at IS NULL
+           AND n.event_type = 'Applied'
+         ORDER BY n.created_at DESC, n.id DESC
+         LIMIT {$limit}"
+    );
+    $st->bind_param('i', $userId);
+    $st->execute();
+    $res = $st->get_result();
+    $rows = [];
+    while ($row = $res->fetch_assoc()) {
+        $rows[] = $row;
+    }
+    $st->close();
+    $conn->close();
+    return $rows;
 }
 
 /**

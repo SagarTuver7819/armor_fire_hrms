@@ -1,10 +1,8 @@
 <?php
 /**
- * Employee Information Form - Print / PDF View
- * lang=en  → English format
- * lang=hi  → Hindi format
- *
- * Open in browser → Click "Print / Save PDF"
+ * Employee Application Form PDF — 3 pages
+ * Header / Footer / Watermark = same as Offer Letter (document_print)
+ * lang=en | lang=hi
  */
 
 require_once __DIR__ . '/../config/app.php';
@@ -12,6 +10,7 @@ require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/employee_helper.php';
 require_once __DIR__ . '/../includes/settings.php';
+require_once __DIR__ . '/../includes/document_print.php';
 require_once __DIR__ . '/../includes/permission_helper.php';
 require_once __DIR__ . '/../includes/department_head_helper.php';
 
@@ -29,7 +28,6 @@ $deptId = (int) ($emp['department_id'] ?? 0);
 $sessionEmpId = (int) ($_SESSION['employee_id'] ?? 0);
 $isOwn = $sessionEmpId > 0 && $sessionEmpId === $id;
 if (isOfficeStaffRole() && $isOwn) {
-    // Office Staff: no PDF download from admin tools
     header('Location: ' . app_url('employees/view.php?id=' . $id . '&msg=denied'));
     exit;
 }
@@ -37,9 +35,12 @@ if (!canAccess('employees', 'edit', $deptId) && !isAdmin() && !isHR()) {
     requireAccess('employees', 'edit', $deptId);
 }
 
-$companyName = getCompanyName();
-// Use full company title like the paper form
-$companyTitle = 'ARMOR STEEL INDUSTRIES PVT LTD';
+$brand = getCompanyDocumentBranding();
+$company = trim((string) ($brand['company_name'] ?? ''));
+if ($company === '') {
+    $company = 'Armor Fire';
+    $brand['company_name'] = $company;
+}
 
 function e($v)
 {
@@ -53,107 +54,252 @@ function d($v)
 
 function mark($selected, $value)
 {
-    return ($selected === $value) ? '●' : '○';
+    return (strcasecmp(trim((string) $selected), trim((string) $value)) === 0) ? '●' : '○';
+}
+
+function blank($v)
+{
+    $v = trim((string) ($v ?? ''));
+    return $v !== '' ? $v : '';
 }
 
 $isHi = ($lang === 'hi');
 
-// Labels EN / HI
+$dob = (string) ($emp['date_of_birth'] ?? '');
+$age = '';
+if ($dob !== '' && $dob !== '0000-00-00' && preg_match('/^\d{4}-\d{2}-\d{2}$/', $dob)) {
+    try {
+        $age = (string) (new DateTime($dob))->diff(new DateTime('today'))->y;
+    } catch (Throwable $ex) {
+        $age = '';
+    }
+}
+
+$gender = trim((string) ($emp['gender'] ?? ''));
+$marital = trim((string) ($emp['marital_status'] ?? ''));
+$blood = trim((string) ($emp['blood_group'] ?? ''));
+$email = trim((string) ($emp['office_email'] ?? ''));
+$mobile = trim((string) ($emp['mobile_number'] ?? ''));
+$altMobile = trim((string) ($emp['emergency_mobile'] ?? ''));
+$aadhar = trim((string) ($emp['aadhar_number'] ?? ''));
+$pan = trim((string) ($emp['pan_number'] ?? ''));
+$name = trim((string) ($emp['employee_name'] ?? ''));
+$father = trim((string) ($emp['father_husband_name'] ?? ''));
+$permAddr = trim((string) ($emp['permanent_address'] ?? ''));
+$currAddr = trim((string) ($emp['present_address'] ?? ''));
+$designation = trim((string) ($emp['designation'] ?? ''));
+$department = trim((string) ($emp['department_name'] ?? ''));
+$joining = (string) ($emp['date_of_joining'] ?? '');
+$uan = trim((string) ($emp['uan_number'] ?? ''));
+$pf = trim((string) ($emp['pf_deduction'] ?? ''));
+$salary = '';
+if ($emp['decided_salary'] !== null && $emp['decided_salary'] !== '') {
+    $salary = number_format((float) $emp['decided_salary'], 2);
+}
+
 $L = $isHi ? [
-    'form_title' => 'कर्मचारी जानकारी प्रपत्र',
-    'emp_code'   => 'कर्मचारी कोड',
-    '1'  => 'कर्मचारी का नाम (आधार कार्ड के अनुसार)',
-    '2'  => 'पिता या पति का नाम',
-    '3'  => 'स्थायी पता (आधार कार्ड के अनुसार)',
-    '4'  => 'वर्तमान पता',
-    '5'  => 'मोबाइल नंबर (आधार से लिंक)',
-    '6'  => 'आपातकालीन मोबाइल नंबर',
-    '7'  => 'आधार कार्ड नंबर',
-    '8'  => 'पैन कार्ड नंबर',
-    '9'  => 'जन्म तिथि',
-    '10' => 'विभाग',
-    '11' => 'पदनाम',
-    '12' => 'ज्वाइनिंग की तिथि',
-    '13' => 'शिफ्ट समय',
-    'day'=> 'दिन',
-    'night'=>'रात',
-    'time'=> 'समय',
-    '14' => 'पीएफ कटौती',
-    'yes'=> 'हाँ',
-    'no' => 'नहीं',
-    '15' => 'UAN नंबर (पीएफ कटौती होने पर)',
-    '16' => 'बैंक का नाम',
-    '17' => 'बैंक खाता नंबर',
-    '18' => 'IFSC कोड',
-    '19' => 'बैंक शाखा का पता',
-    '20' => 'तय वेतन / रिपोर्टिंग हेड',
-    '21' => 'अतिरिक्त टिप्पणी',
-    '22' => 'साप्ताहिक अवकाश (Week-Off) का दिन',
-    '23' => 'साप्ताहिक अवकाश (Week-Off) का लाभ',
-    '24' => 'अवकाश / ओवरटाइम का लाभ',
-    'decl'=> 'मैं एतद्द्वारा घोषणा करता/करती हूँ कि जॉइनिंग फॉर्म में मेरे द्वारा दी गई सभी जानकारी मेरे ज्ञान और विश्वास के अनुसार सत्य, पूर्ण और सही है। मैं समझता/समझती हूँ कि कोई भी गलत या असत्य जानकारी देने पर कंपनी द्वारा उचित कार्रवाई की जा सकती है।',
-    'sig_emp' => 'कर्मचारी के हस्ताक्षर',
-    'sig_hod' => 'HOD के हस्ताक्षर',
-    'sig_hr'  => 'HR के हस्ताक्षर',
-    'print'   => 'प्रिंट / PDF सेव करें',
-    'back'    => 'वापस सूची पर',
+    'back' => 'वापस सूची पर',
+    'print' => 'प्रिंट / PDF सेव करें',
+    'app_title' => 'आवेदन पत्र',
+    'personal' => 'व्यक्तिगत विवरण',
+    'education' => 'शैक्षणिक विवरण',
+    'experience' => 'व्यावसायिक अनुभव',
+    'job' => 'आवेदित पद',
+    'reference' => 'संदर्भ',
+    'declaration' => 'घोषणा',
+    'hr_block' => 'एचआर हेड एवं प्लांट ऑपरेशन',
+    'header_sub' => 'मानव संसाधन · आवेदन पत्र',
+    'emp_code' => 'कर्मचारी कोड',
+    'full_name' => 'पूरा नाम',
+    'father' => 'पिता / पति का नाम',
+    'perm_addr' => 'स्थायी पता',
+    'curr_addr' => 'वर्तमान पता',
+    'dob' => 'जन्म तिथि',
+    'gender' => 'लिंग',
+    'age' => 'आयु',
+    'marital' => 'वैवाहिक स्थिति',
+    'married' => 'विवाहित',
+    'unmarried' => 'अविवाहित',
+    'widow' => 'विधवा',
+    'blood' => 'ब्लड ग्रुप',
+    'email' => 'ईमेल आईडी',
+    'mobile' => 'मोबाइल नंबर',
+    'alt_mobile' => 'वैकल्पिक नंबर',
+    'aadhar' => 'आधार नंबर',
+    'pan' => 'पैन नंबर',
+    'deg_name' => 'डिग्री का नाम',
+    'board' => 'बोर्ड / विश्वविद्यालय',
+    'month_year' => 'माह – वर्ष',
+    'percentage' => 'प्रतिशत',
+    'company_name' => 'कंपनी का नाम',
+    'designation' => 'पदनाम',
+    'department' => 'विभाग',
+    'from' => 'से',
+    'to' => 'तक',
+    'salary' => 'वेतन',
+    'position' => 'आवेदित पद',
+    'curr_salary' => 'वर्तमान वेतन',
+    'exp_salary' => 'अपेक्षित वेतन',
+    'joining_time' => 'जॉइनिंग हेतु समय',
+    'uan' => 'यदि पीएफ कटौती — यूएएन नं.',
+    'esic' => 'ईएसआईसी नं. (यदि हो)',
+    'ref_name' => 'नाम',
+    'ref_contact' => 'संपर्क नंबर',
+    'ref_relation' => 'संबंध',
+    'decl_text' => 'मैं एतद्द्वारा घोषणा करता / करती हूँ कि मेरे द्वारा दी गई उपरोक्त जानकारी मेरे ज्ञान और विश्वास के अनुसार सत्य एवं सही है। मैं समझता / समझती हूँ कि कोई भी गलत या असत्य जानकारी कंपनी द्वारा उचित कार्रवाई का आधार बन सकती है।',
+    'applicant_name' => 'आवेदक का नाम :',
+    'applicant_sign' => 'आवेदक के हस्ताक्षर :',
+    'date' => 'दिनांक :',
+    'offered_desig' => 'प्रस्तावित पदनाम',
+    'offered_ctc' => 'प्रस्तावित सीटीसी',
+    'pf' => 'पीएफ (कर्मचारी / नियोक्ता)',
+    'pt' => 'पीटी (सरकारी नियमों के अनुसार)',
+    'salary_hand' => 'हाथ में वेतन',
+    'confirm_text' => 'मैं पुष्टि करता / करती हूँ कि मैंने उपरोक्त जानकारी पढ़कर समझ ली है तथा',
+    'confirm_with' => 'के साथ रोजगार की शर्तों को स्वीकार करता / करती हूँ।',
+    'sig_applicant' => 'आवेदक के हस्ताक्षर',
+    'sig_hr' => 'एचआर हेड एवं प्लांट ऑपरेशन',
+    'male' => 'पुरुष',
+    'female' => 'महिला',
+    'other' => 'अन्य',
 ] : [
-    'form_title' => 'EMPLOYEE INFORMATION FORM',
-    'emp_code'   => 'Employee Code',
-    '1'  => 'Employee Name (As per Aadhar Card)',
-    '2'  => 'Father or Husband Name',
-    '3'  => 'Permanent Address (As per Aadhar Card)',
-    '4'  => 'Present Address (Current Address)',
-    '5'  => 'Mobile Number (Linked with Aadhar)',
-    '6'  => 'Emergency Mobile Number',
-    '7'  => 'Aadhar Card Number',
-    '8'  => 'PAN Card Number',
-    '9'  => 'Date of Birth',
-    '10' => 'Department',
-    '11' => 'Designation',
-    '12' => 'Date of Joining',
-    '13' => 'Shift Time',
-    'day'=> 'Day',
-    'night'=>'Night',
-    'time'=> 'Time',
-    '14' => 'PF Deduction',
-    'yes'=> 'Yes',
-    'no' => 'No',
-    '15' => 'UAN number (In case of PF Deduction)',
-    '16' => 'Bank Name',
-    '17' => 'Bank Account Number',
-    '18' => 'IFSC Code',
-    '19' => 'Bank Branch Address',
-    '20' => 'Decided Salary / Reporting Head',
-    '21' => 'Extra Note',
-    '22' => 'Week-off Day',
-    '23' => 'Week-off Benefits',
-    '24' => 'Holiday / Overtime Benefits',
-    'decl'=> 'I hereby declare that all Information provided by me in the joining form is true, complete, and correct to the best of my knowledge and belief. I understand that any false or incorrect information may lead to appropriate action by the Company.',
-    'sig_emp' => 'Employee Signature',
-    'sig_hod' => 'HOD Signature',
-    'sig_hr'  => 'HR Signature',
-    'print'   => 'Print / Save as PDF',
-    'back'    => 'Back to List',
+    'back' => 'Back to List',
+    'print' => 'Print / Save as PDF',
+    'app_title' => 'APPLICATION FORM',
+    'personal' => 'PERSONAL DETAILS',
+    'education' => 'EDUCATIONAL DETAILS',
+    'experience' => 'PROFESSIONAL EXPERIENCE',
+    'job' => 'JOB APPLIED FOR',
+    'reference' => 'REFERENCE',
+    'declaration' => 'DECLARATION',
+    'hr_block' => 'HR HEAD & PLANT OPERATION',
+    'header_sub' => 'Human Resource · Application Form',
+    'emp_code' => 'Employee Code',
+    'full_name' => 'FULL NAME',
+    'father' => 'FATHER / HUSBAND NAME',
+    'perm_addr' => 'PERMANENT ADDRESS',
+    'curr_addr' => 'CURRENT ADDRESS',
+    'dob' => 'DATE OF BIRTH',
+    'gender' => 'GENDER',
+    'age' => 'AGE',
+    'marital' => 'MARITAL STATUS',
+    'married' => 'MARRIED',
+    'unmarried' => 'UNMARRIED',
+    'widow' => 'WIDOW',
+    'blood' => 'BLOOD GROUP',
+    'email' => 'EMAIL ID',
+    'mobile' => 'MOBILE NUMBER',
+    'alt_mobile' => 'ALTERNATE NUMBER',
+    'aadhar' => 'AADHAR NO.',
+    'pan' => 'PAN NO',
+    'deg_name' => 'NAME OF DEGREE',
+    'board' => 'BOARD / UNIVERSITY',
+    'month_year' => 'MONTH – YEAR',
+    'percentage' => 'PERCENTAGE',
+    'company_name' => 'COMPANY NAME',
+    'designation' => 'DESIGNATION',
+    'department' => 'DEPARTMENT',
+    'from' => 'FROM',
+    'to' => 'TO',
+    'salary' => 'SALARY',
+    'position' => 'POSITION APPLIED',
+    'curr_salary' => 'CURRENT SALARY',
+    'exp_salary' => 'EXPECTED SALARY',
+    'joining_time' => 'JOINING TIME REQUIRED',
+    'uan' => 'IF PF DEDUCTED UAN NO.',
+    'esic' => 'ESIC NO (IF AVAILABLE)',
+    'ref_name' => 'NAME',
+    'ref_contact' => 'CONTACT NUMBER',
+    'ref_relation' => 'RELATION',
+    'decl_text' => 'I HEREBY DECLARE THAT THE ABOVE INFORMATION PROVIDED BY ME IS TRUE AND CORRECT TO THE BEST OF MY KNOWLEDGE AND BELIEF. I UNDERSTAND THAT ANY FALSE OR INCORRECT INFORMATION MAY LEAD TO APPROPRIATE ACTION BY THE COMPANY.',
+    'applicant_name' => 'NAME OF APPLICANT :',
+    'applicant_sign' => 'SIGNATURE OF APPLICANT :',
+    'date' => 'DATE :',
+    'offered_desig' => 'Offered Designation',
+    'offered_ctc' => 'Offered CTC',
+    'pf' => 'PF (Employee / Employer)',
+    'pt' => 'PT (as per Govt. Rules)',
+    'salary_hand' => 'Salary in Hand',
+    'confirm_text' => 'I CONFIRM THAT I HAVE READ AND UNDERSTOOD THE ABOVE INFORMATION AND ACCEPT THE TERMS OF EMPLOYMENT WITH',
+    'confirm_with' => '.',
+    'sig_applicant' => 'APPLICANT SIGNATURE',
+    'sig_hr' => 'HR HEAD & PLANT OPERATION',
+    'male' => 'Male',
+    'female' => 'Female',
+    'other' => 'Other',
 ];
 
-$salaryText = '';
-if ($emp['decided_salary'] !== null && $emp['decided_salary'] !== '') {
-    $salaryText = number_format((float) $emp['decided_salary'], 2);
-}
-if (!empty($emp['reporting_head'])) {
-    $salaryText .= ($salaryText !== '' ? '  |  ' : '') . $emp['reporting_head'];
+$headerSubtitle = $L['header_sub'];
+$empCode = trim((string) ($emp['employee_code'] ?? ''));
+
+$genderDisp = blank($gender);
+if ($isHi && $genderDisp !== '') {
+    $gLow = strtolower($genderDisp);
+    if (in_array($gLow, ['male', 'm', 'पुरुष'], true)) {
+        $genderDisp = $L['male'];
+    } elseif (in_array($gLow, ['female', 'f', 'महिला'], true)) {
+        $genderDisp = $L['female'];
+    } elseif (in_array($gLow, ['other', 'o', 'अन्य'], true)) {
+        $genderDisp = $L['other'];
+    }
 }
 ?>
 <!DOCTYPE html>
 <html lang="<?php echo $isHi ? 'hi' : 'en'; ?>">
 <head>
     <meta charset="UTF-8">
-    <title><?php echo e($L['form_title']); ?> - <?php echo e($emp['employee_code']); ?></title>
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Devanagari:wght@400;600;700&family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="<?php echo app_url('assets/css/employee_pdf.css'); ?>">
+    <title>Application Form · <?php echo e($emp['employee_code'] ?? $name); ?></title>
+    <link rel="stylesheet" href="<?php echo app_url('assets/css/employee_pdf.css'); ?>?v=<?php echo (int) @filemtime(__DIR__ . '/../assets/css/employee_pdf.css'); ?>">
+    <style>
+        <?php echo companyDocPrintCss(); ?>
+        .cdoc-header {
+            gap: 16px;
+            padding-bottom: 10px;
+            margin-bottom: 8px;
+            border-bottom-width: 2.5px;
+            align-items: center;
+            flex-shrink: 0;
+        }
+        .cdoc-header-logo {
+            width: 98px;
+            height: 98px;
+            border: 0;
+            padding: 0;
+            background: transparent;
+        }
+        .cdoc-header-text .cdoc-company {
+            font-size: 26px;
+            font-weight: 800;
+            color: #b91c1c;
+            font-family: Calibri, Candara, Segoe UI, Arial, sans-serif;
+            margin: 0 0 5px;
+            line-height: 1.12;
+            text-transform: uppercase;
+        }
+        .cdoc-header-text .cdoc-header-details {
+            font-size: 12.5px;
+            font-weight: 700;
+            color: #1e293b;
+            font-family: Calibri, Candara, Segoe UI, Arial, sans-serif;
+            line-height: 1.4;
+        }
+        .cdoc-footer {
+            margin-top: auto;
+            padding-top: 10px;
+            border-top-width: 1.5px;
+            font-size: 11px;
+            line-height: 1.4;
+            font-family: Calibri, Candara, Segoe UI, Arial, sans-serif;
+            flex-shrink: 0;
+        }
+        .cdoc-watermark img {
+            width: min(48%, 280px);
+            max-height: 280px;
+            opacity: 0.06;
+        }
+    </style>
 </head>
-<body class="pdf-body <?php echo $isHi ? 'lang-hi' : 'lang-en'; ?>">
+<body class="af-body<?php echo $isHi ? ' af-hi' : ''; ?>">
 
 <div class="pdf-toolbar no-print">
     <a href="<?php echo app_url('employees/index.php?department_id=' . (int) $emp['department_id']); ?>" class="tb-btn">← <?php echo e($L['back']); ?></a>
@@ -164,184 +310,377 @@ if (!empty($emp['reporting_head'])) {
     </div>
 </div>
 
-<div class="pdf-sheet">
-    <div class="pdf-head">
-        <div class="pdf-company"><?php echo e($companyTitle); ?></div>
-        <div class="pdf-title"><?php echo e($L['form_title']); ?></div>
-    </div>
+<!-- ===================== PAGE 1 ===================== -->
+<section class="af-page cdoc-sheet">
+    <?php echo companyDocRenderWatermark($brand); ?>
+    <div class="af-page-inner cdoc-inner">
+        <?php echo companyDocRenderHeader($brand, $headerSubtitle); ?>
 
-    <table class="pdf-form">
-        <tr class="code-row">
-            <td class="no"></td>
-            <td class="label"><?php echo e($L['emp_code']); ?></td>
-            <td class="val" colspan="2"><strong><?php echo e($emp['employee_code']); ?></strong></td>
-        </tr>
-        <tr>
-            <td class="no">1.</td>
-            <td class="label"><?php echo e($L['1']); ?></td>
-            <td class="val" colspan="2"><?php echo e($emp['employee_name']); ?></td>
-        </tr>
-        <tr>
-            <td class="no">2.</td>
-            <td class="label"><?php echo e($L['2']); ?></td>
-            <td class="val" colspan="2"><?php echo e($emp['father_husband_name']); ?></td>
-        </tr>
-        <tr>
-            <td class="no">3.</td>
-            <td class="label"><?php echo e($L['3']); ?></td>
-            <td class="val" colspan="2"><?php echo nl2br(e($emp['permanent_address'])); ?></td>
-        </tr>
-        <tr>
-            <td class="no">4.</td>
-            <td class="label"><?php echo e($L['4']); ?></td>
-            <td class="val" colspan="2"><?php echo nl2br(e($emp['present_address'])); ?></td>
-        </tr>
-        <tr>
-            <td class="no">5.</td>
-            <td class="label"><?php echo e($L['5']); ?></td>
-            <td class="val" colspan="2"><?php echo e($emp['mobile_number']); ?></td>
-        </tr>
-        <tr>
-            <td class="no">6.</td>
-            <td class="label"><?php echo e($L['6']); ?></td>
-            <td class="val" colspan="2"><?php echo e($emp['emergency_mobile']); ?></td>
-        </tr>
-        <tr>
-            <td class="no">7.</td>
-            <td class="label"><?php echo e($L['7']); ?></td>
-            <td class="val" colspan="2"><?php echo e($emp['aadhar_number']); ?></td>
-        </tr>
-        <tr>
-            <td class="no">8.</td>
-            <td class="label"><?php echo e($L['8']); ?></td>
-            <td class="val" colspan="2"><?php echo e($emp['pan_number']); ?></td>
-        </tr>
-        <tr>
-            <td class="no">9.</td>
-            <td class="label"><?php echo e($L['9']); ?></td>
-            <td class="val"><?php echo d($emp['date_of_birth']); ?></td>
-            <td class="val"><strong><?php echo $isHi ? 'रक्त समूह' : 'Blood Group'; ?>:</strong> <?php echo e(($emp['blood_group'] ?? '') !== '' ? $emp['blood_group'] : '-'); ?></td>
-        </tr>
-        <tr>
-            <td class="no">10.</td>
-            <td class="label"><?php echo e($L['10']); ?></td>
-            <td class="val" colspan="2"><?php echo e($emp['department_name']); ?></td>
-        </tr>
-        <tr>
-            <td class="no">11.</td>
-            <td class="label"><?php echo e($L['11']); ?></td>
-            <td class="val" colspan="2"><?php echo e($emp['designation']); ?></td>
-        </tr>
-        <tr>
-            <td class="no">12.</td>
-            <td class="label"><?php echo e($L['12']); ?></td>
-            <td class="val" colspan="2"><?php echo d($emp['date_of_joining']); ?></td>
-        </tr>
-        <tr>
-            <td class="no">13.</td>
-            <td class="label"><?php echo e($L['13']); ?></td>
-            <td class="val" colspan="2">
-                <?php echo mark($emp['shift_type'], 'Day'); ?> <?php echo e($L['day']); ?>
-                &nbsp;&nbsp;
-                <?php echo mark($emp['shift_type'], 'Night'); ?> <?php echo e($L['night']); ?>
-                &nbsp;&nbsp; <?php echo e($L['time']); ?>:
-                <span class="uline"><?php echo e($emp['shift_time']); ?></span>
-            </td>
-        </tr>
-        <tr>
-            <td class="no">14.</td>
-            <td class="label"><?php echo e($L['14']); ?></td>
-            <td class="val" colspan="2">
-                <?php echo mark($emp['pf_deduction'], 'Yes'); ?> <?php echo e($L['yes']); ?>
-                &nbsp;&nbsp;
-                <?php echo mark($emp['pf_deduction'], 'No'); ?> <?php echo e($L['no']); ?>
-            </td>
-        </tr>
-        <tr>
-            <td class="no">15.</td>
-            <td class="label"><?php echo e($L['15']); ?></td>
-            <td class="val" colspan="2"><?php echo e($emp['uan_number']); ?></td>
-        </tr>
-        <tr>
-            <td class="no">16.</td>
-            <td class="label"><?php echo e($L['16']); ?></td>
-            <td class="val" colspan="2"><?php echo e($emp['bank_name']); ?></td>
-        </tr>
-        <tr>
-            <td class="no">17.</td>
-            <td class="label"><?php echo e($L['17']); ?></td>
-            <td class="val" colspan="2"><?php echo e($emp['bank_account_number']); ?></td>
-        </tr>
-        <tr>
-            <td class="no">18.</td>
-            <td class="label"><?php echo e($L['18']); ?></td>
-            <td class="val" colspan="2"><?php echo e($emp['ifsc_code']); ?></td>
-        </tr>
-        <tr>
-            <td class="no">19.</td>
-            <td class="label"><?php echo e($L['19']); ?></td>
-            <td class="val" colspan="2"><?php echo nl2br(e($emp['bank_branch_address'])); ?></td>
-        </tr>
-        <tr>
-            <td class="no">20.</td>
-            <td class="label"><?php echo e($L['20']); ?></td>
-            <td class="val" colspan="2"><?php echo e($salaryText); ?></td>
-        </tr>
-        <tr>
-            <td class="no">21.</td>
-            <td class="label"><?php echo e($L['21']); ?></td>
-            <td class="val" colspan="2"><?php echo nl2br(e($emp['extra_note'])); ?></td>
-        </tr>
-        <tr>
-            <td class="no">22.</td>
-            <td class="label"><?php echo e($L['22']); ?></td>
-            <td class="val" colspan="2"><?php echo e($emp['week_off_day']); ?></td>
-        </tr>
-        <tr>
-            <td class="no">23.</td>
-            <td class="label"><?php echo e($L['23']); ?></td>
-            <td class="val" colspan="2">
-                <?php echo mark($emp['week_off_benefits'], 'Yes'); ?> <?php echo e($L['yes']); ?>
-                &nbsp;&nbsp;
-                <?php echo mark($emp['week_off_benefits'], 'No'); ?> <?php echo e($L['no']); ?>
-            </td>
-        </tr>
-        <tr>
-            <td class="no">24.</td>
-            <td class="label"><?php echo e($L['24']); ?></td>
-            <td class="val" colspan="2">
-                Holiday:
-                <?php echo mark($emp['holiday_benefits'], 'Yes'); ?> <?php echo e($L['yes']); ?>
-                &nbsp;
-                <?php echo mark($emp['holiday_benefits'], 'No'); ?> <?php echo e($L['no']); ?>
-                &nbsp;&nbsp;|&nbsp;&nbsp;
-                OT:
-                <?php echo mark($emp['overtime_benefits'], 'Yes'); ?> <?php echo e($L['yes']); ?>
-                &nbsp;
-                <?php echo mark($emp['overtime_benefits'], 'No'); ?> <?php echo e($L['no']); ?>
-            </td>
-        </tr>
-    </table>
+        <?php if ($empCode !== ''): ?>
+        <div class="af-emp-code-wrap">
+            <span class="af-emp-code"><?php echo e($L['emp_code']); ?>: <?php echo e($empCode); ?></span>
+        </div>
+        <?php endif; ?>
 
-    <div class="pdf-declare">
-        <?php echo e($L['decl']); ?>
-    </div>
+        <div class="af-fill">
+            <h1 class="af-doc-title"><?php echo e($L['app_title']); ?></h1>
+            <h2 class="af-sec-title"><?php echo e($L['personal']); ?></h2>
 
-    <div class="pdf-signs">
-        <div>
-            <div class="sig-line"></div>
-            <div><?php echo e($L['sig_emp']); ?></div>
+            <table class="af-grid af-stretch">
+                <tr>
+                    <td class="lbl"><?php echo e($L['full_name']); ?></td>
+                    <td class="val" colspan="5"><?php echo e(blank($name)); ?></td>
+                </tr>
+                <tr>
+                    <td class="lbl"><?php echo e($L['father']); ?></td>
+                    <td class="val" colspan="5"><?php echo e(blank($father)); ?></td>
+                </tr>
+                <tr>
+                    <td class="lbl"><?php echo e($L['perm_addr']); ?></td>
+                    <td class="val tall" colspan="5"><?php echo nl2br(e(blank($permAddr))); ?></td>
+                </tr>
+                <tr>
+                    <td class="lbl"><?php echo e($L['curr_addr']); ?></td>
+                    <td class="val tall" colspan="5"><?php echo nl2br(e(blank($currAddr))); ?></td>
+                </tr>
+                <tr>
+                    <td class="lbl"><?php echo e($L['dob']); ?></td>
+                    <td class="val sm"><?php echo d($dob); ?></td>
+                    <td class="lbl sm"><?php echo e($L['gender']); ?></td>
+                    <td class="val sm"><?php echo e($genderDisp); ?></td>
+                    <td class="lbl sm"><?php echo e($L['age']); ?></td>
+                    <td class="val sm"><?php echo e(blank($age)); ?></td>
+                </tr>
+                <tr>
+                    <td class="lbl"><?php echo e($L['marital']); ?></td>
+                    <td class="val" colspan="3">
+                        <span class="opt"><?php echo mark($marital, 'Married'); ?> <?php echo e($L['married']); ?></span>
+                        <span class="opt"><?php echo mark($marital, 'Unmarried'); ?> <?php echo e($L['unmarried']); ?></span>
+                        <span class="opt"><?php echo (strcasecmp($marital, 'Widow') === 0 || strcasecmp($marital, 'Other') === 0) ? '●' : '○'; ?> <?php echo e($L['widow']); ?></span>
+                    </td>
+                    <td class="lbl sm"><?php echo e($L['blood']); ?></td>
+                    <td class="val sm"><?php echo e(blank($blood)); ?></td>
+                </tr>
+                <tr>
+                    <td class="lbl"><?php echo e($L['email']); ?></td>
+                    <td class="val" colspan="5"><?php echo e(blank($email)); ?></td>
+                </tr>
+                <tr>
+                    <td class="lbl"><?php echo e($L['mobile']); ?></td>
+                    <td class="val" colspan="5"><?php echo e(blank($mobile)); ?></td>
+                </tr>
+                <tr>
+                    <td class="lbl"><?php echo e($L['alt_mobile']); ?></td>
+                    <td class="val" colspan="5"><?php echo e(blank($altMobile)); ?></td>
+                </tr>
+                <tr>
+                    <td class="lbl"><?php echo e($L['aadhar']); ?></td>
+                    <td class="val" colspan="2"><?php echo e(blank($aadhar)); ?></td>
+                    <td class="lbl"><?php echo e($L['pan']); ?></td>
+                    <td class="val" colspan="2"><?php echo e(blank($pan)); ?></td>
+                </tr>
+            </table>
+
+            <h2 class="af-sec-title"><?php echo e($L['education']); ?></h2>
+            <table class="af-table af-stretch">
+                <thead>
+                    <tr>
+                        <th style="width:28%;"><?php echo e($L['deg_name']); ?></th>
+                        <th style="width:36%;"><?php echo e($L['board']); ?></th>
+                        <th style="width:18%;"><?php echo e($L['month_year']); ?></th>
+                        <th style="width:18%;"><?php echo e($L['percentage']); ?></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php for ($i = 0; $i < 5; $i++): ?>
+                    <tr>
+                        <td>&nbsp;</td>
+                        <td>&nbsp;</td>
+                        <td>&nbsp;</td>
+                        <td>&nbsp;</td>
+                    </tr>
+                    <?php endfor; ?>
+                </tbody>
+            </table>
         </div>
-        <div>
-            <div class="sig-line"></div>
-            <div><?php echo e($L['sig_hod']); ?></div>
-        </div>
-        <div>
-            <div class="sig-line"></div>
-            <div><?php echo e($L['sig_hr']); ?></div>
-        </div>
+
+        <?php echo companyDocRenderFooter($brand); ?>
     </div>
-</div>
+</section>
+
+<!-- ===================== PAGE 2 ===================== -->
+<section class="af-page cdoc-sheet">
+    <?php echo companyDocRenderWatermark($brand); ?>
+    <div class="af-page-inner cdoc-inner">
+        <?php echo companyDocRenderHeader($brand, $headerSubtitle); ?>
+
+        <div class="af-fill">
+            <h2 class="af-sec-title"><?php echo e($L['experience']); ?></h2>
+            <table class="af-table af-stretch">
+                <thead>
+                    <tr>
+                        <th style="width:24%;"><?php echo e($L['company_name']); ?></th>
+                        <th style="width:18%;"><?php echo e($L['designation']); ?></th>
+                        <th style="width:18%;"><?php echo e($L['department']); ?></th>
+                        <th style="width:12%;"><?php echo e($L['from']); ?></th>
+                        <th style="width:12%;"><?php echo e($L['to']); ?></th>
+                        <th style="width:16%;"><?php echo e($L['salary']); ?></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php for ($i = 0; $i < 6; $i++): ?>
+                    <tr>
+                        <td>&nbsp;</td>
+                        <td>&nbsp;</td>
+                        <td>&nbsp;</td>
+                        <td>&nbsp;</td>
+                        <td>&nbsp;</td>
+                        <td>&nbsp;</td>
+                    </tr>
+                    <?php endfor; ?>
+                </tbody>
+            </table>
+
+            <h2 class="af-sec-title"><?php echo e($L['job']); ?></h2>
+            <table class="af-grid af-job af-stretch">
+                <tr>
+                    <td class="lbl"><?php echo e($L['position']); ?></td>
+                    <td class="val"><?php echo e(blank($designation)); ?></td>
+                </tr>
+                <tr>
+                    <td class="lbl"><?php echo e($L['department']); ?></td>
+                    <td class="val"><?php echo e(blank($department)); ?></td>
+                </tr>
+                <tr>
+                    <td class="lbl"><?php echo e($L['curr_salary']); ?></td>
+                    <td class="val"><?php echo e(blank($salary)); ?></td>
+                </tr>
+                <tr>
+                    <td class="lbl"><?php echo e($L['exp_salary']); ?></td>
+                    <td class="val">&nbsp;</td>
+                </tr>
+                <tr>
+                    <td class="lbl"><?php echo e($L['joining_time']); ?></td>
+                    <td class="val"><?php echo d($joining); ?></td>
+                </tr>
+                <tr>
+                    <td class="lbl"><?php echo e($L['uan']); ?></td>
+                    <td class="val"><?php echo e(blank($uan)); ?></td>
+                </tr>
+                <tr>
+                    <td class="lbl"><?php echo e($L['esic']); ?></td>
+                    <td class="val">&nbsp;</td>
+                </tr>
+            </table>
+
+            <h2 class="af-sec-title"><?php echo e($L['reference']); ?></h2>
+            <table class="af-table af-stretch">
+                <thead>
+                    <tr>
+                        <th style="width:8%;">#</th>
+                        <th style="width:34%;"><?php echo e($L['ref_name']); ?></th>
+                        <th style="width:30%;"><?php echo e($L['ref_contact']); ?></th>
+                        <th style="width:28%;"><?php echo e($L['ref_relation']); ?></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="ctr">1</td>
+                        <td>&nbsp;</td>
+                        <td>&nbsp;</td>
+                        <td>&nbsp;</td>
+                    </tr>
+                    <tr>
+                        <td class="ctr">2</td>
+                        <td>&nbsp;</td>
+                        <td>&nbsp;</td>
+                        <td>&nbsp;</td>
+                    </tr>
+                    <tr>
+                        <td class="ctr">3</td>
+                        <td>&nbsp;</td>
+                        <td>&nbsp;</td>
+                        <td>&nbsp;</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <?php echo companyDocRenderFooter($brand); ?>
+    </div>
+</section>
+
+<!-- ===================== PAGE 3 ===================== -->
+<section class="af-page cdoc-sheet">
+    <?php echo companyDocRenderWatermark($brand); ?>
+    <div class="af-page-inner cdoc-inner">
+        <?php echo companyDocRenderHeader($brand, $headerSubtitle); ?>
+
+        <div class="af-fill">
+            <h1 class="af-doc-title"><?php echo e($L['declaration']); ?></h1>
+            <p class="af-decl-text">
+                <?php echo e($L['decl_text']); ?>
+            </p>
+
+            <div class="af-sign-lines">
+                <div class="af-sign-row">
+                    <span class="af-sign-lbl"><?php echo e($L['applicant_name']); ?></span>
+                    <span class="af-sign-line"><?php echo e(blank($name)); ?></span>
+                </div>
+                <div class="af-sign-row">
+                    <span class="af-sign-lbl"><?php echo e($L['applicant_sign']); ?></span>
+                    <span class="af-sign-line">&nbsp;</span>
+                </div>
+                <div class="af-sign-row">
+                    <span class="af-sign-lbl"><?php echo e($L['date']); ?></span>
+                    <span class="af-sign-line af-sign-date"><?php echo e(date('d-m-Y')); ?></span>
+                </div>
+            </div>
+
+            <div class="af-blue-rule"></div>
+            <h2 class="af-sec-title"><?php echo e($L['hr_block']); ?></h2>
+
+            <table class="af-grid af-job af-stretch">
+                <tr>
+                    <td class="lbl"><?php echo e($L['offered_desig']); ?></td>
+                    <td class="val"><?php echo e(blank($designation)); ?></td>
+                </tr>
+                <tr>
+                    <td class="lbl"><?php echo e($L['department']); ?></td>
+                    <td class="val"><?php echo e(blank($department)); ?></td>
+                </tr>
+                <tr>
+                    <td class="lbl"><?php echo e($L['offered_ctc']); ?></td>
+                    <td class="val">&nbsp;</td>
+                </tr>
+                <tr>
+                    <td class="lbl"><?php echo e($L['pf']); ?></td>
+                    <td class="val">&nbsp;</td>
+                </tr>
+                <tr>
+                    <td class="lbl"><?php echo e($L['pt']); ?></td>
+                    <td class="val">&nbsp;</td>
+                </tr>
+                <tr>
+                    <td class="lbl"><?php echo e($L['salary_hand']); ?></td>
+                    <td class="val">&nbsp;</td>
+                </tr>
+            </table>
+
+            <p class="af-confirm">
+                <span class="af-check">○</span>
+                <?php echo e($L['confirm_text']); ?>
+                <strong><?php echo e($company); ?></strong><?php echo e($L['confirm_with']); ?>
+            </p>
+
+            <div class="af-bottom-signs">
+                <div>
+                    <div class="af-sig-space"></div>
+                    <div class="af-sig-cap"><?php echo e($L['sig_applicant']); ?></div>
+                    <div class="af-sig-date-line"><?php echo e($L['date']); ?> _______________</div>
+                </div>
+                <div>
+                    <div class="af-sig-space"></div>
+                    <div class="af-sig-cap"><?php echo e($L['sig_hr']); ?></div>
+                    <div class="af-sig-company"><?php echo e($company); ?></div>
+                </div>
+            </div>
+        </div>
+
+        <?php echo companyDocRenderFooter($brand); ?>
+    </div>
+</section>
+
+<script>
+(function () {
+    function fitTable(table, targetH) {
+        if (!table || targetH < 40) return;
+        table.style.height = targetH + 'px';
+        var rows = table.querySelectorAll('tr');
+        if (!rows.length) return;
+
+        var weights = [];
+        var total = 0;
+        rows.forEach(function (tr) {
+            var w = tr.querySelector('.val.tall') ? 1.6 : 1;
+            weights.push(w);
+            total += w;
+        });
+
+        rows.forEach(function (tr, i) {
+            var per = Math.max(32, Math.floor((targetH * weights[i]) / total));
+            tr.querySelectorAll('th, td').forEach(function (td) {
+                td.style.height = per + 'px';
+            });
+        });
+    }
+
+    function fitPages() {
+        document.querySelectorAll('.af-page-inner').forEach(function (inner) {
+            var fill = inner.querySelector('.af-fill');
+            if (!fill) return;
+
+            var tables = [].slice.call(fill.querySelectorAll('table.af-stretch'));
+            if (!tables.length) return;
+
+            // Reset so we can measure natural non-table height
+            tables.forEach(function (t) {
+                t.style.height = 'auto';
+                t.querySelectorAll('th, td').forEach(function (td) {
+                    td.style.height = '';
+                });
+            });
+
+            var used = 0;
+            [].slice.call(fill.children).forEach(function (el) {
+                if (el.matches('table.af-stretch')) return;
+                used += el.offsetHeight;
+                var cs = window.getComputedStyle(el);
+                used += (parseFloat(cs.marginTop) || 0) + (parseFloat(cs.marginBottom) || 0);
+            });
+
+            var avail = fill.clientHeight - used - 8;
+            if (avail < 60) return;
+
+            // Weight: first table (main block) gets more space when multiple
+            var weights = tables.map(function (t, i) {
+                if (tables.length === 1) return 1;
+                if (t.classList.contains('af-job')) return 1.15;
+                if (i === 0) return 1.35;
+                return 1;
+            });
+            var wSum = weights.reduce(function (a, b) { return a + b; }, 0);
+
+            tables.forEach(function (t, i) {
+                fitTable(t, Math.floor((avail * weights[i]) / wSum));
+            });
+
+            // If still overflowing, shrink proportionally
+            var overflow = fill.scrollHeight - fill.clientHeight;
+            if (overflow > 2) {
+                tables.forEach(function (t) {
+                    var nh = Math.max(80, t.offsetHeight - Math.ceil(overflow / tables.length) - 2);
+                    fitTable(t, nh);
+                });
+            }
+        });
+    }
+
+    function run() {
+        fitPages();
+        requestAnimationFrame(fitPages);
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', run);
+    } else {
+        run();
+    }
+    window.addEventListener('load', run);
+    window.addEventListener('beforeprint', fitPages);
+    window.addEventListener('resize', run);
+})();
+</script>
 
 </body>
 </html>

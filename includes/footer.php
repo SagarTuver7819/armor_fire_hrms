@@ -62,6 +62,13 @@ require_once __DIR__ . '/../config/app.php';
             <script src="<?php echo htmlspecialchars($src); ?>"></script>
         <?php endforeach; ?>
     <?php endif; ?>
+    <?php if (!empty($staffLeaveApplyToasts) && is_array($staffLeaveApplyToasts)): ?>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.js"></script>
+        <script>
+            window.STAFF_LEAVE_APPLY_TOASTS = <?php echo json_encode($staffLeaveApplyToasts, JSON_UNESCAPED_UNICODE); ?>;
+        </script>
+        <script src="<?php echo app_url('assets/js/staff_leave_toast.js'); ?>?v=<?php echo (int) @filemtime(__DIR__ . '/../assets/js/staff_leave_toast.js'); ?>"></script>
+    <?php endif; ?>
     <script src="<?php echo app_url('assets/js/select2_init.js'); ?>?v=<?php echo (int) @filemtime(__DIR__ . '/../assets/js/select2_init.js'); ?>"></script>
 </body>
 </html>

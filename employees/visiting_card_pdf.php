@@ -1,12 +1,7 @@
 <?php
 /**
- * Visiting Card PDF — both sides
- * Front: company logo · Back: name+code, photo, designation, company, phone, email
- *
- * Color options (logo-matched):
- *   fire     — Option 1 Fire Orange
- *   charcoal — Option 2 Charcoal + Orange
- *   white    — Option 3 Clean White + Orange
+ * Visiting Card — Armor Fire brand layout (Front + Back)
+ * Single design · Print/PDF + Save Image
  */
 
 require_once __DIR__ . '/../config/app.php';
@@ -22,22 +17,6 @@ $deptId = isset($_GET['department_id']) ? (int) $_GET['department_id'] : 0;
 requireAccess('employees', 'view', $deptId);
 
 $employeeId = isset($_GET['employee_id']) ? (int) $_GET['employee_id'] : 0;
-$allowedFormats = ['fire', 'charcoal', 'white'];
-$format = isset($_GET['format']) ? strtolower(trim((string) $_GET['format'])) : 'fire';
-if (!in_array($format, $allowedFormats, true)) {
-    // legacy aliases
-    if ($format === 'classic' || $format === 'modern') {
-        $format = 'fire';
-    } else {
-        $format = 'fire';
-    }
-}
-
-$formatLabels = [
-    'fire' => 'Option 1 — Fire Orange',
-    'charcoal' => 'Option 2 — Charcoal + Orange',
-    'white' => 'Option 3 — Clean White + Orange',
-];
 
 $conn = getDBConnection();
 ensureEmployeesTable($conn);
@@ -88,13 +67,42 @@ if (!$rows) {
     exit;
 }
 
-$companyName = getCompanyName();
-$logoRel = getCompanyLogo();
+$companyName = trim((string) getCompanyName());
+if ($companyName === '' || strcasecmp($companyName, 'Armor Fire') === 0) {
+    $companyName = 'Armor Steel Industries Pvt. Ltd.';
+}
+$companyLegal = 'ARMOR STEEL INDUSTRIES PVT. LTD.';
+
+$logoRel = '';
+if (function_exists('getLoginLogo')) {
+    $logoRel = (string) getLoginLogo();
+}
+if (($logoRel === '' || (function_exists('isCustomLogo') && !isCustomLogo($logoRel))) && function_exists('getCompanyLogo')) {
+    $logoRel = (string) getCompanyLogo();
+}
 $logoUrl = ($logoRel !== '' && function_exists('app_url')) ? app_url($logoRel) : '';
+
+$headerDetails = function_exists('getCompanyHeaderDetails') ? trim((string) getCompanyHeaderDetails()) : '';
+$companyWebsite = 'www.armorfire.in';
+$companyAddress = 'Plot no. 43-45, Lothada, Rajkot, Gujarat - 360022';
+if ($headerDetails !== '') {
+    if (preg_match('/(?:www\.|https?:\/\/)?([a-z0-9.-]+\.[a-z]{2,})/i', $headerDetails, $m)) {
+        $companyWebsite = strtolower($m[0]);
+        $companyWebsite = preg_replace('#^https?://#i', '', $companyWebsite);
+    }
+    $lines = preg_split('/\r\n|\r|\n/', $headerDetails);
+    foreach ($lines as $line) {
+        $line = trim($line);
+        if ($line !== '' && (stripos($line, 'plot') !== false || stripos($line, 'rajkot') !== false || stripos($line, 'gujarat') !== false || stripos($line, 'address') !== false)) {
+            $companyAddress = preg_replace('/^address\s*:?\s*/i', '', $line);
+            break;
+        }
+    }
+}
+
 $backUrl = app_url('employees/visiting_card.php?' . http_build_query([
     'department_id' => $deptId,
     'employee_id' => $employeeId,
-    'format' => $format,
     'show' => 1,
 ]));
 
@@ -106,20 +114,25 @@ function vc_h($v)
 function vc_phone(array $e)
 {
     $o = trim((string) ($e['office_mobile'] ?? ''));
-    if ($o !== '') {
+    if ($o === '') {
+        $o = trim((string) ($e['mobile_number'] ?? ''));
+    }
+    if ($o === '') {
+        return '';
+    }
+    $digits = preg_replace('/\D+/', '', $o);
+    if (strlen($digits) === 10) {
+        return '+91 ' . substr($digits, 0, 5) . ' ' . substr($digits, 5);
+    }
+    if (strpos($o, '+') === 0) {
         return $o;
     }
-    return trim((string) ($e['mobile_number'] ?? ''));
+    return $o;
 }
 
 function vc_email(array $e)
 {
     return trim((string) ($e['office_email'] ?? ''));
-}
-
-function vc_photo(array $e)
-{
-    return employeeDocumentPublicUrl($e['photo_file'] ?? '');
 }
 ?>
 <!DOCTYPE html>
@@ -128,396 +141,414 @@ function vc_photo(array $e)
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Visiting Card — <?php echo vc_h($companyName); ?></title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <style>
-        /* Armor FIRE Brand: red #d2232a · charcoal #1A1A1A · white */
         :root {
             --fire: #d2232a;
-            --fire-dark: #b01c22;
-            --fire-deep: #c45c12;
-            --charcoal: #1A1A1A;
-            --charcoal-2: #2a2a2a;
-            --ink: #1A1A1A;
-            --muted: #6b7280;
+            --fire-dark: #b91c1c;
+            --ink: #111111;
+            --muted: #64748b;
             --line: #e5e7eb;
-            --paper: #ffffff;
+            --card-w: 90mm;
+            --card-h: 55mm;
         }
-
-        /* Theme: Fire Orange */
-        body.theme-fire {
-            --front-bg: linear-gradient(145deg, #d2232a 0%, #e87312 45%, #c45c12 100%);
-            --front-fg: #ffffff;
-            --front-tag: rgba(255,255,255,.88);
-            --front-logo-bg: rgba(255,255,255,.96);
-            --back-name: #1A1A1A;
-            --back-code: #d2232a;
-            --back-role: #374151;
-            --back-meta: #6b7280;
-            --back-photo-border: #d2232a;
-            --back-photo-col: #fef2f2;
-            --accent: linear-gradient(90deg, #d2232a, #1A1A1A);
-            --card-border: #f0a45a;
-        }
-        /* Theme: Charcoal + Orange */
-        body.theme-charcoal {
-            --front-bg: linear-gradient(145deg, #111111 0%, #1A1A1A 50%, #2a2a2a 100%);
-            --front-fg: #ffffff;
-            --front-tag: rgba(210, 35, 42,.95);
-            --front-logo-bg: rgba(255,255,255,.98);
-            --back-name: #1A1A1A;
-            --back-code: #d2232a;
-            --back-role: #374151;
-            --back-meta: #6b7280;
-            --back-photo-border: #1A1A1A;
-            --back-photo-col: #f3f4f6;
-            --accent: linear-gradient(90deg, #1A1A1A, #d2232a);
-            --card-border: #374151;
-        }
-        /* Theme: Clean White + Orange */
-        body.theme-white {
-            --front-bg: linear-gradient(180deg, #ffffff 0%, #fef2f2 100%);
-            --front-fg: #1A1A1A;
-            --front-tag: #d2232a;
-            --front-logo-bg: transparent;
-            --back-name: #1A1A1A;
-            --back-code: #d2232a;
-            --back-role: #374151;
-            --back-meta: #6b7280;
-            --back-photo-border: #d2232a;
-            --back-photo-col: #fef2f2;
-            --accent: linear-gradient(90deg, #d2232a, #d2232a);
-            --card-border: #d2232a;
-        }
-
         * { box-sizing: border-box; }
         body {
             margin: 0;
-            font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
-            background: #f3f4f6;
+            font-family: Calibri, Candara, "Segoe UI", Arial, sans-serif;
+            background: #eef1f5;
             color: var(--ink);
         }
         .vc-toolbar {
             position: sticky;
             top: 0;
-            z-index: 20;
+            z-index: 30;
             display: flex;
-            gap: 10px;
+            gap: 12px;
             flex-wrap: wrap;
             align-items: center;
             justify-content: space-between;
             padding: 12px 16px;
             background: #fff;
             border-bottom: 1px solid var(--line);
+            box-shadow: 0 2px 10px rgba(15, 23, 42, 0.06);
         }
-        .vc-toolbar .hint { font-size: 13px; color: var(--muted); }
-        .vc-theme-switch { display: flex; gap: 6px; flex-wrap: wrap; }
-        .vc-theme-switch a {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            padding: 7px 10px;
-            border-radius: 8px;
-            font-size: 12px;
-            font-weight: 700;
-            text-decoration: none;
-            color: var(--ink);
-            background: #f3f4f6;
-            border: 2px solid transparent;
-        }
-        .vc-theme-switch a.is-active { border-color: var(--fire); background: #fef2f2; }
-        .vc-dot {
-            width: 12px; height: 12px; border-radius: 50%; display: inline-block;
-        }
-        .vc-dot.fire { background: #d2232a; }
-        .vc-dot.charcoal { background: #1A1A1A; }
-        .vc-dot.white { background: #fff; border: 2px solid #d2232a; }
+        .vc-toolbar .hint { font-size: 13px; color: var(--muted); font-weight: 600; }
+        .vc-toolbar .hint strong { color: var(--ink); }
+        .vc-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
         .vc-btn {
             display: inline-flex;
             align-items: center;
             gap: 8px;
-            border: none;
-            border-radius: 8px;
+            border: 0;
+            border-radius: 10px;
             padding: 10px 14px;
-            font-weight: 700;
+            font-weight: 800;
             font-size: 13px;
             cursor: pointer;
             text-decoration: none;
+            font-family: inherit;
         }
-        .vc-btn-primary { background: #d2232a; color: #fff; }
-        .vc-btn-secondary { background: #f3f4f6; color: var(--ink); }
-        .vc-sheet { max-width: 920px; margin: 20px auto 40px; padding: 0 12px; }
-        .vc-pair { margin-bottom: 28px; page-break-inside: avoid; }
-        .vc-pair-label {
-            font-size: 12px; font-weight: 700; color: var(--muted);
-            margin: 0 0 8px; letter-spacing: .04em; text-transform: uppercase;
-        }
-        .vc-sides { display: flex; gap: 16px; flex-wrap: wrap; align-items: flex-start; }
-        .side-tag {
-            display: inline-block; font-size: 10px; font-weight: 700; color: var(--muted);
-            margin-bottom: 4px; text-transform: uppercase; letter-spacing: .06em;
-        }
-
-        /* Card size — classic landscape visiting card */
-        .vc-card {
-            width: 90mm;
-            height: 55mm;
-            border-radius: 3mm;
+        .vc-btn-secondary { background: #f1f5f9; color: var(--ink); }
+        .vc-print-group {
+            display: inline-flex;
+            border-radius: 10px;
             overflow: hidden;
-            background: var(--paper);
-            box-shadow: 0 8px 24px rgba(26,26,26,.12);
-            position: relative;
-            border: 1.5px solid var(--card-border);
+            box-shadow: 0 6px 16px rgba(210, 35, 42, 0.25);
+        }
+        .vc-print-group .vc-btn {
+            border-radius: 0;
+            box-shadow: none;
+        }
+        .vc-print-group .vc-btn + .vc-btn {
+            border-left: 1px solid rgba(255,255,255,.28);
+        }
+        .vc-btn-primary { background: var(--fire); color: #fff; }
+        .vc-btn-primary:hover { background: var(--fire-dark); }
+
+        .vc-sheet { max-width: 980px; margin: 22px auto 48px; padding: 0 14px; }
+        .vc-pair { margin-bottom: 30px; page-break-inside: avoid; }
+        .vc-pair-label {
+            font-size: 12px; font-weight: 800; color: var(--muted);
+            margin: 0 0 10px; letter-spacing: .04em; text-transform: uppercase;
+        }
+        .vc-sides { display: flex; gap: 18px; flex-wrap: wrap; align-items: flex-start; }
+        .side-tag {
+            display: inline-block; font-size: 10px; font-weight: 800; color: var(--muted);
+            margin-bottom: 6px; text-transform: uppercase; letter-spacing: .08em;
         }
 
-        /* FRONT */
+        .vc-card {
+            width: var(--card-w);
+            height: var(--card-h);
+            border-radius: 5.5mm;
+            overflow: hidden;
+            background: #fff;
+            box-shadow: 0 14px 32px rgba(15, 23, 42, 0.16);
+            position: relative;
+            border: 0;
+        }
+
+        /* FRONT — logo center + company name (matches sample PDF) */
         .vc-card.front {
-            background: var(--front-bg);
-            color: var(--front-fg);
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            gap: 6px;
-            padding: 6mm 8mm;
+            padding: 6mm 9mm 5.5mm;
             text-align: center;
-        }
-        body.theme-white .vc-card.front {
-            border-width: 2.5px;
+            background:
+                radial-gradient(95% 80% at -5% -10%, rgba(210, 35, 42, 0.22) 0%, rgba(210, 35, 42, 0.08) 35%, rgba(210, 35, 42, 0) 62%),
+                #ffffff;
         }
         .vc-card.front .logo-wrap {
+            flex: 1 1 auto;
             width: 100%;
-            height: 28mm;
             display: flex;
             align-items: center;
             justify-content: center;
-            background: var(--front-logo-bg);
-            border-radius: 2mm;
-            padding: 2.5mm 4mm;
-        }
-        body.theme-white .vc-card.front .logo-wrap {
-            background: transparent;
-            padding: 0;
+            min-height: 0;
+            padding: 1mm 1mm 1.5mm;
         }
         .vc-card.front .logo-wrap img {
-            max-width: 78%;
-            max-height: 24mm;
+            max-width: 62%;
+            max-height: 30mm;
             object-fit: contain;
+            display: block;
+        }
+        .vc-card.front .logo-fallback {
+            font-size: 20px;
+            font-weight: 900;
+            letter-spacing: .04em;
+            color: var(--fire);
+            line-height: 1.15;
+        }
+        .vc-card.front .logo-fallback span { color: #111; }
+        .vc-card.front .divider {
+            width: 82%;
+            height: 1.5px;
+            margin: 1.5mm 0 2.8mm;
+            background: linear-gradient(90deg, var(--fire) 0%, var(--fire) 48%, #2f2f2f 52%, #2f2f2f 100%);
+            flex-shrink: 0;
         }
         .vc-card.front .co-name {
-            font-size: 11px;
+            flex-shrink: 0;
+            font-size: 10px;
             font-weight: 800;
             letter-spacing: .1em;
             text-transform: uppercase;
-        }
-        .vc-card.front .co-tag {
-            font-size: 8.5px;
-            font-weight: 700;
-            letter-spacing: .14em;
-            text-transform: uppercase;
-            color: var(--front-tag);
-        }
-        body.theme-white .vc-card.front .co-name { color: #1A1A1A; }
-        body.theme-white .vc-card.front::after {
-            content: "";
-            position: absolute;
-            left: 0; right: 0; bottom: 0;
-            height: 3mm;
-            background: linear-gradient(90deg, #d2232a, #1A1A1A);
+            color: #111;
+            line-height: 1.3;
         }
 
-        /* BACK */
+        /* BACK — details left + logo right (matches sample PDF) */
         .vc-card.back {
             display: grid;
-            grid-template-columns: 22mm 1fr;
-            gap: 0;
-            background: #fff;
-        }
-        .vc-card.back .photo-col {
-            background: var(--back-photo-col);
-            border-right: 1px solid var(--line);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 3mm;
-        }
-        .vc-card.back .photo-col img,
-        .vc-card.back .photo-ph {
-            width: 16mm;
-            height: 16mm;
-            border-radius: 50%;
-            object-fit: cover;
-            border: 2px solid var(--back-photo-border);
-        }
-        .vc-card.back .photo-ph {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: #e5e7eb;
-            color: #6b7280;
-            font-size: 9px;
-            font-weight: 800;
+            grid-template-columns: 1.25fr 0.9fr;
+            background:
+                radial-gradient(90% 75% at 110% 115%, rgba(210, 35, 42, 0.2) 0%, rgba(210, 35, 42, 0.07) 38%, rgba(210, 35, 42, 0) 60%),
+                #ffffff;
         }
         .vc-card.back .info-col {
-            padding: 3.2mm 4mm 4.5mm;
+            padding: 5.5mm 4mm 5mm 6mm;
             display: flex;
             flex-direction: column;
             justify-content: center;
             gap: 1.2mm;
             min-width: 0;
+            position: relative;
+        }
+        .vc-card.back .info-col::after {
+            content: "";
+            position: absolute;
+            top: 6mm;
+            bottom: 6mm;
+            right: 0;
+            width: 1.4px;
+            background: var(--fire);
         }
         .vc-card.back .name {
             font-size: 12.5px;
-            font-weight: 800;
-            line-height: 1.15;
-            color: var(--back-name);
-        }
-        .vc-card.back .code {
-            font-size: 9.5px;
-            font-weight: 800;
-            color: var(--back-code);
-            letter-spacing: .04em;
+            font-weight: 900;
+            line-height: 1.12;
+            color: #111;
+            text-transform: uppercase;
+            letter-spacing: .03em;
         }
         .vc-card.back .role {
-            font-size: 9.5px;
-            font-weight: 650;
-            color: var(--back-role);
-        }
-        .vc-card.back .meta {
             font-size: 8.5px;
-            color: var(--back-meta);
+            font-weight: 800;
+            color: var(--fire);
+            text-transform: uppercase;
+            letter-spacing: .1em;
+            margin-top: 0.3mm;
+        }
+        .vc-card.back .mini-line {
+            width: 16mm;
+            height: 1.35px;
+            margin: 1mm 0 1.6mm;
+            background: linear-gradient(90deg, var(--fire) 0%, #2f2f2f 100%);
+        }
+        .vc-card.back .contacts {
             display: flex;
             flex-direction: column;
-            gap: 0.9mm;
-            margin-top: 1mm;
+            gap: 1.8mm;
+            margin-top: 0.2mm;
         }
-        .vc-card.back .meta span {
+        .vc-card.back .contact-row {
+            display: grid;
+            grid-template-columns: 4.6mm 1fr;
+            gap: 2.2mm;
+            align-items: flex-start;
+            font-size: 7.4px;
+            font-weight: 600;
+            color: #1a1a1a;
+            line-height: 1.28;
+            word-break: break-word;
+        }
+        .vc-card.back .ico {
+            width: 4.6mm;
+            height: 4.6mm;
+            border-radius: 0.9mm;
+            background: var(--fire);
+            color: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 5.4px;
+            flex-shrink: 0;
+            margin-top: 0.15mm;
+        }
+        .vc-card.back .brand-col {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 5mm 4mm;
+        }
+        .vc-card.back .brand-col img {
+            max-width: 82%;
+            max-height: 36mm;
+            object-fit: contain;
             display: block;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
         }
-        .vc-card.back .meta .co { font-weight: 700; color: #374151; }
-        .vc-card.back .accent {
-            position: absolute;
-            left: 0; right: 0; bottom: 0;
-            height: 2.4mm;
-            background: var(--accent);
+        .vc-card.back .brand-fallback {
+            text-align: center;
+            font-size: 13px;
+            font-weight: 900;
+            color: var(--fire);
+            letter-spacing: .04em;
+            line-height: 1.2;
         }
+        .vc-card.back .brand-fallback span { color: #111; display: block; font-size: 11px; }
 
         @media print {
-            body { background: #fff; }
-            .vc-toolbar { display: none !important; }
+            body { background: #fff !important; }
+            .vc-toolbar, .side-tag, .vc-pair-label { display: none !important; }
             .vc-sheet { margin: 0; padding: 0; max-width: none; }
-            .vc-pair-label, .side-tag { display: none; }
-            .vc-sides { display: block; gap: 0; }
+            .vc-sides { display: block; }
+            .vc-pair { margin: 0; }
             .vc-card {
                 box-shadow: none !important;
+                border: 0 !important;
+                border-radius: 0 !important;
                 page-break-after: always;
                 break-after: page;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
             }
-            .vc-pair { margin: 0; }
-            .vc-pair:last-child .vc-card.back { page-break-after: auto; }
+            .vc-pair:last-child .vc-card.back {
+                page-break-after: auto;
+                break-after: auto;
+            }
         }
         @page { size: 90mm 55mm; margin: 0; }
     </style>
 </head>
-<body class="theme-<?php echo vc_h($format); ?>">
-    <div class="vc-toolbar">
-        <div>
-            <div class="hint">
-                <strong><?php echo count($rows); ?></strong> card(s) ·
-                <?php echo vc_h($formatLabels[$format]); ?> ·
-                Front + Back · Print → Save as PDF
-            </div>
-            <div class="vc-theme-switch" style="margin-top:8px;">
-                <?php foreach ($formatLabels as $key => $label):
-                    $qs = http_build_query([
-                        'department_id' => $deptId,
-                        'employee_id' => $employeeId,
-                        'format' => $key,
-                    ]);
-                    ?>
-                    <a class="<?php echo $format === $key ? 'is-active' : ''; ?>"
-                       href="<?php echo vc_h(app_url('employees/visiting_card_pdf.php?' . $qs)); ?>">
-                        <span class="vc-dot <?php echo vc_h($key); ?>"></span>
-                        <?php echo vc_h(explode(' — ', $label)[0]); ?>
-                    </a>
-                <?php endforeach; ?>
-            </div>
+<body>
+    <div class="vc-toolbar no-print">
+        <div class="hint">
+            <strong><?php echo count($rows); ?></strong> card(s) · Front + Back · Armor Fire design
         </div>
-        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <div class="vc-actions">
             <a class="vc-btn vc-btn-secondary" href="<?php echo vc_h($backUrl); ?>">← Back</a>
-            <button type="button" class="vc-btn vc-btn-primary" onclick="window.print()">Print / Save PDF</button>
+            <div class="vc-print-group" title="Print / Save">
+                <button type="button" class="vc-btn vc-btn-primary" onclick="window.print()">
+                    <i class="fa-solid fa-print"></i> Print / PDF
+                </button>
+                <button type="button" class="vc-btn vc-btn-primary" id="vcSaveImageBtn">
+                    <i class="fa-solid fa-image"></i> Image
+                </button>
+            </div>
         </div>
     </div>
 
-    <div class="vc-sheet">
+    <div class="vc-sheet" id="vcSheet">
         <?php foreach ($rows as $e):
-            $photo = vc_photo($e);
             $phone = vc_phone($e);
             $email = vc_email($e);
             $name = trim((string) ($e['employee_name'] ?? ''));
             $code = trim((string) ($e['employee_code'] ?? ''));
             $desig = trim((string) ($e['designation'] ?? ''));
-            $initials = '';
-            if ($name !== '') {
-                $parts = preg_split('/\s+/', $name);
-                $initials = strtoupper(substr($parts[0], 0, 1) . (isset($parts[1]) ? substr($parts[1], 0, 1) : ''));
-            }
+            $safeFile = preg_replace('/[^a-zA-Z0-9_-]+/', '_', $code !== '' ? $code : ('emp_' . (int) $e['id']));
             ?>
-            <div class="vc-pair">
-                <p class="vc-pair-label"><?php echo vc_h($code . ' — ' . $name); ?></p>
+            <div class="vc-pair" data-emp-code="<?php echo vc_h($safeFile); ?>">
+                <p class="vc-pair-label"><?php echo vc_h(($code !== '' ? $code . ' — ' : '') . $name); ?></p>
                 <div class="vc-sides">
                     <div>
                         <div class="side-tag">Front</div>
-                        <div class="vc-card front">
+                        <div class="vc-card front" data-side="front">
                             <div class="logo-wrap">
                                 <?php if ($logoUrl !== ''): ?>
                                     <img src="<?php echo vc_h($logoUrl); ?>" alt="<?php echo vc_h($companyName); ?>">
                                 <?php else: ?>
-                                    <div style="font-size:16px;font-weight:800;letter-spacing:.06em;color:#1A1A1A;">
-                                        Armor <span style="color:#d2232a;">FIRE</span>
-                                    </div>
+                                    <div class="logo-fallback">ARMOR <span>FIRE</span></div>
                                 <?php endif; ?>
                             </div>
-                            <div class="co-name"><?php echo vc_h($companyName); ?></div>
-                            <div class="co-tag">Official Visiting Card</div>
+                            <div class="divider"></div>
+                            <div class="co-name"><?php echo vc_h($companyLegal); ?></div>
                         </div>
                     </div>
 
                     <div>
                         <div class="side-tag">Back</div>
-                        <div class="vc-card back">
-                            <div class="photo-col">
-                                <?php if ($photo !== ''): ?>
-                                    <img src="<?php echo vc_h($photo); ?>" alt="">
-                                <?php else: ?>
-                                    <div class="photo-ph"><?php echo vc_h($initials !== '' ? $initials : '?'); ?></div>
-                                <?php endif; ?>
-                            </div>
+                        <div class="vc-card back" data-side="back">
                             <div class="info-col">
-                                <div class="name"><?php echo vc_h($name); ?></div>
-                                <div class="code"><?php echo vc_h($code); ?></div>
+                                <div class="name"><?php echo vc_h($name !== '' ? $name : '—'); ?></div>
                                 <?php if ($desig !== ''): ?>
                                     <div class="role"><?php echo vc_h($desig); ?></div>
                                 <?php endif; ?>
-                                <div class="meta">
-                                    <span class="co"><?php echo vc_h($companyName); ?></span>
+                                <div class="mini-line"></div>
+                                <div class="contacts">
                                     <?php if ($phone !== ''): ?>
+                                    <div class="contact-row">
+                                        <span class="ico"><i class="fa-solid fa-phone"></i></span>
                                         <span><?php echo vc_h($phone); ?></span>
+                                    </div>
                                     <?php endif; ?>
                                     <?php if ($email !== ''): ?>
+                                    <div class="contact-row">
+                                        <span class="ico"><i class="fa-solid fa-envelope"></i></span>
                                         <span><?php echo vc_h($email); ?></span>
-                                    <?php else: ?>
-                                        <span style="opacity:.55;">Email —</span>
+                                    </div>
                                     <?php endif; ?>
+                                    <div class="contact-row">
+                                        <span class="ico"><i class="fa-solid fa-globe"></i></span>
+                                        <span><?php echo vc_h($companyWebsite); ?></span>
+                                    </div>
+                                    <div class="contact-row">
+                                        <span class="ico"><i class="fa-solid fa-location-dot"></i></span>
+                                        <span><?php echo vc_h($companyAddress); ?></span>
+                                    </div>
                                 </div>
                             </div>
-                            <div class="accent"></div>
+                            <div class="brand-col">
+                                <?php if ($logoUrl !== ''): ?>
+                                    <img src="<?php echo vc_h($logoUrl); ?>" alt="">
+                                <?php else: ?>
+                                    <div class="brand-fallback">ARMOR<span>FIRE</span></div>
+                                <?php endif; ?>
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
         <?php endforeach; ?>
     </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script>
+    (function () {
+        var btn = document.getElementById('vcSaveImageBtn');
+        if (!btn || !window.html2canvas) return;
+
+        function downloadCanvas(canvas, filename) {
+            var a = document.createElement('a');
+            a.download = filename;
+            a.href = canvas.toDataURL('image/png');
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+        }
+
+        btn.addEventListener('click', function () {
+            var pairs = document.querySelectorAll('.vc-pair');
+            if (!pairs.length) return;
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving…';
+
+            var jobs = [];
+            pairs.forEach(function (pair) {
+                var code = pair.getAttribute('data-emp-code') || 'employee';
+                var front = pair.querySelector('.vc-card.front');
+                var back = pair.querySelector('.vc-card.back');
+                if (front) {
+                    jobs.push(html2canvas(front, {
+                        scale: 3,
+                        backgroundColor: '#ffffff',
+                        useCORS: true,
+                        allowTaint: true
+                    }).then(function (c) {
+                        downloadCanvas(c, code + '_front.png');
+                    }));
+                }
+                if (back) {
+                    jobs.push(html2canvas(back, {
+                        scale: 3,
+                        backgroundColor: '#ffffff',
+                        useCORS: true,
+                        allowTaint: true
+                    }).then(function (c) {
+                        downloadCanvas(c, code + '_back.png');
+                    }));
+                }
+            });
+
+            Promise.all(jobs).finally(function () {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fa-solid fa-image"></i> Image';
+            });
+        });
+    })();
+    </script>
 </body>
 </html>

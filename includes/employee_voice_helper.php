@@ -791,6 +791,15 @@ function evListTickets(array $filters = [], $conn = null)
     if (!empty($filters['module_type'])) {
         $where[] = 't.module_type = ' . evSqlStr($conn, strtoupper((string) $filters['module_type']));
     }
+    if (!empty($filters['department_id'])) {
+        $where[] = 't.department_id = ' . (int) $filters['department_id'];
+    }
+    if (!empty($filters['date_from'])) {
+        $where[] = 'DATE(t.submitted_at) >= ' . evSqlStr($conn, (string) $filters['date_from']);
+    }
+    if (!empty($filters['date_to'])) {
+        $where[] = 'DATE(t.submitted_at) <= ' . evSqlStr($conn, (string) $filters['date_to']);
+    }
     if (!empty($filters['status'])) {
         $where[] = 't.status = ' . evSqlStr($conn, $filters['status']);
     }
@@ -810,7 +819,7 @@ function evListTickets(array $filters = [], $conn = null)
             ORDER BY
                 CASE WHEN t.priority = \'Critical\' THEN 0 WHEN t.priority = \'High\' THEN 1 ELSE 2 END,
                 t.submitted_at DESC
-            LIMIT 500';
+            LIMIT ' . (!empty($filters['limit']) ? (int) $filters['limit'] : 2000);
     $rows = [];
     $res = $conn->query($sql);
     if ($res) {

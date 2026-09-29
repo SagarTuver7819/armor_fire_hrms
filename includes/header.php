@@ -78,6 +78,8 @@ if (function_exists('isPortalUser') && isPortalUser()) {
                 $n['_icon'] = 'fa-circle-check';
             } elseif ($event === 'Rejected') {
                 $n['_icon'] = 'fa-circle-xmark';
+            } elseif ($event === 'Applied') {
+                $n['_icon'] = 'fa-calendar-plus';
             } else {
                 $n['_icon'] = 'fa-ban';
             }
@@ -131,6 +133,60 @@ if (function_exists('isPortalUser') && isPortalUser()) {
     });
     $headerNotifyItems = array_slice($headerNotifyItems, 0, 12);
     $headerNotifyUnread = count($headerNotifyItems);
+}
+
+// Leave-apply toaster payload for Admin / HR / HR Head / Dept Head (once per session via JS)
+$staffLeaveApplyToasts = [];
+$showStaffLeaveToast = false;
+if (function_exists('isAdmin') && (isAdmin() || isHR())) {
+    $showStaffLeaveToast = true;
+} else {
+    if (!function_exists('isHrHeadRole')) {
+        require_once __DIR__ . '/department_head_helper.php';
+    }
+    if (isHrHeadRole() || isDeptHeadRole()) {
+        $showStaffLeaveToast = true;
+    }
+}
+if ($showStaffLeaveToast && function_exists('isPortalUser') && isPortalUser()) {
+    if (!function_exists('fetchUnreadLeaveAppliedNotifications')) {
+        require_once __DIR__ . '/leave_helper.php';
+    }
+    $toastUid = (int) ($_SESSION['user_id'] ?? 0);
+    foreach (fetchUnreadLeaveAppliedNotifications($toastUid, 5) as $ln) {
+        $empCode = trim((string) ($ln['employee_code'] ?? ''));
+        $empName = trim((string) ($ln['employee_name'] ?? ''));
+        $who = trim(($empCode !== '' ? $empCode . ' · ' : '') . $empName);
+        $leaveCode = trim((string) ($ln['leave_code'] ?? ''));
+        $leaveName = trim((string) ($ln['leave_type_name'] ?? ''));
+        $typeLabel = $leaveCode !== '' ? $leaveCode : ($leaveName !== '' ? $leaveName : 'Leave');
+        $from = (string) ($ln['from_date'] ?? '');
+        $to = (string) ($ln['to_date'] ?? '');
+        $fromShow = function_exists('formatDateDisplay') ? formatDateDisplay($from) : $from;
+        $toShow = function_exists('formatDateDisplay') ? formatDateDisplay($to) : $to;
+        $days = (float) ($ln['days'] ?? 0);
+        $daysLabel = rtrim(rtrim(number_format($days, 2, '.', ''), '0'), '.');
+        $datePart = ($from === $to || $to === '' || $toShow === '')
+            ? $fromShow
+            : ($fromShow . ' – ' . $toShow);
+        $dept = trim((string) ($ln['department_name'] ?? ''));
+        $staffLeaveApplyToasts[] = [
+            'id' => (int) ($ln['id'] ?? 0),
+            'title' => 'New Leave Application',
+            'employee' => $who !== '' ? $who : 'Employee',
+            'type' => $typeLabel,
+            'dates' => $datePart,
+            'days' => $daysLabel . ' day(s)',
+            'department' => $dept,
+            'url' => app_url('leave/mark_read.php?id=' . (int) ($ln['id'] ?? 0)),
+        ];
+    }
+}
+if (!empty($staffLeaveApplyToasts)) {
+    if (!isset($extraCss) || !is_array($extraCss)) {
+        $extraCss = [];
+    }
+    $extraCss[] = 'https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.css';
 }
 ?>
 <!DOCTYPE html>

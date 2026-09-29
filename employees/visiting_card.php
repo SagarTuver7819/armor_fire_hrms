@@ -1,6 +1,6 @@
 <?php
 /**
- * Digital Visiting Card — department / employee · 3 logo-matched color options · both-side PDF
+ * Digital Visiting Card — Armor Fire brand · Front + Back · Print/PDF & Image
  */
 
 require_once __DIR__ . '/../config/app.php';
@@ -16,16 +16,6 @@ $deptId = isset($_GET['department_id']) ? (int) $_GET['department_id'] : 0;
 requireAccess('employees', 'view', $deptId);
 
 $employeeId = isset($_GET['employee_id']) ? (int) $_GET['employee_id'] : 0;
-$allowedFormats = ['fire', 'charcoal', 'white'];
-$format = isset($_GET['format']) ? strtolower(trim((string) $_GET['format'])) : 'fire';
-if (!in_array($format, $allowedFormats, true)) {
-    $format = 'fire';
-}
-$formatLabels = [
-    'fire' => 'Option 1 — Fire Orange (logo match)',
-    'charcoal' => 'Option 2 — Charcoal + Orange',
-    'white' => 'Option 3 — Clean White + Orange',
-];
 $show = isset($_GET['show']) || $deptId > 0 || $employeeId > 0;
 
 $conn = getDBConnection();
@@ -73,18 +63,12 @@ require_once __DIR__ . '/../includes/header.php';
     <div class="form-page-card">
         <div class="form-page-header">
             <h1>Digital Visiting Card</h1>
-            <p>Both-side PDF · Front = company logo · Back = employee details · Colors match Armor FIRE logo</p>
-        </div>
-
-        <div class="leave-rpt-rules">
-            <span class="leave-rpt-rule"><i class="fa-solid fa-fire" style="color:#d2232a;"></i> Fire Orange</span>
-            <span class="leave-rpt-rule"><i class="fa-solid fa-moon" style="color:#1a1a1a;"></i> Charcoal + Orange</span>
-            <span class="leave-rpt-rule"><i class="fa-solid fa-circle" style="color:#d2232a;"></i> Clean White + Orange</span>
+            <p>Armor Fire design · Front (logo + company) · Back (name, role, contacts + logo) · Print/PDF &amp; Image</p>
         </div>
 
         <form method="GET" class="employee-form leave-rpt-filters" id="vcFilterForm">
             <input type="hidden" name="show" value="1">
-            <div class="form-grid form-grid-4">
+            <div class="form-grid form-grid-3">
                 <div class="form-group">
                     <label>Department</label>
                     <select name="department_id" id="vcDept" class="form-control">
@@ -99,22 +83,12 @@ require_once __DIR__ . '/../includes/header.php';
                 <div class="form-group">
                     <label>Employee</label>
                     <select name="employee_id" id="vcEmp" class="form-control">
-                        <option value="0" data-dept="0">All Employees (batch PDF)</option>
+                        <option value="0" data-dept="0">All Employees (batch)</option>
                         <?php foreach ($employees as $e): ?>
                             <option value="<?php echo (int) $e['id']; ?>"
                                     data-dept="<?php echo (int) $e['department_id']; ?>"
                                     <?php echo $employeeId === (int) $e['id'] ? 'selected' : ''; ?>>
                                 <?php echo htmlspecialchars(($e['employee_code'] ?? '') . ' — ' . ($e['employee_name'] ?? '')); ?>
-                            </option>
-                        <?php endforeach; ?>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label>Color Option</label>
-                    <select name="format" class="form-control">
-                        <?php foreach ($formatLabels as $key => $label): ?>
-                            <option value="<?php echo htmlspecialchars($key); ?>" <?php echo $format === $key ? 'selected' : ''; ?>>
-                                <?php echo htmlspecialchars($label); ?>
                             </option>
                         <?php endforeach; ?>
                     </select>
@@ -133,34 +107,8 @@ require_once __DIR__ . '/../includes/header.php';
             <?php else: ?>
                 <div class="ops-live-summary" style="margin:16px 0 12px;">
                     <span class="ops-chip"><?php echo count($employees); ?> employee(s)</span>
-                    <span class="ops-chip"><?php echo htmlspecialchars($formatLabels[$format]); ?></span>
                     <span class="ops-chip">Front + Back</span>
-                </div>
-
-                <div style="margin-bottom:14px;display:flex;gap:10px;flex-wrap:wrap;">
-                    <?php foreach ($formatLabels as $key => $label): ?>
-                        <?php
-                        $qs = http_build_query([
-                            'department_id' => $deptId,
-                            'employee_id' => $employeeId > 0 ? $employeeId : ($employees[0]['id'] ?? 0),
-                            'format' => $key,
-                        ]);
-                        $active = $format === $key;
-                        ?>
-                        <a href="<?php echo htmlspecialchars(app_url('employees/visiting_card_pdf.php?' . $qs)); ?>"
-                           target="_blank" rel="noopener"
-                           class="btn-secondary"
-                           style="padding:8px 12px;font-size:12px;<?php echo $active ? 'outline:2px solid #d2232a;' : ''; ?>">
-                            <?php if ($key === 'fire'): ?>
-                                <span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:#d2232a;vertical-align:middle;margin-right:4px;"></span>
-                            <?php elseif ($key === 'charcoal'): ?>
-                                <span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:#1a1a1a;vertical-align:middle;margin-right:4px;"></span>
-                            <?php else: ?>
-                                <span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:#fff;border:2px solid #d2232a;vertical-align:middle;margin-right:4px;"></span>
-                            <?php endif; ?>
-                            <?php echo htmlspecialchars(explode(' — ', $label)[0]); ?>
-                        </a>
-                    <?php endforeach; ?>
+                    <span class="ops-chip">Print / PDF &amp; Image</span>
                 </div>
 
                 <div style="margin-bottom:16px;">
@@ -168,12 +116,11 @@ require_once __DIR__ . '/../includes/header.php';
                     $pdfQs = http_build_query([
                         'department_id' => $deptId,
                         'employee_id' => $employeeId,
-                        'format' => $format,
                     ]);
                     ?>
                     <a class="btn-primary" href="<?php echo htmlspecialchars(app_url('employees/visiting_card_pdf.php?' . $pdfQs)); ?>" target="_blank" rel="noopener">
-                        <i class="fa-solid fa-file-pdf"></i>
-                        <?php echo $employeeId > 0 ? 'Open PDF (This Employee)' : 'Open PDF (All Filtered)'; ?>
+                        <i class="fa-solid fa-id-card"></i>
+                        <?php echo $employeeId > 0 ? 'Open Visiting Card (Print / PDF & Image)' : 'Open Visiting Cards (Print / PDF & Image)'; ?>
                     </a>
                 </div>
 
@@ -187,7 +134,7 @@ require_once __DIR__ . '/../includes/header.php';
                                 <th class="txt">Name</th>
                                 <th class="txt">Designation</th>
                                 <th class="txt">Department</th>
-                                <th class="ctr">PDF</th>
+                                <th class="ctr">Print</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -207,7 +154,6 @@ require_once __DIR__ . '/../includes/header.php';
                             $oneQs = http_build_query([
                                 'department_id' => $deptId,
                                 'employee_id' => (int) $e['id'],
-                                'format' => $format,
                             ]);
                             ?>
                             <tr>
@@ -227,7 +173,7 @@ require_once __DIR__ . '/../includes/header.php';
                                     <a class="btn-secondary" style="padding:4px 10px;font-size:12px;"
                                        href="<?php echo htmlspecialchars(app_url('employees/visiting_card_pdf.php?' . $oneQs)); ?>"
                                        target="_blank" rel="noopener">
-                                        <i class="fa-solid fa-print"></i> Both sides
+                                        <i class="fa-solid fa-print"></i> Print / PDF &amp; Image
                                     </a>
                                 </td>
                             </tr>
@@ -248,23 +194,22 @@ require_once __DIR__ . '/../includes/header.php';
     function filterEmp() {
         var d = String(dept.value || '0');
         var keep = emp.value;
-        var ok = false;
-        emp.querySelectorAll('option').forEach(function (o) {
-            var od = o.getAttribute('data-dept') || '0';
-            var show = (o.value === '0') || d === '0' || od === d;
-            o.hidden = !show;
-            o.disabled = !show;
-            if (show && o.value === keep) ok = true;
+        Array.prototype.forEach.call(emp.options, function (opt) {
+            if (opt.value === '0') {
+                opt.hidden = false;
+                return;
+            }
+            var od = String(opt.getAttribute('data-dept') || '0');
+            opt.hidden = (d !== '0' && od !== d);
         });
-        if (!ok) emp.value = '0';
-    }
-    dept.addEventListener('change', function () {
-        var f = document.getElementById('vcFilterForm');
-        if (f) {
+        var sel = emp.options[emp.selectedIndex];
+        if (sel && sel.hidden) {
             emp.value = '0';
-            f.submit();
+        } else if (keep) {
+            emp.value = keep;
         }
-    });
+    }
+    dept.addEventListener('change', filterEmp);
     filterEmp();
 })();
 </script>
