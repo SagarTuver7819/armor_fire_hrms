@@ -30,6 +30,11 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     exit;
 }
 
+// post_max_size exceeded → PHP empties $_POST / $_FILES
+if (empty($_POST) && empty($_FILES)) {
+    recruitmentRedirectError('Form data was empty (file may be too large). Please keep each file under 5 MB and try again.', 5);
+}
+
 ensureRecruitmentTables();
 
 $deptName = trim((string) ($_POST['department_name'] ?? ''));
@@ -88,10 +93,6 @@ if (!$resumeUp['ok']) {
     recruitmentRedirectError($resumeUp['error'], 5);
 }
 
-if ($bankUp['path'] === '' && $slipUp['path'] === '') {
-    recruitmentRedirectError('Please upload last 3 months bank statement or salary slip.', 5);
-}
-
 $education = [];
 $eduIn = $_POST['edu'] ?? [];
 if (is_array($eduIn)) {
@@ -132,6 +133,20 @@ if (is_array($expIn)) {
             'responsibilities' => $row['responsibilities'] ?? '',
         ];
     }
+}
+
+$hasExperience = $currentSalary !== '';
+foreach ($experience as $exRow) {
+    if (trim((string) ($exRow['company_name'] ?? '')) !== ''
+        || trim((string) ($exRow['designation'] ?? '')) !== '') {
+        $hasExperience = true;
+        break;
+    }
+}
+
+// Employed candidates must upload bank statement OR salary slip; freshers may skip.
+if ($hasExperience && $bankUp['path'] === '' && $slipUp['path'] === '') {
+    recruitmentRedirectError('Please upload last 3 months bank statement or salary slip.', 5);
 }
 
 $totalExp = recruitmentCalculateTotalExperience($experience);

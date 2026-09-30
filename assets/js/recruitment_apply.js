@@ -33,12 +33,55 @@
         };
     }
 
-    function toastError(msg) {
-        if (window.toastr) {
-            toastr.error(String(msg || 'Please check the form.'));
-        } else {
-            alert(msg);
+    var formAlert = document.getElementById('recFormAlert');
+    var submitting = false;
+
+    function showFormAlert(msg) {
+        var text = String(msg || 'Please check the form.');
+        if (formAlert) {
+            formAlert.hidden = false;
+            formAlert.removeAttribute('hidden');
+            formAlert.textContent = text;
+            formAlert.setAttribute('role', 'alert');
         }
+        if (window.toastr) {
+            toastr.error(text);
+        } else if (!formAlert) {
+            alert(text);
+        }
+    }
+
+    function clearFormAlert() {
+        if (!formAlert) return;
+        formAlert.hidden = true;
+        formAlert.setAttribute('hidden', 'hidden');
+        formAlert.textContent = '';
+    }
+
+    function toastError(msg) {
+        showFormAlert(msg);
+    }
+
+    function hasExperienceFilled() {
+        if (!expRows) return false;
+        var cards = expRows.querySelectorAll('.rec-card[data-exp]');
+        for (var i = 0; i < cards.length; i++) {
+            var company = cards[i].querySelector('input[name*="[company]"]');
+            var desig = cards[i].querySelector('input[name*="[designation]"]');
+            if ((company && String(company.value || '').trim() !== '')
+                || (desig && String(desig.value || '').trim() !== '')) {
+                return true;
+            }
+        }
+        var curSal = document.getElementById('current_salary');
+        return !!(curSal && String(curSal.value || '').trim() !== '');
+    }
+
+    function resetSubmitButton() {
+        submitting = false;
+        if (!submitBtn) return;
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Submit Application';
     }
 
     function todayYm() {
@@ -247,7 +290,9 @@
             var bank = document.getElementById('bank_statement');
             var slip = document.getElementById('salary_slip');
             var hasFile = (bank && bank.files && bank.files.length) || (slip && slip.files && slip.files.length);
-            if (!hasFile) {
+            // Employed candidates: bank statement OR salary slip required.
+            // Freshers (no experience / current salary) may skip documents.
+            if (!hasFile && hasExperienceFilled()) {
                 markInvalid(bank, true);
                 markInvalid(slip, true);
                 ok = false;
@@ -260,8 +305,10 @@
 
         if (!ok) {
             if (!silent) toastError(msg || 'Please check the form.');
-            var first = panel.querySelector('.is-invalid input, .is-invalid select, .is-invalid textarea');
+            var first = panel.querySelector('.is-invalid input, .is-invalid select, .is-invalid textarea, .is-invalid [type="checkbox"]');
             if (first && first.focus) first.focus();
+        } else if (!silent) {
+            clearFormAlert();
         }
         return ok;
     }
@@ -478,6 +525,11 @@
 
     if (form) {
         form.addEventListener('submit', function (e) {
+            // Always take over submit so browsers (esp. Safari/iOS) do not cancel
+            // the POST when the submit button is disabled mid-handler.
+            e.preventDefault();
+            if (submitting) return;
+
             updateExperienceTotals();
             if (expRows) {
                 expRows.querySelectorAll('input[name*="[to]"][disabled]').forEach(function (el) {
@@ -485,16 +537,41 @@
                     if (!el.value) el.value = todayYm();
                 });
             }
-            if (!validateStep(step)) {
-                e.preventDefault();
+
+            if (step !== maxStep) {
+                showStep(step);
+                toastError('Please complete all steps before submitting.');
                 return;
             }
+
+            for (var i = 1; i <= maxStep; i++) {
+                if (!validateStep(i)) {
+                    showStep(i);
+                    return;
+                }
+            }
+
+            submitting = true;
+            clearFormAlert();
             if (submitBtn) {
                 submitBtn.disabled = true;
                 submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Submitting…';
             }
-        });
-    }
+
+            try {
+                // Native submit bypasses the submit event (avoids loops / cancel quirks).
+                HTMLFormElement.prototype.submit.call(form);
+            } catch (err) {
+                resetSubmitButton();
+                showFormAlert('Could not submit the form. Please try again.');
+            }
+
+    // Back/forward cache can leave the button stuck on "Submitting…"
+    window.addEventListener('pageshow', function (ev) {
+        if (ev.persisted || submitting) {
+            resetSubmitButton();
+        }
+    });
 
     function calcAgeFromDob() {
         var dobEl = document.getElementById('dob');
@@ -531,7 +608,7 @@
         calcAgeFromDob();
         showStep(parseInt(draft.step, 10) || 5);
         if (draft.error) {
-            setTimeout(function () { toastError(draft.error); }, 250);
+            setTimeout(function () { showFormAlert(draft.error); }, 250);
         }
     } else {
         addEdu();
@@ -544,7 +621,7 @@
                 shell.removeAttribute('hidden');
             }
             showStep(1);
-            setTimeout(function () { toastError(draft.error); }, 250);
+            setTimeout(function () { showFormAlert(draft.error); }, 250);
         }
     }
 })();

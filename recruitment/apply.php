@@ -128,6 +128,8 @@ $hasDraft = is_array($draft) && !empty($draft['fields']);
               id="recApplyForm"
               novalidate>
 
+            <div class="rec-form-alert" id="recFormAlert" hidden role="alert"></div>
+
             <!-- Step 1: Position -->
             <fieldset class="rec-panel is-active" data-panel="1">
                 <legend>Apply for Position &amp; Department</legend>
@@ -296,7 +298,7 @@ $hasDraft = is_array($draft) && !empty($draft['fields']);
                         <label for="salary_slip">Last 3 Months Salary Slip</label>
                         <input type="file" name="salary_slip" id="salary_slip"
                                accept=".pdf,.jpg,.jpeg,.png,.webp,application/pdf,image/*">
-                        <small>Upload bank statement <strong>or</strong> salary slip (at least one required)</small>
+                        <small>If you have work experience, upload bank statement <strong>or</strong> salary slip (at least one). Freshers can skip.</small>
                     </div>
                     <div class="rec-field rec-span-2">
                         <label for="resume_file">Resume / CV (optional)</label>

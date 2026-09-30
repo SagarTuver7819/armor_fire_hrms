@@ -331,6 +331,18 @@ body.rec-page {
     border-color: #ef4444;
 }
 
+.rec-form-alert {
+    margin: 0 0 14px;
+    padding: 12px 14px;
+    border-radius: 12px;
+    border: 1px solid #fecaca;
+    background: #fef2f2;
+    color: #991b1b;
+    font-size: 14px;
+    font-weight: 650;
+    line-height: 1.45;
+}
+
 @media (max-width: 720px) {
     .rec-steps { grid-template-columns: repeat(5, minmax(0, 1fr)); }
     .rec-step { font-size: 0; gap: 0; padding: 8px 4px; }
