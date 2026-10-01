@@ -165,21 +165,34 @@ $ob = empField($employee, 'overtime_benefits', 'No');
     </div>
 
     <div class="form-page-card emp-join-card">
-        <div class="form-page-header">
-            <div>
-                <h1><?php echo $employee ? 'Edit Employee' : 'Add Employee'; ?></h1>
-                <p>
-                    Same form for Add &amp; Edit · Hierarchy-wise sections ·
-                    Department: <strong><?php echo htmlspecialchars($department['department_name']); ?></strong>
-                </p>
-            </div>
-        </div>
-
-        <form method="POST" action="<?php echo app_url('employees/save.php'); ?>" class="employee-form" autocomplete="off" enctype="multipart/form-data">
+        <form method="POST" action="<?php echo app_url('employees/save.php'); ?>" class="employee-form" id="employeeForm" autocomplete="off" enctype="multipart/form-data">
             <input type="hidden" name="id" value="<?php echo (int) $empId; ?>">
             <?php if ($fromContractor): ?>
                 <input type="hidden" name="from" value="contractor">
             <?php endif; ?>
+
+            <div class="form-page-header emp-form-header">
+                <div class="emp-form-header-text">
+                    <h1><?php echo $employee ? 'Edit Employee' : 'Add Employee'; ?></h1>
+                    <p>
+                        Same form for Add &amp; Edit · Hierarchy-wise sections ·
+                        Department: <strong><?php echo htmlspecialchars($department['department_name']); ?></strong>
+                    </p>
+                </div>
+                <div class="emp-code-header">
+                    <label for="employeeCode">Employee Code</label>
+                    <div class="code-input-row">
+                        <input type="text" name="employee_code" id="employeeCode" class="form-control" required
+                               maxlength="30" placeholder="e.g. AS0001"
+                               value="<?php echo htmlspecialchars($currentEmpCode); ?>"
+                               autocomplete="off">
+                        <button type="button" class="btn-secondary" id="btnGenCode" title="Generate next code">
+                            <i class="fa-solid fa-rotate"></i>
+                        </button>
+                    </div>
+                    <small class="emp-code-hint" id="empCodeHint">Tab out to check if code already exists</small>
+                </div>
+            </div>
 
             <!-- 1. Personal -->
             <div class="form-section">
@@ -378,16 +391,7 @@ $ob = empField($employee, 'overtime_benefits', 'No');
                             <?php endforeach; ?>
                         </select>
                     </div>
-                    <div class="form-group"><label>19. Employee Code <small>(auto by pay type)</small></label>
-                        <div class="code-input-row">
-                            <input type="text" name="employee_code" id="employeeCode" class="form-control" required
-                                   maxlength="30" value="<?php echo htmlspecialchars($currentEmpCode); ?>">
-                            <button type="button" class="btn-secondary" id="btnGenCode" title="Generate code">
-                                <i class="fa-solid fa-rotate"></i>
-                            </button>
-                        </div>
-                    </div>
-                    <div class="form-group"><label>20. Biometric User ID</label>
+                    <div class="form-group"><label>19. Biometric User ID</label>
                         <input type="text" name="biometric_user_id" class="form-control" maxlength="50"
                                value="<?php echo htmlspecialchars(empField($employee, 'biometric_user_id')); ?>">
                     </div>

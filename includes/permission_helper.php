@@ -864,6 +864,74 @@ function getEmployeePortalUserById($id)
 }
 
 /**
+ * Portal login row for one employee (username + plain password for Admin display).
+ */
+function getEmployeePortalLoginByEmployeeId($employeeId)
+{
+    $employeeId = (int) $employeeId;
+    if ($employeeId <= 0) {
+        return null;
+    }
+    ensureRoleTables();
+    $conn = getDBConnection();
+    $stmt = $conn->prepare(
+        "SELECT u.id, u.username, u.password, u.full_name, u.status, u.custom_role_id, u.employee_id,
+                r.name AS role_name, r.code AS role_code
+         FROM users u
+         LEFT JOIN roles r ON r.id = u.custom_role_id
+         WHERE u.employee_id = ? AND u.role = 'employee'
+         ORDER BY u.id DESC
+         LIMIT 1"
+    );
+    $stmt->bind_param('i', $employeeId);
+    $stmt->execute();
+    $row = $stmt->get_result()->fetch_assoc();
+    $stmt->close();
+    $conn->close();
+    return $row ?: null;
+}
+
+/**
+ * All active employees with portal Login ID + Password (Admin visibility).
+ * Employees without login still appear with empty username/password.
+ *
+ * @return array<int,array>
+ */
+function fetchAllEmployeePortalCredentials($departmentId = 0)
+{
+    if (!function_exists('ensureEmployeesTable')) {
+        require_once __DIR__ . '/employee_helper.php';
+    }
+    ensureEmployeesTable();
+    ensureRoleTables();
+    $conn = getDBConnection();
+    $departmentId = (int) $departmentId;
+    $sql = "SELECT e.id AS employee_id, e.employee_code, e.employee_name, e.department_id,
+                   d.department_name,
+                   u.id AS portal_user_id, u.username AS login_id, u.password AS login_password,
+                   u.status AS login_status, r.name AS role_name, r.code AS role_code
+            FROM employees e
+            LEFT JOIN departments d ON d.id = e.department_id
+            LEFT JOIN users u ON u.employee_id = e.id AND u.role = 'employee'
+            LEFT JOIN roles r ON r.id = u.custom_role_id
+            WHERE e.status = 1
+              AND (e.date_of_exit IS NULL OR e.date_of_exit = '' OR e.date_of_exit = '0000-00-00' OR e.date_of_exit > CURDATE())";
+    if ($departmentId > 0) {
+        $sql .= ' AND e.department_id = ' . $departmentId;
+    }
+    $sql .= ' ORDER BY d.department_name ASC, e.employee_code ASC';
+    $rows = [];
+    $res = $conn->query($sql);
+    if ($res) {
+        while ($row = $res->fetch_assoc()) {
+            $rows[] = $row;
+        }
+    }
+    $conn->close();
+    return $rows;
+}
+
+/**
  * Create / update employee portal login + assign custom role.
  * $data: employee_id, custom_role_id, username, password, status, user_id (optional for edit)
  */

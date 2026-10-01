@@ -97,5 +97,10 @@
         $('#assignUsername').on('input', function () {
             $(this).data('auto', 0);
         });
+
+        // Prefill username when employee already selected (e.g. ?employee_id=)
+        if (initialEmp) {
+            $emp.trigger('change');
+        }
     });
 })(jQuery);

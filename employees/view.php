@@ -54,6 +54,13 @@ if ($isOwnProfile && isOfficeStaffRole()) {
 // Own profile: always allow viewing own bank account details (not salary amount)
 $showBankDetails = $showSalaryDetails || $isOwnProfile;
 
+// Admin / HR: show portal Login ID + Password on profile
+$portalLogin = null;
+$showPortalLogin = (isAdmin() || isHR()) && !$isOwnProfile;
+if ($showPortalLogin && function_exists('getEmployeePortalLoginByEmployeeId')) {
+    $portalLogin = getEmployeePortalLoginByEmployeeId($id);
+}
+
 $isDeactive = isEmployeeDeactive($emp);
 $tab = strtolower(trim((string) ($_GET['tab'] ?? 'profile')));
 if (!in_array($tab, ['profile', 'family', 'documents', 'leave', 'history', 'attendance', 'salary'], true)) {
@@ -404,6 +411,31 @@ $tabUrl = function ($t) use ($baseQs, $year, $month) {
                     <strong><?php echo showVal($emp['mobile_number']); ?></strong>
                 </div>
             </div>
+            <?php if ($showPortalLogin): ?>
+            <div class="emp-stat-item emp-stat-login">
+                <div class="emp-stat-icon" style="background:#eff6ff;color:#1d4ed8;"><i class="fa-solid fa-right-to-bracket"></i></div>
+                <div>
+                    <span>Employee Login ID</span>
+                    <?php if (!empty($portalLogin['username'])): ?>
+                        <strong><code class="emp-login-id"><?php echo htmlspecialchars((string) $portalLogin['username']); ?></code></strong>
+                        <div class="emp-login-pass-row">
+                            <span>Password</span>
+                            <code class="assign-pass-show"><?php echo htmlspecialchars((string) ($portalLogin['password'] ?? '')); ?></code>
+                        </div>
+                        <?php if (!empty($portalLogin['role_name'])): ?>
+                            <div class="emp-login-role-hint"><?php echo htmlspecialchars((string) $portalLogin['role_name']); ?></div>
+                        <?php endif; ?>
+                    <?php else: ?>
+                        <strong class="text-muted">No login yet</strong>
+                        <div style="margin-top:6px;">
+                            <a href="<?php echo app_url('roles/assign.php?employee_id=' . (int) $id); ?>" class="btn-sm btn-primary">
+                                <i class="fa-solid fa-plus"></i> Create Login
+                            </a>
+                        </div>
+                    <?php endif; ?>
+                </div>
+            </div>
+            <?php endif; ?>
             <?php if ($showSalaryDetails): ?>
             <div class="emp-stat-item">
                 <div class="emp-stat-icon"><i class="fa-solid fa-indian-rupee-sign"></i></div>

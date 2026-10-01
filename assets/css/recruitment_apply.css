@@ -344,12 +344,20 @@ body.rec-page {
 }
 
 @media (max-width: 720px) {
-    .rec-steps { grid-template-columns: repeat(5, minmax(0, 1fr)); }
-    .rec-step { font-size: 0; gap: 0; padding: 8px 4px; }
+    .rec-wrap { padding: 12px 12px 28px; }
+    .rec-steps { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 4px; }
+    .rec-step { font-size: 0; gap: 0; padding: 10px 4px; min-height: 44px; }
     .rec-step span { font-size: 12px; }
     .rec-grid { grid-template-columns: 1fr; }
     .rec-field.rec-span-2,
     .rec-check-row { grid-column: auto; }
+    .rec-field input,
+    .rec-field select,
+    .rec-field textarea {
+        font-size: 16px; /* iOS: avoid zoom on focus */
+        min-height: 46px;
+    }
+    .rec-field textarea { min-height: 96px; }
     .rec-check {
         padding: 14px 12px;
         font-size: 15px;
@@ -360,11 +368,45 @@ body.rec-page {
         height: 22px;
         min-width: 22px;
     }
+    .rec-declare label {
+        font-size: 14px;
+        line-height: 1.4;
+        gap: 12px;
+    }
+    .rec-declare input {
+        width: 22px;
+        height: 22px;
+        min-width: 22px;
+        margin-top: 1px;
+    }
     .rec-top-badge { display: none; }
     .rec-intro-card, .rec-form-shell { border-radius: 12px; }
-    .rec-btn { width: 100%; }
-    .rec-nav { flex-direction: column-reverse; }
+    .rec-intro-card { padding: 22px 16px; }
+    .rec-form-shell { padding: 14px 12px 16px; }
+    .rec-btn {
+        width: 100%;
+        min-height: 48px;
+        font-size: 15px;
+        justify-content: center;
+    }
+    .rec-nav {
+        flex-direction: column-reverse;
+        position: sticky;
+        bottom: 0;
+        z-index: 15;
+        margin: 12px -12px -16px;
+        padding: 12px;
+        background: linear-gradient(180deg, rgba(255,255,255,0.88) 0%, #fff 35%);
+        border-top: 1px solid var(--line);
+        border-radius: 0 0 12px 12px;
+    }
     .rec-nav-right { width: 100%; flex-direction: column; margin-left: 0; }
+    .rec-form-alert {
+        font-size: 13.5px;
+        position: sticky;
+        top: 56px;
+        z-index: 12;
+    }
 }
 
 @media (min-width: 721px) and (max-width: 980px) {

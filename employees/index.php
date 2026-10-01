@@ -107,6 +107,9 @@ $excelUrl = app_url('employees/export_excel.php?view=' . $view . ($deptId > 0 ? 
             </a>
             <?php endif; ?>
             <?php if ($isAllReport && function_exists('isAdmin') && isAdmin() && !$isExit): ?>
+                <a href="<?php echo app_url('roles/bulk_employee_logins.php'); ?>" class="btn-secondary">
+                    <i class="fa-solid fa-key"></i> Employee Logins
+                </a>
                 <a href="<?php echo app_url('employees/sync_reference.php'); ?>" class="btn-secondary">
                     <i class="fa-solid fa-cloud-arrow-down"></i> Sync from Reference
                 </a>

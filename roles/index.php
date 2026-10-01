@@ -49,7 +49,7 @@ if (isset($_GET['msg'])) {
                 <i class="fa-solid fa-user-tie"></i> Department Heads
             </a>
             <a href="<?php echo app_url('roles/bulk_employee_logins.php'); ?>" class="btn-secondary">
-                <i class="fa-solid fa-users-gear"></i> Bulk Employee Logins
+                <i class="fa-solid fa-users-gear"></i> Employee Logins (ID / Password)
             </a>
             <a href="<?php echo app_url('roles/assign.php'); ?>" class="btn-secondary">
                 <i class="fa-solid fa-user-check"></i> Assign Role &amp; Login

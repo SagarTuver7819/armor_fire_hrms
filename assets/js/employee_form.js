@@ -79,6 +79,7 @@
                     empCode.value = data.code;
                     empCode.classList.remove('is-invalid-code');
                     lastCheckedCode = String(data.code).toUpperCase();
+                    setCodeHint('ok', 'Code available · ' + lastCheckedCode);
                 }
             })
             .catch(function () { /* ignore */ });
@@ -95,6 +96,19 @@
 
     var lastCheckedCode = '';
     var checkTimer = null;
+    var checkSeq = 0;
+
+    function setCodeHint(state, msg) {
+        var hint = document.getElementById('empCodeHint');
+        if (!hint) {
+            return;
+        }
+        hint.classList.remove('is-ok', 'is-bad', 'is-checking');
+        if (state) {
+            hint.classList.add('is-' + state);
+        }
+        hint.textContent = msg || '';
+    }
 
     function checkEmployeeCode() {
         var empCode = document.getElementById('employeeCode');
@@ -104,7 +118,13 @@
         }
         var code = String(empCode.value || '').trim().toUpperCase();
         empCode.value = code;
-        if (code === '' || code === lastCheckedCode) {
+        if (code === '') {
+            empCode.classList.remove('is-invalid-code');
+            setCodeHint('', 'Tab out to check if code already exists');
+            lastCheckedCode = '';
+            return;
+        }
+        if (code === lastCheckedCode) {
             return;
         }
         lastCheckedCode = code;
@@ -113,21 +133,33 @@
         var url = checkUrl
             + '?code=' + encodeURIComponent(code)
             + '&exclude_id=' + encodeURIComponent(String(excludeId));
+        var seq = ++checkSeq;
+        setCodeHint('checking', 'Checking code…');
 
         fetch(url, { credentials: 'same-origin' })
             .then(function (r) { return r.json(); })
             .then(function (data) {
+                if (seq !== checkSeq) {
+                    return;
+                }
                 if (!data || !data.exists) {
                     empCode.classList.remove('is-invalid-code');
+                    setCodeHint('ok', 'Code available · ' + code);
                     return;
                 }
                 // Keep all form data — only warn
                 empCode.classList.add('is-invalid-code');
                 var name = data.employee_name ? (' for "' + data.employee_name + '"') : '';
                 var inactive = data.active === false ? ' (inactive/deleted record)' : '';
+                setCodeHint('bad', 'Already exists' + name + inactive);
                 toastWarn('Employee code ' + code + ' already exists' + name + inactive + '. Change the code or click refresh for next available.');
             })
-            .catch(function () { /* ignore network errors on blur */ });
+            .catch(function () {
+                if (seq !== checkSeq) {
+                    return;
+                }
+                setCodeHint('', 'Could not verify code right now');
+            });
     }
 
     function bindCodeDuplicateCheck() {
@@ -140,6 +172,7 @@
         });
         empCode.addEventListener('input', function () {
             empCode.classList.remove('is-invalid-code');
+            setCodeHint('', 'Tab out to check if code already exists');
             if (checkTimer) {
                 clearTimeout(checkTimer);
             }

@@ -16,6 +16,7 @@ ensureDepartmentHeadTables();
 
 $roleId = (int) ($_GET['role_id'] ?? 0);
 $editId = (int) ($_GET['id'] ?? 0);
+$preselectEmpId = (int) ($_GET['employee_id'] ?? 0);
 $roles = fetchRoles(true);
 $officeStaffRoleId = getRoleIdByCode('OFFICE_STAFF');
 if ($roleId <= 0 && $editId <= 0 && $officeStaffRoleId > 0) {
@@ -39,7 +40,7 @@ $selRole = array_key_exists('custom_role_id', $formData)
     : ($editRow ? (int) $editRow['custom_role_id'] : $roleId);
 $selEmp = array_key_exists('employee_id', $formData)
     ? (int) $formData['employee_id']
-    : ($editRow ? (int) $editRow['employee_id'] : 0);
+    : ($editRow ? (int) $editRow['employee_id'] : $preselectEmpId);
 $selDept = array_key_exists('filter_department_id', $formData)
     ? (int) $formData['filter_department_id']
     : 0;

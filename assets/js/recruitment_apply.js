@@ -565,6 +565,8 @@
                 resetSubmitButton();
                 showFormAlert('Could not submit the form. Please try again.');
             }
+        });
+    }
 
     // Back/forward cache can leave the button stuck on "Submitting…"
     window.addEventListener('pageshow', function (ev) {
