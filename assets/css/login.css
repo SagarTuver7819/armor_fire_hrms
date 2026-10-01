@@ -452,7 +452,7 @@ html, body { height: 100%; }
     padding: 13px 16px 13px 42px;
     border: 1.5px solid var(--line);
     border-radius: 12px;
-    font: 500 14px/1.4 "Outfit", sans-serif;
+    font: 500 14px/1.4 Calibri, "Calibri Light", Candara, Segoe, "Segoe UI", Arial, sans-serif;
     color: var(--ink);
     background: #fff;
     outline: none;

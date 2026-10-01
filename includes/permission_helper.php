@@ -906,7 +906,7 @@ function fetchAllEmployeePortalCredentials($departmentId = 0)
     ensureRoleTables();
     $conn = getDBConnection();
     $departmentId = (int) $departmentId;
-    $sql = "SELECT e.id AS employee_id, e.employee_code, e.employee_name, e.department_id,
+    $sql = "SELECT e.id AS employee_id, e.employee_code, e.employee_name, e.designation, e.department_id,
                    d.department_name,
                    u.id AS portal_user_id, u.username AS login_id, u.password AS login_password,
                    u.status AS login_status, r.name AS role_name, r.code AS role_code

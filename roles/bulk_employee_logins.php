@@ -44,6 +44,12 @@ require_once __DIR__ . '/../includes/header.php';
             <i class="fa-solid fa-arrow-left"></i> Back to Roles
         </a>
         <div class="toolbar-actions" style="display:flex;gap:8px;flex-wrap:wrap;">
+            <a href="<?php echo app_url('roles/export_logins_excel.php'); ?>" class="btn-secondary">
+                <i class="fa-solid fa-file-excel"></i> Download Excel
+            </a>
+            <a href="<?php echo app_url('roles/export_logins_pdf.php'); ?>" class="btn-secondary" target="_blank" rel="noopener">
+                <i class="fa-solid fa-file-pdf"></i> Download PDF
+            </a>
             <a href="<?php echo app_url('roles/assign.php'); ?>" class="btn-secondary">
                 <i class="fa-solid fa-user-check"></i> Assign Role &amp; Login
             </a>
@@ -110,12 +116,18 @@ require_once __DIR__ . '/../includes/header.php';
             ?>
         <?php endif; ?>
 
-        <div class="emp-login-summary">
+        <div class="emp-login-summary" style="margin-top:4px;">
             <span><strong><?php echo count($credentials); ?></strong> active employees</span>
             <span class="ok"><i class="fa-solid fa-circle-check"></i> <?php echo (int) $withLogin; ?> with login</span>
             <?php if ($withoutLogin > 0): ?>
                 <span class="warn"><i class="fa-solid fa-circle-exclamation"></i> <?php echo (int) $withoutLogin; ?> without login</span>
             <?php endif; ?>
+            <a href="<?php echo app_url('roles/export_logins_excel.php'); ?>" class="btn-secondary" style="margin-left:auto;">
+                <i class="fa-solid fa-file-excel"></i> Excel
+            </a>
+            <a href="<?php echo app_url('roles/export_logins_pdf.php'); ?>" class="btn-secondary" target="_blank" rel="noopener">
+                <i class="fa-solid fa-file-pdf"></i> PDF
+            </a>
         </div>
 
         <div class="table-wrap" style="margin-top:12px;">
@@ -123,12 +135,12 @@ require_once __DIR__ . '/../includes/header.php';
                 <thead>
                     <tr>
                         <th>Sr</th>
-                        <th>Employee</th>
-                        <th>Code</th>
-                        <th>Department</th>
-                        <th>Login ID</th>
+                        <th>Employee Code</th>
+                        <th>Employee Name</th>
+                        <th>Username</th>
                         <th>Password</th>
-                        <th>Role</th>
+                        <th>Designation</th>
+                        <th>Department</th>
                         <th>Status</th>
                         <th></th>
                     </tr>
@@ -151,18 +163,17 @@ require_once __DIR__ . '/../includes/header.php';
                         ?>
                         <tr>
                             <td><?php echo $i + 1; ?></td>
+                            <td><span class="code-badge"><?php echo htmlspecialchars((string) ($row['employee_code'] ?? '—')); ?></span></td>
                             <td>
                                 <a href="<?php echo htmlspecialchars($viewUrl); ?>">
                                     <strong><?php echo htmlspecialchars((string) ($row['employee_name'] ?? '—')); ?></strong>
                                 </a>
                             </td>
-                            <td><span class="code-badge"><?php echo htmlspecialchars((string) ($row['employee_code'] ?? '—')); ?></span></td>
-                            <td><?php echo htmlspecialchars((string) ($row['department_name'] ?? '—')); ?></td>
                             <td>
                                 <?php if ($hasLogin): ?>
                                     <code class="emp-login-id"><?php echo htmlspecialchars($loginId); ?></code>
                                 <?php else: ?>
-                                    <span class="text-muted">— No login —</span>
+                                    <span class="text-muted">—</span>
                                 <?php endif; ?>
                             </td>
                             <td>
@@ -172,10 +183,11 @@ require_once __DIR__ . '/../includes/header.php';
                                     <span class="text-muted">—</span>
                                 <?php endif; ?>
                             </td>
-                            <td><?php echo htmlspecialchars((string) ($row['role_name'] ?? '—')); ?></td>
+                            <td><?php echo htmlspecialchars((string) (($row['designation'] ?? '') !== '' ? $row['designation'] : '—')); ?></td>
+                            <td><?php echo htmlspecialchars((string) ($row['department_name'] ?? '—')); ?></td>
                             <td>
                                 <?php if (!$hasLogin): ?>
-                                    <span class="badge badge-muted">Missing</span>
+                                    <span class="badge badge-muted">No login</span>
                                 <?php elseif ((int) ($row['login_status'] ?? 0) === 1): ?>
                                     <span class="badge badge-success">Active</span>
                                 <?php else: ?>

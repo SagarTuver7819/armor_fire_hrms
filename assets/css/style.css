@@ -17,6 +17,8 @@
     --shadow-sm: 0 1px 2px rgba(16, 24, 40, 0.04);
     --shadow-md: 0 8px 24px rgba(16, 24, 40, 0.06);
     --radius: 14px;
+    --font-ui: "Plus Jakarta Sans", "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+    --font-input: Calibri, "Calibri Light", Candara, Segoe, "Segoe UI", Optima, Arial, sans-serif;
 }
 
 * {
@@ -26,7 +28,7 @@
 }
 
 body {
-    font-family: "Plus Jakarta Sans", "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+    font-family: var(--font-ui);
     background:
         radial-gradient(1200px 400px at 10% -10%, rgba(210, 35, 42, 0.07), transparent 55%),
         radial-gradient(900px 360px at 100% 0%, rgba(26, 35, 50, 0.05), transparent 50%),
@@ -34,6 +36,23 @@ body {
     color: var(--ink);
     min-height: 100vh;
     -webkit-font-smoothing: antialiased;
+}
+
+/* Typed text everywhere: Calibri (inputs / textarea / select / editable) */
+input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):not([type="file"]):not([type="button"]):not([type="submit"]):not([type="reset"]):not([type="image"]),
+textarea,
+select,
+.form-control,
+.select2-container--default .select2-selection--single .select2-selection__rendered,
+.select2-container--default .select2-selection--multiple .select2-selection__rendered,
+.select2-container--default .select2-search--dropdown .select2-search__field,
+.select2-container--default .select2-search--inline .select2-search__field,
+.select2-results__option,
+[contenteditable="true"],
+.flatpickr-input,
+.dataTables_filter input,
+.dataTables_wrapper .dataTables_length select {
+    font-family: var(--font-input) !important;
 }
 
 a {
@@ -1055,6 +1074,7 @@ a {
     border: 1px solid #dce3ec;
     border-radius: 10px;
     font-size: 14px;
+    font-family: var(--font-input);
     outline: none;
     background: #fff;
 }
@@ -5760,7 +5780,7 @@ body.confirm-modal-open {
 
 .select2-container {
     width: 100% !important;
-    font-family: "Plus Jakarta Sans", "Segoe UI", sans-serif;
+    font-family: var(--font-input);
 }
 
 /*

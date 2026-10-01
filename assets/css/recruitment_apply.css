@@ -174,7 +174,8 @@ body.rec-page {
     border: 1px solid var(--line);
     border-radius: 10px;
     padding: 11px 12px;
-    font: inherit; font-size: 14px;
+    font-family: Calibri, "Calibri Light", Candara, Segoe, "Segoe UI", Arial, sans-serif;
+    font-size: 14px;
     background: #fff;
     color: var(--ink);
 }
