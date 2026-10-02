@@ -101,6 +101,7 @@ function ensureEmployeesTable($conn = null)
     ensureEmployeeFamilyTable($conn);
     ensureEmployeeSalaryHistoryTable($conn);
     ensureEmployeeLocationHistoryTable($conn);
+    ensureEmployeeWeekOffHistoryTable($conn);
 
     $ready = true;
     if ($closeAfter) {
@@ -170,6 +171,227 @@ function ensureEmployeeLocationHistoryTable($conn)
             INDEX idx_loc_hist_created (employee_id, created_at)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
     );
+}
+
+/**
+ * Week-off day change history — applies from effective_from forward (not back-dated).
+ */
+function ensureEmployeeWeekOffHistoryTable($conn)
+{
+    $conn->query(
+        "CREATE TABLE IF NOT EXISTS employee_week_off_history (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            employee_id INT NOT NULL,
+            week_off_day VARCHAR(30) NOT NULL,
+            effective_from DATE NOT NULL,
+            created_by INT DEFAULT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE KEY uq_emp_weekoff_from (employee_id, effective_from),
+            INDEX idx_emp_weekoff_emp (employee_id),
+            INDEX idx_emp_weekoff_eff (employee_id, effective_from)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+    );
+}
+
+/**
+ * Load week-off history rows ASC by effective_from (for date lookup).
+ *
+ * @return array<int, array{week_off_day:string,effective_from:string}>
+ */
+function employeeWeekOffHistoryRows($employeeId, $conn = null)
+{
+    $employeeId = (int) $employeeId;
+    if ($employeeId <= 0) {
+        return [];
+    }
+    $closeAfter = false;
+    if ($conn === null) {
+        $conn = getDBConnection();
+        $closeAfter = true;
+    }
+    ensureEmployeeWeekOffHistoryTable($conn);
+    $rows = [];
+    $st = $conn->prepare(
+        'SELECT week_off_day, effective_from
+         FROM employee_week_off_history
+         WHERE employee_id = ?
+         ORDER BY effective_from ASC, id ASC'
+    );
+    $st->bind_param('i', $employeeId);
+    $st->execute();
+    $res = $st->get_result();
+    while ($r = $res->fetch_assoc()) {
+        $day = trim((string) ($r['week_off_day'] ?? ''));
+        $from = substr((string) ($r['effective_from'] ?? ''), 0, 10);
+        if ($day === '' || $from === '' || $from === '0000-00-00') {
+            continue;
+        }
+        $rows[] = ['week_off_day' => $day, 'effective_from' => $from];
+    }
+    $st->close();
+    if ($closeAfter) {
+        $conn->close();
+    }
+    return $rows;
+}
+
+/**
+ * Resolve week-off day name for a calendar date from history rows.
+ *
+ * @param array<int, array{week_off_day:string,effective_from:string}> $history
+ */
+function employeeWeekOffDayFromHistory(array $history, $ymd, $fallback = 'Sunday')
+{
+    $ymd = substr(trim((string) $ymd), 0, 10);
+    $fallback = trim((string) $fallback);
+    if ($fallback === '') {
+        $fallback = 'Sunday';
+    }
+    if ($ymd === '' || $history === []) {
+        return $fallback;
+    }
+    $chosen = $fallback;
+    foreach ($history as $row) {
+        $from = (string) ($row['effective_from'] ?? '');
+        $day = trim((string) ($row['week_off_day'] ?? ''));
+        if ($from !== '' && $day !== '' && $from <= $ymd) {
+            $chosen = $day;
+        }
+    }
+    return $chosen;
+}
+
+/**
+ * Week-off day applicable on a specific date (history-aware).
+ * Falls back to employees.week_off_day when no history exists.
+ */
+function employeeWeekOffDayOnDate($employeeId, $ymd, $conn = null, $fallback = null)
+{
+    $employeeId = (int) $employeeId;
+    $ymd = substr(trim((string) $ymd), 0, 10);
+    $closeAfter = false;
+    if ($conn === null) {
+        $conn = getDBConnection();
+        $closeAfter = true;
+    }
+    if ($fallback === null) {
+        $fallback = 'Sunday';
+        if ($employeeId > 0) {
+            $st = $conn->prepare('SELECT week_off_day FROM employees WHERE id = ? LIMIT 1');
+            $st->bind_param('i', $employeeId);
+            $st->execute();
+            $row = $st->get_result()->fetch_assoc();
+            $st->close();
+            $fb = trim((string) ($row['week_off_day'] ?? ''));
+            if ($fb !== '') {
+                $fallback = $fb;
+            }
+        }
+    }
+    $history = employeeWeekOffHistoryRows($employeeId, $conn);
+    $day = employeeWeekOffDayFromHistory($history, $ymd, $fallback);
+    if ($closeAfter) {
+        $conn->close();
+    }
+    return $day;
+}
+
+/**
+ * Record week-off change effective from $effectiveFrom (default: today).
+ * Past dates keep previous week-off; new day applies from effective date forward.
+ */
+function employeeRecordWeekOffChange($conn, $employeeId, $oldWeekOff, $newWeekOff, $effectiveFrom = null, $createdBy = null)
+{
+    $employeeId = (int) $employeeId;
+    $oldWeekOff = trim((string) $oldWeekOff);
+    $newWeekOff = trim((string) $newWeekOff);
+    if ($employeeId <= 0 || $newWeekOff === '') {
+        return false;
+    }
+    if (strcasecmp($oldWeekOff, $newWeekOff) === 0) {
+        return false;
+    }
+    ensureEmployeeWeekOffHistoryTable($conn);
+
+    if ($effectiveFrom === null || trim((string) $effectiveFrom) === '') {
+        $effectiveFrom = date('Y-m-d');
+    } else {
+        $effectiveFrom = substr(trim((string) $effectiveFrom), 0, 10);
+    }
+    if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $effectiveFrom)) {
+        $effectiveFrom = date('Y-m-d');
+    }
+    $createdBy = $createdBy !== null ? (int) $createdBy : null;
+
+    // First change: preserve old week-off for all dates before effective_from
+    $cntSt = $conn->prepare('SELECT COUNT(*) AS c FROM employee_week_off_history WHERE employee_id = ?');
+    $cntSt->bind_param('i', $employeeId);
+    $cntSt->execute();
+    $cnt = (int) ($cntSt->get_result()->fetch_assoc()['c'] ?? 0);
+    $cntSt->close();
+
+    if ($cnt === 0) {
+        $seedFrom = '2000-01-01';
+        $stJ = $conn->prepare('SELECT date_of_joining FROM employees WHERE id = ? LIMIT 1');
+        $stJ->bind_param('i', $employeeId);
+        $stJ->execute();
+        $jr = $stJ->get_result()->fetch_assoc();
+        $stJ->close();
+        $doj = substr((string) ($jr['date_of_joining'] ?? ''), 0, 10);
+        if ($doj !== '' && $doj !== '0000-00-00' && $doj < $effectiveFrom) {
+            $seedFrom = $doj;
+        }
+        $seedDay = $oldWeekOff !== '' ? $oldWeekOff : $newWeekOff;
+        $insSeed = $conn->prepare(
+            'INSERT INTO employee_week_off_history (employee_id, week_off_day, effective_from, created_by)
+             VALUES (?, ?, ?, ?)
+             ON DUPLICATE KEY UPDATE week_off_day = VALUES(week_off_day)'
+        );
+        $insSeed->bind_param('issi', $employeeId, $seedDay, $seedFrom, $createdBy);
+        $insSeed->execute();
+        $insSeed->close();
+    }
+
+    $ins = $conn->prepare(
+        'INSERT INTO employee_week_off_history (employee_id, week_off_day, effective_from, created_by)
+         VALUES (?, ?, ?, ?)
+         ON DUPLICATE KEY UPDATE week_off_day = VALUES(week_off_day), created_by = VALUES(created_by), created_at = CURRENT_TIMESTAMP'
+    );
+    $ins->bind_param('issi', $employeeId, $newWeekOff, $effectiveFrom, $createdBy);
+    $ok = $ins->execute();
+    $ins->close();
+    return (bool) $ok;
+}
+
+/**
+ * Seed history for new employee (current week-off from joining / today).
+ */
+function employeeSeedWeekOffHistory($conn, $employeeId, $weekOffDay, $effectiveFrom = null, $createdBy = null)
+{
+    $employeeId = (int) $employeeId;
+    $weekOffDay = trim((string) $weekOffDay);
+    if ($employeeId <= 0 || $weekOffDay === '') {
+        return false;
+    }
+    ensureEmployeeWeekOffHistoryTable($conn);
+    if ($effectiveFrom === null || trim((string) $effectiveFrom) === '') {
+        $effectiveFrom = date('Y-m-d');
+    } else {
+        $effectiveFrom = substr(trim((string) $effectiveFrom), 0, 10);
+    }
+    if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $effectiveFrom)) {
+        $effectiveFrom = date('Y-m-d');
+    }
+    $createdBy = $createdBy !== null ? (int) $createdBy : null;
+    $ins = $conn->prepare(
+        'INSERT INTO employee_week_off_history (employee_id, week_off_day, effective_from, created_by)
+         VALUES (?, ?, ?, ?)
+         ON DUPLICATE KEY UPDATE week_off_day = VALUES(week_off_day)'
+    );
+    $ins->bind_param('issi', $employeeId, $weekOffDay, $effectiveFrom, $createdBy);
+    $ok = $ins->execute();
+    $ins->close();
+    return (bool) $ok;
 }
 
 /**

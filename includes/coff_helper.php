@@ -295,10 +295,13 @@ function coffSyncFromAttendanceMonth($conn, $employeeId, $month, $year)
     if (!$emp) {
         return ['credited' => 0, 'days' => 0];
     }
-    $weekOffName = trim((string) ($emp['week_off_day'] ?? 'Sunday'));
-    if ($weekOffName === '') {
-        $weekOffName = 'Sunday';
+    $weekOffFallback = trim((string) ($emp['week_off_day'] ?? 'Sunday'));
+    if ($weekOffFallback === '') {
+        $weekOffFallback = 'Sunday';
     }
+    $weekOffHistory = function_exists('employeeWeekOffHistoryRows')
+        ? employeeWeekOffHistoryRows($employeeId, $conn)
+        : [];
     $deptId = (int) ($emp['department_id'] ?? 0);
     $holidays = attendanceHolidaySet($conn, $year, $month, $deptId);
     $monthDays = (int) date('t', mktime(0, 0, 0, $month, 1, $year));
@@ -324,6 +327,9 @@ function coffSyncFromAttendanceMonth($conn, $employeeId, $month, $year)
     for ($d = 1; $d <= $monthDays; $d++) {
         $date = sprintf('%04d-%02d-%02d', $year, $month, $d);
         $dow = date('l', strtotime($date));
+        $weekOffName = function_exists('employeeWeekOffDayFromHistory')
+            ? employeeWeekOffDayFromHistory($weekOffHistory, $date, $weekOffFallback)
+            : $weekOffFallback;
         $isHoliday = isset($holidays[$date]);
         $isWeekOff = (!$isHoliday && strcasecmp($dow, $weekOffName) === 0);
         if (!$isHoliday && !$isWeekOff) {

@@ -133,6 +133,34 @@
         recalcRowTotals($td.closest('tr'));
     }
 
+    function parseWeekOffHistory($tr) {
+        var raw = $tr.attr('data-week-off-history') || '[]';
+        try {
+            var parsed = JSON.parse(raw);
+            return Array.isArray(parsed) ? parsed : [];
+        } catch (e) {
+            return [];
+        }
+    }
+
+    /** Week-off day name for a date (history effective_from → not back-dated). */
+    function weekOffDayForDate($tr, dateStr) {
+        var fallback = String($tr.attr('data-week-off') || 'Sunday').trim() || 'Sunday';
+        var history = parseWeekOffHistory($tr);
+        if (!history.length || !dateStr) {
+            return fallback;
+        }
+        var chosen = fallback;
+        for (var i = 0; i < history.length; i++) {
+            var from = String((history[i] && history[i].effective_from) || '').substr(0, 10);
+            var day = String((history[i] && history[i].week_off_day) || '').trim();
+            if (from && day && from <= dateStr) {
+                chosen = day;
+            }
+        }
+        return chosen;
+    }
+
     function recalcRowTotals($tr) {
         var totals = {
             present: 0,
@@ -144,7 +172,6 @@
             holiday: 0,
             LWP: 0
         };
-        var weekOffName = String($tr.attr('data-week-off') || 'Sunday').toLowerCase();
         var holidayMap = window.ATT_HOLIDAY_DATES || {};
 
         $tr.find('td.day-cell').each(function () {
@@ -153,6 +180,7 @@
             var type = ($td.attr('data-leave-type') || '').trim();
             var half = ($td.attr('data-leave-half') || '').toUpperCase();
             var date = $td.attr('data-date') || '';
+            var weekOffName = weekOffDayForDate($tr, date).toLowerCase();
 
             if (!type && status === 'Leave') type = 'PL';
             if (type.toUpperCase() === 'COFF' || type.toUpperCase() === 'C-OFF') type = 'C-Off';
@@ -554,14 +582,11 @@
             return names[dt.getDay()] || '';
         }
 
-        function rowWeekOffDay($td) {
-            var raw = ($td.closest('tr').attr('data-week-off') || 'Sunday').toString().trim();
-            return raw || 'Sunday';
-        }
-
         function isEmployeeWeekOffDay($td) {
-            var off = rowWeekOffDay($td).toLowerCase();
-            var day = weekdayName($td.data('date')).toLowerCase();
+            var $tr = $td.closest('tr');
+            var dateStr = String($td.attr('data-date') || $td.data('date') || '');
+            var off = weekOffDayForDate($tr, dateStr).toLowerCase();
+            var day = weekdayName(dateStr).toLowerCase();
             return off !== '' && day !== '' && off === day;
         }
 

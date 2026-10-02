@@ -169,9 +169,11 @@ $createdBy = (int) ($_SESSION['user_id'] ?? 0);
 $oldAadharFile = '';
 $oldPanFile = '';
 $oldPhotoFile = '';
+$oldRow = null;
+$oldWeekOffDay = '';
 
 if ($id > 0) {
-    $oldStmt = $conn->prepare('SELECT aadhar_file, pan_file, photo_file FROM employees WHERE id = ? LIMIT 1');
+    $oldStmt = $conn->prepare('SELECT aadhar_file, pan_file, photo_file, week_off_day, date_of_joining FROM employees WHERE id = ? LIMIT 1');
     $oldStmt->bind_param('i', $id);
     $oldStmt->execute();
     $oldRow = $oldStmt->get_result()->fetch_assoc();
@@ -180,6 +182,7 @@ if ($id > 0) {
         $oldAadharFile = (string) ($oldRow['aadhar_file'] ?? '');
         $oldPanFile = (string) ($oldRow['pan_file'] ?? '');
         $oldPhotoFile = (string) ($oldRow['photo_file'] ?? '');
+        $oldWeekOffDay = trim((string) ($oldRow['week_off_day'] ?? ''));
     }
 }
 
@@ -294,6 +297,16 @@ $stmt->close();
 if (!$ok) {
     $conn->close();
     die('Save failed: ' . htmlspecialchars($error) . ' <a href="javascript:history.back()">Go Back</a>');
+}
+
+// Week-off: apply from today forward — do not change back-dated attendance logic
+if ($savedId > 0 && $weekOffDay !== '') {
+    if ($id > 0) {
+        employeeRecordWeekOffChange($conn, $savedId, $oldWeekOffDay, $weekOffDay, date('Y-m-d'), $createdBy);
+    } else {
+        $seedFrom = ($doj !== '' ? $doj : date('Y-m-d'));
+        employeeSeedWeekOffHistory($conn, $savedId, $weekOffDay, $seedFrom, $createdBy);
+    }
 }
 
 if ($savedId > 0) {

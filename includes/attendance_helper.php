@@ -469,7 +469,13 @@ function attendanceRebuildDayStatus($conn, $employeeId, $month, $year)
     }
 
     $holidays = attendanceHolidaySet($conn, $year, $month, (int) ($emp['department_id'] ?? 0));
-    $weekOffName = trim((string) ($emp['week_off_day'] ?? 'Sunday'));
+    $weekOffFallback = trim((string) ($emp['week_off_day'] ?? 'Sunday'));
+    if ($weekOffFallback === '') {
+        $weekOffFallback = 'Sunday';
+    }
+    $weekOffHistory = function_exists('employeeWeekOffHistoryRows')
+        ? employeeWeekOffHistoryRows($employeeId, $conn)
+        : [];
     $joinDate = '';
     if (!empty($emp['date_of_joining']) && $emp['date_of_joining'] !== '0000-00-00') {
         $joinDate = substr((string) $emp['date_of_joining'], 0, 10);
@@ -576,6 +582,9 @@ function attendanceRebuildDayStatus($conn, $employeeId, $month, $year)
     for ($day = 1; $day <= $monthDays; $day++) {
         $date = sprintf('%04d-%02d-%02d', $year, $month, $day);
         $dow = date('l', strtotime($date));
+        $weekOffName = function_exists('employeeWeekOffDayFromHistory')
+            ? employeeWeekOffDayFromHistory($weekOffHistory, $date, $weekOffFallback)
+            : $weekOffFallback;
         $isWeekOff = ($weekOffName !== '' && strcasecmp($dow, $weekOffName) === 0);
         $isHoliday = isset($holidays[$date]);
         $list = $punchesByDate[$date] ?? [];
@@ -1505,9 +1514,14 @@ function attendanceBuildEmployeeMonthTotals(array $emp, array &$dayMapByDate, $m
     $month = (int) $month;
     $year = (int) $year;
     $monthDays = (int) date('t', mktime(0, 0, 0, $month, 1, $year));
-    $weekOffName = trim((string) ($emp['week_off_day'] ?? 'Sunday'));
-    if ($weekOffName === '') {
-        $weekOffName = 'Sunday';
+    $weekOffFallback = trim((string) ($emp['week_off_day'] ?? 'Sunday'));
+    if ($weekOffFallback === '') {
+        $weekOffFallback = 'Sunday';
+    }
+    $empId = (int) ($emp['id'] ?? 0);
+    $weekOffHistory = [];
+    if ($empId > 0 && function_exists('employeeWeekOffHistoryRows')) {
+        $weekOffHistory = employeeWeekOffHistoryRows($empId);
     }
 
     $joinDate = '';
@@ -1531,6 +1545,9 @@ function attendanceBuildEmployeeMonthTotals(array $emp, array &$dayMapByDate, $m
         $cell = $dayMapByDate[$date] ?? null;
         $status = trim((string) ($cell['day_status'] ?? ''));
         $dowName = date('l', strtotime($date));
+        $weekOffName = function_exists('employeeWeekOffDayFromHistory')
+            ? employeeWeekOffDayFromHistory($weekOffHistory, $date, $weekOffFallback)
+            : $weekOffFallback;
         $isCalWeekOff = (strcasecmp($dowName, $weekOffName) === 0);
         $isCalHoliday = isset($holidaySet[$date]);
         $cellSource = strtolower(trim((string) ($cell['source'] ?? '')));

@@ -285,6 +285,10 @@ if (isset($_GET['msg']) && $_GET['msg'] === 'saved') {
                             if ($empWeekOff === '') {
                                 $empWeekOff = 'Sunday';
                             }
+                            $woHist = function_exists('employeeWeekOffHistoryRows')
+                                ? employeeWeekOffHistoryRows($eid)
+                                : [];
+                            $woHistJson = htmlspecialchars(json_encode($woHist), ENT_QUOTES, 'UTF-8');
                             $empShift = attendanceResolveEmployeeShiftTimes($emp, $shifts, $defaultInDisp, $defaultOutDisp);
                             $fmtTot = static function ($n) {
                                 $n = (float) $n;
@@ -297,6 +301,7 @@ if (isset($_GET['msg']) && $_GET['msg'] === 'saved') {
                             <tr class="excel-emp-row"
                                 data-emp="<?php echo $eid; ?>"
                                 data-week-off="<?php echo htmlspecialchars($empWeekOff); ?>"
+                                data-week-off-history="<?php echo $woHistJson; ?>"
                                 data-shift-in="<?php echo htmlspecialchars($empShift['in']); ?>"
                                 data-shift-out="<?php echo htmlspecialchars($empShift['out']); ?>">
                                 <td class="sticky-col"><span class="code-badge"><?php echo htmlspecialchars($emp['employee_code']); ?></span></td>

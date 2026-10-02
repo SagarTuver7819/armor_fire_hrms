@@ -925,7 +925,10 @@ function leaveCountWorkingDays($conn, $employeeId, $fromDate, $toDate)
     }
 
     $emp = getEmployeeById($employeeId);
-    $weekOff = strtolower(trim((string) ($emp['week_off_day'] ?? 'Sunday')));
+    $weekOffFallback = strtolower(trim((string) ($emp['week_off_day'] ?? 'Sunday')));
+    $weekOffHistory = function_exists('employeeWeekOffHistoryRows')
+        ? employeeWeekOffHistoryRows($employeeId)
+        : [];
     $empDeptId = (int) ($emp['department_id'] ?? 0);
     $holidaySet = [];
     $y1 = (int) date('Y', $from);
@@ -948,6 +951,9 @@ function leaveCountWorkingDays($conn, $employeeId, $fromDate, $toDate)
     for ($ts = $from; $ts <= $to; $ts += 86400) {
         $date = date('Y-m-d', $ts);
         $dow = strtolower(date('l', $ts));
+        $weekOff = function_exists('employeeWeekOffDayFromHistory')
+            ? strtolower(employeeWeekOffDayFromHistory($weekOffHistory, $date, $weekOffFallback))
+            : $weekOffFallback;
         if ($weekOff !== '' && $dow === $weekOff) {
             continue;
         }
@@ -1144,7 +1150,10 @@ function leaveMarkAttendanceDays($conn, $employeeId, $fromDate, $toDate, $leaveC
     $from = strtotime($fromDate);
     $to = strtotime($toDate);
     $emp = getEmployeeById($employeeId);
-    $weekOff = strtolower(trim((string) ($emp['week_off_day'] ?? 'Sunday')));
+    $weekOffFallback = strtolower(trim((string) ($emp['week_off_day'] ?? 'Sunday')));
+    $weekOffHistory = function_exists('employeeWeekOffHistoryRows')
+        ? employeeWeekOffHistoryRows($employeeId, $conn)
+        : [];
     $empDeptId = (int) ($emp['department_id'] ?? 0);
     $leaveHalf = leaveNormalizeHalf($leaveHalf);
     $isHalf = in_array($leaveHalf, ['FHL', 'SHL'], true);
@@ -1164,6 +1173,9 @@ function leaveMarkAttendanceDays($conn, $employeeId, $fromDate, $toDate, $leaveC
     for ($ts = $from; $ts <= $to; $ts += 86400) {
         $date = date('Y-m-d', $ts);
         $dow = strtolower(date('l', $ts));
+        $weekOff = function_exists('employeeWeekOffDayFromHistory')
+            ? strtolower(employeeWeekOffDayFromHistory($weekOffHistory, $date, $weekOffFallback))
+            : $weekOffFallback;
         if ($weekOff !== '' && $dow === $weekOff) {
             continue;
         }

@@ -456,13 +456,13 @@ function getJobworkQtyTotal($employeeId, $month, $year)
     return round((float) ($cache['qty'][(int) $employeeId] ?? 0), 2);
 }
 
-function countWeekOffDaysInMonth($month, $year, $weekOffDay, $fromDate = null, $toDate = null)
+function countWeekOffDaysInMonth($month, $year, $weekOffDay, $fromDate = null, $toDate = null, $employeeId = 0)
 {
     $map = [
         'Sunday' => 0, 'Monday' => 1, 'Tuesday' => 2, 'Wednesday' => 3,
         'Thursday' => 4, 'Friday' => 5, 'Saturday' => 6,
     ];
-    $want = $map[(string) $weekOffDay] ?? 0;
+    $fallbackDay = (string) $weekOffDay;
     $monthStart = sprintf('%04d-%02d-01', $year, $month);
     $monthEnd = date('Y-m-t', strtotime($monthStart));
     $from = $monthStart;
@@ -482,10 +482,23 @@ function countWeekOffDaysInMonth($month, $year, $weekOffDay, $fromDate = null, $
     if ($from > $to) {
         return 0;
     }
+
+    $history = [];
+    $employeeId = (int) $employeeId;
+    if ($employeeId > 0 && function_exists('employeeWeekOffHistoryRows')) {
+        $history = employeeWeekOffHistoryRows($employeeId);
+    }
+
     $n = 0;
     $ts = strtotime($from);
     $endTs = strtotime($to);
     while ($ts !== false && $ts <= $endTs) {
+        $ymd = date('Y-m-d', $ts);
+        $dayName = $fallbackDay;
+        if ($history && function_exists('employeeWeekOffDayFromHistory')) {
+            $dayName = employeeWeekOffDayFromHistory($history, $ymd, $fallbackDay);
+        }
+        $want = $map[$dayName] ?? ($map['Sunday'] ?? 0);
         if ((int) date('w', $ts) === $want) {
             $n++;
         }
@@ -954,7 +967,8 @@ function getPayrollAttendanceBundle(array $emp, $month, $year, $actualAmount)
             $year,
             $emp['week_off_day'] ?? 'Sunday',
             $empFrom,
-            $empTo
+            $empTo,
+            (int) ($emp['id'] ?? 0)
         );
         $autoHoliday = (float) payrollCountHolidaysInMonth($year, $month, false, $empFrom, $empTo, (int) ($emp['department_id'] ?? 0));
         $autoPaidHoliday = (float) payrollCountHolidaysInMonth($year, $month, true, $empFrom, $empTo, (int) ($emp['department_id'] ?? 0));
@@ -965,7 +979,10 @@ function getPayrollAttendanceBundle(array $emp, $month, $year, $actualAmount)
                 'Sunday' => 0, 'Monday' => 1, 'Tuesday' => 2, 'Wednesday' => 3,
                 'Thursday' => 4, 'Friday' => 5, 'Saturday' => 6,
             ];
-            $want = $map[(string) ($emp['week_off_day'] ?? 'Sunday')] ?? 0;
+            $hist = function_exists('employeeWeekOffHistoryRows')
+                ? employeeWeekOffHistoryRows((int) ($emp['id'] ?? 0))
+                : [];
+            $fallbackWo = (string) ($emp['week_off_day'] ?? 'Sunday');
             $ts = strtotime($empFrom);
             $endTs = strtotime($empTo);
             static $holCache = [];
@@ -985,6 +1002,10 @@ function getPayrollAttendanceBundle(array $emp, $month, $year, $actualAmount)
             }
             while ($ts !== false && $ts <= $endTs) {
                 $d = date('Y-m-d', $ts);
+                $dayName = $hist && function_exists('employeeWeekOffDayFromHistory')
+                    ? employeeWeekOffDayFromHistory($hist, $d, $fallbackWo)
+                    : $fallbackWo;
+                $want = $map[$dayName] ?? 0;
                 if ((int) date('w', $ts) === $want && isset($holCache[$hk][$d])) {
                     $woOverlap++;
                 }

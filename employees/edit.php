@@ -772,6 +772,7 @@ $ob = empField($employee, 'overtime_benefits', 'No');
                                 </option>
                             <?php endif; ?>
                         </select>
+                        <small class="form-hint">Change applies from <strong>today</strong> onward. Past attendance / payroll days keep the previous week-off.</small>
                     </div>
                     <div class="form-group"><label>43. Week-off Benefits</label>
                         <div class="radio-row">
