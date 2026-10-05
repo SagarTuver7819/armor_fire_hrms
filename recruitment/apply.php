@@ -162,12 +162,16 @@ $descQuestions = recruitmentDescriptiveQuestions();
                     </div>
                     <div class="rec-field">
                         <label for="mobile">Mobile <em>*</em></label>
-                        <input type="tel" name="mobile" id="mobile" required maxlength="15"
-                               inputmode="numeric" pattern="[0-9]{10,15}" placeholder="10-digit mobile">
+                        <input type="tel" name="mobile" id="mobile" required maxlength="11"
+                               inputmode="numeric" pattern="[0-9]{10,11}" placeholder="10-digit mobile"
+                               autocomplete="tel">
+                        <small>Indian mobile · 10 or 11 digits only</small>
                     </div>
                     <div class="rec-field">
                         <label for="alt_mobile">Alternate Mobile</label>
-                        <input type="tel" name="alt_mobile" id="alt_mobile" maxlength="15" inputmode="numeric">
+                        <input type="tel" name="alt_mobile" id="alt_mobile" maxlength="11"
+                               inputmode="numeric" pattern="[0-9]{10,11}" placeholder="Optional · 10 or 11 digits"
+                               autocomplete="tel">
                     </div>
                     <div class="rec-field">
                         <label for="email">Email <em>*</em></label>
@@ -274,7 +278,7 @@ $descQuestions = recruitmentDescriptiveQuestions();
             <!-- Step 5: Reasoning Descriptive Questions -->
             <fieldset class="rec-panel" data-panel="5" hidden>
                 <legend>Reasoning Descriptive Questions</legend>
-                <p class="rec-hint">Answer in Hindi or English. Write clearly in the box under each question.</p>
+                <p class="rec-hint">Answer in Hindi or English. Maximum <strong>200 words</strong> per answer.</p>
                 <div class="rec-desc-list">
                     <?php foreach ($descQuestions as $qNo => $q): ?>
                     <div class="rec-desc-item">
@@ -286,12 +290,14 @@ $descQuestions = recruitmentDescriptiveQuestions();
                             </div>
                         </div>
                         <div class="rec-field">
-                            <label for="reason_<?php echo (int) $qNo; ?>">Your Answer</label>
+                            <label for="reason_<?php echo (int) $qNo; ?>">Your Answer <small>(max 200 words)</small></label>
                             <textarea name="reason[<?php echo (int) $qNo; ?>]"
                                       id="reason_<?php echo (int) $qNo; ?>"
+                                      class="rec-reason-answer"
                                       rows="3"
-                                      maxlength="5000"
-                                      placeholder="Type your answer here…"></textarea>
+                                      data-max-words="200"
+                                      placeholder="Type your answer here… (max 200 words)"></textarea>
+                            <small class="rec-word-count" data-for="reason_<?php echo (int) $qNo; ?>">0 / 200 words</small>
                         </div>
                     </div>
                     <?php endforeach; ?>

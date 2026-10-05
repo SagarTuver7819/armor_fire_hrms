@@ -201,15 +201,25 @@ body.rec-page {
 }
 .rec-desc-en {
     margin: 0;
-    font-size: 13px;
-    color: #64748b;
-    line-height: 1.45;
+    font-size: 15px;
+    font-weight: 700;
+    color: #1e293b;
+    line-height: 1.5;
     font-family: Calibri, 'Segoe UI', Arial, sans-serif;
 }
 .rec-desc-item .rec-field textarea {
     min-height: 88px;
     font-family: Calibri, 'Segoe UI', Arial, sans-serif;
 }
+.rec-word-count {
+    display: block;
+    margin-top: 4px;
+    font-size: 12px;
+    font-weight: 700;
+    color: #64748b;
+}
+.rec-word-count.is-near { color: #b45309; }
+.rec-word-count.is-over { color: #b91c1c; }
 
 .rec-grid {
     display: grid;

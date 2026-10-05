@@ -62,6 +62,78 @@
         showFormAlert(msg);
     }
 
+    /** Indian mobile: 10 digits (6–9…) or 11 digits starting with 0. Empty OK when not required. */
+    function isValidIndianMobile(digits, required) {
+        var d = String(digits || '').replace(/\D+/g, '');
+        if (d === '') return !required;
+        if (d.length === 10) return /^[6-9]\d{9}$/.test(d);
+        if (d.length === 11) return /^0[6-9]\d{9}$/.test(d);
+        return false;
+    }
+
+    function bindIndianMobileInput(el) {
+        if (!el) return;
+        el.addEventListener('input', function () {
+            var d = String(el.value || '').replace(/\D+/g, '');
+            if (d.length > 11) d = d.slice(0, 11);
+            el.value = d;
+        });
+        el.addEventListener('blur', function () {
+            var d = String(el.value || '').replace(/\D+/g, '');
+            el.value = d;
+            if (d !== '') {
+                markInvalid(el, !isValidIndianMobile(d, el.required));
+            }
+        });
+    }
+
+    var REASON_MAX_WORDS = 200;
+
+    function countWords(text) {
+        var t = String(text || '').trim();
+        if (!t) return 0;
+        return t.split(/\s+/).filter(Boolean).length;
+    }
+
+    function limitToWords(text, maxWords) {
+        var raw = String(text || '');
+        var trimmed = raw.trim();
+        if (!trimmed) return raw;
+        var parts = trimmed.split(/\s+/).filter(Boolean);
+        if (parts.length <= maxWords) return raw;
+        return parts.slice(0, maxWords).join(' ');
+    }
+
+    function updateReasonWordCount(ta) {
+        if (!ta) return;
+        var max = parseInt(ta.getAttribute('data-max-words'), 10) || REASON_MAX_WORDS;
+        var n = countWords(ta.value);
+        var counter = ta.parentNode ? ta.parentNode.querySelector('.rec-word-count') : null;
+        if (counter) {
+            counter.textContent = n + ' / ' + max + ' words';
+            counter.classList.toggle('is-over', n > max);
+            counter.classList.toggle('is-near', n >= max - 20 && n <= max);
+        }
+        markInvalid(ta, n > max);
+    }
+
+    function bindReasonWordLimits() {
+        var boxes = document.querySelectorAll('textarea.rec-reason-answer');
+        boxes.forEach(function (ta) {
+            var max = parseInt(ta.getAttribute('data-max-words'), 10) || REASON_MAX_WORDS;
+            var sync = function () {
+                var limited = limitToWords(ta.value, max);
+                if (limited !== ta.value) {
+                    ta.value = limited;
+                }
+                updateReasonWordCount(ta);
+            };
+            ta.addEventListener('input', sync);
+            ta.addEventListener('blur', sync);
+            updateReasonWordCount(ta);
+        });
+    }
+
     function hasExperienceFilled() {
         if (!expRows) return false;
         var cards = expRows.querySelectorAll('.rec-card[data-exp]');
@@ -233,14 +305,26 @@
 
         if (n === 2) {
             var mobile = document.getElementById('mobile');
+            var altMobile = document.getElementById('alt_mobile');
             var email = document.getElementById('email');
             if (mobile) {
                 var m = String(mobile.value || '').replace(/\D+/g, '');
-                var badM = m.length < 10;
+                mobile.value = m;
+                var badM = !isValidIndianMobile(m, true);
                 markInvalid(mobile, badM);
                 if (badM) {
                     ok = false;
-                    msg = 'Please enter a valid 10-digit mobile number.';
+                    msg = 'Please enter a valid Indian mobile (10 or 11 digits).';
+                }
+            }
+            if (altMobile) {
+                var am = String(altMobile.value || '').replace(/\D+/g, '');
+                altMobile.value = am;
+                var badAm = !isValidIndianMobile(am, false);
+                markInvalid(altMobile, badAm);
+                if (badAm) {
+                    ok = false;
+                    msg = 'Alternate mobile must be 10 or 11 digits (Indian number).';
                 }
             }
             if (email && email.value) {
@@ -282,6 +366,22 @@
                     markInvalid(toInput, true);
                     ok = false;
                     msg = 'To month cannot be before From month.';
+                }
+            });
+        }
+
+        if (n === 5) {
+            var reasonBoxes = panel.querySelectorAll('textarea.rec-reason-answer');
+            reasonBoxes.forEach(function (ta) {
+                var max = parseInt(ta.getAttribute('data-max-words'), 10) || REASON_MAX_WORDS;
+                var limited = limitToWords(ta.value, max);
+                if (limited !== ta.value) ta.value = limited;
+                updateReasonWordCount(ta);
+                var nWords = countWords(ta.value);
+                if (nWords > max) {
+                    markInvalid(ta, true);
+                    ok = false;
+                    msg = 'Each answer must be within 200 words.';
                 }
             });
         }
@@ -451,6 +551,10 @@
             Object.keys(reason).forEach(function (k) {
                 setFormValue('reason[' + k + ']', reason[k]);
             });
+            document.querySelectorAll('textarea.rec-reason-answer').forEach(function (ta) {
+                ta.value = limitToWords(ta.value, parseInt(ta.getAttribute('data-max-words'), 10) || REASON_MAX_WORDS);
+                updateReasonWordCount(ta);
+            });
         }
 
         updateExperienceTotals();
@@ -605,6 +709,10 @@
         dobInput.addEventListener('change', calcAgeFromDob);
         dobInput.addEventListener('input', calcAgeFromDob);
     }
+
+    bindIndianMobileInput(document.getElementById('mobile'));
+    bindIndianMobileInput(document.getElementById('alt_mobile'));
+    bindReasonWordLimits();
 
     // Init rows / restore
     if (draft.fields) {

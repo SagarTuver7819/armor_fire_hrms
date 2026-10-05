@@ -590,7 +590,7 @@ if (isset($_GET['msg'])) {
 }
 .rec-desc-view-item > strong { display: inline-block; color: #b91c1c; font-size: 12px; margin-bottom: 6px; }
 .rec-desc-view-q { font-size: 13px; font-weight: 700; color: #0f172a; line-height: 1.4; }
-.rec-desc-view-q.en { font-weight: 500; color: #64748b; margin-top: 2px; margin-bottom: 8px; }
+.rec-desc-view-q.en { font-weight: 700; color: #1e293b; font-size: 14px; margin-top: 2px; margin-bottom: 8px; }
 .rec-desc-view-a {
     font-size: 13px; color: #1e293b; line-height: 1.5; white-space: pre-wrap;
     background: #f8fafc; border-radius: 8px; padding: 10px 12px;

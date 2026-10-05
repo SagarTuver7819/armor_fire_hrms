@@ -67,8 +67,14 @@ if ($deptName === '') {
 if ($posName === '') {
     recruitmentRedirectError('Please enter position / designation.', 1);
 }
-if ($fullName === '' || strlen($mobile) < 10 || $email === '' || $address === '') {
+if ($fullName === '' || $email === '' || $address === '') {
     recruitmentRedirectError('Please fill all required personal details.', 2);
+}
+if (!preg_match('/^[6-9]\d{9}$/', $mobile) && !preg_match('/^0[6-9]\d{9}$/', $mobile)) {
+    recruitmentRedirectError('Please enter a valid Indian mobile number (10 or 11 digits).', 2);
+}
+if ($altMobile !== '' && !preg_match('/^[6-9]\d{9}$/', $altMobile) && !preg_match('/^0[6-9]\d{9}$/', $altMobile)) {
+    recruitmentRedirectError('Alternate mobile must be a valid Indian number (10 or 11 digits).', 2);
 }
 if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
     recruitmentRedirectError('Please enter a valid email address.', 2);
@@ -155,7 +161,14 @@ $descriptive = [];
 $reasonIn = $_POST['reason'] ?? [];
 if (is_array($reasonIn)) {
     foreach ($reasonIn as $qNo => $ans) {
-        $descriptive[(int) $qNo] = trim((string) $ans);
+        $text = trim((string) $ans);
+        if ($text !== '') {
+            $words = preg_split('/\s+/u', $text, -1, PREG_SPLIT_NO_EMPTY);
+            if (is_array($words) && count($words) > 200) {
+                recruitmentRedirectError('Each Reasoning answer must be within 200 words (Q' . (int) $qNo . ').', 5);
+            }
+        }
+        $descriptive[(int) $qNo] = $text;
     }
 }
 
