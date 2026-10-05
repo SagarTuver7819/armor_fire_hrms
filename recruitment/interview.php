@@ -326,6 +326,29 @@ if (isset($_GET['msg'])) {
             </div>
         </div>
 
+        <div class="view-card view-card-wide">
+            <div class="view-card-head">
+                <i class="fa-solid fa-comments"></i>
+                <div><h3>Reasoning Descriptive Questions</h3><p>Answers from career application</p></div>
+            </div>
+            <div class="view-body">
+                <?php if (empty($row['descriptive'])): ?>
+                    <p class="rec-iv-empty">No descriptive answers.</p>
+                <?php else: ?>
+                    <div class="rec-desc-view">
+                        <?php foreach ($row['descriptive'] as $dq): ?>
+                            <div class="rec-desc-view-item">
+                                <strong>Q<?php echo (int) ($dq['question_no'] ?? 0); ?></strong>
+                                <div class="rec-desc-view-q"><?php echo htmlspecialchars((string) ($dq['question_hi'] ?? '')); ?></div>
+                                <div class="rec-desc-view-q en"><?php echo htmlspecialchars((string) ($dq['question_en'] ?? '')); ?></div>
+                                <div class="rec-desc-view-a"><?php echo nl2br(htmlspecialchars(trim((string) ($dq['answer'] ?? '')) !== '' ? (string) $dq['answer'] : '—')); ?></div>
+                            </div>
+                        <?php endforeach; ?>
+                    </div>
+                <?php endif; ?>
+            </div>
+        </div>
+
         <?php if ($canEdit): ?>
         <!-- Live interview matrix -->
         <div class="view-card view-card-wide" id="recCriteria">
@@ -561,6 +584,17 @@ if (isset($_GET['msg'])) {
 }
 .rec-iv-doc.is-empty { background: #f8fafc; border-color: #e2e8f0; color: #94a3b8; }
 .rec-iv-empty { margin: 0; color: #94a3b8; font-weight: 600; }
+.rec-desc-view { display: flex; flex-direction: column; gap: 12px; }
+.rec-desc-view-item {
+    border: 1px solid #e2e8f0; border-radius: 10px; padding: 12px 14px; background: #fff;
+}
+.rec-desc-view-item > strong { display: inline-block; color: #b91c1c; font-size: 12px; margin-bottom: 6px; }
+.rec-desc-view-q { font-size: 13px; font-weight: 700; color: #0f172a; line-height: 1.4; }
+.rec-desc-view-q.en { font-weight: 500; color: #64748b; margin-top: 2px; margin-bottom: 8px; }
+.rec-desc-view-a {
+    font-size: 13px; color: #1e293b; line-height: 1.5; white-space: pre-wrap;
+    background: #f8fafc; border-radius: 8px; padding: 10px 12px;
+}
 .rec-matrix { display: flex; flex-direction: column; gap: 10px; }
 .rec-matrix-row {
     display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(180px, 0.8fr);

@@ -11,7 +11,7 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
-function recruitmentRedirectError($msg, $step = 5)
+function recruitmentRedirectError($msg, $step = 6)
 {
     // Keep typed data (files cannot be restored)
     $draft = $_POST;
@@ -32,7 +32,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 
 // post_max_size exceeded → PHP empties $_POST / $_FILES
 if (empty($_POST) && empty($_FILES)) {
-    recruitmentRedirectError('Form data was empty (file may be too large). Please keep each file under 5 MB and try again.', 5);
+    recruitmentRedirectError('Form data was empty (file may be too large). Please keep each file under 5 MB and try again.', 6);
 }
 
 ensureRecruitmentTables();
@@ -74,23 +74,23 @@ if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
     recruitmentRedirectError('Please enter a valid email address.', 2);
 }
 if ($expectedSalary === '') {
-    recruitmentRedirectError('Please enter expected salary.', 5);
+    recruitmentRedirectError('Please enter expected salary.', 6);
 }
 if (!$declare) {
-    recruitmentRedirectError('Please accept the declaration to submit.', 5);
+    recruitmentRedirectError('Please accept the declaration to submit.', 6);
 }
 
 $bankUp = recruitmentUploadFile('bank_statement', 'bank');
 if (!$bankUp['ok']) {
-    recruitmentRedirectError($bankUp['error'], 5);
+    recruitmentRedirectError($bankUp['error'], 6);
 }
 $slipUp = recruitmentUploadFile('salary_slip', 'slip');
 if (!$slipUp['ok']) {
-    recruitmentRedirectError($slipUp['error'], 5);
+    recruitmentRedirectError($slipUp['error'], 6);
 }
 $resumeUp = recruitmentUploadFile('resume_file', 'resume');
 if (!$resumeUp['ok']) {
-    recruitmentRedirectError($resumeUp['error'], 5);
+    recruitmentRedirectError($resumeUp['error'], 6);
 }
 
 $education = [];
@@ -151,6 +151,14 @@ if ($hasExperience && $bankUp['path'] === '' && $slipUp['path'] === '') {
 
 $totalExp = recruitmentCalculateTotalExperience($experience);
 
+$descriptive = [];
+$reasonIn = $_POST['reason'] ?? [];
+if (is_array($reasonIn)) {
+    foreach ($reasonIn as $qNo => $ans) {
+        $descriptive[(int) $qNo] = trim((string) $ans);
+    }
+}
+
 $data = [
     'department_id' => 0,
     'designation_id' => 0,
@@ -184,10 +192,10 @@ $data = [
     'user_agent' => (string) ($_SERVER['HTTP_USER_AGENT'] ?? ''),
 ];
 
-$res = saveRecruitmentApplication($data, $education, $experience);
+$res = saveRecruitmentApplication($data, $education, $experience, $descriptive);
 
 if (empty($res['ok'])) {
-    recruitmentRedirectError($res['error'] ?? 'Could not submit application. Please try again.', 5);
+    recruitmentRedirectError($res['error'] ?? 'Could not submit application. Please try again.', 6);
 }
 
 unset($_SESSION['recruitment_draft']);

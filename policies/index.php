@@ -132,8 +132,8 @@ if (isset($_GET['msg'])) {
     </div>
 
     <div class="form-page-card" style="margin-top:14px;">
-        <div class="form-page-header" style="margin-bottom:12px;padding-bottom:10px;">
-            <h2 style="margin:0;font-size:18px;font-weight:800;color:#0f172a;">Policy Index</h2>
+        <div class="form-page-header" style="margin-bottom:12px;padding:12px 16px;text-align:center;background:linear-gradient(135deg,#fef2f2 0%,#fff7ed 100%);border:1px solid #fecaca;border-radius:10px;">
+            <h2 style="margin:0;font-size:20px;font-weight:800;color:#b91c1c;letter-spacing:0.02em;">Policy Index</h2>
         </div>
         <div class="table-wrap">
             <table class="data-table">

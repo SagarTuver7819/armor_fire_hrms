@@ -44,7 +44,7 @@ $restoreStep = 1;
 if (!empty($_SESSION['recruitment_draft']) && is_array($_SESSION['recruitment_draft'])) {
     $draft = $_SESSION['recruitment_draft'];
     $toastError = trim((string) ($draft['error'] ?? ''));
-    $restoreStep = max(1, min(5, (int) ($draft['step'] ?? 5)));
+    $restoreStep = max(1, min(6, (int) ($draft['step'] ?? 6)));
     unset($_SESSION['recruitment_draft']);
 }
 if ($toastError === '' && isset($_GET['err'])) {
@@ -54,6 +54,7 @@ if ($toastError === '' && isset($_GET['err'])) {
 $cssV = (int) @filemtime(__DIR__ . '/../assets/css/recruitment_apply.css');
 $jsV = (int) @filemtime(__DIR__ . '/../assets/js/recruitment_apply.js');
 $hasDraft = is_array($draft) && !empty($draft['fields']);
+$descQuestions = recruitmentDescriptiveQuestions();
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -118,7 +119,8 @@ $hasDraft = is_array($draft) && !empty($draft['fields']);
             <button type="button" class="rec-step" data-step="2"><span>2</span> Personal</button>
             <button type="button" class="rec-step" data-step="3"><span>3</span> Education</button>
             <button type="button" class="rec-step" data-step="4"><span>4</span> Experience</button>
-            <button type="button" class="rec-step" data-step="5"><span>5</span> Salary</button>
+            <button type="button" class="rec-step" data-step="5"><span>5</span> Reasoning</button>
+            <button type="button" class="rec-step" data-step="6"><span>6</span> Salary</button>
         </div>
 
         <form method="POST"
@@ -269,8 +271,35 @@ $hasDraft = is_array($draft) && !empty($draft['fields']);
                 </button>
             </fieldset>
 
-            <!-- Step 5: Salary + docs -->
+            <!-- Step 5: Reasoning Descriptive Questions -->
             <fieldset class="rec-panel" data-panel="5" hidden>
+                <legend>Reasoning Descriptive Questions</legend>
+                <p class="rec-hint">Answer in Hindi or English. Write clearly in the box under each question.</p>
+                <div class="rec-desc-list">
+                    <?php foreach ($descQuestions as $qNo => $q): ?>
+                    <div class="rec-desc-item">
+                        <div class="rec-desc-qhead">
+                            <span class="rec-desc-no">Q<?php echo (int) $qNo; ?></span>
+                            <div class="rec-desc-text">
+                                <p class="rec-desc-hi" lang="hi"><?php echo htmlspecialchars($q['hi']); ?></p>
+                                <p class="rec-desc-en" lang="en"><?php echo htmlspecialchars($q['en']); ?></p>
+                            </div>
+                        </div>
+                        <div class="rec-field">
+                            <label for="reason_<?php echo (int) $qNo; ?>">Your Answer</label>
+                            <textarea name="reason[<?php echo (int) $qNo; ?>]"
+                                      id="reason_<?php echo (int) $qNo; ?>"
+                                      rows="3"
+                                      maxlength="5000"
+                                      placeholder="Type your answer here…"></textarea>
+                        </div>
+                    </div>
+                    <?php endforeach; ?>
+                </div>
+            </fieldset>
+
+            <!-- Step 6: Salary + docs -->
+            <fieldset class="rec-panel" data-panel="6" hidden>
                 <legend>Current Salary &amp; Documents</legend>
                 <div class="rec-grid">
                     <div class="rec-field">

@@ -119,7 +119,7 @@ body.rec-page {
 .rec-form-shell { padding: 16px; }
 .rec-steps {
     display: grid;
-    grid-template-columns: repeat(5, 1fr);
+    grid-template-columns: repeat(6, 1fr);
     gap: 6px;
     margin-bottom: 16px;
 }
@@ -157,6 +157,59 @@ body.rec-page {
     font-size: 18px; font-weight: 800; margin-bottom: 12px; padding: 0;
 }
 .rec-hint { margin: 0 0 12px; color: var(--muted); font-size: 13px; }
+
+.rec-desc-list {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+.rec-desc-item {
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    padding: 14px 14px 12px;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+.rec-desc-qhead {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+    margin-bottom: 10px;
+}
+.rec-desc-no {
+    flex: 0 0 auto;
+    min-width: 40px;
+    height: 28px;
+    padding: 0 8px;
+    border-radius: 999px;
+    background: #fef2f2;
+    color: var(--brand);
+    font-size: 12px;
+    font-weight: 800;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+.rec-desc-text { min-width: 0; flex: 1; }
+.rec-desc-hi {
+    margin: 0 0 4px;
+    font-size: 14px;
+    font-weight: 700;
+    color: #111827;
+    line-height: 1.45;
+    font-family: Calibri, 'Segoe UI', Arial, sans-serif;
+}
+.rec-desc-en {
+    margin: 0;
+    font-size: 13px;
+    color: #64748b;
+    line-height: 1.45;
+    font-family: Calibri, 'Segoe UI', Arial, sans-serif;
+}
+.rec-desc-item .rec-field textarea {
+    min-height: 88px;
+    font-family: Calibri, 'Segoe UI', Arial, sans-serif;
+}
 
 .rec-grid {
     display: grid;
@@ -346,7 +399,7 @@ body.rec-page {
 
 @media (max-width: 720px) {
     .rec-wrap { padding: 12px 12px 28px; }
-    .rec-steps { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 4px; }
+    .rec-steps { grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 4px; }
     .rec-step { font-size: 0; gap: 0; padding: 10px 4px; min-height: 44px; }
     .rec-step span { font-size: 12px; }
     .rec-grid { grid-template-columns: 1fr; }

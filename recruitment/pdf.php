@@ -363,6 +363,27 @@ $cell = static function ($label, $value, $span = 1) {
     </div>
 
     <div class="sec">
+        <h2 class="sec-h">Reasoning Descriptive Questions</h2>
+        <table class="grid">
+            <thead><tr><th style="width:40px;">#</th><th>Question (HI / EN)</th><th style="width:40%;">Answer</th></tr></thead>
+            <tbody>
+            <?php if (empty($row['descriptive'])): ?>
+                <tr><td colspan="3">—</td></tr>
+            <?php else: foreach ($row['descriptive'] as $dq): ?>
+                <tr>
+                    <td><?php echo (int) ($dq['question_no'] ?? 0); ?></td>
+                    <td>
+                        <div><?php echo htmlspecialchars((string) ($dq['question_hi'] ?? '')); ?></div>
+                        <div style="color:#64748b;margin-top:4px;"><?php echo htmlspecialchars((string) ($dq['question_en'] ?? '')); ?></div>
+                    </td>
+                    <td><?php echo nl2br(htmlspecialchars(trim((string) ($dq['answer'] ?? '')) !== '' ? (string) $dq['answer'] : '—')); ?></td>
+                </tr>
+            <?php endforeach; endif; ?>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="sec">
         <h2 class="sec-h">HR Round · Interview Matrix
             <small>(<?php echo htmlspecialchars((string) ($row['position_name'] ?: 'All Positions')); ?>)</small>
         </h2>

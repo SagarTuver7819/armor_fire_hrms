@@ -18,7 +18,7 @@
     var totalExpBox = document.getElementById('recExpTotalBox');
     var totalExpText = document.getElementById('recExpTotalText');
     var step = 1;
-    var maxStep = 5;
+    var maxStep = 6;
     var eduIndex = 0;
     var expIndex = 0;
     var draft = window.REC_DRAFT || {};
@@ -286,7 +286,7 @@
             });
         }
 
-        if (n === 5) {
+        if (n === 6) {
             var bank = document.getElementById('bank_statement');
             var slip = document.getElementById('salary_slip');
             var hasFile = (bank && bank.files && bank.files.length) || (slip && slip.files && slip.files.length);
@@ -445,6 +445,13 @@
             });
         }
         if (!expRows || !expRows.children.length) addExp();
+
+        var reason = fields.reason;
+        if (reason && typeof reason === 'object') {
+            Object.keys(reason).forEach(function (k) {
+                setFormValue('reason[' + k + ']', reason[k]);
+            });
+        }
 
         updateExperienceTotals();
     }
@@ -608,7 +615,7 @@
         }
         restoreDraft();
         calcAgeFromDob();
-        showStep(parseInt(draft.step, 10) || 5);
+        showStep(parseInt(draft.step, 10) || 6);
         if (draft.error) {
             setTimeout(function () { showFormAlert(draft.error); }, 250);
         }

@@ -83,6 +83,20 @@ if (!function_exists('ensureRecruitmentTables')) {
         );
 
         $conn->query(
+            "CREATE TABLE IF NOT EXISTS recruitment_descriptive_answers (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                application_id INT NOT NULL,
+                question_no INT NOT NULL,
+                question_hi TEXT,
+                question_en TEXT,
+                answer TEXT,
+                sort_order INT NOT NULL DEFAULT 0,
+                UNIQUE KEY uq_rec_desc_app_q (application_id, question_no),
+                INDEX idx_rec_desc_app (application_id)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+        );
+
+        $conn->query(
             "CREATE TABLE IF NOT EXISTS recruitment_followups (
                 id INT AUTO_INCREMENT PRIMARY KEY,
                 application_id INT NOT NULL,
@@ -272,6 +286,155 @@ if (!function_exists('ensureRecruitmentTables')) {
         }
 
         return app_full_url($path);
+    }
+
+    /**
+     * Reasoning / descriptive questions (Hindi + English) for apply form.
+     * Keys keep published question numbers (15 intentionally omitted).
+     *
+     * @return array<int, array{hi:string,en:string}>
+     */
+    function recruitmentDescriptiveQuestions()
+    {
+        return [
+            1 => [
+                'hi' => 'अपना इंट्रोडक्शन दीजिए, जिसमें आपकी एजुकेशन, आपके अनुभव की जानकारी और फैमिली डिटेल दीजिए।',
+                'en' => 'Give your introduction, including your education, details of your experience, and family details.',
+            ],
+            2 => [
+                'hi' => 'आप सेल्स फील्ड में कितने समय से हैं?',
+                'en' => 'How long have you been in the sales field?',
+            ],
+            3 => [
+                'hi' => 'आप सेल्स फील्ड क्यों पसंद करते हैं, यह बताइए।',
+                'en' => 'Please explain why you prefer the sales field.',
+            ],
+            4 => [
+                'hi' => 'आप अपने शौक के बारे में कुछ बताएँगे?',
+                'en' => 'Please tell us something about your hobbies?',
+            ],
+            5 => [
+                'hi' => 'सेल्स फील्ड के अंदर आते हुए हार्डकोर फेस करने के लिए आप किस प्रकार की स्किल का उपयोग करते थे और उस सिचुएशन को आप किस तरह हैंडल करते थे?',
+                'en' => 'While working in the sales field, what type of skills did you use to face difficult situations, and how did you handle those situations?',
+            ],
+            6 => [
+                'hi' => 'कोई भी सेल्स को क्लोजिंग करने के लिए मिनिमम आपको कितनी विजिट करनी पड़ती थी और मिनिमम विजिट कम्प्लीट करने में कितने दिन लगते थे?',
+                'en' => 'To close any sales, what was the minimum number of visits you had to make, and how many days did it take to complete the minimum visits?',
+            ],
+            7 => [
+                'hi' => 'पिछली कंपनी में नौकरी करते हुए उसमें क्या प्रोडक्ट रेंज थी?',
+                'en' => 'What was the product range in the previous company where you worked?',
+            ],
+            8 => [
+                'hi' => 'तमाम प्रोडक्ट रेंज को सेल करने के लिए आप कौन-सी स्ट्रेटेजी अपनाते थे?',
+                'en' => 'What strategy did you use to sell the entire product range?',
+            ],
+            9 => [
+                'hi' => 'एक्सेल स्प्रेडशीट की लाइन में टाइम मैनेजमेंट का क्या महत्व हो सकता है, उसके बारे में आप कुछ बताएँगे?',
+                'en' => 'What importance can time management have in the Sales person line? Please explain.',
+            ],
+            10 => [
+                'hi' => 'पिछली कंपनियों में आपको क्या टारगेट दिए जाते थे और उसमें आपका अचीवमेंट क्या था, उसके बारे में हमें बताइए।',
+                'en' => 'What targets were given to you in your previous companies, and what was your achievement against those targets? Please explain.',
+            ],
+            11 => [
+                'hi' => 'कोई भी सेल्स फाइनल नहीं हो तो उसके लिए आप क्या करते हो? डी-मोटिवेट हो जाते हो तो उस समय आप क्या करते हो?',
+                'en' => 'If any sales does not get finalized, what do you do? If you become demotivated, what do you do at that time?',
+            ],
+            12 => [
+                'hi' => 'किसी कस्टमर से बिजनेस आने में कितना समय लगता है और उसे मैनेज करने में कितना समय लगेगा?',
+                'en' => 'How much time does it take to get business from a customer, and how much time does it take to manage it?',
+            ],
+            13 => [
+                'hi' => 'यदि कोई कस्टमर की शिकायत आए तो आप किस तरह हैंडल करते हो?',
+                'en' => 'If any customer complaint comes, how do you handle it?',
+            ],
+            14 => [
+                'hi' => 'क्या आपने कभी टीम के साथ काम किया है? आपकी टीम में कितने सदस्य थे और आप किस तरह टीम के साथ कोऑर्डिनेट करते थे?',
+                'en' => 'Have you ever worked with a team? How many members were there in your team, and how did you coordinate with the team?',
+            ],
+            16 => [
+                'hi' => 'आप Sales Field में कौन-कौन सी चुनौतियाँ स्वीकार करना चाहेंगे? कृपया 5 चुनौतियाँ बताइए।',
+                'en' => 'Which challenges would you like to accept in the Sales Field? Please tell me 5 challenges.',
+            ],
+            17 => [
+                'hi' => 'आप किसी चुनौतीपूर्ण परिस्थिति का सामना कैसे करेंगे? एक उदाहरण दीजिए।',
+                'en' => 'How do you overcome a challenging situation? Give an example.',
+            ],
+            18 => [
+                'hi' => 'यदि आपको किसी ग्राहक से Appointment नहीं मिलता है, तो आप क्या करेंगे?',
+                'en' => 'What will you do if you do not get an appointment with a customer?',
+            ],
+        ];
+    }
+
+    function recruitmentSaveDescriptiveAnswers($applicationId, array $answers, $conn = null)
+    {
+        $applicationId = (int) $applicationId;
+        if ($applicationId <= 0) {
+            return false;
+        }
+        $close = false;
+        if ($conn === null) {
+            $conn = getDBConnection();
+            $close = true;
+        }
+        ensureRecruitmentTables($conn);
+        $questions = recruitmentDescriptiveQuestions();
+        $conn->query('DELETE FROM recruitment_descriptive_answers WHERE application_id = ' . $applicationId);
+        $sort = 0;
+        foreach ($questions as $qNo => $q) {
+            $ans = trim((string) ($answers[(int) $qNo] ?? $answers[(string) $qNo] ?? ''));
+            $conn->query(
+                'INSERT INTO recruitment_descriptive_answers
+                 (application_id, question_no, question_hi, question_en, answer, sort_order)
+                 VALUES (' .
+                    $applicationId . ',' .
+                    (int) $qNo . ',' .
+                    recruitmentSqlStr($conn, $q['hi'] ?? '') . ',' .
+                    recruitmentSqlStr($conn, $q['en'] ?? '') . ',' .
+                    recruitmentSqlStr($conn, $ans) . ',' .
+                    (int) $sort .
+                ')'
+            );
+            $sort++;
+        }
+        if ($close) {
+            $conn->close();
+        }
+        return true;
+    }
+
+    function recruitmentDescriptiveAnswers($applicationId, $conn = null)
+    {
+        $applicationId = (int) $applicationId;
+        if ($applicationId <= 0) {
+            return [];
+        }
+        $close = false;
+        if ($conn === null) {
+            $conn = getDBConnection();
+            $close = true;
+        }
+        ensureRecruitmentTables($conn);
+        $rows = [];
+        $st = $conn->prepare(
+            'SELECT question_no, question_hi, question_en, answer, sort_order
+             FROM recruitment_descriptive_answers
+             WHERE application_id = ?
+             ORDER BY sort_order ASC, question_no ASC'
+        );
+        $st->bind_param('i', $applicationId);
+        $st->execute();
+        $res = $st->get_result();
+        while ($r = $res->fetch_assoc()) {
+            $rows[] = $r;
+        }
+        $st->close();
+        if ($close) {
+            $conn->close();
+        }
+        return $rows;
     }
 
     function recruitmentUploadDir()
@@ -958,6 +1121,7 @@ if (!function_exists('ensureRecruitmentTables')) {
 
         $row['education'] = $edu;
         $row['experience'] = $exp;
+        $row['descriptive'] = recruitmentDescriptiveAnswers($id, $conn);
         $row['followups'] = recruitmentFollowups($id, $conn);
         if (empty($row['age_years']) && !empty($row['dob'])) {
             $row['age_years'] = recruitmentCalcAgeYears($row['dob']);
@@ -968,7 +1132,7 @@ if (!function_exists('ensureRecruitmentTables')) {
         return $row;
     }
 
-    function saveRecruitmentApplication(array $data, array $education, array $experience, $conn = null)
+    function saveRecruitmentApplication(array $data, array $education, array $experience, array $descriptive = [], $conn = null)
     {
         $close = false;
         if ($conn === null) {
@@ -1078,6 +1242,8 @@ if (!function_exists('ensureRecruitmentTables')) {
             );
             $j++;
         }
+
+        recruitmentSaveDescriptiveAnswers($appId, $descriptive, $conn);
 
         if ($close) {
             $conn->close();
