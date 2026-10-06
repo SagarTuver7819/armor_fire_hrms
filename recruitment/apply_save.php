@@ -64,9 +64,11 @@ $ageYears = recruitmentCalcAgeYears($dob);
 if ($deptName === '') {
     recruitmentRedirectError('Please enter department.', 1);
 }
-if ($posName === '') {
-    recruitmentRedirectError('Please enter position / designation.', 1);
+$allowedPositions = ['Sales', 'Other'];
+if ($posName === '' || !in_array($posName, $allowedPositions, true)) {
+    recruitmentRedirectError('Please select Position / Designation: Sales or Other.', 1);
 }
+$isSalesPosition = ($posName === 'Sales');
 if ($fullName === '' || $email === '' || $address === '') {
     recruitmentRedirectError('Please fill all required personal details.', 2);
 }
@@ -152,25 +154,32 @@ foreach ($experience as $exRow) {
 
 // Employed candidates must upload bank statement OR salary slip; freshers may skip.
 if ($hasExperience && $bankUp['path'] === '' && $slipUp['path'] === '') {
-    recruitmentRedirectError('Please upload last 3 months bank statement or salary slip.', 5);
+    recruitmentRedirectError('Please upload last 3 months bank statement or salary slip.', 6);
 }
 
 $totalExp = recruitmentCalculateTotalExperience($experience);
 
 $descriptive = [];
 $reasonIn = $_POST['reason'] ?? [];
-if (is_array($reasonIn)) {
+if ($isSalesPosition && is_array($reasonIn)) {
     foreach ($reasonIn as $qNo => $ans) {
         $text = trim((string) $ans);
         if ($text !== '') {
-            $words = preg_split('/\s+/u', $text, -1, PREG_SPLIT_NO_EMPTY);
-            if (is_array($words) && count($words) > 200) {
+            $parts = preg_split('/\s+/u', $text, -1, PREG_SPLIT_NO_EMPTY);
+            if (is_array($parts) && count($parts) > 200) {
                 recruitmentRedirectError('Each Reasoning answer must be within 200 words (Q' . (int) $qNo . ').', 5);
             }
         }
         $descriptive[(int) $qNo] = $text;
     }
+    // Sales → every reasoning question is compulsory
+    foreach (recruitmentDescriptiveQuestions() as $qNo => $_q) {
+        if (trim((string) ($descriptive[(int) $qNo] ?? '')) === '') {
+            recruitmentRedirectError('Please answer all Reasoning questions (compulsory for Sales). Missing Q' . (int) $qNo . '.', 5);
+        }
+    }
 }
+// Other → Reasoning section skipped; store no descriptive answers
 
 $data = [
     'department_id' => 0,

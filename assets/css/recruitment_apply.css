@@ -123,6 +123,12 @@ body.rec-page {
     gap: 6px;
     margin-bottom: 16px;
 }
+.rec-steps.rec-steps--no-reason {
+    grid-template-columns: repeat(5, 1fr);
+}
+.rec-steps.rec-steps--no-reason .rec-step[data-step="5"] {
+    display: none !important;
+}
 .rec-step {
     border: 1px solid var(--line);
     background: #fafafa;
@@ -410,6 +416,7 @@ body.rec-page {
 @media (max-width: 720px) {
     .rec-wrap { padding: 12px 12px 28px; }
     .rec-steps { grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 4px; }
+    .rec-steps.rec-steps--no-reason { grid-template-columns: repeat(5, minmax(0, 1fr)); }
     .rec-step { font-size: 0; gap: 0; padding: 10px 4px; min-height: 44px; }
     .rec-step span { font-size: 12px; }
     .rec-grid { grid-template-columns: 1fr; }

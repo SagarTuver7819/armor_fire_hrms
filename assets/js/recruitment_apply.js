@@ -211,6 +211,45 @@
         setBtnVisible(submitBtn, step === maxStep);
     }
 
+    function isSalesPosition() {
+        var el = document.getElementById('position_name');
+        return !!(el && String(el.value || '').trim().toLowerCase() === 'sales');
+    }
+
+    function nextStepFrom(n) {
+        if (n === 4 && !isSalesPosition()) return 6;
+        return Math.min(maxStep, n + 1);
+    }
+
+    function prevStepFrom(n) {
+        if (n === 6 && !isSalesPosition()) return 4;
+        return Math.max(1, n - 1);
+    }
+
+    function syncReasoningStepVisibility() {
+        var sales = isSalesPosition();
+        var stepsEl = document.getElementById('recSteps');
+        if (stepsEl) {
+            stepsEl.classList.toggle('rec-steps--no-reason', !sales);
+        }
+        stepBtns.forEach(function (b) {
+            if (parseInt(b.getAttribute('data-step'), 10) === 5) {
+                setBtnVisible(b, sales);
+            }
+        });
+        document.querySelectorAll('textarea.rec-reason-answer').forEach(function (ta) {
+            if (sales) {
+                ta.setAttribute('required', 'required');
+            } else {
+                ta.removeAttribute('required');
+                markInvalid(ta, false);
+            }
+        });
+        if (!sales && step === 5) {
+            showStep(6);
+        }
+    }
+
     function syncCurrentJob(card) {
         if (!card) return;
         var chk = card.querySelector('input[type="checkbox"][name*="[current]"]');
@@ -266,8 +305,13 @@
         });
         stepBtns.forEach(function (b) {
             var id = parseInt(b.getAttribute('data-step'), 10);
+            var sales = isSalesPosition();
+            var done = id < step;
+            if (!sales && id === 5 && step >= 6) {
+                done = true;
+            }
             b.classList.toggle('is-active', id === step);
-            b.classList.toggle('is-done', id < step);
+            b.classList.toggle('is-done', done && !(id === step));
         });
         syncNavButtons();
         if (step === 4) updateExperienceTotals();
@@ -284,6 +328,9 @@
     }
 
     function validateStep(n, silent) {
+        if (n === 5 && !isSalesPosition()) {
+            return true;
+        }
         var panel = document.querySelector('.rec-panel[data-panel="' + n + '"]');
         if (!panel) return true;
         var ok = true;
@@ -378,10 +425,16 @@
                 if (limited !== ta.value) ta.value = limited;
                 updateReasonWordCount(ta);
                 var nWords = countWords(ta.value);
-                if (nWords > max) {
+                if (nWords <= 0) {
+                    markInvalid(ta, true);
+                    ok = false;
+                    msg = 'Please answer all Reasoning questions (compulsory for Sales).';
+                } else if (nWords > max) {
                     markInvalid(ta, true);
                     ok = false;
                     msg = 'Each answer must be within 200 words.';
+                } else {
+                    markInvalid(ta, false);
                 }
             });
         }
@@ -558,6 +611,7 @@
         }
 
         updateExperienceTotals();
+        syncReasoningStepVisibility();
     }
 
     if (startBtn) {
@@ -567,6 +621,7 @@
                 shell.hidden = false;
                 shell.removeAttribute('hidden');
             }
+            syncReasoningStepVisibility();
             showStep(1);
         });
     }
@@ -574,25 +629,29 @@
     if (nextBtn) {
         nextBtn.addEventListener('click', function () {
             if (!validateStep(step)) return;
-            showStep(step + 1);
+            showStep(nextStepFrom(step));
         });
     }
 
     if (prevBtn) {
         prevBtn.addEventListener('click', function () {
             // Keep all filled data — only change visible step
-            showStep(step - 1);
+            showStep(prevStepFrom(step));
         });
     }
 
     stepBtns.forEach(function (btn) {
         btn.addEventListener('click', function () {
             var target = parseInt(btn.getAttribute('data-step'), 10);
+            if (target === 5 && !isSalesPosition()) {
+                return;
+            }
             if (target < step) {
                 showStep(target);
                 return;
             }
             for (var i = step; i < target; i++) {
+                if (i === 5 && !isSalesPosition()) continue;
                 if (!validateStep(i)) {
                     showStep(i);
                     return;
@@ -601,6 +660,13 @@
             showStep(target);
         });
     });
+
+    var positionSelect = document.getElementById('position_name');
+    if (positionSelect) {
+        positionSelect.addEventListener('change', function () {
+            syncReasoningStepVisibility();
+        });
+    }
 
     if (addEduBtn) addEduBtn.addEventListener('click', function () { addEdu(); });
     if (addExpBtn) addExpBtn.addEventListener('click', function () { addExp(); });
@@ -656,6 +722,7 @@
             }
 
             for (var i = 1; i <= maxStep; i++) {
+                if (i === 5 && !isSalesPosition()) continue;
                 if (!validateStep(i)) {
                     showStep(i);
                     return;
@@ -723,13 +790,19 @@
         }
         restoreDraft();
         calcAgeFromDob();
-        showStep(parseInt(draft.step, 10) || 6);
+        syncReasoningStepVisibility();
+        var restoreStep = parseInt(draft.step, 10) || 6;
+        if (restoreStep === 5 && !isSalesPosition()) {
+            restoreStep = 6;
+        }
+        showStep(restoreStep);
         if (draft.error) {
             setTimeout(function () { showFormAlert(draft.error); }, 250);
         }
     } else {
         addEdu();
         addExp();
+        syncReasoningStepVisibility();
         syncNavButtons();
         if (draft.error) {
             if (intro) intro.hidden = true;

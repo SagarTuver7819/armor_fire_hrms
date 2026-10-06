@@ -144,9 +144,12 @@ $descQuestions = recruitmentDescriptiveQuestions();
                     </div>
                     <div class="rec-field">
                         <label for="position_name">Position / Designation <em>*</em></label>
-                        <input type="text" name="position_name" id="position_name" required
-                               maxlength="150" placeholder="e.g. Operator, Accountant, Engineer"
-                               autocomplete="organization-title">
+                        <select name="position_name" id="position_name" required>
+                            <option value="">— Select —</option>
+                            <option value="Sales">Sales</option>
+                            <option value="Other">Other</option>
+                        </select>
+                        <small>Sales → Reasoning questions required · Other → Reasoning skipped</small>
                     </div>
                 </div>
             </fieldset>
@@ -278,7 +281,7 @@ $descQuestions = recruitmentDescriptiveQuestions();
             <!-- Step 5: Reasoning Descriptive Questions -->
             <fieldset class="rec-panel" data-panel="5" hidden>
                 <legend>Reasoning Descriptive Questions</legend>
-                <p class="rec-hint">Answer in Hindi or English. Maximum <strong>200 words</strong> per answer.</p>
+                <p class="rec-hint">Required for <strong>Sales</strong>. Answer in Hindi or English. Maximum <strong>200 words</strong> per answer. All questions are compulsory.</p>
                 <div class="rec-desc-list">
                     <?php foreach ($descQuestions as $qNo => $q): ?>
                     <div class="rec-desc-item">
@@ -290,12 +293,13 @@ $descQuestions = recruitmentDescriptiveQuestions();
                             </div>
                         </div>
                         <div class="rec-field">
-                            <label for="reason_<?php echo (int) $qNo; ?>">Your Answer <small>(max 200 words)</small></label>
+                            <label for="reason_<?php echo (int) $qNo; ?>">Your Answer <em>*</em> <small>(max 200 words)</small></label>
                             <textarea name="reason[<?php echo (int) $qNo; ?>]"
                                       id="reason_<?php echo (int) $qNo; ?>"
                                       class="rec-reason-answer"
                                       rows="3"
                                       data-max-words="200"
+                                      data-sales-required="1"
                                       placeholder="Type your answer here… (max 200 words)"></textarea>
                             <small class="rec-word-count" data-for="reason_<?php echo (int) $qNo; ?>">0 / 200 words</small>
                         </div>
