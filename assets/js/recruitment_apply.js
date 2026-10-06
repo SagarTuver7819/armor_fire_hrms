@@ -226,6 +226,23 @@
         return Math.max(1, n - 1);
     }
 
+    /** Visible step badges 1..N (Salary becomes 5 when Reasoning is hidden). */
+    function syncStepDisplayNumbers() {
+        var sales = isSalesPosition();
+        var n = 0;
+        stepBtns.forEach(function (b) {
+            var id = parseInt(b.getAttribute('data-step'), 10);
+            if (id === 5 && !sales) {
+                return;
+            }
+            n += 1;
+            var span = b.querySelector('span');
+            if (span) {
+                span.textContent = String(n);
+            }
+        });
+    }
+
     function syncReasoningStepVisibility() {
         var sales = isSalesPosition();
         var stepsEl = document.getElementById('recSteps');
@@ -237,6 +254,7 @@
                 setBtnVisible(b, sales);
             }
         });
+        syncStepDisplayNumbers();
         document.querySelectorAll('textarea.rec-reason-answer').forEach(function (ta) {
             if (sales) {
                 ta.setAttribute('required', 'required');
@@ -245,6 +263,10 @@
                 markInvalid(ta, false);
             }
         });
+        // Other selected: clear Sales-only error toast if still showing
+        if (!sales && formAlert && /Reasoning/i.test(formAlert.textContent || '')) {
+            clearFormAlert();
+        }
         if (!sales && step === 5) {
             showStep(6);
         }
