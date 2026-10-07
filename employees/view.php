@@ -945,6 +945,7 @@ $tabUrl = function ($t) use ($baseQs, $year, $month) {
                 <dl class="info-list">
                     <div class="info-row"><dt>Department</dt><dd><?php echo showVal($emp['department_name']); ?></dd></div>
                     <div class="info-row"><dt>Emp Desk No</dt><dd><?php echo showVal($emp['desk_no'] ?? ''); ?></dd></div>
+                    <div class="info-row"><dt>Canteen Use</dt><dd><?php echo (($emp['canteen_use'] ?? 'No') === 'Yes') ? 'Yes' : 'No'; ?></dd></div>
                     <?php if (isSalesOnFieldDepartment($emp)): ?>
                     <div class="info-row"><dt>Assigned State</dt><dd><?php echo showVal($emp['assigned_state_name'] ?? ''); ?></dd></div>
                     <div class="info-row"><dt>Assigned Location</dt><dd><?php echo showVal($emp['assigned_location_name'] ?? ''); ?></dd></div>

@@ -103,7 +103,7 @@ $openAttendance = ($sidebarMode === 'attendance' || strpos((string) $sidebarActi
 $openRecruitment = ($sidebarMode === 'recruitment' || strpos((string) $sidebarActive, 'recruitment') === 0);
 $openEmployeeVoice = ($sidebarMode === 'employee_voice' || strpos((string) $sidebarActive, 'ev_') === 0 || strpos((string) $sidebarActive, 'employee_voice') === 0);
 $openTraining = ($sidebarMode === 'training' || strpos((string) $sidebarActive, 'training') === 0 || in_array((string) $sidebarActive, ['training_induction', 'training_sales'], true));
-$openEmployeesMenu = in_array((string) $sidebarActive, ['all_employees', 'visiting_card', 'exit_employee', 'join_employee'], true)
+$openEmployeesMenu = in_array((string) $sidebarActive, ['all_employees', 'visiting_card', 'exit_employee', 'join_employee', 'canteen_report'], true)
     || $sidebarMode === 'employees';
 $openLeaveMenu = in_array((string) $sidebarActive, [
     'leave_request', 'leave_encashment', 'coff_history', 'coff_report', 'dl_report', 'lwp_report', 'leave_balance',
@@ -111,6 +111,7 @@ $openLeaveMenu = in_array((string) $sidebarActive, [
 $openPayrollMenu = in_array((string) $sidebarActive, [
     'salary_register', 'joining_exit_report', 'dept_cost_summary', 'neft_sheet',
 ], true) || strpos((string) $sidebarActive, 'payroll') === 0;
+$openCanteen = ($sidebarMode === 'canteen' || strpos((string) $sidebarActive, 'canteen') === 0);
 $openAdminMenu = in_array((string) $sidebarActive, ['roles', 'staff_users', 'settings', 'dept_heads'], true);
 
 if (!function_exists('getDashboardLogo')) {
@@ -441,6 +442,24 @@ $sidebarCompanyName = function_exists('getCompanyName') ? getCompanyName() : 'Ar
                     <a href="<?php echo app_url('employees/visiting_card.php'); ?>" class="sidebar-link sidebar-sublink <?php echo $sidebarActive === 'visiting_card' ? 'active' : ''; ?>"><i class="fa-solid fa-id-card"></i><span>Visiting Card</span></a>
                     <a href="<?php echo app_url('employees/exit_list.php'); ?>" class="sidebar-link sidebar-sublink <?php echo $sidebarActive === 'exit_employee' ? 'active' : ''; ?>"><i class="fa-solid fa-user-xmark"></i><span>Exit Employees</span></a>
                     <?php endif; ?>
+                    <a href="<?php echo app_url('employees/canteen_report.php' . ($isDeptHeadNav && $primaryHeadDept > 0 ? ('?department_id=' . $primaryHeadDept) : '')); ?>" class="sidebar-link sidebar-sublink <?php echo $sidebarActive === 'canteen_report' ? 'active' : ''; ?>"><i class="fa-solid fa-utensils"></i><span>Canteen Report</span></a>
+                </div>
+            </div>
+            <?php endif; ?>
+
+            <?php if ($canEmp): ?>
+            <div class="sidebar-accordion <?php echo $openCanteen ? 'is-open' : ''; ?>" data-accordion="canteen" data-default-open="<?php echo $openCanteen ? '1' : '0'; ?>">
+                <button type="button" class="sidebar-acc-btn <?php echo $openCanteen ? 'is-active' : ''; ?>" aria-expanded="<?php echo $openCanteen ? 'true' : 'false'; ?>">
+                    <span class="sidebar-acc-left">
+                        <span class="sidebar-emp-ico" style="--emp-ico:#b45309;"><i class="fa-solid fa-utensils"></i></span>
+                        <span class="sidebar-emp-txt"><strong>Canteen</strong><small>Meal booking &amp; list</small></span>
+                    </span>
+                    <i class="fa-solid fa-chevron-down sidebar-acc-caret"></i>
+                </button>
+                <div class="sidebar-submenu">
+                    <a href="<?php echo app_url('canteen/index.php'); ?>" class="sidebar-link sidebar-sublink <?php echo $sidebarActive === 'canteen_orders' ? 'active' : ''; ?>"><i class="fa-solid fa-list-check"></i><span>Meal List</span></a>
+                    <a href="<?php echo app_url('canteen/qr.php'); ?>" class="sidebar-link sidebar-sublink" target="_blank" rel="noopener"><i class="fa-solid fa-qrcode"></i><span>Canteen QR Code</span></a>
+                    <a href="<?php echo app_url('employees/canteen_report.php'); ?>" class="sidebar-link sidebar-sublink <?php echo $sidebarActive === 'canteen_report' ? 'active' : ''; ?>"><i class="fa-solid fa-utensils"></i><span>Canteen Use Report</span></a>
                 </div>
             </div>
             <?php endif; ?>
@@ -605,6 +624,11 @@ $sidebarCompanyName = function_exists('getCompanyName') ? getCompanyName() : 'Ar
                        class="sidebar-link <?php echo $sidebarActive === 'exit_employee' ? 'active' : ''; ?>">
                         <i class="fa-solid fa-user-xmark"></i>
                         <span>Exit Employee List</span>
+                    </a>
+                    <a href="<?php echo app_url('employees/canteen_report.php?department_id=' . $sidebarDeptId); ?>"
+                       class="sidebar-link <?php echo $sidebarActive === 'canteen_report' ? 'active' : ''; ?>">
+                        <i class="fa-solid fa-utensils"></i>
+                        <span>Canteen Report</span>
                     </a>
                     <a href="<?php echo app_url('attendance/manual.php?department_id=' . $sidebarDeptId . '&show=1'); ?>"
                        class="sidebar-link <?php echo $sidebarActive === 'attendance_manual' ? 'active' : ''; ?>">

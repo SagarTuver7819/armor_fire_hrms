@@ -74,6 +74,7 @@ function ensureEmployeesTable($conn = null)
     ensureEmployeeColumn($conn, 'emergency_contact_name', "emergency_contact_name VARCHAR(150) DEFAULT NULL AFTER emergency_mobile");
     ensureEmployeeColumn($conn, 'emergency_contact_relation', "emergency_contact_relation VARCHAR(100) DEFAULT NULL AFTER emergency_contact_name");
     ensureEmployeeColumn($conn, 'desk_no', "desk_no VARCHAR(50) DEFAULT NULL AFTER office_mobile");
+    ensureEmployeeColumn($conn, 'canteen_use', "canteen_use ENUM('Yes','No') NOT NULL DEFAULT 'No' AFTER desk_no");
     ensureEmployeeColumn($conn, 'gender', "gender VARCHAR(20) DEFAULT NULL AFTER desk_no");
     ensureEmployeeColumn($conn, 'blood_group', "blood_group VARCHAR(10) DEFAULT NULL AFTER gender");
     ensureEmployeeColumn($conn, 'marital_status', "marital_status VARCHAR(20) DEFAULT NULL AFTER date_of_birth");

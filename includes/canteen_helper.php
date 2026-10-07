@@ -1,0 +1,284 @@
+<?php
+/**
+ * Canteen meal booking (QR) — employees book Breakfast / Lunch / Dinner for the next day.
+ * Booking for a date closes on the previous day at CANTEEN_CUTOFF_TIME (default 18:30).
+ */
+
+require_once __DIR__ . '/../config/app.php';
+require_once __DIR__ . '/../config/database.php';
+
+function canteenMeals()
+{
+    return [
+        'breakfast' => 'Breakfast',
+        'lunch'     => 'Lunch',
+        'dinner'    => 'Dinner',
+    ];
+}
+
+function ensureCanteenTables($conn = null)
+{
+    static $ready = false;
+    if ($ready) {
+        return;
+    }
+    $closeAfter = false;
+    if ($conn === null) {
+        $conn = getDBConnection();
+        $closeAfter = true;
+    }
+    $conn->query(
+        "CREATE TABLE IF NOT EXISTS canteen_meal_orders (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            meal_date DATE NOT NULL,
+            employee_id INT NOT NULL,
+            employee_code VARCHAR(30) NOT NULL DEFAULT '',
+            department_id INT NOT NULL DEFAULT 0,
+            breakfast TINYINT(1) NOT NULL DEFAULT 0,
+            lunch TINYINT(1) NOT NULL DEFAULT 0,
+            dinner TINYINT(1) NOT NULL DEFAULT 0,
+            ip_address VARCHAR(45) DEFAULT NULL,
+            user_agent VARCHAR(255) DEFAULT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            UNIQUE KEY uq_canteen_date_emp (meal_date, employee_id),
+            INDEX idx_canteen_date_dept (meal_date, department_id)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+    );
+    $ready = true;
+    if ($closeAfter) {
+        $conn->close();
+    }
+}
+
+/** HH:MM, configurable via .env CANTEEN_CUTOFF_TIME */
+function canteenCutoffTime()
+{
+    $t = trim((string) (function_exists('env') ? env('CANTEEN_CUTOFF_TIME', '18:30') : '18:30'));
+    return preg_match('/^([01]?\d|2[0-3]):[0-5]\d$/', $t) ? $t : '18:30';
+}
+
+function canteenCutoffLabel()
+{
+    return date('h:i A', strtotime('2000-01-01 ' . canteenCutoffTime() . ':00'));
+}
+
+/** Bookings are always for tomorrow */
+function canteenTargetDate()
+{
+    return date('Y-m-d', strtotime('+1 day'));
+}
+
+/** Unix time when booking for $mealDate closes (previous day at cutoff) */
+function canteenCutoffAt($mealDate)
+{
+    $prevDay = date('Y-m-d', strtotime($mealDate . ' -1 day'));
+    return strtotime($prevDay . ' ' . canteenCutoffTime() . ':00');
+}
+
+function canteenIsOpen($mealDate = null)
+{
+    $mealDate = $mealDate ?: canteenTargetDate();
+    return time() < canteenCutoffAt($mealDate);
+}
+
+function canteenDateLabel($ymd)
+{
+    $ts = strtotime((string) $ymd);
+    return $ts ? date('d-m-Y (l)', $ts) : (string) $ymd;
+}
+
+/** Public URL encoded in the QR — live URL even when opened from localhost */
+function canteenOrderUrl()
+{
+    $path = 'canteen/order.php';
+    $override = trim((string) (function_exists('env') ? env('CANTEEN_PUBLIC_URL', '') : ''));
+    if ($override !== '') {
+        return rtrim($override, '/');
+    }
+
+    $liveBase = 'https://armor-hrms.oceanhub.co.in';
+    $appUrl = defined('APP_URL') ? rtrim((string) APP_URL, '/') : '';
+    $host = strtolower((string) ($_SERVER['HTTP_HOST'] ?? ''));
+    $isLocal = (
+        strpos($host, 'localhost') !== false
+        || strpos($host, '127.0.0.1') !== false
+        || $appUrl === ''
+        || stripos($appUrl, 'localhost') !== false
+        || stripos($appUrl, '127.0.0.1') !== false
+    );
+    if ($isLocal) {
+        return $liveBase . '/' . $path;
+    }
+    return $appUrl . '/' . $path;
+}
+
+/** Active departments that have at least one active employee */
+function canteenDepartments($conn)
+{
+    $rows = [];
+    $res = $conn->query(
+        "SELECT d.id, d.department_name, COUNT(e.id) AS emp_count
+         FROM departments d
+         INNER JOIN employees e ON e.department_id = d.id AND e.status = 1
+         WHERE d.status = 1
+         GROUP BY d.id, d.department_name
+         ORDER BY d.sort_order ASC, d.department_name ASC"
+    );
+    if ($res) {
+        while ($r = $res->fetch_assoc()) {
+            $rows[] = $r;
+        }
+    }
+    return $rows;
+}
+
+function canteenDepartmentEmployees($conn, $deptId)
+{
+    $rows = [];
+    $st = $conn->prepare(
+        "SELECT id, employee_code, employee_name, designation
+         FROM employees
+         WHERE status = 1 AND department_id = ?
+         ORDER BY employee_name ASC"
+    );
+    $st->bind_param('i', $deptId);
+    $st->execute();
+    $res = $st->get_result();
+    while ($r = $res->fetch_assoc()) {
+        $rows[] = $r;
+    }
+    $st->close();
+    return $rows;
+}
+
+function canteenActiveEmployee($conn, $empId)
+{
+    $st = $conn->prepare(
+        "SELECT id, employee_code, employee_name, department_id
+         FROM employees WHERE id = ? AND status = 1 LIMIT 1"
+    );
+    $st->bind_param('i', $empId);
+    $st->execute();
+    $row = $st->get_result()->fetch_assoc();
+    $st->close();
+    return $row ?: null;
+}
+
+/** [employee_id => order row] for one department + date */
+function canteenOrdersMap($conn, $mealDate, $deptId)
+{
+    $map = [];
+    $st = $conn->prepare(
+        "SELECT employee_id, breakfast, lunch, dinner, updated_at
+         FROM canteen_meal_orders WHERE meal_date = ? AND department_id = ?"
+    );
+    $st->bind_param('si', $mealDate, $deptId);
+    $st->execute();
+    $res = $st->get_result();
+    while ($r = $res->fetch_assoc()) {
+        $map[(int) $r['employee_id']] = $r;
+    }
+    $st->close();
+    return $map;
+}
+
+/**
+ * Insert / update one booking. No meal ticked = remove existing booking.
+ * @return string saved | cancelled | empty
+ */
+function canteenSaveOrder($conn, $mealDate, array $emp, $breakfast, $lunch, $dinner)
+{
+    $b = $breakfast ? 1 : 0;
+    $l = $lunch ? 1 : 0;
+    $d = $dinner ? 1 : 0;
+    $empId = (int) $emp['id'];
+
+    if ($b + $l + $d === 0) {
+        $del = $conn->prepare('DELETE FROM canteen_meal_orders WHERE meal_date = ? AND employee_id = ?');
+        $del->bind_param('si', $mealDate, $empId);
+        $del->execute();
+        $removed = $del->affected_rows > 0;
+        $del->close();
+        return $removed ? 'cancelled' : 'empty';
+    }
+
+    $code = (string) $emp['employee_code'];
+    $deptId = (int) $emp['department_id'];
+    $ip = substr((string) ($_SERVER['REMOTE_ADDR'] ?? ''), 0, 45);
+    $ua = substr((string) ($_SERVER['HTTP_USER_AGENT'] ?? ''), 0, 255);
+
+    $st = $conn->prepare(
+        "INSERT INTO canteen_meal_orders
+            (meal_date, employee_id, employee_code, department_id, breakfast, lunch, dinner, ip_address, user_agent)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+         ON DUPLICATE KEY UPDATE
+            employee_code = VALUES(employee_code), department_id = VALUES(department_id),
+            breakfast = VALUES(breakfast), lunch = VALUES(lunch), dinner = VALUES(dinner),
+            ip_address = VALUES(ip_address), user_agent = VALUES(user_agent)"
+    );
+    $st->bind_param('sisiiiiss', $mealDate, $empId, $code, $deptId, $b, $l, $d, $ip, $ua);
+    $st->execute();
+    $st->close();
+    return 'saved';
+}
+
+/**
+ * Bookings for a date (optionally one department / allowed departments), ordered department → employee.
+ * @param int[]|null $allowedDeptIds null = all
+ */
+function canteenOrdersForDate($conn, $mealDate, $deptId = 0, $allowedDeptIds = null)
+{
+    $sql = "SELECT o.employee_id, o.breakfast, o.lunch, o.dinner, o.updated_at,
+                   COALESCE(e.employee_code, o.employee_code) AS employee_code,
+                   e.employee_name, e.designation,
+                   o.department_id, COALESCE(d.department_name, '—') AS department_name
+            FROM canteen_meal_orders o
+            LEFT JOIN employees e ON e.id = o.employee_id
+            LEFT JOIN departments d ON d.id = o.department_id
+            WHERE o.meal_date = ?";
+    $types = 's';
+    $params = [$mealDate];
+    if ($deptId > 0) {
+        $sql .= ' AND o.department_id = ?';
+        $types .= 'i';
+        $params[] = $deptId;
+    } elseif (is_array($allowedDeptIds)) {
+        $ids = array_values(array_filter(array_map('intval', $allowedDeptIds)));
+        $sql .= $ids ? ' AND o.department_id IN (' . implode(',', $ids) . ')' : ' AND 1 = 0';
+    }
+    $sql .= ' ORDER BY d.sort_order ASC, d.department_name ASC, e.employee_name ASC';
+
+    $rows = [];
+    $st = $conn->prepare($sql);
+    $st->bind_param($types, ...$params);
+    $st->execute();
+    $res = $st->get_result();
+    while ($r = $res->fetch_assoc()) {
+        $rows[] = $r;
+    }
+    $st->close();
+    return $rows;
+}
+
+/** Department-wise totals from canteenOrdersForDate() rows */
+function canteenSummarize(array $rows)
+{
+    $byDept = [];
+    $total = ['employees' => 0, 'breakfast' => 0, 'lunch' => 0, 'dinner' => 0];
+    foreach ($rows as $r) {
+        $dn = (string) $r['department_name'];
+        if (!isset($byDept[$dn])) {
+            $byDept[$dn] = ['employees' => 0, 'breakfast' => 0, 'lunch' => 0, 'dinner' => 0];
+        }
+        $byDept[$dn]['employees']++;
+        $total['employees']++;
+        foreach (['breakfast', 'lunch', 'dinner'] as $m) {
+            if ((int) $r[$m] === 1) {
+                $byDept[$dn][$m]++;
+                $total[$m]++;
+            }
+        }
+    }
+    return ['by_dept' => $byDept, 'total' => $total];
+}

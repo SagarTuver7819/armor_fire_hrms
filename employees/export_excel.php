@@ -74,7 +74,7 @@ $headers = [
     'Shift Type', 'Shift Time', 'PF Deduction', 'PF Start Date', 'Employee PF Contribution', 'UAN',
     'Bank Name', 'Account Number', 'IFSC', 'Bank Branch',
     'Decided Salary', 'Reporting Person',
-    'Week-off Day', 'Week-off Benefits', 'Holiday Benefits', 'Overtime Benefits',
+    'Week-off Day', 'Week-off Benefits', 'Holiday Benefits', 'Overtime Benefits', 'Canteen Use',
     'Extra Note', 'Status',
 ];
 
@@ -128,6 +128,7 @@ if ($result) {
             $row['week_off_benefits'] ?? '',
             $row['holiday_benefits'] ?? '',
             $row['overtime_benefits'] ?? '',
+            ($row['canteen_use'] ?? 'No') === 'Yes' ? 'Yes' : 'No',
             $row['extra_note'] ?? '',
             isEmployeeDeactive($row) ? 'Deactive' : 'Active',
         ];

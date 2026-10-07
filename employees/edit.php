@@ -441,6 +441,13 @@ $ob = empField($employee, 'overtime_benefits', 'No');
                                placeholder="e.g. D-101"
                                value="<?php echo htmlspecialchars(empField($employee, 'desk_no')); ?>">
                     </div>
+                    <?php $canteenUse = empField($employee, 'canteen_use', 'No') === 'Yes' ? 'Yes' : 'No'; ?>
+                    <div class="form-group"><label>Canteen Use</label>
+                        <div class="radio-row">
+                            <label><input type="radio" name="canteen_use" value="Yes" <?php echo $canteenUse === 'Yes' ? 'checked' : ''; ?>> Yes</label>
+                            <label><input type="radio" name="canteen_use" value="No" <?php echo $canteenUse === 'No' ? 'checked' : ''; ?>> No</label>
+                        </div>
+                    </div>
                 </div>
 
                 <div id="onFieldAssignWrap" class="on-field-assign-block" style="<?php echo !empty($isOnFieldDept) ? '' : 'display:none;'; ?>">

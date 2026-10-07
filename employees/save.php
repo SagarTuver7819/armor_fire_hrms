@@ -44,6 +44,7 @@ $emergencyRel  = forceDetailUpper($_POST['emergency_contact_relation'] ?? '');
 $officeEmail   = forceEmailLower($_POST['office_email'] ?? '');
 $officeMobile  = forceDetailUpper($_POST['office_mobile'] ?? '');
 $deskNo        = forceDetailUpper($_POST['desk_no'] ?? '');
+$canteenUse    = ($_POST['canteen_use'] ?? 'No') === 'Yes' ? 'Yes' : 'No';
 $gender        = trim($_POST['gender'] ?? '');
 if (!in_array($gender, ['Male', 'Female'], true)) {
     $gender = '';
@@ -312,15 +313,16 @@ if ($savedId > 0 && $weekOffDay !== '') {
 if ($savedId > 0) {
     $pfEmpBind = $pfEmpContrib === null ? '' : (string) $pfEmpContrib;
     $extraStmt = $conn->prepare(
-        'UPDATE employees SET office_email = ?, office_mobile = ?, desk_no = ?, gender = ?, blood_group = ?, marital_status = ?, marital_remark = ?,
+        'UPDATE employees SET office_email = ?, office_mobile = ?, desk_no = ?, canteen_use = ?, gender = ?, blood_group = ?, marital_status = ?, marital_remark = ?,
          emergency_contact_name = ?, emergency_contact_relation = ?,
          pf_start_date = NULLIF(?, \'\'), pf_employee_contribution = NULLIF(?, \'\'), pf_employer_contribution = NULL WHERE id = ?'
     );
     $extraStmt->bind_param(
-        'sssssssssssi',
+        'ssssssssssssi',
         $officeEmail,
         $officeMobile,
         $deskNo,
+        $canteenUse,
         $gender,
         $bloodGroup,
         $maritalStatus,
