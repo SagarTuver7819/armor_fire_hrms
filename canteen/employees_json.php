@@ -1,6 +1,7 @@
 <?php
 /**
  * Public (QR form) — active employees of a department + their booking for tomorrow
+ * ?scope=canteen → only Canteen Use = Yes (employee self-booking)
  */
 
 require_once __DIR__ . '/../config/app.php';
@@ -19,7 +20,8 @@ if ($deptId <= 0) {
 $conn = getDBConnection();
 ensureCanteenTables($conn);
 $mealDate = canteenTargetDate();
-$employees = canteenDepartmentEmployees($conn, $deptId);
+$canteenOnly = ($_GET['scope'] ?? '') === 'canteen';
+$employees = canteenDepartmentEmployees($conn, $deptId, $canteenOnly);
 $orders = canteenOrdersMap($conn, $mealDate, $deptId);
 $conn->close();
 

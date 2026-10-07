@@ -66,6 +66,10 @@ function ensureCanteenTables($conn = null)
             INDEX idx_canteen_guest_date_dept (meal_date, department_id)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
     );
+    $col = $conn->query("SHOW COLUMNS FROM employees LIKE 'canteen_use'");
+    if ($col && $col->num_rows === 0) {
+        $conn->query("ALTER TABLE employees ADD COLUMN canteen_use ENUM('Yes','No') NOT NULL DEFAULT 'No'");
+    }
     $ready = true;
     if ($closeAfter) {
         $conn->close();
@@ -134,14 +138,18 @@ function canteenOrderUrl()
     return $appUrl . '/' . $path;
 }
 
-/** Active departments that have at least one active employee */
-function canteenDepartments($conn)
+/**
+ * Active departments that have at least one active employee.
+ * $canteenOnly = only employees marked Canteen Use = Yes (employee self-booking).
+ */
+function canteenDepartments($conn, $canteenOnly = false)
 {
     $rows = [];
+    $extra = $canteenOnly ? " AND e.canteen_use = 'Yes'" : '';
     $res = $conn->query(
         "SELECT d.id, d.department_name, COUNT(e.id) AS emp_count
          FROM departments d
-         INNER JOIN employees e ON e.department_id = d.id AND e.status = 1
+         INNER JOIN employees e ON e.department_id = d.id AND e.status = 1{$extra}
          WHERE d.status = 1
          GROUP BY d.id, d.department_name
          ORDER BY d.sort_order ASC, d.department_name ASC"
@@ -154,13 +162,14 @@ function canteenDepartments($conn)
     return $rows;
 }
 
-function canteenDepartmentEmployees($conn, $deptId)
+function canteenDepartmentEmployees($conn, $deptId, $canteenOnly = false)
 {
     $rows = [];
+    $extra = $canteenOnly ? " AND canteen_use = 'Yes'" : '';
     $st = $conn->prepare(
         "SELECT id, employee_code, employee_name, designation
          FROM employees
-         WHERE status = 1 AND department_id = ?
+         WHERE status = 1 AND department_id = ?{$extra}
          ORDER BY employee_name ASC"
     );
     $st->bind_param('i', $deptId);
@@ -176,7 +185,7 @@ function canteenDepartmentEmployees($conn, $deptId)
 function canteenActiveEmployee($conn, $empId)
 {
     $st = $conn->prepare(
-        "SELECT id, employee_code, employee_name, department_id
+        "SELECT id, employee_code, employee_name, department_id, canteen_use
          FROM employees WHERE id = ? AND status = 1 LIMIT 1"
     );
     $st->bind_param('i', $empId);

@@ -58,6 +58,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $mode !== '') {
         $emp = $empId > 0 ? canteenActiveEmployee($conn, $empId) : null;
         if (!$emp || (int) $emp['department_id'] !== $deptId) {
             $error = 'Please select a valid department and employee.';
+        } elseif (($emp['canteen_use'] ?? 'No') !== 'Yes') {
+            $error = 'Canteen facility is not enabled for ' . $emp['employee_code'] . '. Please contact HR.';
         } else {
             $result = canteenSaveOrder($conn, $mealDate, $emp, $b, $l, $d);
             if ($result === 'empty') {
@@ -128,7 +130,7 @@ if (isset($_GET['done']) && !empty($_SESSION['canteen_done'])) {
     unset($_SESSION['canteen_done']);
 }
 
-$departments = canteenDepartments($conn);
+$departments = canteenDepartments($conn, $mode === 'employee');
 $conn->close();
 
 $companyName = function_exists('getCompanyName') ? getCompanyName() : 'Armor Fire';
@@ -412,6 +414,12 @@ $homeUrl = app_url('canteen/order.php');
                 </div>
                 <?php endif; ?>
 
+                <?php if ($mode === 'employee'): ?>
+                <p class="hint" style="margin:-4px 2px 14px;"><i class="fa-solid fa-circle-info"></i> Only employees with Canteen facility (enabled by HR) are listed.</p>
+                <?php endif; ?>
+                <?php if ($mode === 'employee' && !$departments): ?>
+                <div class="alert err"><i class="fa-solid fa-triangle-exclamation"></i> No employee has Canteen facility enabled yet. Please contact HR.</div>
+                <?php endif; ?>
                 <div class="field" id="deptField">
                     <label for="deptSel"><span class="step"><?php echo $step; ?></span><span data-lbl-dept>Department</span></label>
                     <select name="department_id" id="deptSel">
@@ -570,7 +578,9 @@ $homeUrl = app_url('canteen/order.php');
         }
         $('#empField').show();
         $emp.prop('disabled', true);
-        $.getJSON(jsonUrl, { department_id: deptId }).done(function (res) {
+        var params = { department_id: deptId };
+        if (mode === 'employee') { params.scope = 'canteen'; }
+        $.getJSON(jsonUrl, params).done(function (res) {
             if (!res || !res.ok) {
                 return;
             }
