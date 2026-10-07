@@ -502,9 +502,10 @@ html, body { height: 100%; }
     transform: translateY(-2px);
     box-shadow: 0 16px 36px rgba(210, 35, 42, 0.42);
     animation: none;
+    opacity: 1;
 }
 
-.login-btn:active { transform: translateY(0); }
+.login-btn:active { transform: translateY(0); opacity: 1; }
 .login-btn.is-loading { pointer-events: none; opacity: 0.9; animation: none; }
 
 .login-btn-text,
