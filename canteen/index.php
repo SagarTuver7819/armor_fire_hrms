@@ -56,30 +56,67 @@ if ($deptId > 0 && is_array($allowedDepts) && !in_array($deptId, array_map('intv
     $deptId = 0;
 }
 
+if (empty($_SESSION['canteen_admin_token'])) {
+    $_SESSION['canteen_admin_token'] = bin2hex(random_bytes(16));
+}
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'delete_guest') {
+    $flash = 'Could not delete the entry.';
+    if (hash_equals((string) $_SESSION['canteen_admin_token'], (string) ($_POST['token'] ?? ''))) {
+        $gid = (int) ($_POST['guest_id'] ?? 0);
+        $chk = $conn->prepare('SELECT department_id FROM canteen_guest_orders WHERE id = ?');
+        $chk->bind_param('i', $gid);
+        $chk->execute();
+        $gRow = $chk->get_result()->fetch_assoc();
+        $chk->close();
+        $deptOk = $gRow && (!is_array($allowedDepts) || in_array((int) $gRow['department_id'], array_map('intval', $allowedDepts), true));
+        if ($deptOk && canteenDeleteGuestOrder($conn, $gid)) {
+            $flash = 'Guest / trainee entry deleted.';
+        }
+    }
+    $_SESSION['canteen_admin_flash'] = $flash;
+    $conn->close();
+    header('Location: ' . app_url('canteen/index.php?' . http_build_query(['date' => $mealDate, 'department_id' => $deptId, 'meal' => $mealFilter, 'q' => $q, 'tab' => 'guest'])));
+    exit;
+}
+$flashMsg = (string) ($_SESSION['canteen_admin_flash'] ?? '');
+unset($_SESSION['canteen_admin_flash']);
+
 $rows = canteenOrdersForDate($conn, $mealDate, $deptId, $allowedDepts);
+$guestRows = canteenGuestOrdersForDate($conn, $mealDate, $deptId, $allowedDepts);
 $conn->close();
 
 if ($mealFilter !== '' || $q !== '') {
     $needle = function_exists('mb_strtolower') ? mb_strtolower($q) : strtolower($q);
-    $rows = array_values(array_filter($rows, static function ($r) use ($mealFilter, $needle) {
+    $keep = static function ($r, $hay) use ($mealFilter, $needle) {
         if ($mealFilter !== '' && (int) $r[$mealFilter] !== 1) {
             return false;
         }
         if ($needle !== '') {
-            $hay = (string) $r['employee_code'] . ' ' . (string) ($r['employee_name'] ?? '') . ' ' . (string) ($r['designation'] ?? '');
             $hay = function_exists('mb_strtolower') ? mb_strtolower($hay) : strtolower($hay);
             if (strpos($hay, $needle) === false) {
                 return false;
             }
         }
         return true;
+    };
+    $rows = array_values(array_filter($rows, static function ($r) use ($keep) {
+        return $keep($r, (string) $r['employee_code'] . ' ' . (string) ($r['employee_name'] ?? '') . ' ' . (string) ($r['designation'] ?? ''));
+    }));
+    $guestRows = array_values(array_filter($guestRows, static function ($g) use ($keep) {
+        return $keep($g, $g['booking_type'] . ' ' . (string) $g['host_code'] . ' ' . (string) ($g['host_name'] ?? '') . ' ' . (string) $g['person_names'] . ' ' . (string) $g['remarks']);
     }));
 }
 
-$summary = canteenSummarize($rows);
+// Combined (employees + guests/trainees) for department summary; employee-only for the employee list
+$summary = canteenSummarize($rows, $guestRows);
 $byDept = $summary['by_dept'];
 $tot = $summary['total'];
 $totalMeals = $tot['breakfast'] + $tot['lunch'] + $tot['dinner'];
+$empSummary = canteenSummarize($rows);
+$empByDept = $empSummary['by_dept'];
+$empTot = $empSummary['total'];
+$guestSummary = canteenSummarize([], $guestRows);
+$guestTot = $guestSummary['total'];
 
 $mealLabels = ['breakfast' => 'Breakfast', 'lunch' => 'Lunch', 'dinner' => 'Dinner'];
 $deptLabel = 'All Departments';
@@ -122,9 +159,21 @@ foreach ($rows as $r) {
     $grouped[(string) $r['department_name']][] = $r;
 }
 
+$guestGrouped = [];
+foreach ($guestRows as $g) {
+    $guestGrouped[(string) $g['department_name']][] = $g;
+}
+
 $mealCount = static function ($r) {
     return (int) $r['breakfast'] + (int) $r['lunch'] + (int) $r['dinner'];
 };
+$guestHost = static function ($g) {
+    return trim((string) $g['host_code'] . ' — ' . (string) ($g['host_name'] ?? ''), ' —');
+};
+$guestNamesText = static function ($g) {
+    return implode(', ', canteenGuestNames($g['person_names']));
+};
+$hasAny = $rows || $guestRows;
 $fileStamp = date('d-m-Y', strtotime($mealDate));
 $fileDept = trim(preg_replace('/[^A-Za-z0-9]+/', '_', $deptLabel), '_');
 
@@ -181,15 +230,16 @@ if ($exportMode === 'excel') {
     // Meal totals
     echo '<tr>'
         . '<td colspan="2" style="' . $ctr . 'background:#eff6ff;font-weight:bold;">Employees: ' . $tot['employees'] . '</td>'
-        . '<td colspan="2" style="' . $ctr . 'background:#fef3c7;color:#b45309;font-weight:bold;">Breakfast: ' . $tot['breakfast'] . '</td>'
-        . '<td colspan="2" style="' . $ctr . 'background:#dcfce7;color:#15803d;font-weight:bold;">Lunch: ' . $tot['lunch'] . '</td>'
+        . '<td colspan="2" style="' . $ctr . 'background:#e0f2fe;color:#0369a1;font-weight:bold;">Guests / Trainees: ' . $tot['guests'] . '</td>'
+        . '<td style="' . $ctr . 'background:#fef3c7;color:#b45309;font-weight:bold;">Breakfast: ' . $tot['breakfast'] . '</td>'
+        . '<td style="' . $ctr . 'background:#dcfce7;color:#15803d;font-weight:bold;">Lunch: ' . $tot['lunch'] . '</td>'
         . '<td colspan="2" style="' . $ctr . 'background:#e0e7ff;color:#4338ca;font-weight:bold;">Dinner: ' . $tot['dinner'] . '</td>'
         . '</tr>';
-    echo '<tr><td colspan="' . $cols . '">&nbsp;</td></tr>';
+    echo '<tr><td colspan="' . $cols . '" style="font-size:10px;color:#64748b;text-align:center;">Meal counts are plates (employees + guests + trainees).</td></tr>';
 
     // Department-wise summary
     echo '<tr><td colspan="' . $cols . '" style="font-size:13px;font-weight:bold;">Department-wise Summary</td></tr>';
-    echo '<tr><th ' . $th . '>Sr</th><th colspan="2" ' . $th . '>Department</th><th ' . $th . '>Employees</th><th ' . $th . '>Breakfast</th><th ' . $th . '>Lunch</th><th ' . $th . '>Dinner</th><th ' . $th . '>Total Meals</th></tr>';
+    echo '<tr><th ' . $th . '>Sr</th><th ' . $th . '>Department</th><th ' . $th . '>Employees</th><th ' . $th . '>Guests / Trainees</th><th ' . $th . '>Breakfast</th><th ' . $th . '>Lunch</th><th ' . $th . '>Dinner</th><th ' . $th . '>Total Meals</th></tr>';
     if (!$byDept) {
         echo '<tr><td colspan="' . $cols . '" style="' . $ctr . '">No meal booking for this date.</td></tr>';
     }
@@ -197,8 +247,9 @@ if ($exportMode === 'excel') {
     foreach ($byDept as $dname => $s) {
         echo '<tr>'
             . '<td style="' . $ctr . '">' . $i++ . '</td>'
-            . '<td colspan="2" style="' . $bd . 'font-weight:bold;">' . htmlspecialchars($dname) . '</td>'
+            . '<td style="' . $bd . 'font-weight:bold;">' . htmlspecialchars($dname) . '</td>'
             . '<td style="' . $ctr . '">' . $s['employees'] . '</td>'
+            . '<td style="' . $ctr . 'color:#0369a1;font-weight:bold;">' . $s['guests'] . '</td>'
             . '<td style="' . $ctr . 'color:#b45309;font-weight:bold;">' . $s['breakfast'] . '</td>'
             . '<td style="' . $ctr . 'color:#15803d;font-weight:bold;">' . $s['lunch'] . '</td>'
             . '<td style="' . $ctr . 'color:#4338ca;font-weight:bold;">' . $s['dinner'] . '</td>'
@@ -206,8 +257,9 @@ if ($exportMode === 'excel') {
             . '</tr>';
     }
     echo '<tr style="background:#1e293b;color:#ffffff;font-weight:bold;">'
-        . '<td colspan="3" style="' . $bd . 'text-align:right;">GRAND TOTAL</td>'
+        . '<td colspan="2" style="' . $bd . 'text-align:right;">GRAND TOTAL</td>'
         . '<td style="' . $ctr . '">' . $tot['employees'] . '</td>'
+        . '<td style="' . $ctr . '">' . $tot['guests'] . '</td>'
         . '<td style="' . $ctr . '">' . $tot['breakfast'] . '</td>'
         . '<td style="' . $ctr . '">' . $tot['lunch'] . '</td>'
         . '<td style="' . $ctr . '">' . $tot['dinner'] . '</td>'
@@ -216,10 +268,10 @@ if ($exportMode === 'excel') {
     // Employee-wise list
     if ($layout !== 'summary') {
         echo '<tr><td colspan="' . $cols . '">&nbsp;</td></tr>';
-        echo '<tr><td colspan="' . $cols . '" style="font-size:13px;font-weight:bold;">Employee-wise List (' . $tot['employees'] . ')</td></tr>';
+        echo '<tr><td colspan="' . $cols . '" style="font-size:13px;font-weight:bold;">Employee-wise List (' . $empTot['employees'] . ')</td></tr>';
         echo '<tr><th ' . $th . '>Sr</th><th ' . $th . '>Emp. Code</th><th ' . $th . '>Employee Name</th><th ' . $th . '>Designation</th><th ' . $th . '>Breakfast</th><th ' . $th . '>Lunch</th><th ' . $th . '>Dinner</th><th ' . $th . '>Booked At</th></tr>';
         if (!$rows) {
-            echo '<tr><td colspan="' . $cols . '" style="' . $ctr . '">No meal booking for this date.</td></tr>';
+            echo '<tr><td colspan="' . $cols . '" style="' . $ctr . '">No employee booking for this date.</td></tr>';
         }
         $sr = 0;
         foreach ($grouped as $dname => $list) {
@@ -236,7 +288,7 @@ if ($exportMode === 'excel') {
                     . '<td style="' . $ctr . 'font-size:10px;color:#475569;">' . htmlspecialchars(date('d-m-Y h:i A', strtotime((string) $r['updated_at']))) . '</td>'
                     . '</tr>';
             }
-            $s = $byDept[$dname];
+            $s = $empByDept[$dname];
             echo '<tr style="background:#f1f5f9;font-weight:bold;">'
                 . '<td colspan="4" style="' . $bd . 'text-align:right;">Sub Total - ' . htmlspecialchars($dname) . '</td>'
                 . '<td style="' . $ctr . '">' . $s['breakfast'] . '</td>'
@@ -246,11 +298,39 @@ if ($exportMode === 'excel') {
         }
         if ($rows) {
             echo '<tr style="background:#1e293b;color:#ffffff;font-weight:bold;">'
-                . '<td colspan="4" style="' . $bd . 'text-align:right;">GRAND TOTAL (' . $tot['employees'] . ' employees)</td>'
-                . '<td style="' . $ctr . '">' . $tot['breakfast'] . '</td>'
-                . '<td style="' . $ctr . '">' . $tot['lunch'] . '</td>'
-                . '<td style="' . $ctr . '">' . $tot['dinner'] . '</td>'
+                . '<td colspan="4" style="' . $bd . 'text-align:right;">EMPLOYEE TOTAL (' . $empTot['employees'] . ' employees)</td>'
+                . '<td style="' . $ctr . '">' . $empTot['breakfast'] . '</td>'
+                . '<td style="' . $ctr . '">' . $empTot['lunch'] . '</td>'
+                . '<td style="' . $ctr . '">' . $empTot['dinner'] . '</td>'
                 . '<td style="' . $bd . '"></td></tr>';
+        }
+
+        if ($guestRows) {
+            $qty = static function ($g, $m) use ($ctr) {
+                return (int) $g[$m] === 1
+                    ? '<td style="' . $ctr . 'background:#dcfce7;color:#15803d;font-weight:bold;">' . (int) $g['person_count'] . '</td>'
+                    : '<td style="' . $ctr . 'color:#94a3b8;">-</td>';
+            };
+            echo '<tr><td colspan="' . $cols . '">&nbsp;</td></tr>';
+            echo '<tr><td colspan="' . $cols . '" style="font-size:13px;font-weight:bold;">Guest / Trainee List (' . $guestTot['guests'] . ' persons)</td></tr>';
+            echo '<tr><th ' . $th . '>Sr</th><th ' . $th . '>Type</th><th ' . $th . '>Department</th><th ' . $th . '>With / Booked By</th><th ' . $th . '>Names (Persons)</th><th ' . $th . '>Breakfast</th><th ' . $th . '>Lunch</th><th ' . $th . '>Dinner</th></tr>';
+            foreach ($guestRows as $gi => $g) {
+                $remark = trim((string) $g['remarks']);
+                echo '<tr>'
+                    . '<td style="' . $ctr . '">' . ($gi + 1) . '</td>'
+                    . '<td style="' . $ctr . 'font-weight:bold;color:' . ($g['booking_type'] === 'Trainee' ? '#7c3aed' : '#0369a1') . ';">' . htmlspecialchars($g['booking_type']) . '</td>'
+                    . '<td style="' . $bd . '">' . htmlspecialchars((string) $g['department_name']) . '</td>'
+                    . '<td style="' . $bd . '">' . htmlspecialchars($guestHost($g)) . '</td>'
+                    . '<td style="' . $bd . '">' . htmlspecialchars($guestNamesText($g)) . ' <b>(' . (int) $g['person_count'] . ')</b>'
+                    . ($remark !== '' ? '<br><span style="color:#64748b;font-size:10px;">' . htmlspecialchars($remark) . '</span>' : '') . '</td>'
+                    . $qty($g, 'breakfast') . $qty($g, 'lunch') . $qty($g, 'dinner')
+                    . '</tr>';
+            }
+            echo '<tr style="background:#1e293b;color:#ffffff;font-weight:bold;">'
+                . '<td colspan="5" style="' . $bd . 'text-align:right;">GUEST / TRAINEE TOTAL (' . $guestTot['guests'] . ' persons)</td>'
+                . '<td style="' . $ctr . '">' . $guestTot['breakfast'] . '</td>'
+                . '<td style="' . $ctr . '">' . $guestTot['lunch'] . '</td>'
+                . '<td style="' . $ctr . '">' . $guestTot['dinner'] . '</td></tr>';
         }
     }
 
@@ -277,14 +357,51 @@ if ($exportMode === 'print') {
     $deptLines = [];
     $sr = 0;
     foreach ($grouped as $dname => $list) {
-        $lines = [['type' => 'dept', 'name' => $dname, 'count' => count($list)]];
+        $lines = [['type' => 'dept', 'name' => $dname, 'count' => count($list), 'w' => 1]];
         foreach ($list as $r) {
             $sr++;
-            $lines[] = ['type' => 'emp', 'sr' => $sr, 'row' => $r];
+            $lines[] = ['type' => 'emp', 'sr' => $sr, 'row' => $r, 'w' => 1];
         }
-        $lines[] = ['type' => 'sub', 'name' => $dname, 's' => $byDept[$dname]];
+        $lines[] = ['type' => 'sub', 'name' => $dname, 's' => $empByDept[$dname], 'w' => 1];
         $deptLines[$dname] = $lines;
     }
+    // Guest lines; 'gstart' reserves room for the section title + table head
+    $guestLinesFor = static function (array $list) use ($guestNamesText) {
+        $out = [['type' => 'gstart', 'w' => 3]];
+        foreach ($list as $g) {
+            $out[] = ['type' => 'guest', 'row' => $g, 'w' => 1 + intdiv(strlen($guestNamesText($g)) + strlen((string) $g['remarks']), 60)];
+        }
+        return $out;
+    };
+    $gsr = 0;
+    $numberGuests = static function (array $lines) use (&$gsr) {
+        foreach ($lines as &$ln) {
+            if ($ln['type'] === 'guest') {
+                $ln['sr'] = ++$gsr;
+            }
+        }
+        unset($ln);
+        return $lines;
+    };
+    // Split lines into pages by weight
+    $paginate = static function (array $lines, $firstCap, $cap) {
+        $out = [];
+        $cur = [];
+        $used = 0;
+        $limit = $firstCap;
+        foreach ($lines as $ln) {
+            if ($cur && $used + $ln['w'] > $limit) {
+                $out[] = $cur;
+                $cur = [];
+                $used = 0;
+                $limit = $cap;
+            }
+            $cur[] = $ln;
+            $used += $ln['w'];
+        }
+        $out[] = $cur;
+        return $out;
+    };
 
     // Page = ['summary' => bool, 'lines' => [...], 'heading' => string]
     $pages = [];
@@ -292,8 +409,12 @@ if ($exportMode === 'print') {
         $pages[] = ['summary' => true, 'lines' => [], 'heading' => ''];
     } elseif ($layout === 'dept_pages') {
         $pages[] = ['summary' => true, 'lines' => [], 'heading' => ''];
-        foreach ($deptLines as $dname => $lines) {
-            foreach (array_chunk($lines, $perPage + 2) as $ci => $chunk) {
+        foreach (array_keys($byDept) as $dname) {
+            $lines = $deptLines[$dname] ?? [];
+            if (!empty($guestGrouped[$dname])) {
+                $lines = array_merge($lines, $numberGuests($guestLinesFor($guestGrouped[$dname])));
+            }
+            foreach ($paginate($lines, $perPage, $perPage) as $ci => $chunk) {
                 $pages[] = ['summary' => false, 'lines' => $chunk, 'heading' => $dname . ($ci > 0 ? ' (contd.)' : '')];
             }
         }
@@ -302,13 +423,29 @@ if ($exportMode === 'print') {
         foreach ($deptLines as $lines) {
             $all = array_merge($all, $lines);
         }
-        $firstCap = max(6, 22 - count($byDept));
-        $pages[] = ['summary' => true, 'lines' => array_slice($all, 0, $firstCap), 'heading' => ''];
-        foreach (array_chunk(array_slice($all, $firstCap), $perPage) as $chunk) {
-            $pages[] = ['summary' => false, 'lines' => $chunk, 'heading' => ''];
+        if ($guestRows) {
+            $all = array_merge($all, $numberGuests($guestLinesFor($guestRows)));
+        }
+        $firstCap = max(6, 21 - count($byDept));
+        foreach ($paginate($all, $firstCap, $perPage) as $pi => $chunk) {
+            $pages[] = ['summary' => $pi === 0, 'lines' => $chunk, 'heading' => ''];
         }
     }
     $totalPages = count($pages);
+    $empLastPage = -1;
+    $guestLastPage = -1;
+    foreach ($pages as $pi => $pg) {
+        foreach ($pg['lines'] as $ln) {
+            if ($ln['type'] === 'emp') {
+                $empLastPage = $pi;
+            } elseif ($ln['type'] === 'guest') {
+                $guestLastPage = $pi;
+            }
+        }
+    }
+    $qtyMark = static function ($g, $m) {
+        return (int) $g[$m] === 1 ? '<span class="tk">' . (int) $g['person_count'] . '</span>' : '<span class="nx">—</span>';
+    };
     $mark = static function ($v) {
         return (int) $v === 1 ? '<span class="tk">&#10004;</span>' : '<span class="nx">—</span>';
     };
@@ -361,7 +498,11 @@ if ($exportMode === 'print') {
         .cp-titlebar .d .v { font-size: 15px; font-weight: 800; }
         .cp-titlebar .d .w { font-size: 10.5px; font-weight: 700; }
         .cp-meta { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 14px; margin-bottom: 8px; font-size: 10.5px; font-weight: 700; color: #334155; }
-        .cp-kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 10px; }
+        .cp-kpis { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; margin-bottom: 10px; }
+        .cp-kpi.g { background: #f0f9ff; border-color: #7dd3fc; } .cp-kpi.g .v, .cp-kpi.g .l { color: #0369a1; }
+        .cp-table .gt { display: inline-block; padding: 1px 6px; border-radius: 4px; background: #e0f2fe; color: #0369a1; font-weight: 800; font-size: 10px; text-transform: uppercase; }
+        .cp-table .gt.tr { background: #ede9fe; color: #6d28d9; }
+        .cp-table .rm { font-size: 9.5px; color: #64748b; margin-top: 1px; }
         .cp-kpi { border: 1.5px solid #cbd5e1; border-radius: 6px; padding: 6px 8px; text-align: center; }
         .cp-kpi .l { font-size: 10px; font-weight: 800; color: #64748b; text-transform: uppercase; letter-spacing: .05em; }
         .cp-kpi .v { font-size: 22px; font-weight: 800; color: #0f172a; line-height: 1.1; }
@@ -436,33 +577,36 @@ if ($exportMode === 'print') {
         <?php if ($pg['summary']): ?>
         <div class="cp-kpis">
             <div class="cp-kpi"><div class="l">Employees</div><div class="v"><?php echo $tot['employees']; ?></div></div>
+            <div class="cp-kpi g"><div class="l">Guests / Trainees</div><div class="v"><?php echo $tot['guests']; ?></div></div>
             <div class="cp-kpi b"><div class="l">Breakfast</div><div class="v"><?php echo $tot['breakfast']; ?></div></div>
             <div class="cp-kpi l2"><div class="l">Lunch</div><div class="v"><?php echo $tot['lunch']; ?></div></div>
             <div class="cp-kpi d"><div class="l">Dinner</div><div class="v"><?php echo $tot['dinner']; ?></div></div>
         </div>
 
-        <div class="cp-sub">Department-wise Summary</div>
+        <div class="cp-sub">Department-wise Summary <span style="text-transform:none;font-weight:600;color:#64748b;font-size:10px;">(meal counts = plates incl. guests &amp; trainees)</span></div>
         <table class="cp-table">
             <thead>
                 <tr>
-                    <th style="width:7%;">Sr</th>
-                    <th style="width:38%;">Department</th>
+                    <th style="width:6%;">Sr</th>
+                    <th style="width:32%;">Department</th>
                     <th style="width:11%;">Employees</th>
-                    <th style="width:11%;">Breakfast</th>
-                    <th style="width:11%;">Lunch</th>
-                    <th style="width:11%;">Dinner</th>
-                    <th style="width:11%;">Total Meals</th>
+                    <th style="width:11%;">Guests / Trainees</th>
+                    <th style="width:10%;">Breakfast</th>
+                    <th style="width:10%;">Lunch</th>
+                    <th style="width:10%;">Dinner</th>
+                    <th style="width:10%;">Total Meals</th>
                 </tr>
             </thead>
             <tbody>
             <?php if (!$byDept): ?>
-                <tr><td colspan="7" class="cp-empty">No meal booking for this date.</td></tr>
+                <tr><td colspan="8" class="cp-empty">No meal booking for this date.</td></tr>
             <?php endif; ?>
             <?php $i = 1; foreach ($byDept as $dname => $s): ?>
                 <tr>
                     <td class="ctr"><?php echo $i++; ?></td>
                     <td><strong><?php echo htmlspecialchars($dname); ?></strong></td>
                     <td class="ctr"><?php echo $s['employees']; ?></td>
+                    <td class="ctr"><?php echo $s['guests']; ?></td>
                     <td class="ctr"><?php echo $s['breakfast']; ?></td>
                     <td class="ctr"><?php echo $s['lunch']; ?></td>
                     <td class="ctr"><?php echo $s['dinner']; ?></td>
@@ -472,6 +616,7 @@ if ($exportMode === 'print') {
                 <tr class="grand">
                     <td colspan="2" style="text-align:right;">GRAND TOTAL</td>
                     <td class="ctr"><?php echo $tot['employees']; ?></td>
+                    <td class="ctr"><?php echo $tot['guests']; ?></td>
                     <td class="ctr"><?php echo $tot['breakfast']; ?></td>
                     <td class="ctr"><?php echo $tot['lunch']; ?></td>
                     <td class="ctr"><?php echo $tot['dinner']; ?></td>
@@ -481,7 +626,16 @@ if ($exportMode === 'print') {
         </table>
         <?php endif; ?>
 
-        <?php if ($layout !== 'summary' && ($pageLines || ($pageIndex === 0 && $layout === 'full'))): ?>
+        <?php
+        $empLines = array_values(array_filter($pageLines, static function ($ln) {
+            return in_array($ln['type'], ['dept', 'emp', 'sub'], true);
+        }));
+        $gLines = array_values(array_filter($pageLines, static function ($ln) {
+            return $ln['type'] === 'guest';
+        }));
+        $showEmpTable = $layout !== 'summary' && ($empLines || ($pageIndex === 0 && $layout === 'full' && !$rows));
+        ?>
+        <?php if ($showEmpTable): ?>
         <div class="cp-sub">Employee-wise List</div>
         <table class="cp-table">
             <thead>
@@ -497,9 +651,9 @@ if ($exportMode === 'print') {
             </thead>
             <tbody>
             <?php if (!$rows): ?>
-                <tr><td colspan="7" class="cp-empty">No meal booking for this date.</td></tr>
+                <tr><td colspan="7" class="cp-empty">No employee booking for this date.</td></tr>
             <?php endif; ?>
-            <?php foreach ($pageLines as $ln): ?>
+            <?php foreach ($empLines as $ln): ?>
                 <?php if ($ln['type'] === 'dept'): ?>
                 <tr class="dept"><td colspan="7"><?php echo htmlspecialchars($ln['name']); ?> (<?php echo (int) $ln['count']; ?>)</td></tr>
                 <?php elseif ($ln['type'] === 'emp'): $r = $ln['row']; ?>
@@ -521,12 +675,53 @@ if ($exportMode === 'print') {
                 </tr>
                 <?php endif; ?>
             <?php endforeach; ?>
-            <?php if ($isLast && $rows && $layout === 'full'): ?>
+            <?php if ($pageIndex === $empLastPage && $layout === 'full'): ?>
                 <tr class="grand">
-                    <td colspan="4" style="text-align:right;">GRAND TOTAL (<?php echo $tot['employees']; ?> employees)</td>
-                    <td class="ctr"><?php echo $tot['breakfast']; ?></td>
-                    <td class="ctr"><?php echo $tot['lunch']; ?></td>
-                    <td class="ctr"><?php echo $tot['dinner']; ?></td>
+                    <td colspan="4" style="text-align:right;">EMPLOYEE TOTAL (<?php echo $empTot['employees']; ?> employees)</td>
+                    <td class="ctr"><?php echo $empTot['breakfast']; ?></td>
+                    <td class="ctr"><?php echo $empTot['lunch']; ?></td>
+                    <td class="ctr"><?php echo $empTot['dinner']; ?></td>
+                </tr>
+            <?php endif; ?>
+            </tbody>
+        </table>
+        <?php endif; ?>
+
+        <?php if ($gLines): ?>
+        <div class="cp-sub">Guest / Trainee List</div>
+        <table class="cp-table">
+            <thead>
+                <tr>
+                    <th style="width:6%;">Sr</th>
+                    <th style="width:10%;">Type</th>
+                    <?php if ($layout !== 'dept_pages'): ?><th style="width:17%;">Department</th><?php endif; ?>
+                    <th style="width:<?php echo $layout !== 'dept_pages' ? 20 : 26; ?>%;">With / Booked By</th>
+                    <th>Names (Persons)</th>
+                    <th style="width:8%;">Bfast</th>
+                    <th style="width:8%;">Lunch</th>
+                    <th style="width:8%;">Dinner</th>
+                </tr>
+            </thead>
+            <tbody>
+            <?php foreach ($gLines as $ln): $g = $ln['row']; $remark = trim((string) $g['remarks']); ?>
+                <tr>
+                    <td class="ctr"><?php echo (int) $ln['sr']; ?></td>
+                    <td class="ctr"><span class="gt <?php echo $g['booking_type'] === 'Trainee' ? 'tr' : ''; ?>"><?php echo htmlspecialchars($g['booking_type']); ?></span></td>
+                    <?php if ($layout !== 'dept_pages'): ?><td><?php echo htmlspecialchars((string) $g['department_name']); ?></td><?php endif; ?>
+                    <td><?php echo htmlspecialchars($guestHost($g)); ?></td>
+                    <td><?php echo htmlspecialchars($guestNamesText($g)); ?> <strong>(<?php echo (int) $g['person_count']; ?>)</strong>
+                        <?php if ($remark !== ''): ?><div class="rm"><?php echo htmlspecialchars($remark); ?></div><?php endif; ?></td>
+                    <td class="ctr"><?php echo $qtyMark($g, 'breakfast'); ?></td>
+                    <td class="ctr"><?php echo $qtyMark($g, 'lunch'); ?></td>
+                    <td class="ctr"><?php echo $qtyMark($g, 'dinner'); ?></td>
+                </tr>
+            <?php endforeach; ?>
+            <?php if ($pageIndex === $guestLastPage && $layout === 'full'): ?>
+                <tr class="grand">
+                    <td colspan="5" style="text-align:right;">GUEST / TRAINEE TOTAL (<?php echo $guestTot['guests']; ?> persons)</td>
+                    <td class="ctr"><?php echo $guestTot['breakfast']; ?></td>
+                    <td class="ctr"><?php echo $guestTot['lunch']; ?></td>
+                    <td class="ctr"><?php echo $guestTot['dinner']; ?></td>
                 </tr>
             <?php endif; ?>
             </tbody>
@@ -619,7 +814,16 @@ require_once __DIR__ . '/../includes/header.php';
 .cm-filter-btns .btn-primary, .cm-filter-btns .btn-secondary { white-space: nowrap; }
 
 /* KPIs */
-.cm-kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
+.cm-kpis { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 14px; }
+.cm-kpi.gs { --k: #0369a1; --kb: #e0f2fe; }
+.cm-chip.gs { background: #e0f2fe; color: #0369a1; }
+.cm-type { display: inline-flex; align-items: center; gap: 5px; padding: 3px 9px; border-radius: 999px; font-size: 11.5px; font-weight: 800; background: #e0f2fe; color: #0369a1; }
+.cm-type.tr { background: #ede9fe; color: #6d28d9; }
+.cm-persons { display: inline-block; padding: 2px 8px; border-radius: 6px; background: #0f172a; color: #fff; font-size: 11.5px; font-weight: 800; }
+.cm-namelist { margin-top: 4px; font-size: 12.5px; color: #334155; line-height: 1.45; }
+.cm-remark { margin-top: 3px; font-size: 11.5px; color: #64748b; }
+.cm-del { width: 32px; height: 32px; border-radius: 8px; border: 1px solid #fecaca; background: #fff5f5; color: #b91c1c; cursor: pointer; }
+.cm-del:hover { background: #d2232a; color: #fff; border-color: #d2232a; }
 .cm-kpi { padding: 16px 18px; display: flex; align-items: center; gap: 14px; position: relative; overflow: hidden; }
 .cm-kpi::after { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: var(--k); }
 .cm-kpi-ico { width: 48px; height: 48px; border-radius: 12px; display: grid; place-items: center; font-size: 20px; flex-shrink: 0; background: var(--kb); color: var(--k); }
@@ -793,16 +997,22 @@ require_once __DIR__ . '/../includes/header.php';
         </form>
 
         <div class="cm-kpis">
-            <div class="cm-card cm-kpi emp"><div class="cm-kpi-ico"><i class="fa-solid fa-users"></i></div><div><div class="cm-kpi-lbl">Employees</div><div class="cm-kpi-val"><?php echo $tot['employees']; ?></div><div class="cm-kpi-note"><?php echo $totalMeals; ?> meals booked</div></div></div>
-            <div class="cm-card cm-kpi bf"><div class="cm-kpi-ico"><i class="fa-solid fa-mug-hot"></i></div><div><div class="cm-kpi-lbl">Breakfast</div><div class="cm-kpi-val"><?php echo $tot['breakfast']; ?></div><div class="cm-kpi-note"><?php echo $pct($tot['breakfast']); ?>% of employees</div></div></div>
-            <div class="cm-card cm-kpi ln"><div class="cm-kpi-ico"><i class="fa-solid fa-bowl-rice"></i></div><div><div class="cm-kpi-lbl">Lunch</div><div class="cm-kpi-val"><?php echo $tot['lunch']; ?></div><div class="cm-kpi-note"><?php echo $pct($tot['lunch']); ?>% of employees</div></div></div>
-            <div class="cm-card cm-kpi dn"><div class="cm-kpi-ico"><i class="fa-solid fa-moon"></i></div><div><div class="cm-kpi-lbl">Dinner</div><div class="cm-kpi-val"><?php echo $tot['dinner']; ?></div><div class="cm-kpi-note"><?php echo $pct($tot['dinner']); ?>% of employees</div></div></div>
+            <div class="cm-card cm-kpi emp"><div class="cm-kpi-ico"><i class="fa-solid fa-users"></i></div><div><div class="cm-kpi-lbl">Employees</div><div class="cm-kpi-val"><?php echo $tot['employees']; ?></div><div class="cm-kpi-note"><?php echo $totalMeals; ?> plates in total</div></div></div>
+            <div class="cm-card cm-kpi gs"><div class="cm-kpi-ico"><i class="fa-solid fa-user-group"></i></div><div><div class="cm-kpi-lbl">Guests / Trainees</div><div class="cm-kpi-val"><?php echo $tot['guests']; ?></div><div class="cm-kpi-note"><?php echo count($guestRows); ?> entr<?php echo count($guestRows) === 1 ? 'y' : 'ies'; ?></div></div></div>
+            <div class="cm-card cm-kpi bf"><div class="cm-kpi-ico"><i class="fa-solid fa-mug-hot"></i></div><div><div class="cm-kpi-lbl">Breakfast</div><div class="cm-kpi-val"><?php echo $tot['breakfast']; ?></div><div class="cm-kpi-note">plates</div></div></div>
+            <div class="cm-card cm-kpi ln"><div class="cm-kpi-ico"><i class="fa-solid fa-bowl-rice"></i></div><div><div class="cm-kpi-lbl">Lunch</div><div class="cm-kpi-val"><?php echo $tot['lunch']; ?></div><div class="cm-kpi-note">plates</div></div></div>
+            <div class="cm-card cm-kpi dn"><div class="cm-kpi-ico"><i class="fa-solid fa-moon"></i></div><div><div class="cm-kpi-lbl">Dinner</div><div class="cm-kpi-val"><?php echo $tot['dinner']; ?></div><div class="cm-kpi-note">plates</div></div></div>
         </div>
+
+        <?php if ($flashMsg !== ''): ?>
+        <div class="alert alert-success" style="margin:0;"><i class="fa-solid fa-circle-check"></i> <?php echo htmlspecialchars($flashMsg); ?></div>
+        <?php endif; ?>
 
         <div class="cm-card cm-panel">
             <div class="cm-tabs">
                 <div class="cm-tab-btns">
-                    <button type="button" class="cm-tab-btn on" data-tab="emp"><i class="fa-solid fa-list-ul"></i> Employee-wise <span class="n"><?php echo $tot['employees']; ?></span></button>
+                    <button type="button" class="cm-tab-btn on" data-tab="emp"><i class="fa-solid fa-list-ul"></i> Employee-wise <span class="n"><?php echo $empTot['employees']; ?></span></button>
+                    <button type="button" class="cm-tab-btn" data-tab="guest"><i class="fa-solid fa-user-group"></i> Guest / Trainee <span class="n"><?php echo $tot['guests']; ?></span></button>
                     <button type="button" class="cm-tab-btn" data-tab="dept"><i class="fa-solid fa-chart-column"></i> Department-wise <span class="n"><?php echo count($byDept); ?></span></button>
                 </div>
                 <div class="cm-legend">
@@ -811,7 +1021,7 @@ require_once __DIR__ . '/../includes/header.php';
                 </div>
             </div>
 
-            <?php if (!$rows): ?>
+            <?php if (!$hasAny): ?>
             <div class="cm-empty">
                 <i class="fa-solid fa-utensils"></i>
                 <strong>No meal booking found</strong>
@@ -820,7 +1030,10 @@ require_once __DIR__ . '/../includes/header.php';
             <?php else: ?>
 
             <div class="cm-tab-pane on" data-pane="emp">
-                <?php $sr = 0; foreach ($grouped as $dname => $list): $s = $byDept[$dname]; ?>
+                <?php if (!$rows): ?>
+                <div class="cm-empty"><i class="fa-solid fa-id-badge"></i><strong>No employee booking</strong>Only guest / trainee entries for this date.</div>
+                <?php endif; ?>
+                <?php $sr = 0; foreach ($grouped as $dname => $list): $s = $empByDept[$dname]; ?>
                 <div class="cm-group">
                     <div class="cm-group-head" data-toggle-group>
                         <div class="cm-group-title">
@@ -881,6 +1094,70 @@ require_once __DIR__ . '/../includes/header.php';
                 <?php endforeach; ?>
             </div>
 
+            <div class="cm-tab-pane" data-pane="guest">
+                <?php if (!$guestRows): ?>
+                <div class="cm-empty"><i class="fa-solid fa-user-group"></i><strong>No guest / trainee booking</strong>Guests and trainees are booked from the QR page → "Guest / Trainee Booking".</div>
+                <?php else: ?>
+                <div class="table-wrap" style="border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;">
+                    <table class="cm-table">
+                        <thead>
+                            <tr>
+                                <th style="width:50px;">Sr</th>
+                                <th style="width:90px;">Type</th>
+                                <th>Department</th>
+                                <th>With / Booked By</th>
+                                <th>Names</th>
+                                <th class="ctr" style="width:90px;">Breakfast</th>
+                                <th class="ctr" style="width:90px;">Lunch</th>
+                                <th class="ctr" style="width:90px;">Dinner</th>
+                                <th style="width:150px;">Booked At</th>
+                                <th class="ctr" style="width:60px;"></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                        <?php foreach ($guestRows as $gi => $g): $names = canteenGuestNames($g['person_names']); $isTr = $g['booking_type'] === 'Trainee'; ?>
+                            <tr>
+                                <td><?php echo $gi + 1; ?></td>
+                                <td><span class="cm-type <?php echo $isTr ? 'tr' : ''; ?>"><i class="fa-solid <?php echo $isTr ? 'fa-user-graduate' : 'fa-user-tie'; ?>"></i> <?php echo htmlspecialchars($g['booking_type']); ?></span></td>
+                                <td><strong><?php echo htmlspecialchars((string) $g['department_name']); ?></strong></td>
+                                <td>
+                                    <span class="cm-code"><?php echo htmlspecialchars((string) $g['host_code']); ?></span>
+                                    <span class="cm-desig" style="display:block;margin-top:3px;font-size:12.5px;color:#0f172a;font-weight:600;"><?php echo htmlspecialchars((string) ($g['host_name'] ?? '')); ?></span>
+                                </td>
+                                <td>
+                                    <span class="cm-persons"><?php echo (int) $g['person_count']; ?> person<?php echo (int) $g['person_count'] === 1 ? '' : 's'; ?></span>
+                                    <div class="cm-namelist"><?php echo htmlspecialchars(implode(', ', $names)); ?></div>
+                                    <?php if (trim((string) $g['remarks']) !== ''): ?><div class="cm-remark"><i class="fa-regular fa-note-sticky"></i> <?php echo htmlspecialchars((string) $g['remarks']); ?></div><?php endif; ?>
+                                </td>
+                                <?php foreach (['breakfast' => 'bf', 'lunch' => 'ln', 'dinner' => 'dn'] as $m => $cls): ?>
+                                <td class="ctr"><?php echo (int) $g[$m] === 1 ? '<span class="cm-chip ' . $cls . '">' . (int) $g['person_count'] . '</span>' : '<span class="cm-no">—</span>'; ?></td>
+                                <?php endforeach; ?>
+                                <td class="cm-time"><i class="fa-regular fa-clock"></i> <?php echo htmlspecialchars(date('d-m-Y h:i A', strtotime((string) $g['updated_at']))); ?></td>
+                                <td class="ctr">
+                                    <form method="POST" onsubmit="return confirm('Delete this <?php echo htmlspecialchars(strtolower($g['booking_type'])); ?> entry (<?php echo (int) $g['person_count']; ?> persons)?');" style="margin:0;">
+                                        <input type="hidden" name="action" value="delete_guest">
+                                        <input type="hidden" name="guest_id" value="<?php echo (int) $g['id']; ?>">
+                                        <input type="hidden" name="token" value="<?php echo htmlspecialchars($_SESSION['canteen_admin_token']); ?>">
+                                        <button type="submit" class="cm-del" title="Delete entry"><i class="fa-solid fa-trash-can"></i></button>
+                                    </form>
+                                </td>
+                            </tr>
+                        <?php endforeach; ?>
+                        </tbody>
+                        <tfoot>
+                            <tr>
+                                <td colspan="5" style="text-align:right;">Total — <?php echo $guestTot['guests']; ?> persons</td>
+                                <td class="ctr" style="color:#b45309;"><?php echo $guestTot['breakfast']; ?></td>
+                                <td class="ctr" style="color:#15803d;"><?php echo $guestTot['lunch']; ?></td>
+                                <td class="ctr" style="color:#4338ca;"><?php echo $guestTot['dinner']; ?></td>
+                                <td colspan="2"></td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+                <?php endif; ?>
+            </div>
+
             <div class="cm-tab-pane" data-pane="dept">
                 <div class="table-wrap" style="border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;">
                     <table class="cm-table sum">
@@ -889,6 +1166,7 @@ require_once __DIR__ . '/../includes/header.php';
                                 <th style="width:56px;">Sr</th>
                                 <th>Department</th>
                                 <th class="ctr">Employees</th>
+                                <th class="ctr">Guests / Trainees</th>
                                 <th class="ctr">Breakfast</th>
                                 <th class="ctr">Lunch</th>
                                 <th class="ctr">Dinner</th>
@@ -902,6 +1180,7 @@ require_once __DIR__ . '/../includes/header.php';
                                 <td><?php echo $i++; ?></td>
                                 <td><strong><?php echo htmlspecialchars($dname); ?></strong></td>
                                 <td class="ctr"><?php echo $s['employees']; ?></td>
+                                <td class="ctr"><?php echo $s['guests'] > 0 ? '<span class="cm-chip gs">' . $s['guests'] . '</span>' : '<span class="cm-no">—</span>'; ?></td>
                                 <td class="ctr"><span class="cm-chip bf"><?php echo $s['breakfast']; ?></span></td>
                                 <td class="ctr"><span class="cm-chip ln"><?php echo $s['lunch']; ?></span></td>
                                 <td class="ctr"><span class="cm-chip dn"><?php echo $s['dinner']; ?></span></td>
@@ -914,6 +1193,7 @@ require_once __DIR__ . '/../includes/header.php';
                             <tr>
                                 <td colspan="2" style="text-align:right;">GRAND TOTAL</td>
                                 <td class="ctr"><?php echo $tot['employees']; ?></td>
+                                <td class="ctr"><?php echo $tot['guests']; ?></td>
                                 <td class="ctr"><?php echo $tot['breakfast']; ?></td>
                                 <td class="ctr"><?php echo $tot['lunch']; ?></td>
                                 <td class="ctr"><?php echo $tot['dinner']; ?></td>
@@ -964,7 +1244,10 @@ require_once __DIR__ . '/../includes/header.php';
             try { localStorage.setItem(KEY, b.dataset.tab); } catch (e) {}
         });
     });
-    try { if (localStorage.getItem(KEY) === 'dept') { showTab('dept'); } } catch (e) {}
+    var urlTab = new URLSearchParams(location.search).get('tab');
+    var savedTab = urlTab;
+    try { savedTab = savedTab || localStorage.getItem(KEY); } catch (e) {}
+    if (savedTab === 'dept' || savedTab === 'guest') { showTab(savedTab); }
 
     document.querySelectorAll('[data-toggle-group]').forEach(function (h) {
         h.addEventListener('click', function () { h.parentElement.classList.toggle('collapsed'); });

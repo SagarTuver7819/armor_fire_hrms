@@ -226,6 +226,7 @@ try {
         'salary_register_locks table' => dbSyncHasTable($conn, 'salary_register_locks'),
         'employees.canteen_use' => dbSyncHasColumn($conn, 'employees', 'canteen_use'),
         'canteen_meal_orders table' => dbSyncHasTable($conn, 'canteen_meal_orders'),
+        'canteen_guest_orders table' => dbSyncHasTable($conn, 'canteen_guest_orders'),
     ];
 
     $counts = [
