@@ -28,6 +28,7 @@ require_once __DIR__ . '/includes/kpi_helper.php';
 require_once __DIR__ . '/includes/recruitment_helper.php';
 require_once __DIR__ . '/includes/permission_helper.php';
 require_once __DIR__ . '/includes/department_head_helper.php';
+require_once __DIR__ . '/includes/canteen_helper.php';
 require_once __DIR__ . '/sql/seed_contractor_masters.php';
 
 requireAdmin();
@@ -130,6 +131,9 @@ try {
     ensureDepartmentHeadTables($conn);
     $log[] = 'Department heads + seeded roles ready (HR_HEAD, PAYROLL_HEAD, DEPT_HEAD, OFFICE_STAFF).';
 
+    ensureCanteenTables($conn);
+    $log[] = 'Canteen ready (employees.canteen_use Yes/No + canteen_meal_orders for QR meal booking; cutoff ' . canteenCutoffLabel() . ' previous day).';
+
     // Optional: ?bulk_logins=1 → create/reset Office Staff logins (Username=Code, Password=FirstName@123)
     if (isset($_GET['bulk_logins']) && (string) $_GET['bulk_logins'] === '1') {
         $bulk = bulkProvisionOfficeStaffLogins(true);
@@ -220,6 +224,8 @@ try {
         'users.employee_id' => dbSyncHasColumn($conn, 'users', 'employee_id'),
         'department_heads table' => dbSyncHasTable($conn, 'department_heads'),
         'salary_register_locks table' => dbSyncHasTable($conn, 'salary_register_locks'),
+        'employees.canteen_use' => dbSyncHasColumn($conn, 'employees', 'canteen_use'),
+        'canteen_meal_orders table' => dbSyncHasTable($conn, 'canteen_meal_orders'),
     ];
 
     $counts = [
@@ -240,6 +246,8 @@ try {
         'Custom Roles' => dbSyncCount($conn, 'SELECT COUNT(*) AS c FROM roles WHERE status = 1'),
         'Employee Portal Logins' => dbSyncCount($conn, "SELECT COUNT(*) AS c FROM users WHERE role = 'employee' AND status = 1"),
         'Department Heads' => dbSyncCount($conn, 'SELECT COUNT(*) AS c FROM department_heads WHERE status = 1'),
+        'Canteen Use = Yes' => dbSyncCount($conn, "SELECT COUNT(*) AS c FROM employees WHERE status = 1 AND canteen_use = 'Yes'"),
+        'Canteen Bookings (tomorrow)' => dbSyncCount($conn, "SELECT COUNT(*) AS c FROM canteen_meal_orders WHERE meal_date = '" . $conn->real_escape_string(canteenTargetDate()) . "'"),
     ];
 } catch (Throwable $e) {
     $ok = false;
