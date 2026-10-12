@@ -10,7 +10,7 @@ require_once __DIR__ . '/payroll_helper.php';
 function ensureAttendanceTables($conn = null)
 {
     static $ready = false;
-    if ($ready && $conn === null) {
+    if ($ready) {
         return;
     }
     $closeAfter = false;

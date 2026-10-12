@@ -11,6 +11,11 @@ require_once __DIR__ . '/masters_config.php';
  */
 function ensureMasterTables($conn = null)
 {
+    static $ready = false;
+    if ($ready) {
+        return;
+    }
+    $ready = true;
     $closeAfter = false;
     if ($conn === null) {
         $conn = getDBConnection();
@@ -920,13 +925,16 @@ function holidayDateMapForWindow($conn, $windowFrom, $windowTo, $departmentId = 
         return $set;
     }
 
-    $cols = [];
-    $hc = @$conn->query('SHOW COLUMNS FROM holidays');
-    if (!$hc) {
-        return $set;
-    }
-    while ($c = $hc->fetch_assoc()) {
-        $cols[] = $c['Field'];
+    static $cols = null;
+    if ($cols === null) {
+        $hc = @$conn->query('SHOW COLUMNS FROM holidays');
+        if (!$hc) {
+            return $set;
+        }
+        $cols = [];
+        while ($c = $hc->fetch_assoc()) {
+            $cols[] = $c['Field'];
+        }
     }
     if (!in_array('holiday_date', $cols, true)) {
         return $set;

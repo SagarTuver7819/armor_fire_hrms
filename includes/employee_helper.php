@@ -13,7 +13,7 @@ require_once __DIR__ . '/text_case.php';
 function ensureEmployeesTable($conn = null)
 {
     static $ready = false;
-    if ($ready && $conn === null) {
+    if ($ready) {
         return;
     }
     $closeAfter = false;
@@ -112,6 +112,11 @@ function ensureEmployeesTable($conn = null)
 
 function ensureEmployeeFamilyTable($conn)
 {
+    static $ready = false;
+    if ($ready) {
+        return;
+    }
+    $ready = true;
     $conn->query(
         "CREATE TABLE IF NOT EXISTS employee_family_members (
             id INT AUTO_INCREMENT PRIMARY KEY,
@@ -132,6 +137,11 @@ function ensureEmployeeFamilyTable($conn)
  */
 function ensureEmployeeSalaryHistoryTable($conn)
 {
+    static $ready = false;
+    if ($ready) {
+        return;
+    }
+    $ready = true;
     $conn->query(
         "CREATE TABLE IF NOT EXISTS employee_salary_history (
             id INT AUTO_INCREMENT PRIMARY KEY,
@@ -154,6 +164,11 @@ function ensureEmployeeSalaryHistoryTable($conn)
  */
 function ensureEmployeeLocationHistoryTable($conn)
 {
+    static $ready = false;
+    if ($ready) {
+        return;
+    }
+    $ready = true;
     $conn->query(
         "CREATE TABLE IF NOT EXISTS employee_location_history (
             id INT AUTO_INCREMENT PRIMARY KEY,
@@ -179,6 +194,11 @@ function ensureEmployeeLocationHistoryTable($conn)
  */
 function ensureEmployeeWeekOffHistoryTable($conn)
 {
+    static $ready = false;
+    if ($ready) {
+        return;
+    }
+    $ready = true;
     $conn->query(
         "CREATE TABLE IF NOT EXISTS employee_week_off_history (
             id INT AUTO_INCREMENT PRIMARY KEY,
