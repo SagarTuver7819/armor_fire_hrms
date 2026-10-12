@@ -449,6 +449,8 @@ function lockSalaryRegister($month, $year, $type, $deptId = 0, $userId = null)
     if (!$ok) {
         return ['ok' => false, 'error' => $err ?: 'Lock failed'];
     }
+    require_once __DIR__ . '/payroll_approval_helper.php';
+    payrollApprovalOnLocked($id);
     return [
         'ok' => true,
         'id' => $id,

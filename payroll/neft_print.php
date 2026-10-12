@@ -8,16 +8,23 @@ require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/payroll_reports_helper.php';
 require_once __DIR__ . '/../includes/settings.php';
+require_once __DIR__ . '/../includes/permission_helper.php';
+require_once __DIR__ . '/../includes/payroll_approval_helper.php';
 
 requireLogin();
 
 $deptId = (int) ($_GET['department_id'] ?? 0);
+requirePayrollRegisterAccess($deptId);
+ensurePayrollApprovalTables();
 $month = (int) ($_GET['month'] ?? date('n'));
 $year = (int) ($_GET['year'] ?? date('Y'));
 $type = (string) ($_GET['type'] ?? 'salary');
 $data = getNeftSheetData($month, $year, $type, $deptId);
 if (!$data) {
     die('NEFT sheet not found. Finalize &amp; Lock the Salary Register first.');
+}
+if (($data['lock']['approval_status'] ?? 'approved') !== 'approved') {
+    die('NEFT sheet is not final yet. It can be printed after Accounts marks it Done.');
 }
 $monthLabel = date('F Y', mktime(0, 0, 0, $month, 1, $year));
 $companyName = function_exists('getCompanyName') ? getCompanyName() : 'Company';

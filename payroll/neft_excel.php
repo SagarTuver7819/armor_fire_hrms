@@ -8,15 +8,19 @@ require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/payroll_reports_helper.php';
 require_once __DIR__ . '/../includes/settings.php';
+require_once __DIR__ . '/../includes/permission_helper.php';
+require_once __DIR__ . '/../includes/payroll_approval_helper.php';
 
 requireLogin();
 
 $deptId = (int) ($_GET['department_id'] ?? 0);
+requirePayrollRegisterAccess($deptId);
+ensurePayrollApprovalTables();
 $month = (int) ($_GET['month'] ?? date('n'));
 $year = (int) ($_GET['year'] ?? date('Y'));
 $type = (string) ($_GET['type'] ?? 'salary');
 $data = getNeftSheetData($month, $year, $type, $deptId);
-if (!$data) {
+if (!$data || ($data['lock']['approval_status'] ?? 'approved') !== 'approved') {
     header('Location: ' . app_url('payroll/neft.php?' . http_build_query([
         'type' => $type, 'month' => $month, 'year' => $year, 'department_id' => $deptId,
     ])));

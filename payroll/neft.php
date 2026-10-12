@@ -12,9 +12,11 @@ require_once __DIR__ . '/../includes/settings.php';
 
 requireLogin();
 require_once __DIR__ . '/../includes/permission_helper.php';
+require_once __DIR__ . '/../includes/payroll_approval_helper.php';
 
 $deptId = (int) ($_GET['department_id'] ?? 0);
-requireAccess('payroll', 'view', $deptId);
+requirePayrollRegisterAccess($deptId);
+ensurePayrollApprovalTables();
 $month = (int) ($_GET['month'] ?? date('n'));
 $year = (int) ($_GET['year'] ?? date('Y'));
 $type = (string) ($_GET['type'] ?? 'salary');
@@ -26,6 +28,8 @@ if (!isset(salaryRegisterTypes()[$type])) {
 }
 
 $data = getNeftSheetData($month, $year, $type, $deptId);
+$neftStatus = $data ? (string) ($data['lock']['approval_status'] ?? 'approved') : '';
+$neftFinal = $neftStatus === 'approved';
 $monthLabel = date('F Y', mktime(0, 0, 0, $month, 1, $year));
 $companyName = function_exists('getCompanyName') ? getCompanyName() : 'Company';
 $types = salaryRegisterTypes();
@@ -57,7 +61,7 @@ require_once __DIR__ . '/../includes/header.php';
             <i class="fa-solid fa-arrow-left"></i> Back to Salary Register
         </a>
         <div class="toolbar-actions">
-            <?php if ($data): ?>
+            <?php if ($data && $neftFinal): ?>
                 <a class="btn-secondary" href="<?php echo app_url('payroll/neft_excel.php?' . $qs); ?>">
                     <i class="fa-solid fa-file-excel"></i> Excel
                 </a>
@@ -132,7 +136,17 @@ require_once __DIR__ . '/../includes/header.php';
             $lock = $data['lock'];
             $rows = $data['rows'];
             $neftTotal = $data['neft_total'];
+            $neftLabels = payrollApprovalStatusLabels();
             ?>
+            <?php if (!$neftFinal): ?>
+                <div class="form-page-card" style="margin-top:12px;border-left:4px solid #f59e0b;background:#fffbeb;">
+                    <p style="margin:0;">
+                        <i class="fa-solid fa-hourglass-half" style="color:#b45309;"></i>
+                        <strong>Draft · <?php echo htmlspecialchars($neftLabels[$neftStatus] ?? $neftStatus); ?></strong>
+                        — Excel / Print will be available after Accounts marks it Done.
+                    </p>
+                </div>
+            <?php endif; ?>
             <div class="ops-live-summary" style="margin-top:12px;">
                 <span class="ops-chip"><i class="fa-solid fa-lock"></i> Locked <?php echo htmlspecialchars(formatDateDisplay(substr((string) $lock['locked_at'], 0, 10)) . ' ' . substr((string) $lock['locked_at'], 11, 5)); ?></span>
                 <span class="ops-chip"><?php echo count($rows); ?> NEFT rows</span>

@@ -1,12 +1,14 @@
 <?php
 /**
- * Finalize & lock salary register → creates NEFT sheet
+ * Finalize & lock salary register → sends it for HR Head check → Accounts → NEFT final
  */
 
 require_once __DIR__ . '/../config/app.php';
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/payroll_reports_helper.php';
+require_once __DIR__ . '/../includes/permission_helper.php';
+require_once __DIR__ . '/../includes/payroll_approval_helper.php';
 
 requireLogin();
 
@@ -21,6 +23,8 @@ $year = (int) ($_POST['year'] ?? date('Y'));
 $type = (string) ($_POST['type'] ?? 'salary');
 $action = (string) ($_POST['action'] ?? 'lock');
 
+requirePayrollRegisterAccess($deptId);
+
 $qs = http_build_query([
     'type' => $type,
     'month' => $month,
@@ -29,16 +33,25 @@ $qs = http_build_query([
 ]);
 
 if ($action === 'unlock') {
+    $lockBefore = getSalaryRegisterLock($month, $year, $type, $deptId);
     $res = unlockSalaryRegister($month, $year, $type, $deptId);
+    if (!empty($res['ok']) && $lockBefore) {
+        payrollApprovalLog($lockBefore, 'unlocked_admin');
+    }
     $msg = !empty($res['ok']) ? 'unlocked' : 'error';
     $err = $res['error'] ?? '';
     header('Location: ' . app_url('payroll/register.php?' . $qs . '&lock_msg=' . urlencode($msg) . ($err ? '&lock_err=' . urlencode($err) : '')));
     exit;
 }
 
+if (!payrollCanLock()) {
+    header('Location: ' . app_url('payroll/register.php?' . $qs . '&lock_msg=error&lock_err=' . urlencode('Only the assigned Payroll Manager (Maker) can lock the salary register.')));
+    exit;
+}
+
 $result = lockSalaryRegister($month, $year, $type, $deptId, (int) ($_SESSION['user_id'] ?? 0));
 if (!empty($result['ok'])) {
-    header('Location: ' . app_url('payroll/neft.php?' . $qs . '&lock_msg=locked&neft_count=' . (int) ($result['neft_count'] ?? 0)));
+    header('Location: ' . app_url('payroll/register.php?' . $qs . '&lock_msg=locked'));
     exit;
 }
 

@@ -202,6 +202,21 @@ $sidebarCompanyName = function_exists('getCompanyName') ? getCompanyName() : 'Ar
                     </span>
                 </a>
                 <?php endif; ?>
+                <?php
+                if (!function_exists('payrollApprovalIsMember')) {
+                    require_once __DIR__ . '/payroll_approval_helper.php';
+                }
+                if (payrollApprovalIsMember()):
+                ?>
+                <a href="<?php echo app_url('payroll/approvals.php'); ?>"
+                   class="sidebar-link sidebar-emp-link <?php echo $sidebarActive === 'payroll_approvals' ? 'active' : ''; ?>">
+                    <span class="sidebar-emp-ico" style="--emp-ico:#16a34a;"><i class="fa-solid fa-user-check"></i></span>
+                    <span class="sidebar-emp-txt">
+                        <strong>Payroll Approvals</strong>
+                        <small>Salary · NEFT sign-off</small>
+                    </span>
+                </a>
+                <?php endif; ?>
                 <a href="<?php echo app_url('employee/attendance.php'); ?>"
                    class="sidebar-link sidebar-emp-link <?php echo $sidebarActive === 'my_attendance' ? 'active' : ''; ?>">
                     <span class="sidebar-emp-ico" style="--emp-ico:#2563eb;"><i class="fa-solid fa-calendar-check"></i></span>
@@ -521,6 +536,7 @@ $sidebarCompanyName = function_exists('getCompanyName') ? getCompanyName() : 'Ar
                     <a href="<?php echo app_url('payroll/joining_exit.php'); ?>" class="sidebar-link sidebar-sublink <?php echo $sidebarActive === 'joining_exit_report' ? 'active' : ''; ?>"><i class="fa-solid fa-user-plus"></i><span>Joining / Exit</span></a>
                     <a href="<?php echo app_url('payroll/cost_summary.php'); ?>" class="sidebar-link sidebar-sublink <?php echo $sidebarActive === 'dept_cost_summary' ? 'active' : ''; ?>"><i class="fa-solid fa-chart-pie"></i><span>Dept Cost Summary</span></a>
                     <a href="<?php echo app_url('payroll/neft.php'); ?>" class="sidebar-link sidebar-sublink <?php echo $sidebarActive === 'neft_sheet' ? 'active' : ''; ?>"><i class="fa-solid fa-building-columns"></i><span>NEFT Sheet</span></a>
+                    <a href="<?php echo app_url('payroll/approvals.php'); ?>" class="sidebar-link sidebar-sublink <?php echo $sidebarActive === 'payroll_approvals' ? 'active' : ''; ?>"><i class="fa-solid fa-user-check"></i><span>Payroll Approvals</span></a>
                 </div>
             </div>
             <?php endif; ?>

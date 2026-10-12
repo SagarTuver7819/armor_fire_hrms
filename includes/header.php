@@ -128,6 +128,17 @@ if (function_exists('isPortalUser') && isPortalUser()) {
             $headerNotifyItems[] = $n;
         }
     }
+    require_once __DIR__ . '/payroll_approval_helper.php';
+    foreach (fetchUnreadPayrollNotifications($uid, 8) as $n) {
+        $event = (string) ($n['event_type'] ?? '');
+        $n['_type'] = 'payroll';
+        $n['_date'] = substr((string) ($n['created_at'] ?? ''), 0, 10);
+        $n['_dept_label'] = (string) ($n['body'] ?? '');
+        $n['_url'] = app_url('payroll/notify_read.php?id=' . (int) $n['id']);
+        $n['_icon'] = $event === 'approved' ? 'fa-circle-check' : ($event === 'sent_back' ? 'fa-rotate-left' : 'fa-file-invoice-dollar');
+        $n['_label'] = 'Payroll';
+        $headerNotifyItems[] = $n;
+    }
     usort($headerNotifyItems, static function ($a, $b) {
         return strcmp((string) ($b['created_at'] ?? ''), (string) ($a['created_at'] ?? ''));
     });
@@ -304,6 +315,8 @@ if (!empty($staffLeaveApplyToasts)) {
                                 <a href="<?php echo app_url('leave/mark_read.php?all=1'); ?>">Read leave</a>
                                 ·
                                 <a href="<?php echo app_url('employee_voice/mark_read.php?all=1'); ?>">Read voice</a>
+                                ·
+                                <a href="<?php echo app_url('payroll/notify_read.php?all=1'); ?>">Read payroll</a>
                                 <?php if (isAdmin() || isHR()): ?>
                                 ·
                                 <a href="<?php echo app_url('employees/documents_mark_read.php?all=1'); ?>">Read documents</a>

@@ -12,11 +12,13 @@ require_once __DIR__ . '/../includes/payroll_reports_helper.php';
 require_once __DIR__ . '/../includes/settings.php';
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/permission_helper.php';
+require_once __DIR__ . '/../includes/payroll_approval_helper.php';
 
 requireLogin();
 
 $deptId = isset($_GET['department_id']) ? (int) $_GET['department_id'] : 0;
-requireAccess('payroll', 'view', $deptId);
+requirePayrollRegisterAccess($deptId);
+ensurePayrollApprovalTables();
 $employeeId = isset($_GET['employee_id']) ? (int) $_GET['employee_id'] : 0;
 $month = (int) ($_GET['month'] ?? date('n'));
 $year = (int) ($_GET['year'] ?? date('Y'));
@@ -31,6 +33,10 @@ if (!isset(salaryRegisterTypes()[$type])) {
 
 $lock = getSalaryRegisterLock($month, $year, $type, $deptId);
 $isLocked = $lock !== null;
+$approvalStatus = $isLocked ? (string) ($lock['approval_status'] ?? 'approved') : '';
+$approvalLabels = payrollApprovalStatusLabels();
+$myApprovalAction = $isLocked ? payrollApprovalPendingActionFor($lock) : '';
+$approvalLog = fetchPayrollApprovalLog($month, $year, $type, $deptId);
 
 $department = $deptId > 0 ? getDepartmentById($deptId) : null;
 $monthDays = (int) date('t', strtotime(sprintf('%04d-%02d-01', $year, $month)));
@@ -129,6 +135,14 @@ require_once __DIR__ . '/../includes/header.php';
         $lockNote = '';
         if ($lm === 'unlocked') {
             $lockNote = 'Register unlocked. You can edit attendance / regenerate and lock again.';
+        } elseif ($lm === 'locked') {
+            $lockNote = 'Salary Register locked and sent for approval.';
+        } elseif ($lm === 'appr_pending_accounts') {
+            $lockNote = 'Checked and approved. Sent to Accounts for final approval.';
+        } elseif ($lm === 'appr_approved') {
+            $lockNote = 'Approved. NEFT sheet is now final.';
+        } elseif ($lm === 'appr_sent_back') {
+            $lockNote = 'Sent back to Payroll Manager. Register is unlocked for correction.';
         } elseif ($lm === 'error') {
             $lockNote = 'Lock failed: ' . htmlspecialchars((string) ($_GET['lock_err'] ?? 'Unknown error'));
         }
@@ -159,10 +173,43 @@ require_once __DIR__ . '/../includes/header.php';
                 <span class="ops-chip"><?php echo (int) ($lock['employee_count'] ?? 0); ?> employees</span>
                 <span class="ops-chip">Net ₹ <?php echo number_format((float) ($lock['total_net'] ?? 0), 2); ?></span>
                 <span class="ops-chip"><?php echo (int) ($lock['neft_count'] ?? 0); ?> NEFT rows</span>
+                <span class="ops-chip" style="font-weight:700;color:<?php echo $approvalStatus === 'approved' ? '#047857' : '#b45309'; ?>;">
+                    <i class="fa-solid <?php echo $approvalStatus === 'approved' ? 'fa-circle-check' : 'fa-hourglass-half'; ?>"></i>
+                    <?php echo htmlspecialchars($approvalLabels[$approvalStatus] ?? $approvalStatus); ?>
+                </span>
             </div>
+            <?php if ($myApprovalAction !== ''): ?>
+            <div class="form-page-card" style="margin-bottom:12px;border-left:4px solid #d2232a;background:#fff7f7;">
+                <p style="margin:0 0 8px;">
+                    <strong><i class="fa-solid fa-user-check" style="color:#d2232a;"></i>
+                    <?php echo $myApprovalAction === 'check' ? 'Your check is pending (HR Head)' : 'Your final approval is pending (Accounts)'; ?></strong>
+                    · Review the register below, then approve or send back with a remark.
+                </p>
+                <form method="POST" action="<?php echo app_url('payroll/approval_action.php'); ?>" class="employee-form">
+                    <input type="hidden" name="lock_id" value="<?php echo (int) $lock['id']; ?>">
+                    <div class="form-group" style="margin-bottom:8px;">
+                        <textarea name="remarks" class="form-control" rows="2" placeholder="Remark (required for Send Back)"></textarea>
+                    </div>
+                    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                        <?php if ($myApprovalAction === 'check'): ?>
+                            <button type="submit" name="action" value="check_approve" class="btn-primary" onclick="return confirm('Approve this salary register and send it to Accounts?');">
+                                <i class="fa-solid fa-check"></i> Checked · Approve
+                            </button>
+                        <?php else: ?>
+                            <button type="submit" name="action" value="accounts_done" class="btn-primary" onclick="return confirm('Mark Done? NEFT sheet will become final.');">
+                                <i class="fa-solid fa-check-double"></i> Done · Finalize NEFT
+                            </button>
+                        <?php endif; ?>
+                        <button type="submit" name="action" value="send_back" class="btn-secondary" onclick="return confirm('Send back to Payroll Manager? The register will be unlocked.');">
+                            <i class="fa-solid fa-rotate-left"></i> Send Back
+                        </button>
+                    </div>
+                </form>
+            </div>
+            <?php endif; ?>
             <div class="form-actions" style="margin-bottom:12px;gap:8px;">
                 <a class="btn-primary" href="<?php echo app_url('payroll/neft.php?' . $excelQs); ?>">
-                    <i class="fa-solid fa-building-columns"></i> Open NEFT Sheet
+                    <i class="fa-solid fa-building-columns"></i> <?php echo $approvalStatus === 'approved' ? 'Open NEFT Sheet' : 'NEFT Sheet (Draft)'; ?>
                 </a>
                 <?php if (function_exists('isAdmin') && isAdmin()): ?>
                     <form method="POST" action="<?php echo app_url('payroll/register_lock.php'); ?>" style="display:inline;" onsubmit="return confirm('Unlock this finalized register?');">
@@ -176,16 +223,46 @@ require_once __DIR__ . '/../includes/header.php';
                 <?php endif; ?>
             </div>
         <?php else: ?>
+            <?php if (payrollCanLock()): ?>
             <div class="form-actions" style="margin-bottom:12px;">
-                <form method="POST" action="<?php echo app_url('payroll/register_lock.php'); ?>" onsubmit="return confirm('Finalize & lock this Salary Register? NEFT sheet will be generated. Locked register cannot be changed until Admin unlocks.');">
+                <form method="POST" action="<?php echo app_url('payroll/register_lock.php'); ?>" onsubmit="return confirm('Lock this Salary Register and send it for approval? It cannot be changed unless it is sent back or Admin unlocks it.');">
                     <input type="hidden" name="action" value="lock">
                     <input type="hidden" name="type" value="<?php echo htmlspecialchars($type); ?>">
                     <input type="hidden" name="month" value="<?php echo $month; ?>">
                     <input type="hidden" name="year" value="<?php echo $year; ?>">
                     <input type="hidden" name="department_id" value="<?php echo $deptId; ?>">
-                    <button type="submit" class="btn-primary"><i class="fa-solid fa-lock"></i> Finalize &amp; Lock → NEFT</button>
+                    <button type="submit" class="btn-primary"><i class="fa-solid fa-lock"></i> Lock &amp; Send for Approval</button>
                 </form>
             </div>
+            <?php endif; ?>
+        <?php endif; ?>
+
+        <?php if ($approvalLog): ?>
+            <?php
+            $logLabels = [
+                'locked' => 'Locked by Maker',
+                'checked' => 'Checked & approved (HR Head)',
+                'approved' => 'Done (Accounts) · NEFT final',
+                'sent_back_checker' => 'Sent back by HR Head',
+                'sent_back_accounts' => 'Sent back by Accounts',
+                'unlocked_admin' => 'Unlocked by Admin',
+            ];
+            ?>
+            <details class="form-page-card" style="margin-bottom:12px;padding:10px 14px;" <?php echo !$isLocked ? 'open' : ''; ?>>
+                <summary style="cursor:pointer;font-weight:700;"><i class="fa-solid fa-clock-rotate-left" style="color:#d2232a;"></i> Approval History (<?php echo count($approvalLog); ?>)</summary>
+                <ul style="margin:10px 0 0;padding-left:18px;line-height:1.7;">
+                    <?php foreach ($approvalLog as $lg): ?>
+                        <li>
+                            <strong><?php echo htmlspecialchars($logLabels[$lg['action']] ?? $lg['action']); ?></strong>
+                            · <?php echo htmlspecialchars(payrollUserDisplayName($lg['user_id']) ?: '-'); ?>
+                            · <small><?php echo htmlspecialchars((string) $lg['created_at']); ?></small>
+                            <?php if (trim((string) $lg['remarks']) !== ''): ?>
+                                <br><em><?php echo htmlspecialchars((string) $lg['remarks']); ?></em>
+                            <?php endif; ?>
+                        </li>
+                    <?php endforeach; ?>
+                </ul>
+            </details>
         <?php endif; ?>
 
         <form method="GET" class="employee-form register-filters">
