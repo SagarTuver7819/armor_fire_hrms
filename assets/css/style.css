@@ -11348,3 +11348,105 @@ body.co-about-open { overflow: hidden; }
         padding: 7px 9px;
     }
 }
+
+/* ===== Employee profile header card ===== */
+.emp-id-card {
+    border: 1px solid #f1d5d6;
+    border-radius: 20px;
+    box-shadow: 0 18px 40px -18px rgba(143, 22, 27, 0.28), 0 2px 6px rgba(15, 23, 42, 0.04);
+}
+.emp-id-card::before {
+    width: 6px;
+    border-radius: 20px 0 0 20px;
+    background: linear-gradient(180deg, #d2232a 0%, #f05a28 55%, #ffb347 100%);
+    z-index: 31;
+}
+.emp-id-top {
+    border-radius: 20px 20px 0 0;
+    padding: 24px 24px 20px 30px;
+    overflow: hidden;
+    background:
+        radial-gradient(circle at 92% -20%, rgba(210, 35, 42, 0.12) 0, rgba(210, 35, 42, 0) 42%),
+        radial-gradient(circle at 70% 130%, rgba(255, 179, 71, 0.14) 0, rgba(255, 179, 71, 0) 40%),
+        linear-gradient(120deg, #fff6f6 0%, #ffffff 45%, #fffaf3 100%);
+}
+.emp-id-top:has(.emp-letters-dd.is-open) {
+    overflow: visible;
+}
+.emp-avatar--profile {
+    border: 0;
+    padding: 4px;
+    background: linear-gradient(145deg, #d2232a, #ffb347);
+    box-shadow: 0 14px 30px -10px rgba(210, 35, 42, 0.55);
+}
+.emp-avatar--profile img {
+    border-radius: 20px;
+    border: 3px solid #fff;
+    background: #fff;
+}
+.emp-avatar--profile > span {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 20px;
+    border: 3px solid #fff;
+    background: linear-gradient(145deg, #d2232a, #8f161b);
+}
+.emp-id-title-row .emp-id-code {
+    font-size: 15px;
+    color: #b91c1c;
+    background: #fff;
+    border: 1px solid #fecaca;
+    padding: 4px 12px;
+    border-radius: 999px;
+    box-shadow: 0 2px 6px rgba(210, 35, 42, 0.1);
+    align-self: center;
+}
+.emp-id-title-row h1 {
+    background: linear-gradient(90deg, #0f172a 0%, #7f1d1d 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+.emp-id-role > span:not(.sep):not(.pay-pill) {
+    background: rgba(255, 255, 255, 0.85);
+    border: 1px solid #f1e2e3;
+    border-radius: 999px;
+    padding: 4px 12px;
+    color: #334155;
+    font-size: 13px;
+}
+.emp-id-role .sep {
+    display: none;
+}
+.emp-id-stats {
+    background: #fff;
+    border-top: 1px solid #f3e3e4;
+    border-radius: 0 0 20px 20px;
+}
+.emp-stat-item {
+    transition: background 0.18s ease;
+    border-right-color: #f1f5f9;
+}
+.emp-stat-item:hover {
+    background: linear-gradient(180deg, #fff7f7 0%, #ffffff 100%);
+}
+.emp-stat-icon {
+    width: 42px;
+    height: 42px;
+    border: 0;
+    border-radius: 13px;
+    background: linear-gradient(145deg, #fff1f1, #ffe4e2);
+    color: #d2232a;
+    box-shadow: inset 0 0 0 1px rgba(210, 35, 42, 0.12);
+    transition: transform 0.18s ease;
+}
+.emp-stat-item:hover .emp-stat-icon {
+    transform: translateY(-2px);
+}
+.emp-stat-item span {
+    color: #94a3b8;
+    font-size: 10.5px;
+}

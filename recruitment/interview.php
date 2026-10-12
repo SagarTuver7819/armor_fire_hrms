@@ -450,7 +450,7 @@ if (isset($_GET['msg'])) {
         <div class="view-card">
             <div class="view-card-head">
                 <i class="fa-solid fa-pen-to-square"></i>
-                <div><h3>Update Interview Result</h3><p>Selected · Not Selected · Awaited</p></div>
+                <div><h3>Update HR Remarks</h3><p>Selected · Not Selected · Awaited</p></div>
             </div>
             <div class="view-body">
                 <form method="POST" action="<?php echo app_url('recruitment/interview_save.php'); ?>" class="employee-form">
@@ -490,9 +490,21 @@ if (isset($_GET['msg'])) {
                             <label>Reason for Not Selected</label>
                             <textarea name="not_selected_reason" class="form-control" rows="2"><?php echo htmlspecialchars((string) ($row['not_selected_reason'] ?? '')); ?></textarea>
                         </div>
-                        <div class="form-group" style="grid-column:1/-1;">
-                            <label>Interview Notes</label>
-                            <textarea name="interview_notes" class="form-control" rows="2"><?php echo htmlspecialchars((string) ($row['interview_notes'] ?? '')); ?></textarea>
+                        <div class="form-group">
+                            <label>Department <small>(Offer Letter)</small></label>
+                            <input type="text" name="offer_department" class="form-control" maxlength="150"
+                                   value="<?php echo htmlspecialchars(trim((string) ($row['offer_department'] ?? '')) !== '' ? (string) $row['offer_department'] : (string) ($row['department_name'] ?? '')); ?>">
+                        </div>
+                        <div class="form-group">
+                            <label>Post <small>(Offer Letter)</small></label>
+                            <input type="text" name="offer_post" class="form-control" maxlength="150"
+                                   value="<?php
+                                    $offerPostVal = trim((string) ($row['offer_post'] ?? ''));
+                                    if ($offerPostVal === '' && strcasecmp(trim((string) ($row['position_name'] ?? '')), 'Other') !== 0) {
+                                        $offerPostVal = (string) ($row['position_name'] ?? '');
+                                    }
+                                    echo htmlspecialchars($offerPostVal);
+                                   ?>">
                         </div>
                         <div class="form-group" style="grid-column:1/-1;">
                             <label>HR Remarks</label>

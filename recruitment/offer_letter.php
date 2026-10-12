@@ -40,8 +40,14 @@ $offerDateRaw = !empty($row['offer_letter_date'])
     : date('Y-m-d');
 $offerDate = formatDateDisplay($offerDateRaw);
 
-$position = trim((string) ($row['position_name'] ?? ''));
-$department = trim((string) ($row['department_name'] ?? ''));
+$position = trim((string) ($row['offer_post'] ?? ''));
+if ($position === '') {
+    $position = trim((string) ($row['position_name'] ?? ''));
+}
+$department = trim((string) ($row['offer_department'] ?? ''));
+if ($department === '') {
+    $department = trim((string) ($row['department_name'] ?? ''));
+}
 $fullName = strtoupper(trim((string) ($row['full_name'] ?? '')));
 
 $gender = strtolower(trim((string) ($row['gender'] ?? '')));

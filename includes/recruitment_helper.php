@@ -205,6 +205,8 @@ if (!function_exists('ensureRecruitmentTables')) {
             'appointment_letter_no' => "VARCHAR(40) DEFAULT NULL AFTER biometric_done",
             'appointment_letter_date' => "DATE DEFAULT NULL AFTER appointment_letter_no",
             'appointment_generated_at' => "DATETIME DEFAULT NULL AFTER appointment_letter_date",
+            'offer_department' => "VARCHAR(150) DEFAULT NULL AFTER appointment_generated_at",
+            'offer_post' => "VARCHAR(150) DEFAULT NULL AFTER offer_department",
         ];
         foreach ($extraCols as $col => $def) {
             $chk = $conn->query("SHOW COLUMNS FROM recruitment_applications LIKE '" . $conn->real_escape_string($col) . "'");
@@ -960,7 +962,8 @@ if (!function_exists('ensureRecruitmentTables')) {
 
         $mode = trim((string) ($data['interview_mode'] ?? ''));
         $interviewDate = trim((string) ($data['interview_date'] ?? ''));
-        $notes = trim((string) ($data['interview_notes'] ?? ''));
+        $offerDepartment = trim((string) ($data['offer_department'] ?? ''));
+        $offerPost = trim((string) ($data['offer_post'] ?? ''));
         $awaitedWith = trim((string) ($data['awaited_with'] ?? ''));
         $notReason = trim((string) ($data['not_selected_reason'] ?? ''));
         $hrRemarks = trim((string) ($data['hr_remarks'] ?? ''));
@@ -982,7 +985,8 @@ if (!function_exists('ensureRecruitmentTables')) {
             'status = ' . recruitmentSqlStr($conn, $status),
             'interview_mode = ' . recruitmentSqlStr($conn, $mode),
             'interview_date = ' . ($interviewDate !== '' ? recruitmentSqlStr($conn, $interviewDate) : 'NULL'),
-            'interview_notes = ' . recruitmentSqlStr($conn, $notes),
+            'offer_department = ' . recruitmentSqlStr($conn, $offerDepartment),
+            'offer_post = ' . recruitmentSqlStr($conn, $offerPost),
             'awaited_with = ' . recruitmentSqlStr($conn, $awaitedWith),
             'not_selected_reason = ' . recruitmentSqlStr($conn, $notReason),
             'hr_remarks = ' . recruitmentSqlStr($conn, $hrRemarks),
