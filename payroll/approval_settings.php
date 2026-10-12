@@ -78,19 +78,26 @@ $stages = [
         </div>
 
         <form method="POST" class="employee-form">
-            <div class="form-grid form-grid-3">
-                <?php foreach ($stages as $key => [$label, $hint, $icon]): ?>
-                <div class="form-group">
-                    <label><i class="fa-solid <?php echo $icon; ?>" style="color:#d2232a;"></i> <?php echo htmlspecialchars($label); ?></label>
-                    <select name="<?php echo $key; ?>" class="form-control">
-                        <option value="0">— Not set —</option>
-                        <?php foreach ($users as $u): ?>
-                            <option value="<?php echo (int) $u['id']; ?>" <?php echo (int) $settings[$key] === (int) $u['id'] ? 'selected' : ''; ?>>
-                                <?php echo htmlspecialchars($userLabel($u)); ?>
-                            </option>
-                        <?php endforeach; ?>
-                    </select>
-                    <small class="form-hint"><?php echo htmlspecialchars($hint); ?></small>
+            <div class="pa-settings-list">
+                <?php $step = 1; foreach ($stages as $key => [$label, $hint, $icon]): ?>
+                <div class="pa-settings-row">
+                    <div class="pa-settings-meta">
+                        <span class="pa-stage-ico"><i class="fa-solid <?php echo $icon; ?>"></i></span>
+                        <div>
+                            <strong><span class="pa-settings-step"><?php echo $step++; ?></span> <?php echo htmlspecialchars($label); ?></strong>
+                            <small><?php echo htmlspecialchars($hint); ?></small>
+                        </div>
+                    </div>
+                    <div class="pa-settings-field">
+                        <select name="<?php echo $key; ?>" class="form-control">
+                            <option value="0">— Not set —</option>
+                            <?php foreach ($users as $u): ?>
+                                <option value="<?php echo (int) $u['id']; ?>" <?php echo (int) $settings[$key] === (int) $u['id'] ? 'selected' : ''; ?>>
+                                    <?php echo htmlspecialchars($userLabel($u)); ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
                 </div>
                 <?php endforeach; ?>
             </div>
