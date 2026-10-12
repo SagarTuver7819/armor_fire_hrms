@@ -282,6 +282,7 @@ if (isset($_GET['msg']) && $_GET['msg'] === 'saved') {
             </div>
         </div>
 
+        <?php if (strcasecmp(trim((string) ($row['position_name'] ?? '')), 'Sales') === 0 || !empty($row['descriptive'])): ?>
         <div class="view-card view-card-wide">
             <div class="view-card-head">
                 <i class="fa-solid fa-comments"></i>
@@ -304,6 +305,7 @@ if (isset($_GET['msg']) && $_GET['msg'] === 'saved') {
                 <?php endif; ?>
             </div>
         </div>
+        <?php endif; ?>
 
         <?php if ($canEdit): ?>
         <div class="view-card view-card-wide">
