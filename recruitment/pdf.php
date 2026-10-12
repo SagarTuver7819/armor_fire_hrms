@@ -362,7 +362,7 @@ $cell = static function ($label, $value, $span = 1) {
         </table>
     </div>
 
-    <?php if (strcasecmp(trim((string) ($row['position_name'] ?? '')), 'Sales') === 0 || !empty($row['descriptive'])): ?>
+    <?php if (strcasecmp(trim((string) ($row['position_name'] ?? '')), 'Sales') === 0): ?>
     <div class="sec">
         <h2 class="sec-h">Reasoning Descriptive Questions</h2>
         <table class="grid">
