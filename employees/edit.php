@@ -78,7 +78,7 @@ $extraCss = ['https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min
 $extraJs = [
     'https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.js',
     'assets/js/case_force.js',
-    'assets/js/employee_form.js',
+    'assets/js/employee_form.js?v=' . (string) @filemtime(__DIR__ . '/../assets/js/employee_form.js'),
     'assets/js/subdept_cascade.js',
 ];
 

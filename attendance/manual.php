@@ -358,6 +358,7 @@ if (isset($_GET['msg']) && $_GET['msg'] === 'saved') {
                                         data-date="<?php echo $date; ?>"
                                         data-day="<?php echo $d; ?>"
                                         data-status="<?php echo htmlspecialchars($status); ?>"
+                                        data-virtual="<?php echo !empty($day['_virtual']) ? '1' : '0'; ?>"
                                         data-in="<?php echo htmlspecialchars($inDisp); ?>"
                                         data-out="<?php echo htmlspecialchars($outDisp); ?>"
                                         data-leave-type="<?php echo htmlspecialchars($parsed['leave_type']); ?>"

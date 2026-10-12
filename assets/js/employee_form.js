@@ -831,7 +831,6 @@
         }
 
         btn.addEventListener('click', openModal);
-        salaryInp.addEventListener('click', openModal);
         modal.querySelectorAll('[data-close-salary-modal]').forEach(function (el) {
             el.addEventListener('click', closeModal);
         });

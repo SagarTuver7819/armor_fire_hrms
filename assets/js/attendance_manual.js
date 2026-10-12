@@ -115,6 +115,7 @@
 
         $td.attr({
             'data-status': status,
+            'data-virtual': '0',
             'data-in': inn,
             'data-out': out,
             'data-leave-type': leaveType,
@@ -131,6 +132,12 @@
         $td.find('.cell-leave-half').val(leaveHalf);
         $td.find('.cell-touched').val('1');
         recalcRowTotals($td.closest('tr'));
+    }
+
+    function weekdayNameOf(dateStr) {
+        var names = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+        var dt = new Date(String(dateStr || '') + 'T00:00:00');
+        return isNaN(dt.getTime()) ? '' : names[dt.getDay()];
     }
 
     function parseWeekOffHistory($tr) {
@@ -174,13 +181,46 @@
         };
         var holidayMap = window.ATT_HOLIDAY_DATES || {};
 
+        // Unmarked Week Off / Holiday count only up to the last real attendance entry
+        var lastEntry = '';
+        $tr.find('td.day-cell').each(function () {
+            var $td = $(this);
+            var st = ($td.attr('data-status') || '').trim();
+            var d = $td.attr('data-date') || '';
+            if (st && $td.attr('data-virtual') !== '1' && d > lastEntry) {
+                lastEntry = d;
+            }
+        });
+
         $tr.find('td.day-cell').each(function () {
             var $td = $(this);
             var status = ($td.attr('data-status') || '').trim();
+            var isVirtual = $td.attr('data-virtual') === '1';
+            if (isVirtual && (status === 'Week Off' || status === 'Holiday')) {
+                status = '';
+            }
+            if (isVirtual || !status) {
+                var dateKey = $td.attr('data-date') || '';
+                var autoStatus = '';
+                if (dateKey && lastEntry && dateKey <= lastEntry) {
+                    if (holidayMap[dateKey]) {
+                        autoStatus = 'Holiday';
+                    } else if (weekdayNameOf(dateKey).toLowerCase() === weekOffDayForDate($tr, dateKey).toLowerCase()) {
+                        autoStatus = 'Week Off';
+                    }
+                }
+                if (!status) {
+                    $td.removeClass('is-weekoff is-holiday').addClass(cellCss(autoStatus, ''));
+                    $td.find('.cell-text').html(cellHtmlFromText(autoStatus ? buildPreview(autoStatus) : ''));
+                    if (!autoStatus) {
+                        return;
+                    }
+                    status = autoStatus;
+                }
+            }
             var type = ($td.attr('data-leave-type') || '').trim();
             var half = ($td.attr('data-leave-half') || '').toUpperCase();
             var date = $td.attr('data-date') || '';
-            var weekOffName = weekOffDayForDate($tr, date).toLowerCase();
 
             if (!type && status === 'Leave') type = 'PL';
             if (type.toUpperCase() === 'COFF' || type.toUpperCase() === 'C-OFF') type = 'C-Off';
@@ -188,25 +228,11 @@
 
             // Empty / soft Week Off → Holiday wins once (never count both)
             var onHoliday = !!(date && holidayMap[date]);
-            if (!status || status === 'Week Off' || status === 'Absent') {
+            if (status === 'Week Off' || status === 'Absent') {
                 if (onHoliday) {
                     totals.holiday += 1;
                     return;
                 }
-            }
-
-            if (!status) {
-                if (date && weekOffName) {
-                    var parts = date.split('-');
-                    if (parts.length === 3) {
-                        var dt = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
-                        var names = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
-                        if (names[dt.getDay()] === weekOffName) {
-                            totals.week_off += 1;
-                        }
-                    }
-                }
-                return;
             }
 
             var isHalf = (status === 'Half Day' || half === 'FHF' || half === 'SHF' || half === 'FHL' || half === 'SHL');

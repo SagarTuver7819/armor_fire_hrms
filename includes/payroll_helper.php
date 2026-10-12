@@ -809,10 +809,12 @@ function payrollAttendanceAlignedTotals(array $emp, $month, $year, $conn = null)
         $conn->close();
     }
 
-    // No attendance activity and no WO/Holiday either → null (caller may fall back)
+    // Not employed in this month → null (caller may fall back). With no entries yet the
+    // employee still gets zero days, not the calendar fallback.
     $pay = (float) ($totals['total_pay_days'] ?? 0);
     $lwp = (float) ($totals['LWP'] ?? 0);
-    if (!$hasAny && $pay <= 0 && $lwp <= 0) {
+    if (!$hasAny && $pay <= 0 && $lwp <= 0
+        && payrollEmploymentRangeInMonth($month, $year, $empRow['date_of_joining'], $empRow['date_of_exit']) === null) {
         return null;
     }
 

@@ -421,8 +421,7 @@ if ($savedId > 0) {
         if ($id <= 0) {
             // New join already seeded; decided_salary is set
         } else {
-            // Edit without revise popup: if no history change, keep current row; sync as-of today
-            employeeSyncDecidedSalaryFromHistory($conn, $savedId);
+            employeeCorrectCurrentSalary($conn, $savedId, (float) $salary);
         }
     }
 }

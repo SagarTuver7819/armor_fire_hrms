@@ -1533,6 +1533,20 @@ function attendanceBuildEmployeeMonthTotals(array $emp, array &$dayMapByDate, $m
         $exitDate = substr((string) $emp['date_of_exit'], 0, 10);
     }
 
+    // Unmarked Week Off / Holiday count only up to the last real attendance entry of the month
+    $lastEntryDate = '';
+    foreach ($dayMapByDate as $entryDate => $entry) {
+        $entryStatus = trim((string) ($entry['day_status'] ?? ''));
+        $entrySource = strtolower(trim((string) ($entry['source'] ?? '')));
+        if ($entryStatus === '' || !empty($entry['_virtual']) || $entrySource === 'auto_lwp') {
+            continue;
+        }
+        $entryDate = substr((string) $entryDate, 0, 10);
+        if ($entryDate > $lastEntryDate) {
+            $lastEntryDate = $entryDate;
+        }
+    }
+
     for ($d = 1; $d <= $monthDays; $d++) {
         $date = sprintf('%04d-%02d-%02d', $year, $month, $d);
         if ($joinDate !== '' && $date < $joinDate) {
@@ -1552,6 +1566,7 @@ function attendanceBuildEmployeeMonthTotals(array $emp, array &$dayMapByDate, $m
         $isCalHoliday = isset($holidaySet[$date]);
         $cellSource = strtolower(trim((string) ($cell['source'] ?? '')));
         $cellRemarks = (string) ($cell['remarks'] ?? '');
+        $beforeLastEntry = ($lastEntryDate !== '' && $date <= $lastEntryDate);
 
         // Ignore advance / within-grace auto-LWP so it does not cut pay days
         if (
@@ -1565,7 +1580,7 @@ function attendanceBuildEmployeeMonthTotals(array $emp, array &$dayMapByDate, $m
         }
 
         // Holiday wins over Week Off — same day must count only once
-        if ($isCalHoliday && ($status === '' || $status === 'Week Off' || $status === 'Absent')) {
+        if ($isCalHoliday && (($status === '' && $beforeLastEntry) || $status === 'Week Off' || $status === 'Absent')) {
             $wasEmpty = ($status === '' || !empty($cell['_virtual']));
             $status = 'Holiday';
             $dayMapByDate[$date] = [
@@ -1584,6 +1599,9 @@ function attendanceBuildEmployeeMonthTotals(array $emp, array &$dayMapByDate, $m
 
         // No attendance mark → Week Off, else auto LWP only when eligible (not advance)
         if ($status === '') {
+            if ($isCalWeekOff && !$beforeLastEntry) {
+                continue;
+            }
             if ($isCalWeekOff) {
                 $status = 'Week Off';
                 $dayMapByDate[$date] = [

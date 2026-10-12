@@ -683,6 +683,67 @@ function employeeSeedSalaryHistoryIfEmpty($conn, $employeeId, $salary, $effectiv
 }
 
 /**
+ * Direct edit of Decided Salary = correction of the salary in effect today (no new history row).
+ * The next future revision keeps its fixed new salary; only its old salary / change are re-based.
+ */
+function employeeCorrectCurrentSalary($conn, $employeeId, $salary)
+{
+    $employeeId = (int) $employeeId;
+    $salary = round((float) $salary, 2);
+    if ($employeeId <= 0 || $salary <= 0) {
+        return;
+    }
+    ensureEmployeeSalaryHistoryTable($conn);
+    $today = date('Y-m-d');
+
+    $st = $conn->prepare(
+        'SELECT id, old_salary, new_salary FROM employee_salary_history
+         WHERE employee_id = ? AND effective_date <= ?
+         ORDER BY effective_date DESC, id DESC LIMIT 1'
+    );
+    $st->bind_param('is', $employeeId, $today);
+    $st->execute();
+    $cur = $st->get_result()->fetch_assoc();
+    $st->close();
+
+    if ($cur && abs((float) $cur['new_salary'] - $salary) >= 0.005) {
+        $curId = (int) $cur['id'];
+        $chg = round($salary - (float) $cur['old_salary'], 2);
+        $up = $conn->prepare('UPDATE employee_salary_history SET new_salary = ?, change_amount = ? WHERE id = ?');
+        $up->bind_param('ddi', $salary, $chg, $curId);
+        $up->execute();
+        $up->close();
+
+        $nx = $conn->prepare(
+            'SELECT id, new_salary FROM employee_salary_history
+             WHERE employee_id = ? AND effective_date > ?
+             ORDER BY effective_date ASC, id ASC LIMIT 1'
+        );
+        $nx->bind_param('is', $employeeId, $today);
+        $nx->execute();
+        $next = $nx->get_result()->fetch_assoc();
+        $nx->close();
+        if ($next) {
+            $nextId = (int) $next['id'];
+            $nextChg = round((float) $next['new_salary'] - $salary, 2);
+            $up2 = $conn->prepare('UPDATE employee_salary_history SET old_salary = ?, change_amount = ? WHERE id = ?');
+            $up2->bind_param('ddi', $salary, $nextChg, $nextId);
+            $up2->execute();
+            $up2->close();
+        }
+    }
+
+    if (!$cur) {
+        $up3 = $conn->prepare('UPDATE employees SET decided_salary = ? WHERE id = ?');
+        $up3->bind_param('di', $salary, $employeeId);
+        $up3->execute();
+        $up3->close();
+        return;
+    }
+    employeeSyncDecidedSalaryFromHistory($conn, $employeeId);
+}
+
+/**
  * Record salary revision (increase / decrease) and sync current decided_salary.
  *
  * @return array{old_salary:float,change_amount:float,new_salary:float,effective_date:string,history:array}
