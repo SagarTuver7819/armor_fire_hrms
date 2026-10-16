@@ -82,18 +82,20 @@ function companyDocPrintCss()
     background: #fff;
     overflow: hidden;
 }
-/* Screen: letterhead only on first A4 band (no mid-page repeat overlay) */
+/*
+ * Letterhead fills the PAGE BOX (parent must be one A4: 210×297mm).
+ * Repeat = one letterhead div per page section — never tile on a tall sheet.
+ */
 .cdoc-letterhead {
     position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 297mm;
+    inset: 0;
     z-index: 0;
     pointer-events: none;
     background-repeat: no-repeat;
-    background-position: top center;
-    background-size: 100% 297mm;
+    background-position: center top;
+    background-size: 100% 100%;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
 }
 .cdoc-letterhead img {
     display: none !important;
@@ -105,6 +107,7 @@ function companyDocPrintCss()
     box-shadow: none !important;
     outline: none !important;
 }
+/* Safe content band between letterhead header + footer graphics */
 .cdoc-sheet.has-letterhead > .cdoc-inner,
 .cdoc-sheet.has-letterhead .cdoc-inner,
 .cdoc-sheet:has(.cdoc-letterhead) > .cdoc-inner,
@@ -112,7 +115,7 @@ function companyDocPrintCss()
     position: relative !important;
     z-index: 1;
     box-sizing: border-box !important;
-    padding: 42mm 16mm 32mm 16mm !important;
+    padding: 40mm 14mm 30mm 14mm !important;
 }
 .cdoc-sheet.has-letterhead .cdoc-watermark,
 .cdoc-sheet.has-letterhead .cdoc-header,
@@ -192,17 +195,13 @@ function companyDocPrintCss()
     text-align: center;
 }
 @media print {
-    /* Fixed letterhead redraws on every printed page */
     .cdoc-sheet.has-letterhead .cdoc-letterhead,
     .cdoc-sheet:has(.cdoc-letterhead) .cdoc-letterhead {
-        position: fixed !important;
-        top: 0 !important;
-        left: 0 !important;
-        right: auto !important;
-        bottom: auto !important;
-        width: 210mm !important;
-        height: 297mm !important;
-        background-size: 210mm 297mm !important;
+        position: absolute !important;
+        inset: 0 !important;
+        width: auto !important;
+        height: auto !important;
+        background-size: 100% 100% !important;
         background-repeat: no-repeat !important;
         -webkit-print-color-adjust: exact;
         print-color-adjust: exact;
@@ -213,29 +212,25 @@ function companyDocPrintCss()
         border: 0 !important;
         box-shadow: none !important;
         outline: none !important;
-        overflow: visible !important;
+        overflow: hidden !important;
     }
-    /* Flow padding: first/last page; @page margins clear header/footer each page */
     .cdoc-sheet.has-letterhead > .cdoc-inner,
     .cdoc-sheet.has-letterhead .cdoc-inner,
     .cdoc-sheet:has(.cdoc-letterhead) > .cdoc-inner,
     .cdoc-sheet:has(.cdoc-letterhead) .cdoc-inner {
-        padding: 0 2mm !important;
+        padding: 40mm 14mm 30mm 14mm !important;
     }
 }
 CSS;
 }
 
 /**
- * Optional @page CSS when letterhead is active (call inside <style> of print docs)
+ * @page CSS for print docs. Discrete A4 page boxes use margin:0;
+ * content clears letterhead via .cdoc-inner padding.
  */
 function companyDocLetterheadPageCss(array $brand = null)
 {
-    $brand = $brand ?: getCompanyDocumentBranding();
-    if (empty($brand['has_letterhead'])) {
-        return '@page { size: A4 portrait; margin: 0; }';
-    }
-    return '@page { size: A4 portrait; margin: 40mm 14mm 28mm 14mm; }';
+    return '@page { size: A4 portrait; margin: 0; }';
 }
 
 /**
