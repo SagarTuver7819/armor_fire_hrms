@@ -1823,4 +1823,66 @@ if (!function_exists('ensureRecruitmentTables')) {
         }
         return $rows;
     }
+
+    /**
+     * Delete an application with its child rows and uploaded files.
+     * A joined employee record (employee_id) is not touched.
+     */
+    function deleteRecruitmentApplication($id, $conn = null)
+    {
+        $id = (int) $id;
+        if ($id <= 0) {
+            return ['ok' => false, 'error' => 'Invalid application'];
+        }
+        $close = false;
+        if ($conn === null) {
+            $conn = getDBConnection();
+            $close = true;
+        }
+        ensureRecruitmentTables($conn);
+        $st = $conn->prepare('SELECT * FROM recruitment_applications WHERE id = ? LIMIT 1');
+        $st->bind_param('i', $id);
+        $st->execute();
+        $row = $st->get_result()->fetch_assoc();
+        $st->close();
+        if (!$row) {
+            if ($close) {
+                $conn->close();
+            }
+            return ['ok' => false, 'error' => 'Application not found'];
+        }
+
+        foreach ([
+            'recruitment_education',
+            'recruitment_experience',
+            'recruitment_descriptive_answers',
+            'recruitment_followups',
+            'recruitment_application_marks',
+        ] as $table) {
+            $conn->query('DELETE FROM ' . $table . ' WHERE application_id = ' . $id);
+        }
+        $ok = $conn->query('DELETE FROM recruitment_applications WHERE id = ' . $id);
+        $err = $ok ? '' : $conn->error;
+        if ($close) {
+            $conn->close();
+        }
+        if (!$ok) {
+            return ['ok' => false, 'error' => $err ?: 'Delete failed'];
+        }
+
+        $root = dirname(__DIR__) . '/';
+        foreach ($row as $col => $val) {
+            $val = trim((string) $val);
+            if (substr($col, -5) !== '_file' || $val === '') {
+                continue;
+            }
+            if (strpos($val, 'assets/uploads/recruitment/') !== 0 || strpos($val, '..') !== false) {
+                continue;
+            }
+            if (is_file($root . $val)) {
+                @unlink($root . $val);
+            }
+        }
+        return ['ok' => true, 'application_no' => (string) ($row['application_no'] ?? '')];
+    }
 }

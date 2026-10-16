@@ -16,6 +16,7 @@ if (!isAdmin() && !isHR() && !(function_exists('isStaffUser') && isStaffUser()) 
 }
 
 ensureRecruitmentTables();
+$canDeleteApp = isAdmin() || isHR() || canAccess('recruitment', 'delete');
 $conn = getDBConnection();
 
 $status = trim((string) ($_GET['status'] ?? ''));
@@ -96,6 +97,16 @@ $qsBase = http_build_query(array_filter([
 ?>
 
 <main class="dashboard-main">
+    <?php if (($_GET['msg'] ?? '') === 'deleted'): ?>
+        <div class="form-page-card" style="margin-bottom:12px;border-left:4px solid #16a085;">
+            <p style="margin:0;"><i class="fa-solid fa-circle-check" style="color:#16a085;"></i>
+                Application <?php echo htmlspecialchars((string) ($_GET['app'] ?? '')); ?> deleted.</p>
+        </div>
+    <?php elseif (($_GET['msg'] ?? '') === 'delete_error'): ?>
+        <div class="form-page-card" style="margin-bottom:12px;border-left:4px solid #ef4444;">
+            <p style="margin:0;"><?php echo htmlspecialchars((string) ($_GET['err'] ?? 'Delete failed.')); ?></p>
+        </div>
+    <?php endif; ?>
     <div class="page-toolbar flex-between">
         <div>
             <h1 style="margin:0;font-size:22px;font-weight:800;">Recruitment Applications</h1>
@@ -207,6 +218,10 @@ $qsBase = http_build_query(array_filter([
                                 <a href="<?php echo htmlspecialchars($pdfUrl); ?>" class="action-btn edit" target="_blank" title="PDF"><i class="fa-solid fa-file-pdf"></i></a>
                                 <a href="<?php echo htmlspecialchars($viewUrl); ?>" class="action-btn edit" title="View"><i class="fa-solid fa-eye"></i></a>
                                 <a href="<?php echo htmlspecialchars($ivUrl); ?>" class="action-btn edit" title="Interview"><i class="fa-solid fa-clipboard-user"></i></a>
+                                <?php if ($canDeleteApp): ?>
+                                <a href="<?php echo app_url('recruitment/delete.php?id=' . (int) $r['id']); ?>" class="action-btn delete btn-delete" title="Delete"
+                                   data-name="<?php echo htmlspecialchars($r['application_no'] . ' · ' . $r['full_name']); ?>"><i class="fa-solid fa-trash"></i></a>
+                                <?php endif; ?>
                             </td>
                         </tr>
                     <?php endforeach; ?>
@@ -265,6 +280,10 @@ $qsBase = http_build_query(array_filter([
                         <a href="<?php echo app_url('recruitment/pdf.php?id=' . (int) $r['id']); ?>" class="btn-ghost" target="_blank" title="PDF"><i class="fa-solid fa-file-pdf"></i></a>
                         <a href="<?php echo htmlspecialchars($viewUrl); ?>" class="btn-secondary" title="View"><i class="fa-solid fa-eye"></i> View</a>
                         <a href="<?php echo htmlspecialchars($ivUrl); ?>" class="btn-primary" title="Interview"><i class="fa-solid fa-clipboard-user"></i></a>
+                        <?php if ($canDeleteApp): ?>
+                        <a href="<?php echo app_url('recruitment/delete.php?id=' . (int) $r['id']); ?>" class="btn-ghost btn-delete rec-cand-del" title="Delete"
+                           data-name="<?php echo htmlspecialchars($r['application_no'] . ' · ' . $r['full_name']); ?>"><i class="fa-solid fa-trash"></i></a>
+                        <?php endif; ?>
                     </div>
                 </div>
             </article>
@@ -275,6 +294,8 @@ $qsBase = http_build_query(array_filter([
 </main>
 
 <style>
+.rec-cand-actions .rec-cand-del { color: #b91c1c; }
+.rec-cand-actions .rec-cand-del:hover { background: #fee2e2; border-color: #fecaca; }
 .rec-list-filters {
     display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 16px; align-items: center;
 }
