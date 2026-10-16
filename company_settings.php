@@ -1,7 +1,7 @@
 <?php
 /**
  * Admin - Company Logo Setup
- * Login Logo + Dashboard Logo + Document Header / Footer details
+ * Login Logo + Dashboard Logo + Letterhead + Document Header / Footer details
  */
 
 require_once __DIR__ . '/config/app.php';
@@ -20,21 +20,23 @@ $conn = getDBConnection();
 ensureCompanySettingsSchema($conn);
 
 $current = [
-    'company_name'    => 'Armor Fire',
-    'login_logo'      => null,
-    'dashboard_logo'  => null,
-    'header_details'  => '',
-    'footer_details'  => '',
+    'company_name'       => 'Armor Fire',
+    'login_logo'         => null,
+    'dashboard_logo'     => null,
+    'letterhead_image'   => null,
+    'header_details'     => '',
+    'footer_details'     => '',
 ];
 
 $res = $conn->query(
-    "SELECT company_name, login_logo, dashboard_logo, company_logo, header_details, footer_details
+    "SELECT company_name, login_logo, dashboard_logo, company_logo, header_details, footer_details, letterhead_image
      FROM company_settings WHERE id = 1 LIMIT 1"
 );
 if ($res && $row = $res->fetch_assoc()) {
     $current['company_name']   = $row['company_name'];
     $current['login_logo']     = !empty($row['login_logo']) ? $row['login_logo'] : $row['company_logo'];
     $current['dashboard_logo'] = !empty($row['dashboard_logo']) ? $row['dashboard_logo'] : $row['company_logo'];
+    $current['letterhead_image'] = !empty($row['letterhead_image']) ? $row['letterhead_image'] : null;
     $current['header_details'] = (string) ($row['header_details'] ?? '');
     $current['footer_details'] = (string) ($row['footer_details'] ?? '');
 }
@@ -111,12 +113,64 @@ function removeUploadedLogo($path)
     }
 }
 
+function handleLetterheadUpload($fileKey, $currentPath, &$errorMsg)
+{
+    if (!isset($_FILES[$fileKey]) || $_FILES[$fileKey]['error'] === UPLOAD_ERR_NO_FILE) {
+        return $currentPath;
+    }
+
+    $file = $_FILES[$fileKey];
+    if ($file['error'] !== UPLOAD_ERR_OK) {
+        $errorMsg = 'Letterhead upload failed. Please try again.';
+        return $currentPath;
+    }
+
+    $allowed = ['jpg', 'jpeg', 'png', 'webp'];
+    $ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
+    $maxSize = 5 * 1024 * 1024;
+
+    if (!in_array($ext, $allowed, true)) {
+        $errorMsg = 'Letterhead: only JPG, PNG, WEBP allowed.';
+        return $currentPath;
+    }
+    if ($file['size'] > $maxSize) {
+        $errorMsg = 'Letterhead size must be under 5 MB.';
+        return $currentPath;
+    }
+
+    $uploadDir = __DIR__ . '/assets/uploads/letterhead';
+    if (!is_dir($uploadDir)) {
+        mkdir($uploadDir, 0755, true);
+    }
+
+    $newName = 'letterhead_' . time() . '_' . mt_rand(100, 999) . '.' . $ext;
+    $dest = $uploadDir . '/' . $newName;
+    if (!move_uploaded_file($file['tmp_name'], $dest)) {
+        $errorMsg = 'Could not save letterhead image.';
+        return $currentPath;
+    }
+
+    if (
+        !empty($currentPath)
+        && strpos($currentPath, 'assets/uploads/letterhead/') === 0
+        && strpos(basename($currentPath), 'Letterhead_Approved_Final') === false
+    ) {
+        $oldFull = __DIR__ . '/' . $currentPath;
+        if (is_file($oldFull) && realpath($oldFull) !== realpath($dest)) {
+            @unlink($oldFull);
+        }
+    }
+
+    return 'assets/uploads/letterhead/' . $newName;
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $companyName = trim($_POST['company_name'] ?? '');
     $headerDetails = trim($_POST['header_details'] ?? '');
     $footerDetails = trim($_POST['footer_details'] ?? '');
     $removeLogin = isset($_POST['remove_login_logo']);
     $removeDash  = isset($_POST['remove_dashboard_logo']);
+    $removeLetterhead = isset($_POST['remove_letterhead']);
 
     if ($companyName === '') {
         $message = 'Company name is required.';
@@ -126,8 +180,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } else {
         $loginLogo = $current['login_logo'];
         $dashLogo  = $current['dashboard_logo'];
+        $letterhead = $current['letterhead_image'];
         $oldLogin  = $loginLogo;
         $oldDash   = $dashLogo;
+        $oldLetterhead = $letterhead;
         $uploadError = '';
 
         if ($removeLogin) {
@@ -136,10 +192,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($removeDash) {
             $dashLogo = null;
         }
+        if ($removeLetterhead) {
+            $letterhead = null;
+        }
 
         $loginLogo = handleLogoUpload('login_logo', $loginLogo, 'login_logo', $uploadError, $dashLogo ?: $oldDash);
         if ($uploadError === '') {
             $dashLogo = handleLogoUpload('dashboard_logo', $dashLogo, 'dashboard_logo', $uploadError, $loginLogo ?: $oldLogin);
+        }
+        if ($uploadError === '') {
+            $letterhead = handleLetterheadUpload('letterhead_image', $letterhead, $uploadError);
         }
 
         if ($uploadError !== '') {
@@ -166,18 +228,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                      dashboard_logo = ?,
                      company_logo = ?,
                      header_details = ?,
-                     footer_details = ?
+                     footer_details = ?,
+                     letterhead_image = ?
                  WHERE id = 1"
             );
             $legacy = $dashLogo;
             $stmt->bind_param(
-                'ssssss',
+                'sssssss',
                 $companyName,
                 $loginLogo,
                 $dashLogo,
                 $legacy,
                 $headerDetails,
-                $footerDetails
+                $footerDetails,
+                $letterhead
             );
             $ok = $stmt->execute();
             $stmt->close();
@@ -201,13 +265,14 @@ if (isset($_GET['saved']) && $_GET['saved'] == '1') {
     $message = 'Company settings saved successfully.';
     $messageType = 'success';
     $res = $conn->query(
-        "SELECT company_name, login_logo, dashboard_logo, company_logo, header_details, footer_details
+        "SELECT company_name, login_logo, dashboard_logo, company_logo, header_details, footer_details, letterhead_image
          FROM company_settings WHERE id = 1 LIMIT 1"
     );
     if ($res && $row = $res->fetch_assoc()) {
         $current['company_name']   = $row['company_name'];
         $current['login_logo']     = !empty($row['login_logo']) ? $row['login_logo'] : $row['company_logo'];
         $current['dashboard_logo'] = !empty($row['dashboard_logo']) ? $row['dashboard_logo'] : $row['company_logo'];
+        $current['letterhead_image'] = !empty($row['letterhead_image']) ? $row['letterhead_image'] : null;
         $current['header_details'] = (string) ($row['header_details'] ?? '');
         $current['footer_details'] = (string) ($row['footer_details'] ?? '');
     }
@@ -228,6 +293,8 @@ $previewLogin = (!empty($current['login_logo']) && file_exists(__DIR__ . '/' . $
     ? $current['login_logo'] : $defaultLogo;
 $previewDash = (!empty($current['dashboard_logo']) && file_exists(__DIR__ . '/' . $current['dashboard_logo']))
     ? $current['dashboard_logo'] : $defaultLogo;
+$previewLetterhead = (!empty($current['letterhead_image']) && file_exists(__DIR__ . '/' . $current['letterhead_image']))
+    ? $current['letterhead_image'] : '';
 ?>
 
 <main class="dashboard-main">
@@ -243,7 +310,7 @@ $previewDash = (!empty($current['dashboard_logo']) && file_exists(__DIR__ . '/' 
                 <i class="fa-solid fa-image"></i>
                 <div>
                     <h2>Company Logo Setup</h2>
-                    <p>Login / Dashboard logos + document header &amp; footer for all PDF prints.</p>
+                    <p>Login / Dashboard logos, approved letterhead, and document header &amp; footer for all PDF prints.</p>
                 </div>
             </div>
 
@@ -323,10 +390,44 @@ $previewDash = (!empty($current['dashboard_logo']) && file_exists(__DIR__ . '/' 
 
                 <div class="doc-brand-block">
                     <div class="logo-split-title" style="margin-bottom:14px;">
+                        <i class="fa-solid fa-scroll"></i>
+                        <div>
+                            <strong>Approved Letterhead</strong>
+                            <span>From Letterhead_Approved_Final — used on all print / PDF documents</span>
+                        </div>
+                    </div>
+
+                    <?php if ($previewLetterhead !== ''): ?>
+                        <div class="letterhead-preview-box">
+                            <img src="<?php echo htmlspecialchars($previewLetterhead); ?>?v=<?php echo @filemtime(__DIR__ . '/' . $previewLetterhead) ?: time(); ?>"
+                                 alt="Letterhead preview">
+                        </div>
+                    <?php else: ?>
+                        <div class="doc-preview-box" style="margin-bottom:12px;">
+                            <div class="doc-preview-text muted">No letterhead uploaded yet. Upload the approved PNG (or keep default Letterhead_Approved_Final).</div>
+                        </div>
+                    <?php endif; ?>
+
+                    <div class="form-group">
+                        <label for="letterhead_image">Upload Letterhead Image</label>
+                        <input type="file" id="letterhead_image" name="letterhead_image" class="form-control"
+                               accept=".jpg,.jpeg,.png,.webp,image/*">
+                        <small class="form-help">Full A4 PNG/JPG (transparent body preferred) — Max 5 MB. Applies to Offer / Appointment / Experience / Application / KPI / Canteen prints.</small>
+                    </div>
+                    <div class="form-group checkbox-group">
+                        <label>
+                            <input type="checkbox" name="remove_letterhead" value="1">
+                            Remove letterhead (fall back to logo + header/footer text)
+                        </label>
+                    </div>
+                </div>
+
+                <div class="doc-brand-block">
+                    <div class="logo-split-title" style="margin-bottom:14px;">
                         <i class="fa-solid fa-file-lines"></i>
                         <div>
-                            <strong>Document Header &amp; Footer</strong>
-                            <span>Used on Offer Letter, Application PDF and other print documents</span>
+                            <strong>Document Header &amp; Footer (fallback)</strong>
+                            <span>Used only when letterhead image is not set</span>
                         </div>
                     </div>
 
@@ -334,14 +435,14 @@ $previewDash = (!empty($current['dashboard_logo']) && file_exists(__DIR__ . '/' 
                         <label for="header_details">Header Details</label>
                         <textarea id="header_details" name="header_details" class="form-control" rows="5"
                                   placeholder="e.g.&#10;Plot / Address line&#10;City, State, PIN&#10;Phone · Email · GSTIN"><?php echo htmlspecialchars($current['header_details'] ?? ''); ?></textarea>
-                        <small class="form-help">Appears under company name + logo at the top of every document PDF.</small>
+                        <small class="form-help">Appears under company name + logo when letterhead is off.</small>
                     </div>
 
                     <div class="form-group">
                         <label for="footer_details">Footer Details</label>
                         <textarea id="footer_details" name="footer_details" class="form-control" rows="4"
                                   placeholder="e.g.&#10;Registered Office: …&#10;CIN / GST / Website"><?php echo htmlspecialchars($current['footer_details'] ?? ''); ?></textarea>
-                        <small class="form-help">Appears at the bottom of every document PDF.</small>
+                        <small class="form-help">Appears at the bottom when letterhead is off.</small>
                     </div>
                 </div>
 
@@ -396,9 +497,38 @@ $previewDash = (!empty($current['dashboard_logo']) && file_exists(__DIR__ . '/' 
                 </div>
             </div>
 
-            <p class="form-help">Logo watermark + this header/footer apply on PDF print pages.</p>
+            <?php if ($previewLetterhead !== ''): ?>
+                <p class="preview-label" style="margin-top:14px;">Letterhead</p>
+                <div class="letterhead-preview-box is-side">
+                    <img src="<?php echo htmlspecialchars($previewLetterhead); ?>?v=<?php echo @filemtime(__DIR__ . '/' . $previewLetterhead) ?: time(); ?>"
+                         alt="Letterhead">
+                </div>
+                <p class="form-help">Approved letterhead is active on all document PDF / print pages.</p>
+            <?php else: ?>
+                <p class="form-help">Logo watermark + header/footer apply on PDF print pages (no letterhead set).</p>
+            <?php endif; ?>
         </div>
     </div>
 </main>
+<style>
+.letterhead-preview-box {
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    overflow: hidden;
+    background: #0b0b0b;
+    margin-bottom: 12px;
+    max-height: 320px;
+}
+.letterhead-preview-box img {
+    display: block;
+    width: 100%;
+    height: auto;
+    max-height: 320px;
+    object-fit: contain;
+    object-position: top center;
+}
+.letterhead-preview-box.is-side { max-height: 420px; }
+.letterhead-preview-box.is-side img { max-height: 420px; }
+</style>
 
 <?php require_once __DIR__ . '/includes/footer.php'; ?>

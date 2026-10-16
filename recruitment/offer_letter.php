@@ -108,7 +108,7 @@ $workLocation = $companyShort . ', Rajkot, Gujarat';
             max-width: 100%;
             height: 297mm;
             margin: 0 auto;
-            border: 1px solid #111;
+            border: 0;
             padding: 11mm 14mm 10mm;
             background: #fff;
             display: flex;
@@ -287,6 +287,10 @@ $workLocation = $companyShort . ', Rajkot, Gujarat';
                 page-break-after: avoid;
                 page-break-inside: avoid;
             }
+            .sheet.has-letterhead,
+            .sheet:has(.cdoc-letterhead) {
+                padding: 0 !important;
+            }
             .letter-bottom,
             .cdoc-footer,
             .closing-block {
@@ -308,7 +312,7 @@ $workLocation = $companyShort . ', Rajkot, Gujarat';
     <button type="button" onclick="window.print()">Print / Save PDF</button>
 </div>
 
-<div class="sheet cdoc-sheet">
+<div class="<?php echo htmlspecialchars(companyDocSheetClass($brand, 'sheet')); ?>">
     <?php echo companyDocRenderWatermark($brand); ?>
     <div class="cdoc-inner">
         <?php echo companyDocRenderHeader($brand, 'Human Resource · Recruitment'); ?>

@@ -43,12 +43,26 @@ function ensureCompanySettingsSchema($conn)
     if (!in_array('footer_details', $cols, true)) {
         $conn->query("ALTER TABLE company_settings ADD COLUMN footer_details TEXT DEFAULT NULL");
     }
+    if (!in_array('letterhead_image', $cols, true)) {
+        $conn->query("ALTER TABLE company_settings ADD COLUMN letterhead_image VARCHAR(255) DEFAULT NULL");
+    }
 
     $conn->query(
         "INSERT INTO company_settings (id, company_name)
          VALUES (1, 'Armor Fire')
          ON DUPLICATE KEY UPDATE id = id"
     );
+
+    // Seed approved letterhead if empty and file exists
+    $defaultLh = 'assets/uploads/letterhead/Letterhead_Approved_Final.png';
+    if (is_file(__DIR__ . '/../' . $defaultLh)) {
+        $conn->query(
+            "UPDATE company_settings
+             SET letterhead_image = '" . $conn->real_escape_string($defaultLh) . "'
+             WHERE id = 1
+               AND (letterhead_image IS NULL OR letterhead_image = '')"
+        );
+    }
 
     // Migrate old single logo into both slots if empty
     $conn->query(
@@ -82,12 +96,13 @@ function getCompanySettings()
 
     $defaultLogo = 'assets/images/logo-placeholder.svg';
     $settings = [
-        'company_name'    => 'Armor Fire',
-        'login_logo'      => $defaultLogo,
-        'dashboard_logo'  => $defaultLogo,
-        'company_logo'    => $defaultLogo, // legacy
-        'header_details'  => '',
-        'footer_details'  => '',
+        'company_name'      => 'Armor Fire',
+        'login_logo'        => $defaultLogo,
+        'dashboard_logo'    => $defaultLogo,
+        'company_logo'      => $defaultLogo, // legacy
+        'header_details'    => '',
+        'footer_details'    => '',
+        'letterhead_image'  => '',
     ];
 
     $conn = @getDBConnection();
@@ -98,7 +113,7 @@ function getCompanySettings()
     ensureCompanySettingsSchema($conn);
 
     $result = $conn->query(
-        "SELECT company_name, company_logo, login_logo, dashboard_logo, header_details, footer_details
+        "SELECT company_name, company_logo, login_logo, dashboard_logo, header_details, footer_details, letterhead_image
          FROM company_settings WHERE id = 1 LIMIT 1"
     );
 
@@ -119,6 +134,10 @@ function getCompanySettings()
         }
         $settings['header_details'] = trim((string) ($row['header_details'] ?? ''));
         $settings['footer_details'] = trim((string) ($row['footer_details'] ?? ''));
+        $lh = trim((string) ($row['letterhead_image'] ?? ''));
+        if ($lh !== '' && file_exists(__DIR__ . '/../' . $lh)) {
+            $settings['letterhead_image'] = $lh;
+        }
     }
 
     $conn->close();
@@ -176,6 +195,15 @@ function getCompanyFooterDetails()
 {
     $settings = getCompanySettings();
     return (string) ($settings['footer_details'] ?? '');
+}
+
+/**
+ * Approved letterhead image path (relative), used on all print / PDF documents
+ */
+function getCompanyLetterheadImage()
+{
+    $settings = getCompanySettings();
+    return (string) ($settings['letterhead_image'] ?? '');
 }
 
 /**

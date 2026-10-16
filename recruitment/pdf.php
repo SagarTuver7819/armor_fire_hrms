@@ -82,7 +82,8 @@ $cell = static function ($label, $value, $span = 1) {
             background: #e5e7eb;
         }
         .bar {
-            max-width: 800px;
+            width: 210mm;
+            max-width: 100%;
             margin: 0 auto 12px;
             display: flex;
             justify-content: space-between;
@@ -100,13 +101,23 @@ $cell = static function ($label, $value, $span = 1) {
             cursor: pointer;
         }
         .sheet {
-            max-width: 800px;
+            width: 210mm;
+            max-width: 100%;
+            min-height: 297mm;
             margin: 0 auto;
             background: #fff;
-            border: 2px solid #111;
-            padding: 0;
+            border: 0;
+            padding: 12mm 14mm 12mm;
+            position: relative;
+            overflow: hidden;
+            box-sizing: border-box;
         }
         <?php echo companyDocPrintCss(); ?>
+        .sheet.has-letterhead,
+        .sheet:has(.cdoc-letterhead) {
+            padding: 0 !important;
+            border: 0 !important;
+        }
         .cdoc-header {
             padding: 12px 14px;
             margin-bottom: 0;
@@ -229,8 +240,22 @@ $cell = static function ($label, $value, $span = 1) {
         @media print {
             body { background: #fff; padding: 0; }
             .bar { display: none !important; }
-            .sheet { max-width: none; border-width: 1.5pt; }
-            @page { margin: 10mm; size: A4; }
+            .sheet {
+                width: 210mm;
+                max-width: 210mm;
+                min-height: 297mm;
+                margin: 0;
+                border: 0 !important;
+                padding: 12mm 14mm 12mm;
+                box-shadow: none;
+                overflow: hidden;
+            }
+            .sheet.has-letterhead,
+            .sheet:has(.cdoc-letterhead) {
+                padding: 0 !important;
+                border: 0 !important;
+            }
+            @page { margin: 0; size: A4; }
         }
     </style>
 </head>
@@ -240,7 +265,7 @@ $cell = static function ($label, $value, $span = 1) {
     <button type="button" onclick="window.print()">Print / Save PDF</button>
 </div>
 
-<div class="sheet cdoc-sheet">
+<div class="<?php echo htmlspecialchars(companyDocSheetClass($brand, 'sheet')); ?>">
     <?php echo companyDocRenderWatermark($brand); ?>
     <div class="cdoc-inner cdoc-body-pad">
     <?php echo companyDocRenderHeader($brand, 'Recruitment Application · Interview Evaluation Form'); ?>

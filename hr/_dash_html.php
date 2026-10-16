@@ -24,13 +24,13 @@ require_once __DIR__ . '/../includes/header.php';
             <i class="fa-solid fa-users" style="color:#2563eb;"></i>
             <div><span>Active</span><strong><?php echo number_format($kpi['active']); ?></strong></div>
         </a>
-        <a class="hr-clean-kpi-card" href="<?php echo app_url('attendance/report.php?show=1&month=' . $month . '&year=' . $year); ?>">
+        <a class="hr-clean-kpi-card" href="<?php echo app_url('attendance/report.php?show=1&month=' . ($attReportMonth ?? $month) . '&year=' . ($attReportYear ?? $year)); ?>">
             <i class="fa-solid fa-user-check" style="color:#059669;"></i>
-            <div><span>Present</span><strong><?php echo number_format($kpi['present_today']); ?></strong></div>
+            <div><span>Yesterday Present</span><strong><?php echo number_format($kpi['present_today']); ?></strong></div>
         </a>
         <div class="hr-clean-kpi-card">
             <i class="fa-solid fa-user-xmark" style="color:#dc2626;"></i>
-            <div><span>Absent</span><strong><?php echo number_format($kpi['absent_today']); ?></strong></div>
+            <div><span>Yesterday Absent</span><strong><?php echo number_format($kpi['absent_today']); ?></strong></div>
         </div>
         <a class="hr-clean-kpi-card" href="<?php echo app_url('leave/index.php?status=Pending'); ?>">
             <i class="fa-solid fa-clock" style="color:#d97706;"></i>

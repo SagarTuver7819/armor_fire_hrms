@@ -71,12 +71,17 @@ $chunks = $rows ? array_chunk($rows, $perPage) : [[]];
         .evp-page {
             width: 210mm; min-height: 297mm; margin: 16px auto;
             background: #fff; position: relative; overflow: hidden;
-            box-shadow: 0 8px 28px rgba(0,0,0,.12);
-            border: 2.25px solid #000;
+            box-shadow: none;
+            border: 0;
         }
         .evp-inner {
             min-height: 297mm; padding: 10mm 12mm 10mm;
             display: flex; flex-direction: column;
+        }
+        .evp-page.has-letterhead .evp-inner,
+        .evp-page:has(.cdoc-letterhead) .evp-inner {
+            min-height: 100% !important; height: 100% !important;
+            padding: 42mm 14mm 32mm 14mm !important;
         }
         .cdoc-header { flex-shrink: 0; margin-bottom: 10px; }
         .cdoc-header-logo { width: 78px; height: 78px; }
@@ -152,7 +157,7 @@ $chunks = $rows ? array_chunk($rows, $perPage) : [[]];
 </div>
 
 <?php foreach ($chunks as $pageIndex => $pageRows): ?>
-<section class="evp-page cdoc-sheet">
+<section class="<?php echo htmlspecialchars(companyDocSheetClass($brand, 'evp-page')); ?>">
     <?php echo companyDocRenderWatermark($brand); ?>
     <div class="evp-inner cdoc-inner">
         <?php echo companyDocRenderHeader($brand, 'Human Resource · Employee Voice Report'); ?>

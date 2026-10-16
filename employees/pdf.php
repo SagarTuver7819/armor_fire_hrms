@@ -320,7 +320,7 @@ if ($isHi && $genderDisp !== '') {
 </div>
 
 <!-- ===================== PAGE 1 ===================== -->
-<section class="af-page cdoc-sheet">
+<section class="<?php echo htmlspecialchars(companyDocSheetClass($brand, 'af-page')); ?>">
     <?php echo companyDocRenderWatermark($brand); ?>
     <div class="af-page-inner cdoc-inner">
         <?php echo companyDocRenderHeader($brand, $headerSubtitle); ?>
@@ -424,7 +424,7 @@ if ($isHi && $genderDisp !== '') {
 </section>
 
 <!-- ===================== PAGE 2 ===================== -->
-<section class="af-page cdoc-sheet">
+<section class="<?php echo htmlspecialchars(companyDocSheetClass($brand, 'af-page')); ?>">
     <?php echo companyDocRenderWatermark($brand); ?>
     <div class="af-page-inner cdoc-inner">
         <?php echo companyDocRenderHeader($brand, $headerSubtitle); ?>
@@ -526,7 +526,7 @@ if ($isHi && $genderDisp !== '') {
 </section>
 
 <!-- ===================== PAGE 3 ===================== -->
-<section class="af-page cdoc-sheet">
+<section class="<?php echo htmlspecialchars(companyDocSheetClass($brand, 'af-page')); ?>">
     <?php echo companyDocRenderWatermark($brand); ?>
     <div class="af-page-inner cdoc-inner">
         <?php echo companyDocRenderHeader($brand, $headerSubtitle); ?>

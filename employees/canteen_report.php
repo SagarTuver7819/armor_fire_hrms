@@ -272,9 +272,14 @@ if ($exportMode === 'print') {
         .cp-page {
             width: 210mm; min-height: 297mm; margin: 16px auto;
             background: #fff; position: relative; overflow: hidden;
-            box-shadow: 0 8px 28px rgba(0,0,0,.12); border: 2.25px solid #000;
+            box-shadow: none; border: 0;
         }
         .cp-inner { min-height: 297mm; padding: 10mm 12mm; display: flex; flex-direction: column; }
+        .cp-page.has-letterhead .cp-inner,
+        .cp-page:has(.cdoc-letterhead) .cp-inner {
+            min-height: 100% !important; height: 100% !important;
+            padding: 42mm 14mm 32mm 14mm !important;
+        }
         .cdoc-header { flex-shrink: 0; margin-bottom: 10px; }
         .cdoc-header-logo { width: 78px; height: 78px; }
         .cdoc-header-text .cdoc-company { font-size: 22px; text-transform: uppercase; margin: 0 0 4px; }
@@ -327,7 +332,7 @@ if ($exportMode === 'print') {
 </div>
 
 <?php $srOffset = 0; foreach ($pages as $pageIndex => $pageRows): ?>
-<section class="cp-page cdoc-sheet">
+<section class="<?php echo htmlspecialchars(companyDocSheetClass($brand, 'cp-page')); ?>">
     <?php echo companyDocRenderWatermark($brand); ?>
     <div class="cp-inner cdoc-inner">
         <?php echo companyDocRenderHeader($brand, 'Human Resource · Canteen Use Report'); ?>

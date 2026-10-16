@@ -36,11 +36,15 @@ $conn = getDBConnection();
 ensureAttendanceTables($conn);
 
 $today = date('Y-m-d');
+$yesterday = date('Y-m-d', strtotime('-1 day'));
 $monthStart = date('Y-m-01');
 $monthEnd = date('Y-m-t');
 $monthLabel = date('M Y');
 $year = (int) date('Y');
 $month = (int) date('n');
+$attReportMonth = (int) date('n', strtotime($yesterday));
+$attReportYear = (int) date('Y', strtotime($yesterday));
+$yesterdayLabel = date('d M', strtotime($yesterday));
 $panelLimit = 10;
 $expand = strtolower(trim((string) ($_GET['expand'] ?? '')));
 
@@ -108,6 +112,7 @@ $st->close();
 $r = $conn->query("SELECT COUNT(*) AS c FROM leave_requests WHERE status = 'Pending'");
 $kpi['pending_leave'] = $r ? (int) $r->fetch_assoc()['c'] : 0;
 
+// Manual attendance: show yesterday until regular punch confirm flow is live
 $st = $conn->prepare(
     "SELECT
         SUM(CASE WHEN day_status IN ('Present','Half Day') THEN 1 ELSE 0 END) AS present_c,
@@ -117,13 +122,13 @@ $st = $conn->prepare(
      INNER JOIN employees e ON e.id = ads.employee_id AND e.status = 1
      WHERE ads.attendance_date = ?"
 );
-$st->bind_param('s', $today);
+$st->bind_param('s', $yesterday);
 $st->execute();
-$attToday = $st->get_result()->fetch_assoc() ?: [];
+$attYesterday = $st->get_result()->fetch_assoc() ?: [];
 $st->close();
-$kpi['present_today'] = (int) ($attToday['present_c'] ?? 0);
-$kpi['absent_today'] = (int) ($attToday['absent_c'] ?? 0);
-$kpi['leave_today'] = (int) ($attToday['leave_c'] ?? 0);
+$kpi['present_today'] = (int) ($attYesterday['present_c'] ?? 0);
+$kpi['absent_today'] = (int) ($attYesterday['absent_c'] ?? 0);
+$kpi['leave_today'] = (int) ($attYesterday['leave_c'] ?? 0);
 
 require_once __DIR__ . '/../includes/kpi_helper.php';
 ensureKpiTables($conn);
@@ -390,14 +395,14 @@ require_once __DIR__ . '/../includes/header.php';
                     </div>
                 </div>
                 <div class="emp-dash-att-strip">
-                    <a class="emp-dash-att-chip is-ok" href="<?php echo app_url('attendance/report.php?show=1&month=' . $month . '&year=' . $year); ?>">
+                    <a class="emp-dash-att-chip is-ok" href="<?php echo app_url('attendance/report.php?show=1&month=' . $attReportMonth . '&year=' . $attReportYear); ?>" title="Yesterday's attendance (<?php echo htmlspecialchars($yesterdayLabel); ?>)">
                         <div class="emp-dash-att-ico"><i class="fa-solid fa-user-check"></i></div>
                         <div>
-                            <div class="emp-dash-att-label">Present Today</div>
-                            <div class="emp-dash-att-value"><?php echo number_format($kpi['present_today']); ?> <span class="emp-dash-att-sep">·</span> <?php echo $presencePct; ?>%</div>
+                            <div class="emp-dash-att-label">Yesterday's Attendance</div>
+                            <div class="emp-dash-att-value"><?php echo number_format($kpi['present_today']); ?> Present <span class="emp-dash-att-sep">·</span> <?php echo $presencePct; ?>%</div>
                         </div>
                     </a>
-                    <a class="emp-dash-att-chip is-late" href="<?php echo app_url('attendance/report.php?show=1&month=' . $month . '&year=' . $year); ?>">
+                    <a class="emp-dash-att-chip is-late" href="<?php echo app_url('attendance/report.php?show=1&month=' . $attReportMonth . '&year=' . $attReportYear); ?>" title="Yesterday · <?php echo htmlspecialchars($yesterdayLabel); ?>">
                         <div class="emp-dash-att-ico"><i class="fa-solid fa-user-xmark"></i></div>
                         <div>
                             <div class="emp-dash-att-label">Absent / Leave</div>
@@ -472,23 +477,23 @@ require_once __DIR__ . '/../includes/header.php';
             <div class="emp-leave-bal-top">
                 <div>
                     <div class="emp-leave-bal-title">Today Ops</div>
-                    <div class="emp-leave-bal-sub"><?php echo htmlspecialchars(formatDateDisplay($today)); ?> · attendance &amp; queues
+                    <div class="emp-leave-bal-sub"><?php echo htmlspecialchars(formatDateDisplay($yesterday)); ?> · yesterday attendance &amp; queues
                         <?php if ($kpi['pending_leave'] > 0): ?>
                             <span class="emp-leave-pending-pill"><?php echo (int) $kpi['pending_leave']; ?> leave pending</span>
                         <?php endif; ?>
                     </div>
                 </div>
-                <a class="emp-leave-bal-link" href="<?php echo app_url('attendance/report.php?show=1&month=' . $month . '&year=' . $year); ?>" title="Attendance">
+                <a class="emp-leave-bal-link" href="<?php echo app_url('attendance/report.php?show=1&month=' . $attReportMonth . '&year=' . $attReportYear); ?>" title="Yesterday's Attendance">
                     <i class="fa-solid fa-arrow-up-right-from-square"></i>
                 </a>
             </div>
             <div class="emp-leave-bal-grid has-dl">
-                <a class="emp-leave-chip is-pl" href="<?php echo app_url('attendance/report.php?show=1&month=' . $month . '&year=' . $year); ?>">
+                <a class="emp-leave-chip is-pl" href="<?php echo app_url('attendance/report.php?show=1&month=' . $attReportMonth . '&year=' . $attReportYear); ?>">
                     <span class="emp-leave-chip-line">
                         <b>Present</b><span class="emp-leave-chip-dash">-</span><strong><?php echo number_format($kpi['present_today']); ?></strong>
                     </span>
                 </a>
-                <a class="emp-leave-chip is-sl" href="<?php echo app_url('attendance/report.php?show=1&month=' . $month . '&year=' . $year); ?>">
+                <a class="emp-leave-chip is-sl" href="<?php echo app_url('attendance/report.php?show=1&month=' . $attReportMonth . '&year=' . $attReportYear); ?>">
                     <span class="emp-leave-chip-line">
                         <b>Absent</b><span class="emp-leave-chip-dash">-</span><strong><?php echo number_format($kpi['absent_today']); ?></strong>
                     </span>

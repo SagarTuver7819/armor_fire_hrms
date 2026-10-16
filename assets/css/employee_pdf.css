@@ -65,8 +65,23 @@
     display: flex;
     flex-direction: column;
     box-sizing: border-box;
-    border: 2px solid #000;
+    border: 0;
     overflow: hidden;
+}
+/* Letterhead: no inner black frame + safe header/footer band */
+.af-page.has-letterhead,
+.af-page:has(.cdoc-letterhead) {
+    padding: 0 !important;
+}
+.af-page.has-letterhead > .af-page-inner,
+.af-page:has(.cdoc-letterhead) > .af-page-inner {
+    height: 100% !important;
+    min-height: 100% !important;
+    max-height: 100% !important;
+    margin: 0 !important;
+    padding: 42mm 14mm 32mm 14mm !important;
+    border: 0 !important;
+    overflow: hidden !important;
 }
 
 .af-fill {
@@ -370,8 +385,17 @@
         max-height: calc(297mm - 10mm);
         margin: 5mm;
         padding: 4mm 6mm 4mm;
-        border: 2px solid #000;
+        border: 0 !important;
         overflow: hidden;
+    }
+    .af-page.has-letterhead > .af-page-inner,
+    .af-page:has(.cdoc-letterhead) > .af-page-inner {
+        height: 100% !important;
+        min-height: 100% !important;
+        max-height: 100% !important;
+        margin: 0 !important;
+        padding: 42mm 14mm 32mm 14mm !important;
+        border: 0 !important;
     }
     .af-grid,
     .af-table {

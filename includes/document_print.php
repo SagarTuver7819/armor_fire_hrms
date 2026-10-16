@@ -1,7 +1,7 @@
 <?php
 /**
  * Shared print / PDF document shell:
- * Logo header + Header Details | Body | Footer Details + logo watermark
+ * Approved letterhead (full page) OR Logo header + Header Details | Body | Footer Details + logo watermark
  */
 
 require_once __DIR__ . '/settings.php';
@@ -30,17 +30,49 @@ function getCompanyDocumentBranding()
         }
     }
 
+    $letterhead = trim((string) getCompanyLetterheadImage());
+    $letterheadSrc = '';
+    if ($letterhead !== '') {
+        if (strpos($letterhead, 'http') === 0 || strpos($letterhead, '/') === 0) {
+            $letterheadSrc = $letterhead;
+        } elseif (function_exists('app_url')) {
+            $letterheadSrc = app_url($letterhead);
+        } else {
+            $letterheadSrc = '/' . ltrim($letterhead, '/');
+        }
+    }
+
     return [
-        'company_name'    => $company,
-        'logo'            => $logo,
-        'logo_src'        => $logoSrc,
-        'header_details'  => getCompanyHeaderDetails(),
-        'footer_details'  => getCompanyFooterDetails(),
+        'company_name'       => $company,
+        'logo'               => $logo,
+        'logo_src'           => $logoSrc,
+        'header_details'     => getCompanyHeaderDetails(),
+        'footer_details'     => getCompanyFooterDetails(),
+        'letterhead_image'   => $letterhead,
+        'letterhead_src'     => $letterheadSrc,
+        'has_letterhead'     => $letterheadSrc !== '',
     ];
 }
 
 /**
- * Shared CSS for print documents (header / footer / watermark)
+ * Extra class for sheets when approved letterhead is active
+ */
+function companyDocSheetClass(array $brand = null, $extra = '')
+{
+    $brand = $brand ?: getCompanyDocumentBranding();
+    $parts = ['cdoc-sheet'];
+    if (!empty($brand['has_letterhead'])) {
+        $parts[] = 'has-letterhead';
+    }
+    $extra = trim((string) $extra);
+    if ($extra !== '') {
+        $parts[] = $extra;
+    }
+    return implode(' ', $parts);
+}
+
+/**
+ * Shared CSS for print documents (letterhead / header / footer / watermark)
  */
 function companyDocPrintCss()
 {
@@ -49,6 +81,49 @@ function companyDocPrintCss()
     position: relative;
     background: #fff;
     overflow: hidden;
+}
+.cdoc-letterhead {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+}
+.cdoc-letterhead img {
+    width: 100%;
+    height: 100%;
+    object-fit: fill;
+    display: block;
+}
+/*
+ * Approved letterhead safe area (A4):
+ * header band ~13% (~39mm), slanted footer band ~17–22mm → keep extra clearance
+ * Zero sheet padding so letterhead is edge-to-edge; body padding is the only margin.
+ */
+.cdoc-sheet.has-letterhead,
+.cdoc-sheet:has(.cdoc-letterhead) {
+    padding: 0 !important;
+    border: 0 !important;
+    box-shadow: none !important;
+    outline: none !important;
+}
+.cdoc-sheet.has-letterhead > .cdoc-inner,
+.cdoc-sheet.has-letterhead .cdoc-inner,
+.cdoc-sheet:has(.cdoc-letterhead) > .cdoc-inner,
+.cdoc-sheet:has(.cdoc-letterhead) .cdoc-inner {
+    position: relative !important;
+    z-index: 1;
+    box-sizing: border-box !important;
+    padding: 42mm 16mm 32mm 16mm !important;
+    overflow: hidden !important;
+    max-height: 100% !important;
+}
+.cdoc-sheet.has-letterhead .cdoc-watermark,
+.cdoc-sheet.has-letterhead .cdoc-header,
+.cdoc-sheet.has-letterhead .cdoc-footer,
+.cdoc-sheet:has(.cdoc-letterhead) .cdoc-watermark,
+.cdoc-sheet:has(.cdoc-letterhead) .cdoc-header,
+.cdoc-sheet:has(.cdoc-letterhead) .cdoc-footer {
+    display: none !important;
 }
 .cdoc-watermark {
     position: absolute;
@@ -119,15 +194,50 @@ function companyDocPrintCss()
     white-space: pre-wrap;
     text-align: center;
 }
+@media print {
+    .cdoc-sheet.has-letterhead,
+    .cdoc-sheet:has(.cdoc-letterhead) {
+        padding: 0 !important;
+        border: 0 !important;
+        box-shadow: none !important;
+        outline: none !important;
+    }
+    .cdoc-sheet.has-letterhead > .cdoc-inner,
+    .cdoc-sheet.has-letterhead .cdoc-inner,
+    .cdoc-sheet:has(.cdoc-letterhead) > .cdoc-inner,
+    .cdoc-sheet:has(.cdoc-letterhead) .cdoc-inner {
+        padding: 42mm 16mm 32mm 16mm !important;
+        overflow: hidden !important;
+    }
+}
 CSS;
 }
 
 /**
- * Render logo watermark HTML
+ * Full-page approved letterhead (when set in Company Setup)
+ */
+function companyDocRenderLetterhead(array $brand = null)
+{
+    $brand = $brand ?: getCompanyDocumentBranding();
+    $src = trim((string) ($brand['letterhead_src'] ?? ''));
+    if ($src === '') {
+        return '';
+    }
+    return '<div class="cdoc-letterhead" aria-hidden="true"><img src="'
+        . htmlspecialchars($src, ENT_QUOTES, 'UTF-8')
+        . '" alt=""></div>';
+}
+
+/**
+ * Render logo watermark OR letterhead background
  */
 function companyDocRenderWatermark(array $brand = null)
 {
     $brand = $brand ?: getCompanyDocumentBranding();
+    $lh = companyDocRenderLetterhead($brand);
+    if ($lh !== '') {
+        return $lh;
+    }
     $src = trim((string) ($brand['logo_src'] ?? ''));
     if ($src === '') {
         return '';
@@ -138,7 +248,8 @@ function companyDocRenderWatermark(array $brand = null)
 }
 
 /**
- * Render document header (logo + company name + header details)
+ * Render document header (logo + company name + header details).
+ * Skipped when approved letterhead image is active (branding is on the image).
  *
  * @param array|null $brand
  * @param string $subtitle optional line under company name when header_details empty
@@ -146,6 +257,10 @@ function companyDocRenderWatermark(array $brand = null)
 function companyDocRenderHeader(array $brand = null, $subtitle = '')
 {
     $brand = $brand ?: getCompanyDocumentBranding();
+    if (!empty($brand['has_letterhead'])) {
+        return '';
+    }
+
     $company = (string) ($brand['company_name'] ?? '');
     $src = trim((string) ($brand['logo_src'] ?? ''));
     $header = trim((string) ($brand['header_details'] ?? ''));
@@ -173,11 +288,15 @@ function companyDocRenderHeader(array $brand = null, $subtitle = '')
 }
 
 /**
- * Render document footer from company settings
+ * Render document footer from company settings.
+ * Skipped when approved letterhead image is active (footer is on the image).
  */
 function companyDocRenderFooter(array $brand = null)
 {
     $brand = $brand ?: getCompanyDocumentBranding();
+    if (!empty($brand['has_letterhead'])) {
+        return '';
+    }
     $footer = trim((string) ($brand['footer_details'] ?? ''));
     if ($footer === '') {
         return '';

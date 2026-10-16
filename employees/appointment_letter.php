@@ -154,6 +154,14 @@ $h = function ($s) {
             min-height: 0;
             height: 100%;
         }
+        .page.has-letterhead > .cdoc-inner,
+        .page:has(.cdoc-letterhead) > .cdoc-inner {
+            box-sizing: border-box !important;
+            height: 100% !important;
+            max-height: 100% !important;
+            padding: 42mm 16mm 32mm 16mm !important;
+            overflow: hidden !important;
+        }
         .cdoc-header {
             gap: 12px;
             padding-bottom: 8px;
@@ -322,6 +330,10 @@ $h = function ($s) {
                 break-after: page;
                 overflow: hidden;
             }
+            .page.has-letterhead,
+            .page:has(.cdoc-letterhead) {
+                padding: 0 !important;
+            }
             .page:last-child {
                 page-break-after: auto;
                 break-after: auto;
@@ -344,7 +356,7 @@ $h = function ($s) {
 </div>
 
 <!-- ===================== PAGE 1 ===================== -->
-<div class="page cdoc-sheet">
+<div class="<?php echo htmlspecialchars(companyDocSheetClass($brand, 'page')); ?>">
     <?php echo companyDocRenderWatermark($brand); ?>
     <div class="cdoc-inner">
         <?php echo companyDocRenderHeader($brand, 'Human Resource · Appointment'); ?>
@@ -456,7 +468,7 @@ $h = function ($s) {
 </div>
 
 <!-- ===================== PAGE 2 ===================== -->
-<div class="page cdoc-sheet">
+<div class="<?php echo htmlspecialchars(companyDocSheetClass($brand, 'page')); ?>">
     <?php echo companyDocRenderWatermark($brand); ?>
     <div class="cdoc-inner">
         <?php echo companyDocRenderHeader($brand, 'Human Resource · Appointment'); ?>
@@ -547,7 +559,7 @@ $h = function ($s) {
 </div>
 
 <!-- ===================== PAGE 3 ===================== -->
-<div class="page cdoc-sheet">
+<div class="<?php echo htmlspecialchars(companyDocSheetClass($brand, 'page')); ?>">
     <?php echo companyDocRenderWatermark($brand); ?>
     <div class="cdoc-inner">
         <?php echo companyDocRenderHeader($brand, 'Human Resource · Appointment'); ?>

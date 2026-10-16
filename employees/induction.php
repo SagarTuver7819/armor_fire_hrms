@@ -93,11 +93,18 @@ $isMismatch = ($type !== $trackType);
             min-height: 297mm;
             margin: 0 auto;
             background: #fff;
-            border: 2px solid #111;
+            border: 0;
             padding: 10mm 11mm 8mm;
             box-sizing: border-box;
+            position: relative;
+            overflow: hidden;
         }
         <?php echo companyDocPrintCss(); ?>
+        .sheet.has-letterhead,
+        .sheet:has(.cdoc-letterhead) {
+            padding: 0 !important;
+            border: 0 !important;
+        }
         .cdoc-header {
             gap: 10px;
             padding-bottom: 8px;
@@ -229,7 +236,7 @@ $isMismatch = ($type !== $trackType);
                 min-height: 285mm;
                 height: auto;
                 margin: 0 auto;
-                border: 2.25pt solid #111 !important;
+                border: 0 !important;
                 outline: none;
                 padding: 8mm 9mm 7mm;
                 box-sizing: border-box;
@@ -264,7 +271,7 @@ $isMismatch = ($type !== $trackType);
     </div>
 </div>
 
-<div class="sheet cdoc-sheet">
+<div class="<?php echo htmlspecialchars(companyDocSheetClass($brand, 'sheet')); ?>">
     <?php echo companyDocRenderWatermark($brand); ?>
     <div class="cdoc-inner">
         <?php echo companyDocRenderHeader($brand, 'HR · Induction Training'); ?>

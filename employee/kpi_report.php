@@ -139,11 +139,11 @@ $h = static function ($s) {
             max-width: 100%;
             min-height: 297mm;
             margin: 14px auto;
-            border: 2.25px solid #000;
+            border: 0;
             background: #fff;
             position: relative;
             overflow: hidden;
-            box-shadow: 0 8px 28px rgba(0,0,0,.12);
+            box-shadow: none;
         }
         .page-inner {
             min-height: 297mm;
@@ -152,6 +152,12 @@ $h = static function ($s) {
             flex-direction: column;
             position: relative;
             z-index: 1;
+        }
+        .page.has-letterhead .page-inner,
+        .page:has(.cdoc-letterhead) .page-inner {
+            min-height: 100% !important;
+            height: 100% !important;
+            padding: 42mm 14mm 32mm 14mm !important;
         }
 
         .cdoc-header {
@@ -380,7 +386,7 @@ $h = static function ($s) {
     <button type="button" class="primary" onclick="window.print()">Print / Save as PDF</button>
 </div>
 
-<section class="page cdoc-sheet">
+<section class="<?php echo htmlspecialchars(companyDocSheetClass($brand, 'page')); ?>">
     <?php echo companyDocRenderWatermark($brand); ?>
     <div class="page-inner cdoc-inner">
         <?php echo companyDocRenderHeader($brand, 'Human Resource · Key Performance Indicator'); ?>
