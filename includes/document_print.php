@@ -82,24 +82,22 @@ function companyDocPrintCss()
     background: #fff;
     overflow: hidden;
 }
+/* Screen: letterhead only on first A4 band (no mid-page repeat overlay) */
 .cdoc-letterhead {
     position: absolute;
-    inset: 0;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 297mm;
     z-index: 0;
     pointer-events: none;
-    /* One A4 letterhead tile, repeated for multi-page / tall forms (no stretch) */
-    background-repeat: repeat-y;
+    background-repeat: no-repeat;
     background-position: top center;
-    background-size: 210mm 297mm;
+    background-size: 100% 297mm;
 }
 .cdoc-letterhead img {
     display: none !important;
 }
-/*
- * Approved letterhead safe area (A4):
- * header band ~13% (~39mm), slanted footer band ~17–22mm → keep extra clearance
- * Zero sheet padding so letterhead is edge-to-edge; body padding is the only margin.
- */
 .cdoc-sheet.has-letterhead,
 .cdoc-sheet:has(.cdoc-letterhead) {
     padding: 0 !important;
@@ -194,25 +192,50 @@ function companyDocPrintCss()
     text-align: center;
 }
 @media print {
+    /* Fixed letterhead redraws on every printed page */
+    .cdoc-sheet.has-letterhead .cdoc-letterhead,
+    .cdoc-sheet:has(.cdoc-letterhead) .cdoc-letterhead {
+        position: fixed !important;
+        top: 0 !important;
+        left: 0 !important;
+        right: auto !important;
+        bottom: auto !important;
+        width: 210mm !important;
+        height: 297mm !important;
+        background-size: 210mm 297mm !important;
+        background-repeat: no-repeat !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
     .cdoc-sheet.has-letterhead,
     .cdoc-sheet:has(.cdoc-letterhead) {
         padding: 0 !important;
         border: 0 !important;
         box-shadow: none !important;
         outline: none !important;
+        overflow: visible !important;
     }
+    /* Flow padding: first/last page; @page margins clear header/footer each page */
     .cdoc-sheet.has-letterhead > .cdoc-inner,
     .cdoc-sheet.has-letterhead .cdoc-inner,
     .cdoc-sheet:has(.cdoc-letterhead) > .cdoc-inner,
     .cdoc-sheet:has(.cdoc-letterhead) .cdoc-inner {
-        padding: 42mm 16mm 32mm 16mm !important;
-    }
-    .cdoc-letterhead {
-        -webkit-print-color-adjust: exact;
-        print-color-adjust: exact;
+        padding: 0 2mm !important;
     }
 }
 CSS;
+}
+
+/**
+ * Optional @page CSS when letterhead is active (call inside <style> of print docs)
+ */
+function companyDocLetterheadPageCss(array $brand = null)
+{
+    $brand = $brand ?: getCompanyDocumentBranding();
+    if (empty($brand['has_letterhead'])) {
+        return '@page { size: A4 portrait; margin: 0; }';
+    }
+    return '@page { size: A4 portrait; margin: 40mm 14mm 28mm 14mm; }';
 }
 
 /**

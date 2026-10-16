@@ -120,45 +120,71 @@ $cell = static function ($label, $value, $span = 1) {
             overflow: visible !important;
         }
         .sheet.has-letterhead > .cdoc-inner,
-        .sheet:has(.cdoc-letterhead) > .cdoc-inner {
-            padding: 44mm 14mm 34mm 14mm !important;
+        .sheet:has(.cdoc-letterhead) > .cdoc-inner,
+        .sheet.has-letterhead .cdoc-body-pad,
+        .sheet:has(.cdoc-letterhead) .cdoc-body-pad {
+            padding: 44mm 14mm 20mm 14mm !important;
             overflow: visible !important;
             max-height: none !important;
         }
-        .cdoc-header {
-            padding: 12px 14px;
-            margin-bottom: 0;
-            background: #fffafa;
-        }
-        .cdoc-header-logo { width: 58px; height: 58px; }
-        .cdoc-header-text .cdoc-company { font-size: 17px; }
         .cdoc-body-pad { padding: 0; }
-        .sheet.has-letterhead .cdoc-body-pad,
-        .sheet:has(.cdoc-letterhead) .cdoc-body-pad {
-            padding: 44mm 14mm 34mm 14mm !important;
-        }
-        .cdoc-footer {
-            margin: 0;
-            padding: 10px 14px 12px;
-            border-top: 2px solid #d2232a;
-            text-align: left;
-        }
-        .cand {
-            display: flex;
-            justify-content: space-between;
-            gap: 12px;
-            padding: 10px 12px;
-            border: 0;
-            border-bottom: 1px solid #e2e8f0;
-            background: transparent;
+        .doc-title {
+            text-align: center;
+            margin: 0 0 10px;
+            font-size: 15px;
+            font-weight: 800;
+            letter-spacing: .08em;
+            text-transform: uppercase;
+            text-decoration: underline;
+            text-underline-offset: 3px;
+            color: #111;
             position: relative;
             z-index: 1;
         }
-        .cand-name { font-size: 15px; font-weight: 800; margin: 0 0 3px; }
-        .cand-meta { color: #333; font-weight: 600; }
+        .cand {
+            display: grid;
+            grid-template-columns: 1fr auto;
+            gap: 8px 14px;
+            align-items: start;
+            padding: 10px 12px;
+            margin: 0 0 10px;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            background: rgba(255,255,255,.92);
+            position: relative;
+            z-index: 1;
+        }
+        .cand-name {
+            font-size: 18px;
+            font-weight: 800;
+            margin: 0 0 6px;
+            color: #111;
+            text-transform: uppercase;
+            letter-spacing: .02em;
+        }
+        .cand-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px 14px;
+            color: #334155;
+            font-weight: 700;
+            font-size: 11px;
+        }
+        .cand-meta span {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .cand-meta .k {
+            color: #64748b;
+            font-weight: 700;
+            text-transform: uppercase;
+            font-size: 9px;
+            letter-spacing: .04em;
+        }
         .badge {
             display: inline-block;
-            padding: 4px 10px;
+            padding: 5px 10px;
             border: 1px solid #9f1239;
             background: #fee2e2;
             color: #9f1239;
@@ -166,8 +192,8 @@ $cell = static function ($label, $value, $span = 1) {
             font-weight: 800;
             text-transform: uppercase;
             white-space: nowrap;
-            height: fit-content;
-            flex-shrink: 0;
+            border-radius: 999px;
+            justify-self: end;
         }
         .sec {
             border: 0;
@@ -282,11 +308,11 @@ $cell = static function ($label, $value, $span = 1) {
             .sheet:has(.cdoc-letterhead) > .cdoc-inner,
             .sheet.has-letterhead .cdoc-body-pad,
             .sheet:has(.cdoc-letterhead) .cdoc-body-pad {
-                padding: 44mm 14mm 34mm 14mm !important;
+                padding: 0 2mm !important;
                 overflow: visible !important;
                 max-height: none !important;
             }
-            @page { margin: 0; size: A4; }
+            <?php echo companyDocLetterheadPageCss($brand); ?>
         }
     </style>
 </head>
@@ -301,15 +327,16 @@ $cell = static function ($label, $value, $span = 1) {
     <div class="cdoc-inner cdoc-body-pad">
     <?php echo companyDocRenderHeader($brand, 'Recruitment Application · Interview Evaluation Form'); ?>
 
+    <h1 class="doc-title">Application Form</h1>
     <div class="cand">
         <div>
             <p class="cand-name"><?php echo htmlspecialchars((string) $row['full_name']); ?></p>
             <div class="cand-meta">
-                <?php echo htmlspecialchars((string) $row['application_no']); ?>
-                &nbsp;|&nbsp; <?php echo htmlspecialchars($v($row['position_name'] ?? '')); ?>
-                &nbsp;|&nbsp; <?php echo htmlspecialchars($v($row['department_name'] ?? '')); ?>
+                <span><span class="k">App No</span> <?php echo htmlspecialchars((string) $row['application_no']); ?></span>
+                <span><span class="k">Position</span> <?php echo htmlspecialchars($v($row['position_name'] ?? '')); ?></span>
+                <span><span class="k">Department</span> <?php echo htmlspecialchars($v($row['department_name'] ?? '')); ?></span>
                 <?php if (!empty($row['created_at'])): ?>
-                    &nbsp;|&nbsp; Applied <?php echo htmlspecialchars(formatDateDisplay($row['created_at'])); ?>
+                    <span><span class="k">Applied</span> <?php echo htmlspecialchars(formatDateDisplay($row['created_at'])); ?></span>
                 <?php endif; ?>
             </div>
         </div>
