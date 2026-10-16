@@ -1,7 +1,8 @@
 <?php
 /**
  * Recruitment Application — Print / PDF
- * Discrete A4 pages: letterhead on every page; content in safe band; page numbers.
+ * Content packs into A4 pages (fill available space, then next page).
+ * Letterhead repeats on every page; page numbers shown.
  */
 
 require_once __DIR__ . '/../config/app.php';
@@ -29,6 +30,7 @@ $modes = recruitmentInterviewModes();
 $sides = recruitmentAwaitedSides();
 $brand = getCompanyDocumentBranding();
 $company = $brand['company_name'];
+$letterheadSrc = (string) ($brand['letterhead_src'] ?? '');
 
 $criteria = getRecruitmentCriteriaForPosition((string) ($row['position_name'] ?? ''));
 $marks = getRecruitmentApplicationMarks((int) $row['id']);
@@ -51,16 +53,7 @@ foreach ($marks as $m) {
 }
 
 $isSales = strcasecmp(trim((string) ($row['position_name'] ?? '')), 'Sales') === 0;
-$descriptive = ($isSales && !empty($row['descriptive'])) ? array_values($row['descriptive']) : [];
-$hasDescriptive = count($descriptive) > 0;
-
-/* Max ~3 long Q&A rows per page so nothing clips into letterhead footer */
-$dqPerPage = 3;
-$dqChunks = $hasDescriptive ? array_chunk($descriptive, $dqPerPage) : [];
-
-$totalPages = 1; /* profile */
-$totalPages += count($dqChunks);
-$totalPages += 1; /* HR matrix + result */
+$hasDescriptive = $isSales && !empty($row['descriptive']);
 
 $v = static function ($x) {
     $x = trim((string) $x);
@@ -77,21 +70,7 @@ $cell = static function ($label, $value, $span = 1) {
     echo '<td class="fld"' . $colspan . '><span class="lbl">' . htmlspecialchars($label) . '</span><span class="val">' . $value . '</span></td>';
 };
 
-$pageNo = 0;
-$openPage = static function () use ($brand, &$pageNo) {
-    $pageNo++;
-    echo '<section class="' . htmlspecialchars(companyDocSheetClass($brand, 'sheet')) . '">';
-    echo companyDocRenderWatermark($brand);
-    echo '<div class="cdoc-inner cdoc-body-pad">';
-    echo companyDocRenderHeader($brand, 'Recruitment Application · Interview Evaluation Form');
-};
-$closePage = static function ($showPageNo = true) use ($brand, &$pageNo, $totalPages) {
-    if ($showPageNo) {
-        echo '<div class="page-no">Page ' . (int) $pageNo . ' of ' . (int) $totalPages . '</div>';
-    }
-    echo companyDocRenderFooter($brand);
-    echo '</div></section>';
-};
+$sheetClass = companyDocSheetClass($brand, 'sheet');
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -131,6 +110,7 @@ $closePage = static function ($showPageNo = true) use ($brand, &$pageNo, $totalP
             cursor: pointer;
             flex-shrink: 0;
         }
+        #pack-out { width: 210mm; max-width: 100%; margin: 0 auto; }
         .sheet {
             width: 210mm;
             max-width: 100%;
@@ -139,11 +119,8 @@ $closePage = static function ($showPageNo = true) use ($brand, &$pageNo, $totalP
             max-height: 297mm;
             margin: 0 auto 16px;
             background: #fff;
-            border: 0;
-            padding: 0;
             position: relative;
             overflow: hidden;
-            box-sizing: border-box;
             box-shadow: 0 8px 28px rgba(0,0,0,.12);
         }
         <?php echo companyDocPrintCss(); ?>
@@ -153,20 +130,31 @@ $closePage = static function ($showPageNo = true) use ($brand, &$pageNo, $totalP
             border: 0 !important;
             overflow: hidden !important;
         }
-        .sheet.has-letterhead > .cdoc-inner,
-        .sheet:has(.cdoc-letterhead) > .cdoc-inner,
-        .sheet.has-letterhead .cdoc-body-pad,
-        .sheet:has(.cdoc-letterhead) .cdoc-body-pad {
-            height: 100% !important;
-            max-height: 100% !important;
-            overflow: hidden !important;
-            padding: 42mm 14mm 38mm 14mm !important;
-        }
-        .cdoc-body-pad {
+        .sheet .cdoc-body-pad {
             height: 100%;
+            max-height: 100%;
             display: flex;
             flex-direction: column;
             overflow: hidden;
+            padding: 42mm 14mm 36mm 14mm !important;
+            box-sizing: border-box;
+        }
+        .sheet:not(.has-letterhead) .cdoc-body-pad {
+            padding: 12mm 14mm 12mm 14mm !important;
+        }
+        .page-body {
+            flex: 1 1 auto;
+            min-height: 0;
+            overflow: hidden;
+        }
+        .page-no {
+            flex-shrink: 0;
+            text-align: center;
+            font-size: 9.5px;
+            font-weight: 700;
+            color: #475569;
+            margin-top: 4px;
+            letter-spacing: .04em;
         }
         .doc-title {
             text-align: center;
@@ -178,7 +166,6 @@ $closePage = static function ($showPageNo = true) use ($brand, &$pageNo, $totalP
             text-decoration: underline;
             text-underline-offset: 3px;
             color: #111;
-            flex-shrink: 0;
         }
         .cand {
             display: grid;
@@ -190,7 +177,6 @@ $closePage = static function ($showPageNo = true) use ($brand, &$pageNo, $totalP
             border: 1px solid #e2e8f0;
             border-radius: 6px;
             background: rgba(255,255,255,.92);
-            flex-shrink: 0;
         }
         .cand-name {
             font-size: 16px;
@@ -207,11 +193,6 @@ $closePage = static function ($showPageNo = true) use ($brand, &$pageNo, $totalP
             color: #334155;
             font-weight: 700;
             font-size: 10.5px;
-        }
-        .cand-meta span {
-            display: inline-flex;
-            align-items: center;
-            gap: 5px;
         }
         .cand-meta .k {
             color: #64748b;
@@ -232,15 +213,9 @@ $closePage = static function ($showPageNo = true) use ($brand, &$pageNo, $totalP
             white-space: nowrap;
             border-radius: 999px;
             justify-self: end;
+            height: fit-content;
         }
-        .sec {
-            border: 0;
-            border-bottom: 1px solid #e2e8f0;
-            background: transparent;
-            flex-shrink: 0;
-            margin-bottom: 2px;
-        }
-        .sec:last-child { border-bottom: 0; }
+        .sec { margin: 0 0 6px; }
         .sec-h {
             margin: 0;
             padding: 5px 10px;
@@ -249,7 +224,6 @@ $closePage = static function ($showPageNo = true) use ($brand, &$pageNo, $totalP
             letter-spacing: .05em;
             color: #fff;
             background: #d2232a;
-            border: 0;
             font-weight: 800;
         }
         .sec-h small { font-weight: 600; text-transform: none; letter-spacing: 0; opacity: .9; }
@@ -294,7 +268,6 @@ $closePage = static function ($showPageNo = true) use ($brand, &$pageNo, $totalP
             font-size: 10px;
             vertical-align: top;
         }
-        /* Original table header colors — do not change brand reds */
         table.grid th {
             background: #f1f5f9;
             color: #334155;
@@ -304,25 +277,21 @@ $closePage = static function ($showPageNo = true) use ($brand, &$pageNo, $totalP
             letter-spacing: .03em;
         }
         table.grid td.ans { font-weight: 700; width: 28%; }
-        table.grid tr { page-break-inside: avoid; break-inside: avoid; }
         .mark-yes { color: #15803d; }
         .mark-no { color: #b91c1c; }
-        .page-fill { flex: 1 1 auto; min-height: 0; overflow: hidden; }
         .foot {
-            padding: 6px 0 0;
+            padding: 8px 0 0;
             display: flex;
             justify-content: space-between;
             gap: 16px;
             font-size: 9.5px;
             color: #444;
-            flex-shrink: 0;
-            margin-top: auto;
         }
         .sign {
             width: 30%;
             text-align: center;
             border-top: 1px solid #111;
-            margin-top: 22px;
+            margin-top: 28px;
             padding-top: 4px;
             font-weight: 700;
         }
@@ -334,16 +303,15 @@ $closePage = static function ($showPageNo = true) use ($brand, &$pageNo, $totalP
             font-weight: 700;
             text-transform: uppercase;
             letter-spacing: .04em;
-            flex-shrink: 0;
         }
-        .page-no {
-            flex-shrink: 0;
-            text-align: center;
-            font-size: 9.5px;
-            font-weight: 700;
-            color: #475569;
-            margin-top: 6px;
-            letter-spacing: .04em;
+        /* Measure source — off-screen, same width as page body */
+        #pack-src {
+            position: absolute;
+            left: -10000px;
+            top: 0;
+            width: 182mm; /* 210mm - 14mm*2 side padding */
+            visibility: hidden;
+            pointer-events: none;
         }
         @media print {
             <?php echo companyDocLetterheadPageCss($brand); ?>
@@ -351,44 +319,33 @@ $closePage = static function ($showPageNo = true) use ($brand, &$pageNo, $totalP
                 background: #fff !important;
                 padding: 0 !important;
                 margin: 0 !important;
-                width: 210mm;
             }
             .bar { display: none !important; }
+            #pack-src { display: none !important; }
+            #pack-out { width: 210mm; margin: 0; }
             .sheet {
                 width: 210mm !important;
-                max-width: 210mm !important;
                 height: 297mm !important;
                 min-height: 297mm !important;
                 max-height: 297mm !important;
                 margin: 0 !important;
-                border: 0 !important;
-                padding: 0 !important;
                 box-shadow: none !important;
                 overflow: hidden !important;
                 page-break-after: always;
                 break-after: page;
                 page-break-inside: avoid;
-                break-inside: avoid;
                 -webkit-print-color-adjust: exact;
                 print-color-adjust: exact;
             }
-            .sheet:last-of-type {
+            .sheet:last-child {
                 page-break-after: auto;
                 break-after: auto;
             }
-            .sheet.has-letterhead,
-            .sheet:has(.cdoc-letterhead) {
-                padding: 0 !important;
-                border: 0 !important;
+            .sheet .cdoc-body-pad {
+                padding: 42mm 14mm 36mm 14mm !important;
             }
-            .sheet.has-letterhead > .cdoc-inner,
-            .sheet:has(.cdoc-letterhead) > .cdoc-inner,
-            .sheet.has-letterhead .cdoc-body-pad,
-            .sheet:has(.cdoc-letterhead) .cdoc-body-pad {
-                padding: 42mm 14mm 38mm 14mm !important;
-                overflow: hidden !important;
-                height: 100% !important;
-                max-height: 100% !important;
+            .sheet:not(.has-letterhead) .cdoc-body-pad {
+                padding: 12mm 14mm 12mm 14mm !important;
             }
         }
     </style>
@@ -402,234 +359,373 @@ $closePage = static function ($showPageNo = true) use ($brand, &$pageNo, $totalP
     <button type="button" onclick="window.print()">Print / Save PDF</button>
 </div>
 
-<?php
-/* ===================== PAGE 1 — Profile ===================== */
-$openPage();
-?>
-    <h1 class="doc-title">Application Form</h1>
-    <div class="cand">
-        <div>
-            <p class="cand-name"><?php echo htmlspecialchars((string) $row['full_name']); ?></p>
-            <div class="cand-meta">
-                <span><span class="k">App No</span> <?php echo htmlspecialchars((string) $row['application_no']); ?></span>
-                <span><span class="k">Position</span> <?php echo htmlspecialchars($v($row['position_name'] ?? '')); ?></span>
-                <span><span class="k">Department</span> <?php echo htmlspecialchars($v($row['department_name'] ?? '')); ?></span>
-                <?php if (!empty($row['created_at'])): ?>
-                    <span><span class="k">Applied</span> <?php echo htmlspecialchars(formatDateDisplay($row['created_at'])); ?></span>
-                <?php endif; ?>
+<div id="pack-out"
+     data-sheet-class="<?php echo htmlspecialchars($sheetClass); ?>"
+     data-letterhead="<?php echo htmlspecialchars($letterheadSrc, ENT_QUOTES, 'UTF-8'); ?>"
+     data-has-letterhead="<?php echo !empty($brand['has_letterhead']) ? '1' : '0'; ?>"></div>
+
+<!-- Source content: packed into pages by JS (fill space, then next page) -->
+<div id="pack-src">
+    <div class="pack-item" data-keep="1">
+        <h1 class="doc-title">Application Form</h1>
+        <div class="cand">
+            <div>
+                <p class="cand-name"><?php echo htmlspecialchars((string) $row['full_name']); ?></p>
+                <div class="cand-meta">
+                    <span><span class="k">App No</span> <?php echo htmlspecialchars((string) $row['application_no']); ?></span>
+                    <span><span class="k">Position</span> <?php echo htmlspecialchars($v($row['position_name'] ?? '')); ?></span>
+                    <span><span class="k">Department</span> <?php echo htmlspecialchars($v($row['department_name'] ?? '')); ?></span>
+                    <?php if (!empty($row['created_at'])): ?>
+                        <span><span class="k">Applied</span> <?php echo htmlspecialchars(formatDateDisplay($row['created_at'])); ?></span>
+                    <?php endif; ?>
+                </div>
+            </div>
+            <span class="badge"><?php echo htmlspecialchars($labels[$row['status']] ?? $row['status']); ?></span>
+        </div>
+    </div>
+
+    <div class="pack-item sec">
+        <h2 class="sec-h">Personal Details</h2>
+        <table class="boxes">
+            <tr>
+                <?php
+                $cell('Mobile', htmlspecialchars($v($row['mobile'] ?? '')));
+                $cell('Alternate Mobile', htmlspecialchars($v($row['alt_mobile'] ?? '')));
+                $cell('Email', htmlspecialchars($v($row['email'] ?? '')), 2);
+                ?>
+            </tr>
+            <tr>
+                <?php
+                $dobAge = (!empty($row['dob']) ? formatDateDisplay($row['dob']) : '—')
+                    . (!empty($row['age_years']) ? (' / ' . (int) $row['age_years'] . ' yrs') : '');
+                $cell('Date of Birth / Age', htmlspecialchars($dobAge));
+                $cell('Gender', htmlspecialchars($v($row['gender'] ?? '')));
+                $cell('Marital Status', htmlspecialchars($v($row['marital_status'] ?? '')));
+                $cell('City', htmlspecialchars($v($row['city'] ?? '')));
+                ?>
+            </tr>
+            <tr>
+                <?php
+                $cell('State', htmlspecialchars($v($row['state_name'] ?? '')));
+                $cell('Pincode', htmlspecialchars($v($row['pincode'] ?? '')));
+                $cell('Address', nl2br(htmlspecialchars($v($row['address'] ?? ''))), 2);
+                ?>
+            </tr>
+        </table>
+    </div>
+
+    <div class="pack-item sec">
+        <h2 class="sec-h">ID &amp; Bank Details</h2>
+        <table class="boxes">
+            <tr>
+                <?php
+                $cell('Aadhaar No.', htmlspecialchars($v($row['aadhaar_no'] ?? '')));
+                $cell('PAN No.', htmlspecialchars($v($row['pan_no'] ?? '')));
+                $cell('Bank Name', htmlspecialchars($v($row['bank_name'] ?? '')));
+                $cell('Account No.', htmlspecialchars($v($row['bank_account'] ?? '')));
+                ?>
+            </tr>
+            <tr>
+                <?php $cell('IFSC', htmlspecialchars($v($row['bank_ifsc'] ?? '')), 4); ?>
+            </tr>
+        </table>
+    </div>
+
+    <div class="pack-item sec">
+        <h2 class="sec-h">Salary &amp; Experience Summary</h2>
+        <table class="boxes">
+            <tr>
+                <?php
+                $cell('Current / Last Salary', $money($row['current_salary'] ?? null));
+                $cell('Expected Salary', $money($row['expected_salary'] ?? null));
+                $cell('Notice Period', htmlspecialchars($v($row['notice_period'] ?? '')));
+                $cell('Total Experience', htmlspecialchars($v($row['total_experience'] ?? '')));
+                ?>
+            </tr>
+        </table>
+    </div>
+
+    <div class="pack-item sec pack-split">
+        <h2 class="sec-h">Educational Details</h2>
+        <table class="grid pack-rows">
+            <thead><tr><th>Degree</th><th>Institution</th><th>Year</th><th>% / CGPA</th></tr></thead>
+            <tbody>
+            <?php if (empty($row['education'])): ?>
+                <tr><td colspan="4">—</td></tr>
+            <?php else: foreach ($row['education'] as $ed): ?>
+                <tr>
+                    <td><?php echo htmlspecialchars($v($ed['degree'] ?? '')); ?></td>
+                    <td><?php echo htmlspecialchars($v($ed['institution'] ?? '')); ?></td>
+                    <td><?php echo htmlspecialchars($v($ed['year_of_passing'] ?? '')); ?></td>
+                    <td><?php echo htmlspecialchars($v($ed['percentage'] ?? '')); ?></td>
+                </tr>
+            <?php endforeach; endif; ?>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="pack-item sec pack-split">
+        <h2 class="sec-h">Experience Details</h2>
+        <table class="grid pack-rows">
+            <thead><tr><th>Company</th><th>Designation</th><th>From</th><th>To</th><th>Salary</th></tr></thead>
+            <tbody>
+            <?php if (empty($row['experience'])): ?>
+                <tr><td colspan="5">—</td></tr>
+            <?php else: foreach ($row['experience'] as $ex): ?>
+                <tr>
+                    <td><?php echo htmlspecialchars($v($ex['company_name'] ?? '')); ?></td>
+                    <td><?php echo htmlspecialchars($v($ex['designation'] ?? '')); ?></td>
+                    <td><?php echo htmlspecialchars($v($ex['from_date'] ?? '')); ?></td>
+                    <td><?php echo !empty($ex['is_current']) ? 'Present' : htmlspecialchars($v($ex['to_date'] ?? '')); ?></td>
+                    <td><?php echo $money($ex['last_salary'] ?? null); ?></td>
+                </tr>
+            <?php endforeach; endif; ?>
+            </tbody>
+        </table>
+    </div>
+
+    <?php if ($hasDescriptive): ?>
+    <div class="pack-item sec pack-split">
+        <h2 class="sec-h">Reasoning Descriptive Questions</h2>
+        <table class="grid pack-rows">
+            <thead><tr><th style="width:36px;">#</th><th>Question (HI / EN)</th><th style="width:38%;">Answer</th></tr></thead>
+            <tbody>
+            <?php foreach ($row['descriptive'] as $dq): ?>
+                <tr>
+                    <td><?php echo (int) ($dq['question_no'] ?? 0); ?></td>
+                    <td>
+                        <div><?php echo htmlspecialchars((string) ($dq['question_hi'] ?? '')); ?></div>
+                        <div style="color:#64748b;margin-top:3px;"><?php echo htmlspecialchars((string) ($dq['question_en'] ?? '')); ?></div>
+                    </td>
+                    <td><?php echo nl2br(htmlspecialchars(trim((string) ($dq['answer'] ?? '')) !== '' ? (string) $dq['answer'] : '—')); ?></td>
+                </tr>
+            <?php endforeach; ?>
+            </tbody>
+        </table>
+    </div>
+    <?php endif; ?>
+
+    <div class="pack-item sec pack-split">
+        <h2 class="sec-h">HR Round · Interview Matrix
+            <small>(<?php echo htmlspecialchars((string) ($row['position_name'] ?: 'All Positions')); ?>)</small>
+        </h2>
+        <table class="grid pack-rows">
+            <thead><tr><th style="width:36px;">#</th><th>Question / Criteria</th><th style="width:28%;">Answer</th></tr></thead>
+            <tbody>
+            <?php if (!$criteria): ?>
+                <tr><td colspan="3">No criteria marked.</td></tr>
+            <?php else: $i = 1; foreach ($criteria as $c):
+                $key = strtolower(trim((string) $c['criteria_label']));
+                $type = (string) ($c['answer_type'] ?? 'yesno');
+                $mark = $marks[$key] ?? [];
+                $display = function_exists('recruitmentFormatMarkAnswer')
+                    ? recruitmentFormatMarkAnswer($mark, $type)
+                    : '—';
+                $isYes = ($display === 'Yes');
+                $isNo = ($display === 'No');
+            ?>
+                <tr>
+                    <td><?php echo $i++; ?></td>
+                    <td><?php echo htmlspecialchars((string) $c['criteria_label']); ?></td>
+                    <td class="ans <?php echo $isYes ? 'mark-yes' : ($isNo ? 'mark-no' : ''); ?>">
+                        <?php echo nl2br(htmlspecialchars($display)); ?>
+                    </td>
+                </tr>
+            <?php endforeach; endif; ?>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="pack-item sec">
+        <h2 class="sec-h">Interview Result</h2>
+        <table class="boxes">
+            <tr>
+                <?php
+                $m = (string) ($row['interview_mode'] ?? '');
+                $aw = (string) ($row['awaited_with'] ?? '');
+                $cell('Interview Mode', htmlspecialchars($modes[$m] ?? $v($m)));
+                $cell('Interview Date', !empty($row['interview_date']) ? htmlspecialchars(formatDateDisplay($row['interview_date'])) : '—');
+                $cell('Awaited With', htmlspecialchars($sides[$aw] ?? $v($aw)));
+                $cell('Status', htmlspecialchars($labels[$row['status']] ?? $row['status']));
+                ?>
+            </tr>
+            <tr>
+                <?php
+                $cell('Interview Notes', nl2br(htmlspecialchars($v($row['interview_notes'] ?? ''))), 2);
+                $cell('Not Selected Reason', nl2br(htmlspecialchars($v($row['not_selected_reason'] ?? ''))), 2);
+                ?>
+            </tr>
+            <tr>
+                <?php $cell('HR Remarks', nl2br(htmlspecialchars($v($row['hr_remarks'] ?? ''))), 4); ?>
+            </tr>
+        </table>
+    </div>
+
+    <div class="pack-item">
+        <div class="foot">
+            <div class="gen">Generated on <?php echo htmlspecialchars(formatDateTimeDisplay(date('Y-m-d H:i:s'))); ?> · <?php echo htmlspecialchars($company); ?></div>
+            <div style="display:flex;gap:20px;width:70%;justify-content:flex-end;">
+                <div class="sign">HR Signature</div>
+                <div class="sign">Interviewer Signature</div>
+                <div class="sign">Authorized Signatory</div>
             </div>
         </div>
-        <span class="badge"><?php echo htmlspecialchars($labels[$row['status']] ?? $row['status']); ?></span>
     </div>
+</div>
 
-    <div class="page-fill">
-        <div class="sec">
-            <h2 class="sec-h">Personal Details</h2>
-            <table class="boxes">
-                <tr>
-                    <?php
-                    $cell('Mobile', htmlspecialchars($v($row['mobile'] ?? '')));
-                    $cell('Alternate Mobile', htmlspecialchars($v($row['alt_mobile'] ?? '')));
-                    $cell('Email', htmlspecialchars($v($row['email'] ?? '')), 2);
-                    ?>
-                </tr>
-                <tr>
-                    <?php
-                    $dobAge = (!empty($row['dob']) ? formatDateDisplay($row['dob']) : '—')
-                        . (!empty($row['age_years']) ? (' / ' . (int) $row['age_years'] . ' yrs') : '');
-                    $cell('Date of Birth / Age', htmlspecialchars($dobAge));
-                    $cell('Gender', htmlspecialchars($v($row['gender'] ?? '')));
-                    $cell('Marital Status', htmlspecialchars($v($row['marital_status'] ?? '')));
-                    $cell('City', htmlspecialchars($v($row['city'] ?? '')));
-                    ?>
-                </tr>
-                <tr>
-                    <?php
-                    $cell('State', htmlspecialchars($v($row['state_name'] ?? '')));
-                    $cell('Pincode', htmlspecialchars($v($row['pincode'] ?? '')));
-                    $cell('Address', nl2br(htmlspecialchars($v($row['address'] ?? ''))), 2);
-                    ?>
-                </tr>
-            </table>
-        </div>
+<script>
+(function () {
+    var out = document.getElementById('pack-out');
+    var src = document.getElementById('pack-src');
+    if (!out || !src) return;
 
-        <div class="sec">
-            <h2 class="sec-h">ID &amp; Bank Details</h2>
-            <table class="boxes">
-                <tr>
-                    <?php
-                    $cell('Aadhaar No.', htmlspecialchars($v($row['aadhaar_no'] ?? '')));
-                    $cell('PAN No.', htmlspecialchars($v($row['pan_no'] ?? '')));
-                    $cell('Bank Name', htmlspecialchars($v($row['bank_name'] ?? '')));
-                    $cell('Account No.', htmlspecialchars($v($row['bank_account'] ?? '')));
-                    ?>
-                </tr>
-                <tr>
-                    <?php $cell('IFSC', htmlspecialchars($v($row['bank_ifsc'] ?? '')), 4); ?>
-                </tr>
-            </table>
-        </div>
+    var sheetClass = out.getAttribute('data-sheet-class') || 'cdoc-sheet sheet';
+    var lh = out.getAttribute('data-letterhead') || '';
+    var hasLh = out.getAttribute('data-has-letterhead') === '1';
 
-        <div class="sec">
-            <h2 class="sec-h">Salary &amp; Experience Summary</h2>
-            <table class="boxes">
-                <tr>
-                    <?php
-                    $cell('Current / Last Salary', $money($row['current_salary'] ?? null));
-                    $cell('Expected Salary', $money($row['expected_salary'] ?? null));
-                    $cell('Notice Period', htmlspecialchars($v($row['notice_period'] ?? '')));
-                    $cell('Total Experience', htmlspecialchars($v($row['total_experience'] ?? '')));
-                    ?>
-                </tr>
-            </table>
-        </div>
+    function mmToPx(mm) {
+        var probe = document.createElement('div');
+        probe.style.cssText = 'position:absolute;left:-9999px;width:100mm;height:100mm;';
+        document.body.appendChild(probe);
+        var px = probe.offsetWidth / 100;
+        document.body.removeChild(probe);
+        return mm * px;
+    }
 
-        <div class="sec">
-            <h2 class="sec-h">Educational Details</h2>
-            <table class="grid">
-                <thead><tr><th>Degree</th><th>Institution</th><th>Year</th><th>% / CGPA</th></tr></thead>
-                <tbody>
-                <?php if (empty($row['education'])): ?>
-                    <tr><td colspan="4">—</td></tr>
-                <?php else: foreach ($row['education'] as $ed): ?>
-                    <tr>
-                        <td><?php echo htmlspecialchars($v($ed['degree'] ?? '')); ?></td>
-                        <td><?php echo htmlspecialchars($v($ed['institution'] ?? '')); ?></td>
-                        <td><?php echo htmlspecialchars($v($ed['year_of_passing'] ?? '')); ?></td>
-                        <td><?php echo htmlspecialchars($v($ed['percentage'] ?? '')); ?></td>
-                    </tr>
-                <?php endforeach; endif; ?>
-                </tbody>
-            </table>
-        </div>
+    function createPage() {
+        var section = document.createElement('section');
+        section.className = sheetClass;
+        if (hasLh && lh) {
+            var lhDiv = document.createElement('div');
+            lhDiv.className = 'cdoc-letterhead';
+            lhDiv.setAttribute('aria-hidden', 'true');
+            lhDiv.style.backgroundImage = 'url("' + lh.replace(/"/g, '\\"') + '")';
+            section.appendChild(lhDiv);
+        }
+        var inner = document.createElement('div');
+        inner.className = 'cdoc-inner cdoc-body-pad';
+        var body = document.createElement('div');
+        body.className = 'page-body';
+        var pageNo = document.createElement('div');
+        pageNo.className = 'page-no';
+        inner.appendChild(body);
+        inner.appendChild(pageNo);
+        section.appendChild(inner);
+        out.appendChild(section);
+        return { section: section, body: body, pageNo: pageNo, inner: inner };
+    }
 
-        <div class="sec">
-            <h2 class="sec-h">Experience Details</h2>
-            <table class="grid">
-                <thead><tr><th>Company</th><th>Designation</th><th>From</th><th>To</th><th>Salary</th></tr></thead>
-                <tbody>
-                <?php if (empty($row['experience'])): ?>
-                    <tr><td colspan="5">—</td></tr>
-                <?php else: foreach ($row['experience'] as $ex): ?>
-                    <tr>
-                        <td><?php echo htmlspecialchars($v($ex['company_name'] ?? '')); ?></td>
-                        <td><?php echo htmlspecialchars($v($ex['designation'] ?? '')); ?></td>
-                        <td><?php echo htmlspecialchars($v($ex['from_date'] ?? '')); ?></td>
-                        <td><?php echo !empty($ex['is_current']) ? 'Present' : htmlspecialchars($v($ex['to_date'] ?? '')); ?></td>
-                        <td><?php echo $money($ex['last_salary'] ?? null); ?></td>
-                    </tr>
-                <?php endforeach; endif; ?>
-                </tbody>
-            </table>
-        </div>
-    </div>
-<?php
-$closePage();
+    function fits(pageBody, el, maxH) {
+        pageBody.appendChild(el);
+        var ok = pageBody.scrollHeight <= maxH + 0.5;
+        if (!ok) pageBody.removeChild(el);
+        return ok;
+    }
 
-/* ===================== Descriptive question pages (chunked) ===================== */
-foreach ($dqChunks as $chunkIndex => $chunk):
-    $openPage();
-?>
-    <p class="cont-note">Application Form · continued · <?php echo htmlspecialchars((string) $row['full_name']); ?> · <?php echo htmlspecialchars((string) $row['application_no']); ?></p>
-    <div class="page-fill">
-        <div class="sec">
-            <h2 class="sec-h">Reasoning Descriptive Questions
-                <?php if (count($dqChunks) > 1): ?>
-                    <small>(<?php echo (int) ($chunkIndex + 1); ?>/<?php echo count($dqChunks); ?>)</small>
-                <?php endif; ?>
-            </h2>
-            <table class="grid">
-                <thead><tr><th style="width:36px;">#</th><th>Question (HI / EN)</th><th style="width:38%;">Answer</th></tr></thead>
-                <tbody>
-                <?php foreach ($chunk as $dq): ?>
-                    <tr>
-                        <td><?php echo (int) ($dq['question_no'] ?? 0); ?></td>
-                        <td>
-                            <div><?php echo htmlspecialchars((string) ($dq['question_hi'] ?? '')); ?></div>
-                            <div style="color:#64748b;margin-top:3px;"><?php echo htmlspecialchars((string) ($dq['question_en'] ?? '')); ?></div>
-                        </td>
-                        <td><?php echo nl2br(htmlspecialchars(trim((string) ($dq['answer'] ?? '')) !== '' ? (string) $dq['answer'] : '—')); ?></td>
-                    </tr>
-                <?php endforeach; ?>
-                </tbody>
-            </table>
-        </div>
-    </div>
-<?php
-    $closePage();
-endforeach;
+    function cloneRowsTable(templateSec, rows) {
+        var wrap = templateSec.cloneNode(false);
+        var heading = templateSec.querySelector('.sec-h');
+        if (heading) wrap.appendChild(heading.cloneNode(true));
+        var table = templateSec.querySelector('table.pack-rows');
+        if (!table) return wrap;
+        var t = table.cloneNode(false);
+        var thead = table.querySelector('thead');
+        if (thead) t.appendChild(thead.cloneNode(true));
+        var tb = document.createElement('tbody');
+        rows.forEach(function (r) { tb.appendChild(r); });
+        t.appendChild(tb);
+        wrap.appendChild(t);
+        wrap.className = templateSec.className;
+        return wrap;
+    }
 
-/* ===================== Last page — HR Matrix + Result ===================== */
-$openPage();
-?>
-    <p class="cont-note">Application Form · continued · <?php echo htmlspecialchars((string) $row['full_name']); ?> · <?php echo htmlspecialchars((string) $row['application_no']); ?></p>
-    <div class="page-fill">
-        <div class="sec">
-            <h2 class="sec-h">HR Round · Interview Matrix
-                <small>(<?php echo htmlspecialchars((string) ($row['position_name'] ?: 'All Positions')); ?>)</small>
-            </h2>
-            <table class="grid">
-                <thead><tr><th style="width:36px;">#</th><th>Question / Criteria</th><th style="width:28%;">Answer</th></tr></thead>
-                <tbody>
-                <?php if (!$criteria): ?>
-                    <tr><td colspan="3">No criteria marked.</td></tr>
-                <?php else: $i = 1; foreach ($criteria as $c):
-                    $key = strtolower(trim((string) $c['criteria_label']));
-                    $type = (string) ($c['answer_type'] ?? 'yesno');
-                    $mark = $marks[$key] ?? [];
-                    $display = function_exists('recruitmentFormatMarkAnswer')
-                        ? recruitmentFormatMarkAnswer($mark, $type)
-                        : '—';
-                    $isYes = ($display === 'Yes');
-                    $isNo = ($display === 'No');
-                ?>
-                    <tr>
-                        <td><?php echo $i++; ?></td>
-                        <td><?php echo htmlspecialchars((string) $c['criteria_label']); ?></td>
-                        <td class="ans <?php echo $isYes ? 'mark-yes' : ($isNo ? 'mark-no' : ''); ?>">
-                            <?php echo nl2br(htmlspecialchars($display)); ?>
-                        </td>
-                    </tr>
-                <?php endforeach; endif; ?>
-                </tbody>
-            </table>
-        </div>
+    function pack() {
+        out.innerHTML = '';
+        var items = Array.prototype.slice.call(src.querySelectorAll(':scope > .pack-item'));
+        var pageH = mmToPx(297);
+        var padTop = hasLh ? mmToPx(42) : mmToPx(12);
+        var padBot = hasLh ? mmToPx(36) : mmToPx(12);
+        var pageNoH = mmToPx(6);
+        var maxH = pageH - padTop - padBot - pageNoH;
 
-        <div class="sec">
-            <h2 class="sec-h">Interview Result</h2>
-            <table class="boxes">
-                <tr>
-                    <?php
-                    $m = (string) ($row['interview_mode'] ?? '');
-                    $aw = (string) ($row['awaited_with'] ?? '');
-                    $cell('Interview Mode', htmlspecialchars($modes[$m] ?? $v($m)));
-                    $cell('Interview Date', !empty($row['interview_date']) ? htmlspecialchars(formatDateDisplay($row['interview_date'])) : '—');
-                    $cell('Awaited With', htmlspecialchars($sides[$aw] ?? $v($aw)));
-                    $cell('Status', htmlspecialchars($labels[$row['status']] ?? $row['status']));
-                    ?>
-                </tr>
-                <tr>
-                    <?php
-                    $cell('Interview Notes', nl2br(htmlspecialchars($v($row['interview_notes'] ?? ''))), 2);
-                    $cell('Not Selected Reason', nl2br(htmlspecialchars($v($row['not_selected_reason'] ?? ''))), 2);
-                    ?>
-                </tr>
-                <tr>
-                    <?php $cell('HR Remarks', nl2br(htmlspecialchars($v($row['hr_remarks'] ?? ''))), 4); ?>
-                </tr>
-            </table>
-        </div>
-    </div>
-    <div class="foot">
-        <div class="gen">Generated on <?php echo htmlspecialchars(formatDateTimeDisplay(date('Y-m-d H:i:s'))); ?> · <?php echo htmlspecialchars($company); ?></div>
-        <div style="display:flex;gap:20px;width:70%;justify-content:flex-end;">
-            <div class="sign">HR Signature</div>
-            <div class="sign">Interviewer Signature</div>
-            <div class="sign">Authorized Signatory</div>
-        </div>
-    </div>
-<?php
-$closePage();
-?>
+        var page = createPage();
+        var pages = [page];
+
+        items.forEach(function (item) {
+            var canSplit = item.classList.contains('pack-split') && item.querySelector('table.pack-rows tbody');
+
+            if (!canSplit) {
+                var node = item.cloneNode(true);
+                if (!fits(page.body, node, maxH)) {
+                    page = createPage();
+                    pages.push(page);
+                    page.body.appendChild(node);
+                    /* if still oversized, leave it (rare) */
+                    if (page.body.scrollHeight > maxH + 0.5) {
+                        /* keep anyway — better than drop */
+                    }
+                }
+                return;
+            }
+
+            /* Split table rows across pages to fill space */
+            var rows = Array.prototype.slice.call(item.querySelectorAll('table.pack-rows tbody > tr'));
+            var pending = rows.map(function (r) { return r.cloneNode(true); });
+
+            while (pending.length) {
+                var placed = [];
+                var probe = cloneRowsTable(item, []);
+                page.body.appendChild(probe);
+                var tbody = probe.querySelector('tbody');
+
+                while (pending.length) {
+                    var row = pending[0];
+                    tbody.appendChild(row);
+                    if (page.body.scrollHeight > maxH + 0.5) {
+                        tbody.removeChild(row);
+                        break;
+                    }
+                    pending.shift();
+                    placed.push(row);
+                }
+
+                if (!placed.length) {
+                    /* Row alone taller than page — force place on fresh page */
+                    page.body.removeChild(probe);
+                    if (page.body.childNodes.length) {
+                        page = createPage();
+                        pages.push(page);
+                    }
+                    var forced = cloneRowsTable(item, [pending.shift()]);
+                    page.body.appendChild(forced);
+                    continue;
+                }
+
+                if (pending.length) {
+                    /* Page full — continue remaining rows on next page */
+                    page = createPage();
+                    pages.push(page);
+                }
+            }
+        });
+
+        var total = pages.length;
+        pages.forEach(function (p, i) {
+            p.pageNo.textContent = 'Page ' + (i + 1) + ' of ' + total;
+        });
+    }
+
+    if (document.fonts && document.fonts.ready) {
+        document.fonts.ready.then(pack).catch(pack);
+    } else {
+        window.addEventListener('load', pack);
+        pack();
+    }
+    window.addEventListener('resize', function () {
+        clearTimeout(window.__packT);
+        window.__packT = setTimeout(pack, 200);
+    });
+})();
+</script>
 </body>
 </html>
