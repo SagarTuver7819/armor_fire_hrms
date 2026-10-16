@@ -515,20 +515,22 @@ $previewLetterhead = (!empty($current['letterhead_image']) && file_exists(__DIR_
     border: 1px solid #e2e8f0;
     border-radius: 12px;
     overflow: hidden;
-    background: #0b0b0b;
+    background: #fff;
     margin-bottom: 12px;
-    max-height: 320px;
+    max-height: 420px;
+    box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.04);
 }
 .letterhead-preview-box img {
     display: block;
     width: 100%;
     height: auto;
-    max-height: 320px;
+    max-height: 420px;
     object-fit: contain;
     object-position: top center;
+    background: #fff;
 }
-.letterhead-preview-box.is-side { max-height: 420px; }
-.letterhead-preview-box.is-side img { max-height: 420px; }
+.letterhead-preview-box.is-side { max-height: 480px; }
+.letterhead-preview-box.is-side img { max-height: 480px; }
 </style>
 
 <?php require_once __DIR__ . '/includes/footer.php'; ?>
