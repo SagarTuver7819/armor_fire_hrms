@@ -109,7 +109,7 @@ $cell = static function ($label, $value, $span = 1) {
             border: 0;
             padding: 12mm 14mm 12mm;
             position: relative;
-            overflow: hidden;
+            overflow: visible;
             box-sizing: border-box;
         }
         <?php echo companyDocPrintCss(); ?>
@@ -117,6 +117,13 @@ $cell = static function ($label, $value, $span = 1) {
         .sheet:has(.cdoc-letterhead) {
             padding: 0 !important;
             border: 0 !important;
+            overflow: visible !important;
+        }
+        .sheet.has-letterhead > .cdoc-inner,
+        .sheet:has(.cdoc-letterhead) > .cdoc-inner {
+            padding: 44mm 14mm 34mm 14mm !important;
+            overflow: visible !important;
+            max-height: none !important;
         }
         .cdoc-header {
             padding: 12px 14px;
@@ -126,6 +133,10 @@ $cell = static function ($label, $value, $span = 1) {
         .cdoc-header-logo { width: 58px; height: 58px; }
         .cdoc-header-text .cdoc-company { font-size: 17px; }
         .cdoc-body-pad { padding: 0; }
+        .sheet.has-letterhead .cdoc-body-pad,
+        .sheet:has(.cdoc-letterhead) .cdoc-body-pad {
+            padding: 44mm 14mm 34mm 14mm !important;
+        }
         .cdoc-footer {
             margin: 0;
             padding: 10px 14px 12px;
@@ -136,9 +147,12 @@ $cell = static function ($label, $value, $span = 1) {
             display: flex;
             justify-content: space-between;
             gap: 12px;
-            padding: 10px 14px;
-            border-bottom: 1px solid #111;
-            background: #fff;
+            padding: 10px 12px;
+            border: 0;
+            border-bottom: 1px solid #e2e8f0;
+            background: transparent;
+            position: relative;
+            z-index: 1;
         }
         .cand-name { font-size: 15px; font-weight: 800; margin: 0 0 3px; }
         .cand-meta { color: #333; font-weight: 600; }
@@ -153,8 +167,15 @@ $cell = static function ($label, $value, $span = 1) {
             text-transform: uppercase;
             white-space: nowrap;
             height: fit-content;
+            flex-shrink: 0;
         }
-        .sec { border-bottom: 1px solid #111; }
+        .sec {
+            border: 0;
+            border-bottom: 1px solid #e2e8f0;
+            position: relative;
+            z-index: 1;
+            background: transparent;
+        }
         .sec:last-child { border-bottom: 0; }
         .sec-h {
             margin: 0;
@@ -164,7 +185,7 @@ $cell = static function ($label, $value, $span = 1) {
             letter-spacing: .05em;
             color: #fff;
             background: #d2232a;
-            border-bottom: 1px solid #111;
+            border: 0;
             font-weight: 800;
         }
         .sec-h small { font-weight: 600; text-transform: none; letter-spacing: 0; opacity: .9; }
@@ -248,12 +269,22 @@ $cell = static function ($label, $value, $span = 1) {
                 border: 0 !important;
                 padding: 12mm 14mm 12mm;
                 box-shadow: none;
-                overflow: hidden;
+                overflow: visible;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
             }
             .sheet.has-letterhead,
             .sheet:has(.cdoc-letterhead) {
                 padding: 0 !important;
                 border: 0 !important;
+            }
+            .sheet.has-letterhead > .cdoc-inner,
+            .sheet:has(.cdoc-letterhead) > .cdoc-inner,
+            .sheet.has-letterhead .cdoc-body-pad,
+            .sheet:has(.cdoc-letterhead) .cdoc-body-pad {
+                padding: 44mm 14mm 34mm 14mm !important;
+                overflow: visible !important;
+                max-height: none !important;
             }
             @page { margin: 0; size: A4; }
         }

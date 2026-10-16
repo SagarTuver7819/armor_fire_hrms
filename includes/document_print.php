@@ -87,12 +87,13 @@ function companyDocPrintCss()
     inset: 0;
     z-index: 0;
     pointer-events: none;
+    /* One A4 letterhead tile, repeated for multi-page / tall forms (no stretch) */
+    background-repeat: repeat-y;
+    background-position: top center;
+    background-size: 210mm 297mm;
 }
 .cdoc-letterhead img {
-    width: 100%;
-    height: 100%;
-    object-fit: fill;
-    display: block;
+    display: none !important;
 }
 /*
  * Approved letterhead safe area (A4):
@@ -114,8 +115,6 @@ function companyDocPrintCss()
     z-index: 1;
     box-sizing: border-box !important;
     padding: 42mm 16mm 32mm 16mm !important;
-    overflow: hidden !important;
-    max-height: 100% !important;
 }
 .cdoc-sheet.has-letterhead .cdoc-watermark,
 .cdoc-sheet.has-letterhead .cdoc-header,
@@ -207,7 +206,10 @@ function companyDocPrintCss()
     .cdoc-sheet:has(.cdoc-letterhead) > .cdoc-inner,
     .cdoc-sheet:has(.cdoc-letterhead) .cdoc-inner {
         padding: 42mm 16mm 32mm 16mm !important;
-        overflow: hidden !important;
+    }
+    .cdoc-letterhead {
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
     }
 }
 CSS;
@@ -223,9 +225,9 @@ function companyDocRenderLetterhead(array $brand = null)
     if ($src === '') {
         return '';
     }
-    return '<div class="cdoc-letterhead" aria-hidden="true"><img src="'
+    return '<div class="cdoc-letterhead" style="background-image:url(\''
         . htmlspecialchars($src, ENT_QUOTES, 'UTF-8')
-        . '" alt=""></div>';
+        . '\')" aria-hidden="true"></div>';
 }
 
 /**
