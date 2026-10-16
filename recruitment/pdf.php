@@ -1,7 +1,7 @@
 <?php
 /**
  * Recruitment Application — Print / PDF
- * Discrete A4 pages: letterhead repeats on every page; content stays in safe band.
+ * Discrete A4 pages: letterhead on every page; content in safe band; page numbers.
  */
 
 require_once __DIR__ . '/../config/app.php';
@@ -51,7 +51,16 @@ foreach ($marks as $m) {
 }
 
 $isSales = strcasecmp(trim((string) ($row['position_name'] ?? '')), 'Sales') === 0;
-$hasDescriptive = $isSales && !empty($row['descriptive']);
+$descriptive = ($isSales && !empty($row['descriptive'])) ? array_values($row['descriptive']) : [];
+$hasDescriptive = count($descriptive) > 0;
+
+/* Max ~3 long Q&A rows per page so nothing clips into letterhead footer */
+$dqPerPage = 3;
+$dqChunks = $hasDescriptive ? array_chunk($descriptive, $dqPerPage) : [];
+
+$totalPages = 1; /* profile */
+$totalPages += count($dqChunks);
+$totalPages += 1; /* HR matrix + result */
 
 $v = static function ($x) {
     $x = trim((string) $x);
@@ -68,13 +77,18 @@ $cell = static function ($label, $value, $span = 1) {
     echo '<td class="fld"' . $colspan . '><span class="lbl">' . htmlspecialchars($label) . '</span><span class="val">' . $value . '</span></td>';
 };
 
-$openPage = static function () use ($brand) {
+$pageNo = 0;
+$openPage = static function () use ($brand, &$pageNo) {
+    $pageNo++;
     echo '<section class="' . htmlspecialchars(companyDocSheetClass($brand, 'sheet')) . '">';
     echo companyDocRenderWatermark($brand);
     echo '<div class="cdoc-inner cdoc-body-pad">';
     echo companyDocRenderHeader($brand, 'Recruitment Application · Interview Evaluation Form');
 };
-$closePage = static function () use ($brand) {
+$closePage = static function ($showPageNo = true) use ($brand, &$pageNo, $totalPages) {
+    if ($showPageNo) {
+        echo '<div class="page-no">Page ' . (int) $pageNo . ' of ' . (int) $totalPages . '</div>';
+    }
     echo companyDocRenderFooter($brand);
     echo '</div></section>';
 };
@@ -102,10 +116,12 @@ $closePage = static function () use ($brand) {
             display: flex;
             justify-content: space-between;
             align-items: center;
+            gap: 12px;
             background: #fff;
             border: 1px solid #cbd5e1;
             padding: 10px 14px;
         }
+        .bar .hint { font-size: 11px; color: #64748b; }
         .bar button {
             background: #d2232a;
             color: #fff;
@@ -113,8 +129,8 @@ $closePage = static function () use ($brand) {
             padding: 9px 14px;
             font-weight: 700;
             cursor: pointer;
+            flex-shrink: 0;
         }
-        /* One physical A4 sheet = one letterhead */
         .sheet {
             width: 210mm;
             max-width: 100%;
@@ -144,7 +160,7 @@ $closePage = static function () use ($brand) {
             height: 100% !important;
             max-height: 100% !important;
             overflow: hidden !important;
-            padding: 40mm 14mm 30mm 14mm !important;
+            padding: 42mm 14mm 38mm 14mm !important;
         }
         .cdoc-body-pad {
             height: 100%;
@@ -278,15 +294,17 @@ $closePage = static function () use ($brand) {
             font-size: 10px;
             vertical-align: top;
         }
+        /* Original table header colors — do not change brand reds */
         table.grid th {
-            background: #1e3a5f;
-            color: #fff;
+            background: #f1f5f9;
+            color: #334155;
             font-weight: 800;
             text-transform: uppercase;
             font-size: 9px;
             letter-spacing: .03em;
         }
         table.grid td.ans { font-weight: 700; width: 28%; }
+        table.grid tr { page-break-inside: avoid; break-inside: avoid; }
         .mark-yes { color: #15803d; }
         .mark-no { color: #b91c1c; }
         .page-fill { flex: 1 1 auto; min-height: 0; overflow: hidden; }
@@ -304,7 +322,7 @@ $closePage = static function () use ($brand) {
             width: 30%;
             text-align: center;
             border-top: 1px solid #111;
-            margin-top: 28px;
+            margin-top: 22px;
             padding-top: 4px;
             font-weight: 700;
         }
@@ -316,25 +334,41 @@ $closePage = static function () use ($brand) {
             font-weight: 700;
             text-transform: uppercase;
             letter-spacing: .04em;
+            flex-shrink: 0;
+        }
+        .page-no {
+            flex-shrink: 0;
+            text-align: center;
+            font-size: 9.5px;
+            font-weight: 700;
+            color: #475569;
+            margin-top: 6px;
+            letter-spacing: .04em;
         }
         @media print {
             <?php echo companyDocLetterheadPageCss($brand); ?>
-            body { background: #fff; padding: 0; margin: 0; }
+            html, body {
+                background: #fff !important;
+                padding: 0 !important;
+                margin: 0 !important;
+                width: 210mm;
+            }
             .bar { display: none !important; }
             .sheet {
-                width: 210mm;
-                max-width: 210mm;
-                height: 297mm;
-                min-height: 297mm;
-                max-height: 297mm;
-                margin: 0;
+                width: 210mm !important;
+                max-width: 210mm !important;
+                height: 297mm !important;
+                min-height: 297mm !important;
+                max-height: 297mm !important;
+                margin: 0 !important;
                 border: 0 !important;
                 padding: 0 !important;
-                box-shadow: none;
-                overflow: hidden;
+                box-shadow: none !important;
+                overflow: hidden !important;
                 page-break-after: always;
                 break-after: page;
                 page-break-inside: avoid;
+                break-inside: avoid;
                 -webkit-print-color-adjust: exact;
                 print-color-adjust: exact;
             }
@@ -351,7 +385,7 @@ $closePage = static function () use ($brand) {
             .sheet:has(.cdoc-letterhead) > .cdoc-inner,
             .sheet.has-letterhead .cdoc-body-pad,
             .sheet:has(.cdoc-letterhead) .cdoc-body-pad {
-                padding: 40mm 14mm 30mm 14mm !important;
+                padding: 42mm 14mm 38mm 14mm !important;
                 overflow: hidden !important;
                 height: 100% !important;
                 max-height: 100% !important;
@@ -361,12 +395,15 @@ $closePage = static function () use ($brand) {
 </head>
 <body>
 <div class="bar">
-    <div><strong><?php echo htmlspecialchars((string) $row['application_no']); ?></strong> · Application Print Form</div>
+    <div>
+        <strong><?php echo htmlspecialchars((string) $row['application_no']); ?></strong> · Application Print Form
+        <div class="hint">Print → Margins: <strong>None</strong> · Background graphics: On</div>
+    </div>
     <button type="button" onclick="window.print()">Print / Save PDF</button>
 </div>
 
 <?php
-/* ===================== PAGE 1 — Profile + Education + Experience ===================== */
+/* ===================== PAGE 1 — Profile ===================== */
 $openPage();
 ?>
     <h1 class="doc-title">Application Form</h1>
@@ -489,18 +526,22 @@ $openPage();
 <?php
 $closePage();
 
-/* ===================== PAGE 2 — Descriptive (Sales) and/or HR Matrix ===================== */
-$openPage();
+/* ===================== Descriptive question pages (chunked) ===================== */
+foreach ($dqChunks as $chunkIndex => $chunk):
+    $openPage();
 ?>
     <p class="cont-note">Application Form · continued · <?php echo htmlspecialchars((string) $row['full_name']); ?> · <?php echo htmlspecialchars((string) $row['application_no']); ?></p>
     <div class="page-fill">
-        <?php if ($hasDescriptive): ?>
         <div class="sec">
-            <h2 class="sec-h">Reasoning Descriptive Questions</h2>
+            <h2 class="sec-h">Reasoning Descriptive Questions
+                <?php if (count($dqChunks) > 1): ?>
+                    <small>(<?php echo (int) ($chunkIndex + 1); ?>/<?php echo count($dqChunks); ?>)</small>
+                <?php endif; ?>
+            </h2>
             <table class="grid">
                 <thead><tr><th style="width:36px;">#</th><th>Question (HI / EN)</th><th style="width:38%;">Answer</th></tr></thead>
                 <tbody>
-                <?php foreach ($row['descriptive'] as $dq): ?>
+                <?php foreach ($chunk as $dq): ?>
                     <tr>
                         <td><?php echo (int) ($dq['question_no'] ?? 0); ?></td>
                         <td>
@@ -513,82 +554,13 @@ $openPage();
                 </tbody>
             </table>
         </div>
-        <?php endif; ?>
-
-        <?php if (!$hasDescriptive): ?>
-        <div class="sec">
-            <h2 class="sec-h">HR Round · Interview Matrix
-                <small>(<?php echo htmlspecialchars((string) ($row['position_name'] ?: 'All Positions')); ?>)</small>
-            </h2>
-            <table class="grid">
-                <thead><tr><th style="width:36px;">#</th><th>Question / Criteria</th><th style="width:28%;">Answer</th></tr></thead>
-                <tbody>
-                <?php if (!$criteria): ?>
-                    <tr><td colspan="3">No criteria marked.</td></tr>
-                <?php else: $i = 1; foreach ($criteria as $c):
-                    $key = strtolower(trim((string) $c['criteria_label']));
-                    $type = (string) ($c['answer_type'] ?? 'yesno');
-                    $mark = $marks[$key] ?? [];
-                    $display = function_exists('recruitmentFormatMarkAnswer')
-                        ? recruitmentFormatMarkAnswer($mark, $type)
-                        : '—';
-                    $isYes = ($display === 'Yes');
-                    $isNo = ($display === 'No');
-                ?>
-                    <tr>
-                        <td><?php echo $i++; ?></td>
-                        <td><?php echo htmlspecialchars((string) $c['criteria_label']); ?></td>
-                        <td class="ans <?php echo $isYes ? 'mark-yes' : ($isNo ? 'mark-no' : ''); ?>">
-                            <?php echo nl2br(htmlspecialchars($display)); ?>
-                        </td>
-                    </tr>
-                <?php endforeach; endif; ?>
-                </tbody>
-            </table>
-        </div>
-
-        <div class="sec">
-            <h2 class="sec-h">Interview Result</h2>
-            <table class="boxes">
-                <tr>
-                    <?php
-                    $m = (string) ($row['interview_mode'] ?? '');
-                    $aw = (string) ($row['awaited_with'] ?? '');
-                    $cell('Interview Mode', htmlspecialchars($modes[$m] ?? $v($m)));
-                    $cell('Interview Date', !empty($row['interview_date']) ? htmlspecialchars(formatDateDisplay($row['interview_date'])) : '—');
-                    $cell('Awaited With', htmlspecialchars($sides[$aw] ?? $v($aw)));
-                    $cell('Status', htmlspecialchars($labels[$row['status']] ?? $row['status']));
-                    ?>
-                </tr>
-                <tr>
-                    <?php
-                    $cell('Interview Notes', nl2br(htmlspecialchars($v($row['interview_notes'] ?? ''))), 2);
-                    $cell('Not Selected Reason', nl2br(htmlspecialchars($v($row['not_selected_reason'] ?? ''))), 2);
-                    ?>
-                </tr>
-                <tr>
-                    <?php $cell('HR Remarks', nl2br(htmlspecialchars($v($row['hr_remarks'] ?? ''))), 4); ?>
-                </tr>
-            </table>
-        </div>
-        <?php endif; ?>
     </div>
-    <?php if (!$hasDescriptive): ?>
-    <div class="foot">
-        <div class="gen">Generated on <?php echo htmlspecialchars(formatDateTimeDisplay(date('Y-m-d H:i:s'))); ?> · <?php echo htmlspecialchars($company); ?></div>
-        <div style="display:flex;gap:20px;width:70%;justify-content:flex-end;">
-            <div class="sign">HR Signature</div>
-            <div class="sign">Interviewer Signature</div>
-            <div class="sign">Authorized Signatory</div>
-        </div>
-    </div>
-    <?php endif; ?>
 <?php
-$closePage();
+    $closePage();
+endforeach;
 
-/* ===================== PAGE 3 — HR Matrix + Result (when Sales descriptive used page 2) ===================== */
-if ($hasDescriptive):
-    $openPage();
+/* ===================== Last page — HR Matrix + Result ===================== */
+$openPage();
 ?>
     <p class="cont-note">Application Form · continued · <?php echo htmlspecialchars((string) $row['full_name']); ?> · <?php echo htmlspecialchars((string) $row['application_no']); ?></p>
     <div class="page-fill">
@@ -657,8 +629,7 @@ if ($hasDescriptive):
         </div>
     </div>
 <?php
-    $closePage();
-endif;
+$closePage();
 ?>
 </body>
 </html>

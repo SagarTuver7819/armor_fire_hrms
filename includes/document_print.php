@@ -115,7 +115,7 @@ function companyDocPrintCss()
     position: relative !important;
     z-index: 1;
     box-sizing: border-box !important;
-    padding: 40mm 14mm 30mm 14mm !important;
+    padding: 42mm 14mm 38mm 14mm !important;
 }
 .cdoc-sheet.has-letterhead .cdoc-watermark,
 .cdoc-sheet.has-letterhead .cdoc-header,
@@ -218,7 +218,7 @@ function companyDocPrintCss()
     .cdoc-sheet.has-letterhead .cdoc-inner,
     .cdoc-sheet:has(.cdoc-letterhead) > .cdoc-inner,
     .cdoc-sheet:has(.cdoc-letterhead) .cdoc-inner {
-        padding: 40mm 14mm 30mm 14mm !important;
+        padding: 42mm 14mm 38mm 14mm !important;
     }
 }
 CSS;
