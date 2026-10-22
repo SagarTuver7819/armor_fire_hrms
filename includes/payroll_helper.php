@@ -937,6 +937,18 @@ function getPayrollAttendanceBundle(array $emp, $month, $year, $actualAmount)
     $loan = $diary ? (float) ($diary['loan_amount'] ?? 0) : 0;
     $advance = $diary ? (float) ($diary['advance_amount'] ?? 0) : 0;
     $arrears = $diary ? (float) ($diary['arrears_amount'] ?? 0) : 0;
+    if (!function_exists('advanceLoanMonthDue') && is_file(__DIR__ . '/advance_loan_helper.php')) {
+        require_once __DIR__ . '/advance_loan_helper.php';
+    }
+    if (function_exists('advanceLoanMonthDue') && $employeeId > 0) {
+        $dueConn = getDBConnection();
+        $due = advanceLoanMonthDue($dueConn, $employeeId, (int) $month, (int) $year);
+        $dueConn->close();
+        if (!empty($due['has_records'])) {
+            $loan = (float) $due['loan'];
+            $advance = (float) $due['advance'];
+        }
+    }
 
     // Prefer Attendance Report totals (employee.week_off_day + holiday master + day marks)
     $aligned = payrollAttendanceAlignedTotals($emp, $month, $year);

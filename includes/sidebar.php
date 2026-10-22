@@ -721,6 +721,16 @@ $sidebarCompanyName = function_exists('getCompanyName') ? getCompanyName() : 'Ar
                         <i class="fa-solid fa-user-xmark"></i>
                         <span>LWP Report</span>
                     </a>
+                    <a href="<?php echo app_url('payroll/money_master.php?type=advance&department_id=' . $sidebarDeptId); ?>"
+                       class="sidebar-link <?php echo $sidebarActive === 'advance_master' ? 'active' : ''; ?>">
+                        <i class="fa-solid fa-hand-holding-dollar"></i>
+                        <span>Advance Master</span>
+                    </a>
+                    <a href="<?php echo app_url('payroll/money_master.php?type=loan&department_id=' . $sidebarDeptId); ?>"
+                       class="sidebar-link <?php echo $sidebarActive === 'loan_master' ? 'active' : ''; ?>">
+                        <i class="fa-solid fa-landmark"></i>
+                        <span>Loan Master</span>
+                    </a>
                     <a href="<?php echo app_url('masters/holidays/index.php?department_id=' . $sidebarDeptId); ?>"
                        class="sidebar-link <?php echo $sidebarActive === 'holidays' ? 'active' : ''; ?>">
                         <i class="fa-solid fa-calendar-days"></i>

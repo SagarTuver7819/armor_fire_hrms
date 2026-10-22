@@ -62,7 +62,7 @@ if ($params) {
     $filtered = (int) $conn->query($countSql)->fetch_assoc()['c'];
 }
 
-$sql = "SELECT a.attendance_date, a.punch_in, a.punch_out, a.day_status, a.working_minutes, a.source,
+$sql = "SELECT a.attendance_date, a.punch_in, a.punch_out, a.day_status, a.working_minutes, a.source, a.remarks,
                e.employee_code, e.employee_name, d.department_name
         {$from} WHERE {$where}
         ORDER BY {$orderBy} {$orderDir}, a.id DESC
@@ -80,6 +80,13 @@ $sr = $start;
 while ($row = $res->fetch_assoc()) {
     $sr++;
     $hours = round(((int) $row['working_minutes']) / 60, 2);
+    $statusLabel = (string) $row['day_status'];
+    $remarks = (string) ($row['remarks'] ?? '');
+    if (stripos($remarks, 'Week Off Working') !== false) {
+        $statusLabel = 'Week Off Working';
+    } elseif (stripos($remarks, 'Holiday Working') !== false) {
+        $statusLabel = 'Holiday Working';
+    }
     $data[] = [
         $sr,
         htmlspecialchars(($row['employee_code'] ?: '-') . ' — ' . ($row['employee_name'] ?: '-')),
@@ -87,7 +94,7 @@ while ($row = $res->fetch_assoc()) {
         htmlspecialchars(formatDateDisplay($row['attendance_date'])),
         htmlspecialchars($row['punch_in'] ? substr($row['punch_in'], 0, 5) : '-'),
         htmlspecialchars($row['punch_out'] ? substr($row['punch_out'], 0, 5) : '-'),
-        htmlspecialchars($row['day_status']),
+        htmlspecialchars($statusLabel),
         $hours,
         htmlspecialchars($row['source']),
     ];

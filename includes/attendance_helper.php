@@ -673,7 +673,30 @@ function attendanceRebuildDayStatus($conn, $employeeId, $month, $year)
         $remarks = null;
         $wasShortHalf = false;
 
-        if ($list) {
+        if ($list && ($isWeekOff || $isHoliday)) {
+            // Worked on department/employee week-off or holiday:
+            // salary still counts the WO/Holiday day (not extra Present),
+            // punch times stay visible, C-Off is credited after rebuild.
+            $status = $isHoliday ? 'Holiday' : 'Week Off';
+            if ($isHoliday) {
+                $summary['holiday'] += 1;
+            } else {
+                $summary['week_off'] += 1;
+            }
+            $summary['working_minutes'] += $minutes;
+            $hrs = round($minutes / 60, 2);
+            $inLbl = $punchIn ? substr((string) $punchIn, 0, 5) : '';
+            $outLbl = $punchOut ? substr((string) $punchOut, 0, 5) : '';
+            $remarks = ($isHoliday ? 'Holiday Working' : 'Week Off Working');
+            if ($inLbl !== '') {
+                $remarks .= ' · In ' . $inLbl;
+            }
+            if ($outLbl !== '') {
+                $remarks .= ' · Out ' . $outLbl;
+            }
+            $remarks .= ' · ' . $hrs . ' hrs';
+            $source = 'weekoff_work';
+        } elseif ($list) {
             if ($minutes > 0 && $minutes < 240) {
                 $status = 'Half Day';
                 $wasShortHalf = true;
@@ -870,6 +893,16 @@ function attendanceSyncSalaryDiary($conn, $employeeId, $month, $year, array $sum
     $lwp = $hasLwpFromAtt ? round((float) ($summary['lwp'] ?? 0), 2) : ($existing ? (float) ($existing['lwp_days'] ?? 0) : 0);
     $loan = $existing ? (float) ($existing['loan_amount'] ?? 0) : 0;
     $advance = $existing ? (float) ($existing['advance_amount'] ?? 0) : 0;
+    if (!function_exists('advanceLoanMonthDue') && is_file(__DIR__ . '/advance_loan_helper.php')) {
+        require_once __DIR__ . '/advance_loan_helper.php';
+    }
+    if (function_exists('advanceLoanMonthDue')) {
+        $due = advanceLoanMonthDue($conn, $employeeId, $month, $year);
+        if (!empty($due['has_records'])) {
+            $loan = (float) $due['loan'];
+            $advance = (float) $due['advance'];
+        }
+    }
     $arrears = $existing ? (float) ($existing['arrears_amount'] ?? 0) : 0;
     $remarks = $existing ? ($existing['remarks'] ?? null) : 'Synced from attendance';
     if ($lwp > 0) {
@@ -902,6 +935,8 @@ function attendanceSyncSalaryDiary($conn, $employeeId, $month, $year, array $sum
             dl_days = VALUES(dl_days),
             lwp_days = VALUES(lwp_days),
             overtime_hours = VALUES(overtime_hours),
+            loan_amount = VALUES(loan_amount),
+            advance_amount = VALUES(advance_amount),
             remarks = VALUES(remarks)"
     );
     $working = (float) $monthDays;
@@ -1650,6 +1685,12 @@ function attendanceBuildEmployeeMonthTotals(array $emp, array &$dayMapByDate, $m
         if ($type === '' && $status === 'Leave') {
             $type = 'PL';
         }
+        // Worked on the employee's week-off (manual Present) still pays as Week Off, not Present.
+        // C-Off is added to leave balance separately — not as an extra salary day.
+        if ($isCalWeekOff && !$isCalHoliday && in_array($status, ['Present', 'Half Day'], true)) {
+            attendanceAddDayToLeaveTotals($totals, 'Week Off');
+            continue;
+        }
         attendanceAddDayToLeaveTotals($totals, $status, $type, $half);
     }
 
@@ -2053,11 +2094,23 @@ function attendanceExcelCellPreview($status, $punchIn, $punchOut, $leaveType = '
         $leaveHalf = 'SHL';
     }
 
-    if ($status === 'Week Off') {
-        return 'Week Off';
-    }
-    if ($status === 'Holiday') {
-        return 'Holiday';
+    if ($status === 'Week Off' || $status === 'Holiday') {
+        $inDisp = '';
+        $outDisp = '';
+        if ($punchIn) {
+            $ts = strtotime((string) $punchIn);
+            $inDisp = $ts ? date('g:i A', $ts) : '';
+        }
+        if ($punchOut) {
+            $ts = strtotime((string) $punchOut);
+            $outDisp = $ts ? date('g:i A', $ts) : '';
+        }
+        $timePart = trim($inDisp . ' | ' . $outDisp, ' |');
+        $label = $status === 'Holiday' ? 'Holiday Working' : 'Week Off Working';
+        if ($timePart !== '') {
+            return $label . "\n" . $timePart;
+        }
+        return $status === 'Holiday' ? 'Holiday' : 'Week Off';
     }
     if ($status === 'Absent') {
         return 'LWP';
@@ -2155,6 +2208,31 @@ function attendanceParseLeaveRemark($remarks)
  * Save one employee day from manual department entry
  * @param bool $syncDiary when false, caller should sync diary once per employee/month
  */
+function attendanceDateIsEmployeeWeekOff($conn, $employeeId, $date)
+{
+    $employeeId = (int) $employeeId;
+    $date = substr((string) $date, 0, 10);
+    if ($employeeId <= 0 || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) {
+        return false;
+    }
+    $st = $conn->prepare('SELECT week_off_day FROM employees WHERE id = ? LIMIT 1');
+    $st->bind_param('i', $employeeId);
+    $st->execute();
+    $row = $st->get_result()->fetch_assoc();
+    $st->close();
+    $fallback = trim((string) ($row['week_off_day'] ?? 'Sunday'));
+    if ($fallback === '') {
+        $fallback = 'Sunday';
+    }
+    $history = function_exists('employeeWeekOffHistoryRows')
+        ? employeeWeekOffHistoryRows($employeeId, $conn)
+        : [];
+    $weekOffName = function_exists('employeeWeekOffDayFromHistory')
+        ? employeeWeekOffDayFromHistory($history, $date, $fallback)
+        : $fallback;
+    return strcasecmp(date('l', strtotime($date)), $weekOffName) === 0;
+}
+
 function attendanceSaveManualDay($conn, $employeeId, $date, $status, $punchIn, $punchOut, $shiftName = null, $remarks = null, $leaveType = null, $leaveHalf = null, $syncDiary = true)
 {
     ensureAttendanceTables($conn);
@@ -2212,8 +2290,13 @@ function attendanceSaveManualDay($conn, $employeeId, $date, $status, $punchIn, $
     $del->execute();
     $del->close();
 
+    $workedOnWeekOff = false;
+    if (in_array($status, ['Present', 'Half Day'], true) && attendanceDateIsEmployeeWeekOff($conn, $employeeId, $date)) {
+        $workedOnWeekOff = true;
+    }
+
     $minutes = 0;
-    if (in_array($status, ['Present', 'Half Day'], true)) {
+    if (in_array($status, ['Present', 'Half Day'], true) || $workedOnWeekOff) {
         if ($punchIn) {
             attendanceInsertPunch($conn, $employeeId, $date, $punchIn, 'in', 'manual', null, $shiftName, $remarks);
         }
@@ -2221,7 +2304,7 @@ function attendanceSaveManualDay($conn, $employeeId, $date, $status, $punchIn, $
             attendanceInsertPunch($conn, $employeeId, $date, $punchOut, 'out', 'manual', null, $shiftName, $remarks);
         }
         $minutes = attendanceWorkingMinutes($date, $punchIn, $punchOut);
-        if ($status === 'Present' && $minutes > 0 && $minutes < 240) {
+        if (!$workedOnWeekOff && $status === 'Present' && $minutes > 0 && $minutes < 240) {
             $status = 'Half Day';
         }
     } elseif ($status === 'Leave') {
@@ -2232,6 +2315,22 @@ function attendanceSaveManualDay($conn, $employeeId, $date, $status, $punchIn, $
         $punchIn = null;
         $punchOut = null;
         $minutes = 0;
+    }
+
+    if ($workedOnWeekOff) {
+        $status = 'Week Off';
+        $hrs = round($minutes / 60, 2);
+        $inLbl = $punchIn ? substr((string) $punchIn, 0, 5) : '';
+        $outLbl = $punchOut ? substr((string) $punchOut, 0, 5) : '';
+        $woRemark = 'Week Off Working';
+        if ($inLbl !== '') {
+            $woRemark .= ' · In ' . $inLbl;
+        }
+        if ($outLbl !== '') {
+            $woRemark .= ' · Out ' . $outLbl;
+        }
+        $woRemark .= ' · ' . $hrs . ' hrs';
+        $remarks = $woRemark;
     }
 
     $upsert = $conn->prepare(
@@ -2249,6 +2348,28 @@ function attendanceSaveManualDay($conn, $employeeId, $date, $status, $punchIn, $
     $upsert->bind_param('issssis', $employeeId, $date, $status, $punchIn, $punchOut, $minutes, $remarks);
     $upsert->execute();
     $upsert->close();
+
+    if (!function_exists('coffEarnFromWorkDay') && is_file(__DIR__ . '/coff_helper.php')) {
+        require_once __DIR__ . '/coff_helper.php';
+    }
+    $manualCoff = ($workedOnWeekOff && function_exists('coffManualWeekOffCreditDays'))
+        ? coffManualWeekOffCreditDays((int) $minutes)
+        : 0.0;
+    if ($workedOnWeekOff && $manualCoff > 0 && function_exists('coffEarnFromWorkDay')) {
+        try {
+            coffEarnFromWorkDay($conn, $employeeId, $date, 'Week Off', (int) $minutes, $punchIn, $punchOut, $manualCoff);
+            if (function_exists('coffMirrorLeaveBalance')) {
+                coffMirrorLeaveBalance($conn, $employeeId);
+            }
+        } catch (Throwable $e) {
+            // attendance save should still succeed
+        }
+    } elseif (function_exists('coffVoidUnusedWorkDay')) {
+        try {
+            coffVoidUnusedWorkDay($conn, $employeeId, $date);
+        } catch (Throwable $e) {
+        }
+    }
 
     // Sync diary buckets for salary
     if ($syncDiary && function_exists('ensurePayrollDiaryFromAttendance')) {

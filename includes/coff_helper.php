@@ -184,10 +184,26 @@ function coffCreditDaysFromMinutes($minutes)
 }
 
 /**
+ * Manual attendance on the employee's week-off.
+ * ≥ 6 hours → 1.0 day; ≥ 4 hours → 0.5 day; else 0.
+ */
+function coffManualWeekOffCreditDays($minutes)
+{
+    $minutes = (int) $minutes;
+    if ($minutes >= 360) {
+        return 1.0;
+    }
+    if ($minutes >= 240) {
+        return 0.5;
+    }
+    return 0.0;
+}
+
+/**
  * Earn C-Off for one work date (idempotent via unique key).
  * @return array{ok:bool,credited:float,message:string}
  */
-function coffEarnFromWorkDay($conn, $employeeId, $workDate, $sourceType, $minutes, $punchIn = null, $punchOut = null)
+function coffEarnFromWorkDay($conn, $employeeId, $workDate, $sourceType, $minutes, $punchIn = null, $punchOut = null, $forceCredit = null)
 {
     ensureCoffTables($conn);
     $employeeId = (int) $employeeId;
@@ -197,7 +213,7 @@ function coffEarnFromWorkDay($conn, $employeeId, $workDate, $sourceType, $minute
         $sourceType = 'Week Off';
     }
     $minutes = (int) $minutes;
-    $credit = coffCreditDaysFromMinutes($minutes);
+    $credit = ($forceCredit !== null) ? round((float) $forceCredit, 2) : coffCreditDaysFromMinutes($minutes);
     if ($employeeId <= 0 || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $workDate)) {
         return ['ok' => false, 'credited' => 0, 'message' => 'Invalid employee/date'];
     }
@@ -207,7 +223,9 @@ function coffEarnFromWorkDay($conn, $employeeId, $workDate, $sourceType, $minute
 
     $earnedAt = $workDate;
     $expiresAt = date('Y-m-d', strtotime($workDate . ' +2 months'));
-    $remark = 'Worked on ' . $sourceType . ' · ' . round($minutes / 60, 2) . ' hrs → ' . $credit . ' day';
+    $remark = ($forceCredit !== null)
+        ? ('Manual week-off work · ' . $credit . ' day C-Off')
+        : ('Worked on ' . $sourceType . ' · ' . round($minutes / 60, 2) . ' hrs → ' . $credit . ' day');
 
     // If already credited, update minutes/credit if still unused (Open)
     $chk = $conn->prepare('SELECT id, used_days, status FROM coff_credits WHERE employee_id = ? AND work_date = ? LIMIT 1');
@@ -279,6 +297,39 @@ function coffEarnFromWorkDay($conn, $employeeId, $workDate, $sourceType, $minute
 }
 
 /**
+ * Drop an unused C-Off credit when manual attendance is no longer week-off work.
+ */
+function coffVoidUnusedWorkDay($conn, $employeeId, $workDate)
+{
+    ensureCoffTables($conn);
+    $employeeId = (int) $employeeId;
+    $workDate = substr((string) $workDate, 0, 10);
+    if ($employeeId <= 0 || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $workDate)) {
+        return;
+    }
+    $chk = $conn->prepare(
+        'SELECT id, used_days, status, remarks FROM coff_credits WHERE employee_id = ? AND work_date = ? LIMIT 1'
+    );
+    $chk->bind_param('is', $employeeId, $workDate);
+    $chk->execute();
+    $exist = $chk->get_result()->fetch_assoc();
+    $chk->close();
+    if (!$exist) {
+        return;
+    }
+    if ((float) ($exist['used_days'] ?? 0) > 0.001 || ($exist['status'] ?? '') === 'Used') {
+        return;
+    }
+    $id = (int) $exist['id'];
+    $conn->query('DELETE FROM coff_usage WHERE coff_credit_id = ' . $id);
+    $del = $conn->prepare('DELETE FROM coff_credits WHERE id = ? AND used_days <= 0.001');
+    $del->bind_param('i', $id);
+    $del->execute();
+    $del->close();
+    coffMirrorLeaveBalance($conn, $employeeId);
+}
+
+/**
  * After day status rebuild: credit C-Off for calendar WO/Holiday days with punches > 4h.
  */
 function coffSyncFromAttendanceMonth($conn, $employeeId, $month, $year)
@@ -310,7 +361,7 @@ function coffSyncFromAttendanceMonth($conn, $employeeId, $month, $year)
 
     $daysMap = [];
     $st = $conn->prepare(
-        "SELECT attendance_date, day_status, punch_in, punch_out, working_minutes
+        "SELECT attendance_date, day_status, punch_in, punch_out, working_minutes, source, remarks
          FROM attendance_day_status
          WHERE employee_id = ? AND attendance_date BETWEEN ? AND ?"
     );
@@ -342,15 +393,28 @@ function coffSyncFromAttendanceMonth($conn, $employeeId, $month, $year)
         $minutes = (int) ($day['working_minutes'] ?? 0);
         $punchIn = $day['punch_in'] ?? null;
         $punchOut = $day['punch_out'] ?? null;
-        // Must have worked (punch / minutes)
-        if ($minutes <= 0 && empty($punchIn)) {
+        $daySource = strtolower(trim((string) ($day['source'] ?? '')));
+        $dayRemarks = (string) ($day['remarks'] ?? '');
+        $markedWork = (stripos($dayRemarks, 'Week Off Working') !== false);
+        // Plain Week Off (no punch) must not earn C-Off
+        if ($minutes <= 0 && empty($punchIn) && !$markedWork) {
             continue;
         }
+        $manualWo = (!$isHoliday && ($markedWork || ($daySource === 'manual' && ($minutes > 0 || !empty($punchIn)))));
         if ($minutes <= 0 && $punchIn && $punchOut) {
             $minutes = attendanceWorkingMinutes($date, $punchIn, $punchOut);
         }
         $source = $isHoliday ? 'Holiday' : 'Week Off';
-        $r = coffEarnFromWorkDay($conn, $employeeId, $date, $source, $minutes, $punchIn, $punchOut);
+        // Manual week-off work: 4h = 0.5 C-Off, 6h = 1.0 C-Off
+        $force = null;
+        if ($manualWo && !$isHoliday) {
+            $force = coffManualWeekOffCreditDays($minutes);
+            if ($force <= 0) {
+                coffVoidUnusedWorkDay($conn, $employeeId, $date);
+                continue;
+            }
+        }
+        $r = coffEarnFromWorkDay($conn, $employeeId, $date, $source, $minutes, $punchIn, $punchOut, $force);
         if (!empty($r['ok']) && (float) ($r['credited'] ?? 0) > 0) {
             $count++;
             $totalDays += (float) $r['credited'];
@@ -389,7 +453,7 @@ function coffMirrorLeaveBalance($conn, $employeeId)
     // Keep: credited = available, used from approved this year
     $cred = round($avail + $used, 2);
     $up = $conn->prepare(
-        'UPDATE employee_leave_balances SET opening_days = 0, credited_days = ?, used_days = ?, adjusted_days = 0 WHERE id = ?'
+        'UPDATE employee_leave_balances SET opening_days = 0, credited_days = ?, used_days = ? WHERE id = ?'
     );
     $up->bind_param('ddi', $cred, $used, $balId);
     $up->execute();

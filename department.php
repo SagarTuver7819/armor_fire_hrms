@@ -31,6 +31,8 @@ if (function_exists('navRemember') && $department) {
 $empCount = $department ? countEmployeesByDepartment($department['id']) : 0;
 $exitEmpCount = $department ? countExitEmployeesByDepartment($department['id']) : 0;
 $holidayCount = 0;
+$advanceOpen = 0;
+$loanOpen = 0;
 if ($department) {
     ensureMasterTables();
     $conn = getDBConnection();
@@ -44,6 +46,9 @@ if ($department) {
     $st->execute();
     $holidayCount = (int) ($st->get_result()->fetch_assoc()['c'] ?? 0);
     $st->close();
+    require_once __DIR__ . '/includes/advance_loan_helper.php';
+    $advanceOpen = advanceLoanOpenCount($conn, $did, 'Advance');
+    $loanOpen = advanceLoanOpenCount($conn, $did, 'Loan');
     $conn->close();
 }
 ?>
@@ -169,6 +174,20 @@ if ($department) {
                     </div>
                     <div class="module-label">Dept Cost Summary</div>
                     <div class="module-meta">Monthly cost · Final summary</div>
+                </a>
+                <a href="<?php echo app_url('payroll/money_master.php?type=advance&department_id=' . (int) $department['id']); ?>" class="module-card">
+                    <div class="module-icon" style="background-color: #B45309;">
+                        <i class="fa-solid fa-hand-holding-dollar"></i>
+                    </div>
+                    <div class="module-label">Advance Master</div>
+                    <div class="module-meta"><?php echo (int) $advanceOpen; ?> Open · Employee wise</div>
+                </a>
+                <a href="<?php echo app_url('payroll/money_master.php?type=loan&department_id=' . (int) $department['id']); ?>" class="module-card">
+                    <div class="module-icon" style="background-color: #7C2D12;">
+                        <i class="fa-solid fa-landmark"></i>
+                    </div>
+                    <div class="module-label">Loan Master</div>
+                    <div class="module-meta"><?php echo (int) $loanOpen; ?> Open · Employee wise</div>
                 </a>
                 <a href="<?php echo app_url('masters/holidays/index.php?department_id=' . (int) $department['id'] . '&from=modules'); ?>" class="module-card">
                     <div class="module-icon" style="background-color: #E85D75;">

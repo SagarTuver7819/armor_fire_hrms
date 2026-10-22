@@ -64,7 +64,10 @@ if (isset($_GET['msg']) && $_GET['msg'] === 'allocated') {
         . (int) ($_GET['updated'] ?? 0) . ' updated).';
 }
 if (isset($_GET['msg']) && $_GET['msg'] === 'saved') {
-    $toast = 'Leave balance updated.';
+    $toast = 'Leave Add / Adjust saved.';
+}
+if (isset($_GET['msg']) && $_GET['msg'] === 'none') {
+    $toast = 'Enter Add or Adjust days, then save.';
 }
 
 $qs = [
@@ -205,6 +208,42 @@ $qs = [
                     </tbody>
                 </table>
             </div>
+            <?php if ($employeeId > 0):
+                $connLog = getDBConnection();
+                ensureLeaveTables($connLog);
+                $logSt = $connLog->prepare(
+                    'SELECT a.action_type, a.days, a.note, a.created_at, lt.code, lt.leave_type
+                     FROM leave_balance_adjustments a
+                     LEFT JOIN leave_types lt ON lt.id = a.leave_type_id
+                     WHERE a.employee_id = ? AND a.year_no = ?
+                     ORDER BY a.id DESC LIMIT 100'
+                );
+                $logSt->bind_param('ii', $employeeId, $year);
+                $logSt->execute();
+                $adjRows = $logSt->get_result()->fetch_all(MYSQLI_ASSOC);
+                $logSt->close();
+                $connLog->close();
+            ?>
+            <h3 style="margin:18px 0 8px;">Manual Add / Adjust history</h3>
+            <div class="table-wrap">
+                <table class="data-table">
+                    <thead><tr><th>When</th><th>Leave</th><th>Action</th><th>Days</th><th>Note</th></tr></thead>
+                    <tbody>
+                    <?php if (!$adjRows): ?>
+                        <tr><td colspan="5" class="empty-cell">No manual add / adjust yet.</td></tr>
+                    <?php else: foreach ($adjRows as $ar): ?>
+                        <tr>
+                            <td><?php echo htmlspecialchars(formatDateTimeDisplay($ar['created_at'])); ?></td>
+                            <td><?php echo htmlspecialchars(trim(($ar['code'] ? $ar['code'] . ' · ' : '') . ($ar['leave_type'] ?? ''))); ?></td>
+                            <td><?php echo htmlspecialchars($ar['action_type']); ?></td>
+                            <td><strong><?php echo number_format((float) $ar['days'], 1); ?></strong></td>
+                            <td><?php echo htmlspecialchars($ar['note'] ?: '—'); ?></td>
+                        </tr>
+                    <?php endforeach; endif; ?>
+                    </tbody>
+                </table>
+            </div>
+            <?php endif; ?>
         </div>
     <?php else: ?>
         <div class="form-page-card" style="margin-top:14px;">
@@ -235,39 +274,49 @@ $qs = [
                     <input type="hidden" name="department_id" value="<?php echo $deptId; ?>">
                     <input type="hidden" name="employee_id" value="<?php echo $employeeId; ?>">
                     <input type="hidden" name="year" value="<?php echo $year; ?>">
+                    <p class="form-hint" style="margin:0 0 10px;">Type-wise <strong>Add</strong> (extra days) and <strong>Adjust</strong> (+ or −). System opening / credited stay as-is. Blank = no change.</p>
                     <div class="table-wrap">
                         <table class="data-table">
                             <thead>
                                 <tr>
                                     <th>Leave Type</th>
-                                    <th>Paid</th>
                                     <th>Opening</th>
                                     <th>Credited</th>
+                                    <th>Added</th>
                                     <th>Adjusted</th>
                                     <th>Used</th>
                                     <th>Remaining</th>
+                                    <th>Add</th>
+                                    <th>Adjust (+/−)</th>
+                                    <th>Note</th>
                                 </tr>
                             </thead>
                             <tbody>
+                            <?php if (!$rows): ?>
+                                <tr><td colspan="10" class="empty-cell">No leave types. Use Allocate Year first.</td></tr>
+                            <?php endif; ?>
                             <?php foreach ($rows as $r): ?>
                                 <tr>
                                     <td>
                                         <strong><?php echo htmlspecialchars(($r['code'] ? $r['code'] . ' · ' : '') . $r['leave_type']); ?></strong>
                                         <input type="hidden" name="balance_id[]" value="<?php echo (int) $r['id']; ?>">
                                     </td>
-                                    <td><?php echo htmlspecialchars($r['is_paid'] ?? 'Yes'); ?></td>
-                                    <td><input type="number" step="0.5" min="0" name="opening_days[]" class="form-control" value="<?php echo htmlspecialchars((string) $r['opening_days']); ?>"></td>
-                                    <td><input type="number" step="0.5" name="credited_days[]" class="form-control" value="<?php echo htmlspecialchars((string) $r['credited_days']); ?>"></td>
-                                    <td><input type="number" step="0.5" name="adjusted_days[]" class="form-control" value="<?php echo htmlspecialchars((string) $r['adjusted_days']); ?>"></td>
+                                    <td><?php echo number_format((float) $r['opening_days'], 1); ?></td>
+                                    <td><?php echo number_format((float) $r['credited_days'], 1); ?></td>
+                                    <td><?php echo number_format((float) ($r['manual_add_days'] ?? 0), 1); ?></td>
+                                    <td><?php echo number_format((float) $r['adjusted_days'], 1); ?></td>
                                     <td><strong><?php echo number_format((float) $r['used_days'], 1); ?></strong></td>
                                     <td><strong><?php echo number_format((float) $r['remaining_days'], 1); ?></strong></td>
+                                    <td><input type="number" step="0.5" name="add_days[]" class="form-control" value="" placeholder="0"></td>
+                                    <td><input type="number" step="0.5" name="adjust_days[]" class="form-control" value="" placeholder="0"></td>
+                                    <td><input type="text" name="note[]" class="form-control" value="" placeholder="Reason"></td>
                                 </tr>
                             <?php endforeach; ?>
                             </tbody>
                         </table>
                     </div>
                     <div class="form-actions sticky-actions">
-                        <button type="submit" class="btn-primary"><i class="fa-solid fa-save"></i> Save Balance</button>
+                        <button type="submit" class="btn-primary"><i class="fa-solid fa-save"></i> Save Add / Adjust</button>
                     </div>
                 </form>
             <?php else: ?>

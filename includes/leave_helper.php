@@ -74,6 +74,35 @@ function ensureLeaveTables($conn = null)
         $conn->query("ALTER TABLE leave_requests ADD COLUMN attachment_path VARCHAR(255) DEFAULT NULL AFTER reason");
     }
 
+    $balCols = [];
+    $balColRes = $conn->query('SHOW COLUMNS FROM employee_leave_balances');
+    if ($balColRes) {
+        while ($bc = $balColRes->fetch_assoc()) {
+            $balCols[] = $bc['Field'];
+        }
+    }
+    if (!in_array('adjusted_days', $balCols, true)) {
+        $conn->query('ALTER TABLE employee_leave_balances ADD COLUMN adjusted_days DECIMAL(8,2) NOT NULL DEFAULT 0 AFTER used_days');
+    }
+    if (!in_array('manual_add_days', $balCols, true)) {
+        $conn->query('ALTER TABLE employee_leave_balances ADD COLUMN manual_add_days DECIMAL(8,2) NOT NULL DEFAULT 0 AFTER adjusted_days');
+    }
+
+    $conn->query(
+        "CREATE TABLE IF NOT EXISTS leave_balance_adjustments (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            employee_id INT NOT NULL,
+            leave_type_id INT NOT NULL,
+            year_no INT NOT NULL,
+            action_type VARCHAR(20) NOT NULL,
+            days DECIMAL(8,2) NOT NULL DEFAULT 0,
+            note VARCHAR(255) DEFAULT NULL,
+            created_by INT DEFAULT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            INDEX idx_lba_emp (employee_id, year_no)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+    );
+
     $conn->query(
         "CREATE TABLE IF NOT EXISTS leave_notifications (
             id INT AUTO_INCREMENT PRIMARY KEY,
@@ -230,6 +259,7 @@ function leaveBalanceRemaining(array $row)
     return round(
         (float) ($row['opening_days'] ?? 0)
         + (float) ($row['credited_days'] ?? 0)
+        + (float) ($row['manual_add_days'] ?? 0)
         + (float) ($row['adjusted_days'] ?? 0)
         - (float) ($row['used_days'] ?? 0),
         2
@@ -673,7 +703,7 @@ function leaveRefreshMonthlyAccrual($conn, $employeeId, $leaveTypeId, $year, $as
     if ($wipe) {
         $upd = $conn->prepare(
             'UPDATE employee_leave_balances
-             SET opening_days = 0, credited_days = ?, used_days = ?, adjusted_days = 0
+             SET opening_days = 0, credited_days = ?, used_days = ?
              WHERE id = ?'
         );
         $upd->bind_param('ddi', $targetCredit, $usedMonth, $balId);
@@ -872,6 +902,7 @@ function getDepartmentLeaveBalanceRows($departmentId, $year, $conn = null)
                    COALESCE(b.credited_days, 0) AS credited_days,
                    COALESCE(b.used_days, 0) AS used_days,
                    COALESCE(b.adjusted_days, 0) AS adjusted_days,
+                   COALESCE(b.manual_add_days, 0) AS manual_add_days,
                    b.id AS balance_id
             FROM employees e
             LEFT JOIN departments d ON d.id = e.department_id
