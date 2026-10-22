@@ -5792,6 +5792,15 @@ body.confirm-modal-open {
         background: rgba(15, 23, 42, 0.35);
         z-index: 125;
     }
+
+    .sidebar-fab {
+        display: none !important;
+    }
+
+    .page-footer {
+        padding: 10px 12px;
+        font-size: 11px;
+    }
 }
 
 /* ===================== Select2 (global searchable dropdown) ===================== */
@@ -11303,8 +11312,28 @@ body.co-about-open { overflow: hidden; }
     .data-table td {
         padding: 8px 10px;
     }
-    .top-header .header-search {
+    .top-header {
+        flex-wrap: wrap;
+        gap: 8px;
+        padding: 8px 10px;
+    }
+
+    .header-status {
         display: none;
+    }
+
+    .header-emp-search-wrap,
+    .top-header .header-search {
+        flex: 1 1 100%;
+        min-width: 0;
+        max-width: 100%;
+        order: 5;
+    }
+
+    .header-right {
+        flex-wrap: wrap;
+        justify-content: flex-end;
+        gap: 8px;
     }
     .form-actions {
         display: flex;

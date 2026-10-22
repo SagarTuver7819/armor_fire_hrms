@@ -353,10 +353,6 @@ $selectedRole = isset($_POST['login_as']) && in_array($_POST['login_as'], $uiRol
             <span class="foot-brand">Ocean Infotech</span>
         </footer>
     </div>
-
-    <p class="login-copy anim-in" style="--delay:.3s">
-        © <?php echo date('Y'); ?> <?php echo htmlspecialchars($companyName); ?> · Secure Admin &amp; Employee portals
-    </p>
 </div>
 
 <script src="assets/js/login.js"></script>

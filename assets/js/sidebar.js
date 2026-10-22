@@ -18,6 +18,9 @@
     function setCollapsed(collapsed) {
         shell.classList.toggle('sidebar-collapsed', !!collapsed);
         document.body.classList.toggle('sidebar-is-collapsed', !!collapsed);
+        if (window.matchMedia('(max-width: 900px)').matches) {
+            return;
+        }
         try {
             localStorage.setItem(KEY, collapsed ? '1' : '0');
         } catch (e) {}
@@ -35,27 +38,48 @@
         setCollapsed(!isCollapsed());
     }
 
-    try {
-        if (localStorage.getItem(KEY) === '1') {
-            setCollapsed(true);
+    var mobileMq = window.matchMedia('(max-width: 900px)');
+
+    function isMobileNav() {
+        return mobileMq.matches;
+    }
+
+    function applySavedDesktop() {
+        var saved = null;
+        try {
+            saved = localStorage.getItem(KEY);
+        } catch (e) {}
+        setCollapsed(saved === '1');
+    }
+
+    function applyMode() {
+        if (isMobileNav()) {
+            shell.classList.add('sidebar-collapsed');
+            document.body.classList.add('sidebar-is-collapsed');
+            return;
         }
-    } catch (e) {}
+        applySavedDesktop();
+    }
+
+    applyMode();
+    if (mobileMq.addEventListener) {
+        mobileMq.addEventListener('change', applyMode);
+    } else if (mobileMq.addListener) {
+        mobileMq.addListener(applyMode);
+    }
 
     if (toggleBtn) toggleBtn.addEventListener('click', toggle);
     if (fabBtn) fabBtn.addEventListener('click', function () { setCollapsed(false); });
     if (headerBtn) headerBtn.addEventListener('click', toggle);
 
     shell.addEventListener('click', function (e) {
-        if (e.target === shell && !isCollapsed() && window.matchMedia('(max-width: 900px)').matches) {
+        if (!isMobileNav() || isCollapsed()) {
+            return;
+        }
+        if (e.target === shell || (e.target.closest && e.target.closest('a.sidebar-link'))) {
             setCollapsed(true);
         }
     });
-
-    try {
-        if (localStorage.getItem(KEY) === null && window.matchMedia('(max-width: 900px)').matches) {
-            setCollapsed(true);
-        }
-    } catch (e) {}
 
     // Accordion submenus
     var accState = {};
