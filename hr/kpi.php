@@ -11,12 +11,10 @@ require_once __DIR__ . '/../includes/master_helper.php';
 require_once __DIR__ . '/../includes/kpi_helper.php';
 
 requireStaff();
-if (function_exists('isOfficeStaffRole')) {
-    require_once __DIR__ . '/../includes/department_head_helper.php';
-    if (isOfficeStaffRole()) {
-        header('Location: ' . app_url('employee/kpi.php'));
-        exit;
-    }
+// Employee portal (office staff, dept head, HR head) sees only their own KPI.
+if (function_exists('isEmployee') && isEmployee()) {
+    header('Location: ' . app_url('employee/kpi.php'));
+    exit;
 }
 
 $today = date('Y-m-d');

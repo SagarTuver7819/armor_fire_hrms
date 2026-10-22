@@ -14,7 +14,7 @@ require_once __DIR__ . '/../includes/department_head_helper.php';
 
 requireLogin();
 
-$empId = (int) ($_SESSION['employee_id'] ?? 0);
+$empId = function_exists('kpiSyncSessionEmployeeId') ? kpiSyncSessionEmployeeId() : (int) ($_SESSION['employee_id'] ?? 0);
 if ($empId <= 0 || !isEmployee()) {
     header('Location: ' . app_url('employee/dashboard.php?msg=denied'));
     exit;
@@ -41,6 +41,9 @@ ensureKpiTables($conn);
 ensureMasterTables($conn);
 $shifts = getActiveMasterRows('shifts', 'name ASC');
 $sheet = kpiEnsureDraftSheet($empId, $date, $emp, $shifts, $conn);
+if ($sheet && (int) ($sheet['employee_id'] ?? 0) !== $empId) {
+    $sheet = null;
+}
 $entries = $sheet ? kpiGetEntries((int) $sheet['id'], $conn) : [];
 $conn->close();
 

@@ -14,7 +14,7 @@ require_once __DIR__ . '/../includes/kpi_helper.php';
 requireLogin();
 
 $sheetId = (int) ($_GET['id'] ?? 0);
-$sessionEmpId = (int) ($_SESSION['employee_id'] ?? 0);
+$sessionEmpId = kpiSyncSessionEmployeeId();
 $asStaff = function_exists('isStaffUser') && isStaffUser();
 
 $conn = getDBConnection();
@@ -27,13 +27,14 @@ if (!$sheet) {
 }
 
 $isOwn = $sessionEmpId > 0 && (int) $sheet['employee_id'] === $sessionEmpId;
-if (!$asStaff && !$isOwn) {
+$employeeLogin = function_exists('isEmployee') && isEmployee();
+if (($employeeLogin || !$asStaff) && !$isOwn) {
     $conn->close();
     header('Location: ' . app_url('employee/dashboard.php?msg=denied'));
     exit;
 }
 
-if (!$asStaff && !kpiCanViewReport($sheet, false)) {
+if (($employeeLogin || !$asStaff) && !kpiCanViewReport($sheet, false)) {
     $conn->close();
     header('Location: ' . app_url('employee/kpi_history.php?msg=wait'));
     exit;

@@ -14,7 +14,7 @@ header('Cache-Control: no-store');
 
 requireLogin();
 
-$empId = (int) ($_SESSION['employee_id'] ?? 0);
+$empId = kpiSyncSessionEmployeeId();
 if ($empId <= 0 || !function_exists('isEmployee') || !isEmployee() || $_SERVER['REQUEST_METHOD'] !== 'POST') {
     http_response_code(403);
     echo json_encode(['ok' => false, 'error' => 'Not allowed']);

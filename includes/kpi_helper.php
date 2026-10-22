@@ -173,6 +173,40 @@ if (!function_exists('ensureKpiTables')) {
         ];
     }
 
+    /**
+     * Employee login always uses the employee linked on their user row.
+     */
+    function kpiSyncSessionEmployeeId($conn = null)
+    {
+        $sessionId = (int) ($_SESSION['employee_id'] ?? 0);
+        $userId = (int) ($_SESSION['user_id'] ?? 0);
+        if ($userId <= 0 || !function_exists('isEmployee') || !isEmployee()) {
+            return $sessionId;
+        }
+
+        $close = false;
+        if ($conn === null) {
+            $conn = getDBConnection();
+            $close = true;
+        }
+        $st = $conn->prepare(
+            "SELECT employee_id FROM users WHERE id = ? AND role = 'employee' AND status = 1 LIMIT 1"
+        );
+        $st->bind_param('i', $userId);
+        $st->execute();
+        $row = $st->get_result()->fetch_assoc();
+        $st->close();
+        if ($close) {
+            $conn->close();
+        }
+        $linked = (int) ($row['employee_id'] ?? 0);
+        if ($linked > 0) {
+            $_SESSION['employee_id'] = $linked;
+            return $linked;
+        }
+        return $sessionId;
+    }
+
     function kpiGetSheetById($sheetId, $conn = null)
     {
         $close = false;

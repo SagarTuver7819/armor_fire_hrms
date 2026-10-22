@@ -11,7 +11,7 @@ require_once __DIR__ . '/../includes/kpi_helper.php';
 
 requireLogin();
 
-$empId = (int) ($_SESSION['employee_id'] ?? 0);
+$empId = kpiSyncSessionEmployeeId();
 if ($empId <= 0 || !isEmployee()) {
     header('Location: ' . app_url('employee/dashboard.php?msg=denied'));
     exit;

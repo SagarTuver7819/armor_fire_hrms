@@ -323,6 +323,14 @@ $sidebarCompanyName = function_exists('getCompanyName') ? getCompanyName() : 'Ar
                         <small>Secure your login</small>
                     </span>
                 </a>
+                <a href="<?php echo app_url('employee/kpi.php'); ?>"
+                   class="sidebar-link sidebar-emp-link <?php echo $sidebarActive === 'my_kpi' ? 'active' : ''; ?>">
+                    <span class="sidebar-emp-ico" style="--emp-ico:#0d9488;"><i class="fa-solid fa-chart-line"></i></span>
+                    <span class="sidebar-emp-txt">
+                        <strong>My KPI</strong>
+                        <small>Only your own sheet</small>
+                    </span>
+                </a>
                 <?php endif; ?>
                 <?php if (function_exists('isStaffUser') && isStaffUser()): ?>
                 <a href="<?php echo app_url('hr/dashboard.php'); ?>"
@@ -350,6 +358,7 @@ $sidebarCompanyName = function_exists('getCompanyName') ? getCompanyName() : 'Ar
                         <small>HR tools</small>
                     </span>
                 </a>
+                <?php if (!(function_exists('isEmployee') && isEmployee())): ?>
                 <a href="<?php echo app_url('hr/kpi.php'); ?>"
                    class="sidebar-link sidebar-emp-link <?php echo $sidebarActive === 'hr_kpi' ? 'active' : ''; ?>">
                     <span class="sidebar-emp-ico" style="--emp-ico:#0d9488;"><i class="fa-solid fa-chart-line"></i></span>
@@ -358,6 +367,7 @@ $sidebarCompanyName = function_exists('getCompanyName') ? getCompanyName() : 'Ar
                         <small>Team performance</small>
                     </span>
                 </a>
+                <?php endif; ?>
                 <?php endif; ?>
                 <?php if ($canCirc): ?>
                 <a href="<?php echo app_url('circulars/index.php'); ?>"
