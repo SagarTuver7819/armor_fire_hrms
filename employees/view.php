@@ -1057,6 +1057,7 @@ $tabUrl = function ($t) use ($baseQs, $year, $month) {
                     <div class="info-row"><dt>Holiday Benefits</dt><dd><?php echo showVal($emp['holiday_benefits']); ?></dd></div>
                     <div class="info-row"><dt>Overtime Benefits</dt><dd><?php echo showVal($emp['overtime_benefits']); ?></dd></div>
                     <div class="info-row"><dt>Extra Note</dt><dd><?php echo nl2br(showVal($emp['extra_note'])); ?></dd></div>
+                    <div class="info-row"><dt>ERP Production Department</dt><dd><?php echo showVal($emp['production_department'] ?? ''); ?></dd></div>
                 </dl>
             </div>
         </div>

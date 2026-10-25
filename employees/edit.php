@@ -804,6 +804,25 @@ $ob = empField($employee, 'overtime_benefits', 'No');
                         <label>46. Extra Note</label>
                         <textarea name="extra_note" class="form-control" rows="2"><?php echo htmlspecialchars(empField($employee, 'extra_note')); ?></textarea>
                     </div>
+                    <div class="form-group"><label>ERP Production Department</label>
+                        <?php
+                        $prodDeptNames = productionDepartmentNames();
+                        $currentProdDept = trim((string) empField($employee, 'production_department'));
+                        ?>
+                        <select name="production_department" class="form-control">
+                            <option value="">— Select —</option>
+                            <?php foreach ($prodDeptNames as $prodName): ?>
+                                <option value="<?php echo htmlspecialchars($prodName); ?>" <?php echo strcasecmp($currentProdDept, $prodName) === 0 ? 'selected' : ''; ?>>
+                                    <?php echo htmlspecialchars($prodName); ?>
+                                </option>
+                            <?php endforeach; ?>
+                            <?php if ($currentProdDept !== '' && !in_array($currentProdDept, $prodDeptNames, true)): ?>
+                                <option value="<?php echo htmlspecialchars($currentProdDept); ?>" selected>
+                                    <?php echo htmlspecialchars($currentProdDept); ?> (current)
+                                </option>
+                            <?php endif; ?>
+                        </select>
+                    </div>
                 </div>
             </div>
 

@@ -67,6 +67,7 @@ function ensureEmployeesTable($conn = null)
     ensureEmployeeColumn($conn, 'aadhar_file', "aadhar_file VARCHAR(255) DEFAULT NULL AFTER aadhar_number");
     ensureEmployeeColumn($conn, 'pan_file', "pan_file VARCHAR(255) DEFAULT NULL AFTER pan_number");
     ensureEmployeeColumn($conn, 'sub_department_id', "sub_department_id INT DEFAULT NULL AFTER department_id");
+    ensureEmployeeColumn($conn, 'production_department', "production_department VARCHAR(150) DEFAULT NULL AFTER sub_department_id");
     ensureEmployeeColumn($conn, 'main_contractor_id', "main_contractor_id INT DEFAULT NULL AFTER pay_type");
     ensureEmployeeColumn($conn, 'date_of_exit', "date_of_exit DATE DEFAULT NULL AFTER date_of_joining");
     ensureEmployeeColumn($conn, 'office_email', "office_email VARCHAR(150) DEFAULT NULL AFTER emergency_mobile");
@@ -1128,6 +1129,55 @@ function findEmployeeByCode($conn, $code, $excludeId = 0)
     $row = $stmt->get_result()->fetch_assoc();
     $stmt->close();
     return $row ?: null;
+}
+
+/**
+ * Department boxes inside ERP Production (armor_erp.departments, same order as the Production screen).
+ * Test and Moulding are hidden there, so they are not listed.
+ *
+ * @return list<string>
+ */
+function productionDepartmentNames()
+{
+    return [
+        'Core Department',
+        'Foundry-1 (Mahadev) Department',
+        'Foundry-2 (Varada) Department',
+        'Shot blasting/Cleaning Department',
+        'Grinding Department',
+        'Lathe Department',
+        'Cnc Department',
+        'Buff Department',
+        'Coating Department',
+        'Assembly 1 Department',
+        'Assembly 2 Department',
+        'Assembly 3 Department',
+        'Assembly 4 Department',
+        'Assembly 5 Department',
+        'Assembly 6 Department',
+        'Assembly 7 Department',
+        'Assembly 8 Department',
+        'RFD Department',
+        'Dispatch Department',
+        'Knock Out / Cutting Department',
+    ];
+}
+
+/**
+ * Keep only a name that exists on the ERP Production department list.
+ */
+function normalizeProductionDepartment($name)
+{
+    $name = trim((string) $name);
+    if ($name === '') {
+        return '';
+    }
+    foreach (productionDepartmentNames() as $allowed) {
+        if (strcasecmp($allowed, $name) === 0) {
+            return $allowed;
+        }
+    }
+    return '';
 }
 
 /**

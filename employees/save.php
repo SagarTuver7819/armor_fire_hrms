@@ -312,13 +312,15 @@ if ($savedId > 0 && $weekOffDay !== '') {
 
 if ($savedId > 0) {
     $pfEmpBind = $pfEmpContrib === null ? '' : (string) $pfEmpContrib;
+    $productionDepartment = normalizeProductionDepartment($_POST['production_department'] ?? '');
     $extraStmt = $conn->prepare(
         'UPDATE employees SET office_email = ?, office_mobile = ?, desk_no = ?, canteen_use = ?, gender = ?, blood_group = ?, marital_status = ?, marital_remark = ?,
          emergency_contact_name = ?, emergency_contact_relation = ?,
+         production_department = NULLIF(?, \'\'),
          pf_start_date = NULLIF(?, \'\'), pf_employee_contribution = NULLIF(?, \'\'), pf_employer_contribution = NULL WHERE id = ?'
     );
     $extraStmt->bind_param(
-        'ssssssssssssi',
+        'sssssssssssssi',
         $officeEmail,
         $officeMobile,
         $deskNo,
@@ -329,6 +331,7 @@ if ($savedId > 0) {
         $maritalRemark,
         $emergencyName,
         $emergencyRel,
+        $productionDepartment,
         $pfStartDate,
         $pfEmpBind,
         $savedId
