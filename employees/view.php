@@ -4,6 +4,11 @@
  * Employee Details — profile + tab-wise activity (Leave / Attendance / Salary)
  */
 
+if (isset($_GET['attendance_roster'])) {
+    require __DIR__ . '/production_attendance.php';
+    exit;
+}
+
 require_once __DIR__ . '/../config/app.php';
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/employee_helper.php';
