@@ -339,6 +339,54 @@ function getActiveContractorEmployees($conn = null)
     return $rows;
 }
 
+/**
+ * Ensure an employee appears in an ops Name dropdown (edit sheets whose
+ * employee left Jobwork / inactive still need the saved name selected).
+ *
+ * @param array<int, array<string, mixed>> $employees
+ * @return array<int, array<string, mixed>>
+ */
+function ensureOpsEmployeeInList(array $employees, $employeeId, $conn = null)
+{
+    $employeeId = (int) $employeeId;
+    if ($employeeId <= 0) {
+        return $employees;
+    }
+    foreach ($employees as $emp) {
+        if ((int) ($emp['id'] ?? 0) === $employeeId) {
+            return $employees;
+        }
+    }
+
+    $closeAfter = false;
+    if ($conn === null) {
+        $conn = getDBConnection();
+        $closeAfter = true;
+    }
+    if (!function_exists('ensureEmployeesTable')) {
+        require_once __DIR__ . '/employee_helper.php';
+    }
+    ensureEmployeesTable($conn);
+
+    $stmt = $conn->prepare(
+        "SELECT e.id, e.employee_code, e.employee_name, e.department_id, e.designation, e.mobile_number
+         FROM employees e
+         WHERE e.id = ?
+         LIMIT 1"
+    );
+    $stmt->bind_param('i', $employeeId);
+    $stmt->execute();
+    $row = $stmt->get_result()->fetch_assoc();
+    $stmt->close();
+    if ($closeAfter) {
+        $conn->close();
+    }
+    if ($row) {
+        array_unshift($employees, $row);
+    }
+    return $employees;
+}
+
 function contractorProductLabel(array $row)
 {
     $name = trim((string) ($row['product_name'] ?? ''));

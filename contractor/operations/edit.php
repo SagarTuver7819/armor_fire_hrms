@@ -11,14 +11,15 @@ if ($id > 0 && !$sheet) {
     exit;
 }
 $employees = getActiveContractorEmployees($conn);
-$conn->close();
-
 $ops = contractorOperations();
 $months = contractorMonths();
 $curOp = (string) ($sheet['operation'] ?? 'Lathe Employee wise');
 $curEmp = (int) ($sheet['employee_id'] ?? 0);
 $curMonth = (int) ($sheet['month_no'] ?? date('n'));
 $curYear = (int) ($sheet['year_no'] ?? date('Y'));
+// Edit: keep saved employee in Name list even if no longer Jobwork (CNC / Foundry etc.)
+$employees = ensureOpsEmployeeInList($employees, $curEmp, $conn);
+$conn->close();
 $showGrade = contractorOperationShowsGrade($curOp);
 $items = $sheet['items'] ?? [];
 if (!$items) {
@@ -70,7 +71,8 @@ $otJson = json_encode(contractorOtRepairOps());
                     </div>
                     <div class="form-group">
                         <label>Name <span class="req">*</span></label>
-                        <select name="employee_id" class="form-control" required>
+                        <select name="employee_id" id="opsEmployeeSelect" class="form-control" required
+                                data-current-emp="<?php echo (int) $curEmp; ?>">
                             <option value="">Select Employee</option>
                             <?php foreach ($employees as $emp): ?>
                                 <option value="<?php echo (int) $emp['id']; ?>" <?php echo $curEmp === (int) $emp['id'] ? 'selected' : ''; ?>>

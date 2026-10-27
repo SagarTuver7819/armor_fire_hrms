@@ -34,11 +34,36 @@ if (!isset($ops[$operation]) || $employeeId <= 0 || $month < 1 || $month > 12 ||
 $conn = getDBConnection();
 ensureContractorTables($conn);
 
-$jw = $conn->prepare("SELECT id FROM employees WHERE id = ? AND status = 1 AND pay_type = 'Jobwork' LIMIT 1");
+// Edit with blank Name: keep the sheet's existing employee (Select2 / missing option cases)
+if ($employeeId <= 0 && $id > 0) {
+    $keepEmp = $conn->prepare('SELECT employee_id FROM contractor_operation_sheets WHERE id = ? AND status = 1 LIMIT 1');
+    $keepEmp->bind_param('i', $id);
+    $keepEmp->execute();
+    $keepRow = $keepEmp->get_result()->fetch_assoc();
+    $keepEmp->close();
+    if ($keepRow) {
+        $employeeId = (int) ($keepRow['employee_id'] ?? 0);
+    }
+}
+
+$jw = $conn->prepare("SELECT id, pay_type FROM employees WHERE id = ? AND status = 1 LIMIT 1");
 $jw->bind_param('i', $employeeId);
 $jw->execute();
-$jwOk = $jw->get_result()->fetch_assoc();
+$jwRow = $jw->get_result()->fetch_assoc();
 $jw->close();
+$jwOk = false;
+if ($jwRow) {
+    if (($jwRow['pay_type'] ?? '') === 'Jobwork') {
+        $jwOk = true;
+    } elseif ($id > 0) {
+        // Allow update when sheet already belongs to this employee (even if pay type changed)
+        $own = $conn->prepare('SELECT id FROM contractor_operation_sheets WHERE id = ? AND employee_id = ? AND status = 1 LIMIT 1');
+        $own->bind_param('ii', $id, $employeeId);
+        $own->execute();
+        $jwOk = (bool) $own->get_result()->fetch_assoc();
+        $own->close();
+    }
+}
 if (!$jwOk) {
     $conn->close();
     die('Select a Jobwork employee from Join Employee. <a href="javascript:history.back()">Go Back</a>');

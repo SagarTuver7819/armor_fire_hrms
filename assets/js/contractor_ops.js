@@ -71,15 +71,34 @@
         // Action + Sr + Process + (Grade?) + Rate
         $('#tf_grand_total_label').attr('colspan', showG ? 5 : 4);
         // Cleanup Select2 leftovers / custom combo when Grade column hidden
+        // Only touch grade cells inside the grid — never the header Name (employee) Select2
         if (!showG) {
             $('#opsRows .grade-select').each(function () {
                 teardownOpsCombo($(this));
             });
-            $('#opsRows .ops-row').each(function () {
-                $(this).children('.select2-container').remove();
-            });
+            $('#opsRows td.sticky-grade, #opsRows td.td-grade').find('.select2-container').remove();
         }
         updateGrandTotals();
+    }
+
+    /** Keep saved employee selected in Name dropdown (Select2 can show blank on edit). */
+    function syncOpsEmployeeSelect() {
+        var $sel = $('#opsEmployeeSelect');
+        if (!$sel.length) return;
+        var want = String($sel.attr('data-current-emp') || '').trim();
+        if (!want || want === '0') {
+            want = String($sel.find('option[selected]').attr('value') || '').trim();
+        }
+        if (!want || want === '0') return;
+        if (!$sel.find('option[value="' + want.replace(/"/g, '\\"') + '"]').length) return;
+        if (String($sel.val()) !== want) {
+            $sel.val(want);
+        }
+        if ($sel.data('select2')) {
+            try {
+                $sel.trigger('change.select2');
+            } catch (e) { /* ignore */ }
+        }
     }
 
     /* ========== Custom searchable combo (NO Select2 in sticky grid) ========== */
@@ -446,6 +465,7 @@
         });
     }
     $('#opsForm').on('submit', function () {
+        syncOpsEmployeeSelect();
         syncRowIdsBeforeSubmit();
         reindex();
 
@@ -872,5 +892,12 @@
 
     applyDayEnable();
     applyOpMode();
-    loadProducts();
+    syncOpsEmployeeSelect();
+    loadProducts(function () {
+        syncOpsEmployeeSelect();
+    });
+    // Select2 init runs after this file — re-apply saved Name once it wraps the control
+    setTimeout(syncOpsEmployeeSelect, 0);
+    setTimeout(syncOpsEmployeeSelect, 120);
+    setTimeout(syncOpsEmployeeSelect, 400);
 })();
