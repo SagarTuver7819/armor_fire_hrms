@@ -1,6 +1,6 @@
 <?php
 /**
- * Monthly salary register — Jobwork Regular / Actual (Qty × Rate)
+ * Monthly salary register — Normal Fixed Salary / Jobwork Regular / Actual (Qty × Rate)
  */
 
 require_once __DIR__ . '/../config/app.php';
@@ -22,13 +22,13 @@ ensurePayrollApprovalTables();
 $employeeId = isset($_GET['employee_id']) ? (int) $_GET['employee_id'] : 0;
 $month = (int) ($_GET['month'] ?? date('n'));
 $year = (int) ($_GET['year'] ?? date('Y'));
-$type = (string) ($_GET['type'] ?? 'jobwork_actual');
+$type = (string) ($_GET['type'] ?? 'salary');
 $view = (($_GET['view'] ?? 'department') === 'employee') ? 'employee' : 'department';
 if ($month < 1 || $month > 12) {
     $month = (int) date('n');
 }
 if (!isset(salaryRegisterTypes()[$type])) {
-    $type = 'jobwork_actual';
+    $type = 'salary';
 }
 
 $lock = getSalaryRegisterLock($month, $year, $type, $deptId);

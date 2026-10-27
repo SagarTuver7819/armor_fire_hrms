@@ -19,12 +19,12 @@ requirePayrollRegisterAccess($deptId);
 ensurePayrollApprovalTables();
 $month = (int) ($_GET['month'] ?? date('n'));
 $year = (int) ($_GET['year'] ?? date('Y'));
-$type = (string) ($_GET['type'] ?? 'jobwork_actual');
+$type = (string) ($_GET['type'] ?? 'salary');
 if ($month < 1 || $month > 12) {
     $month = (int) date('n');
 }
 if (!isset(salaryRegisterTypes()[$type])) {
-    $type = 'jobwork_actual';
+    $type = 'salary';
 }
 
 $data = getNeftSheetData($month, $year, $type, $deptId);

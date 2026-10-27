@@ -18,7 +18,7 @@ requirePayrollRegisterAccess($deptId);
 ensurePayrollApprovalTables();
 $month = (int) ($_GET['month'] ?? date('n'));
 $year = (int) ($_GET['year'] ?? date('Y'));
-$type = (string) ($_GET['type'] ?? 'jobwork_actual');
+$type = (string) ($_GET['type'] ?? 'salary');
 $data = getNeftSheetData($month, $year, $type, $deptId);
 if (!$data) {
     die('NEFT sheet not found. Finalize &amp; Lock the Salary Register first.');

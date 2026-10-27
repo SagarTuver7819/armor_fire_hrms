@@ -18,7 +18,7 @@ requirePayrollRegisterAccess($deptId);
 ensurePayrollApprovalTables();
 $month = (int) ($_GET['month'] ?? date('n'));
 $year = (int) ($_GET['year'] ?? date('Y'));
-$type = (string) ($_GET['type'] ?? 'jobwork_actual');
+$type = (string) ($_GET['type'] ?? 'salary');
 $data = getNeftSheetData($month, $year, $type, $deptId);
 if (!$data || ($data['lock']['approval_status'] ?? 'approved') !== 'approved') {
     header('Location: ' . app_url('payroll/neft.php?' . http_build_query([
