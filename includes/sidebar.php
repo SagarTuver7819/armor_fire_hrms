@@ -567,7 +567,7 @@ $sidebarCompanyName = function_exists('getCompanyName') ? getCompanyName() : 'Ar
                     <a href="<?php echo app_url('contractor/products/index.php'); ?>" class="sidebar-link sidebar-sublink <?php echo $sidebarActive === 'contractor_products' ? 'active' : ''; ?>"><i class="fa-solid fa-box"></i><span>Product Master</span></a>
                     <a href="<?php echo app_url('contractor/grades/index.php'); ?>" class="sidebar-link sidebar-sublink <?php echo $sidebarActive === 'contractor_grades' ? 'active' : ''; ?>"><i class="fa-solid fa-layer-group"></i><span>Grade Master</span></a>
                     <a href="<?php echo app_url('contractor/operations/index.php'); ?>" class="sidebar-link sidebar-sublink <?php echo $sidebarActive === 'contractor_operations' ? 'active' : ''; ?>"><i class="fa-solid fa-gears"></i><span>Operations Rate</span></a>
-                    <a href="<?php echo app_url('payroll/register.php?type=jobwork_govt'); ?>" class="sidebar-link sidebar-sublink <?php echo in_array($regType, ['jobwork_govt', 'jobwork_actual', 'contractor_main'], true) ? 'active' : ''; ?>"><i class="fa-solid fa-file-invoice-dollar"></i><span>Jobwork Salary</span></a>
+                    <a href="<?php echo app_url('payroll/register.php?type=jobwork_actual'); ?>" class="sidebar-link sidebar-sublink <?php echo $regType === 'jobwork_actual' ? 'active' : ''; ?>"><i class="fa-solid fa-file-invoice-dollar"></i><span>Jobwork Salary</span></a>
                 </div>
             </div>
             <?php endif; ?>

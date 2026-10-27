@@ -20,7 +20,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 $deptId = (int) ($_POST['department_id'] ?? 0);
 $month = (int) ($_POST['month'] ?? date('n'));
 $year = (int) ($_POST['year'] ?? date('Y'));
-$type = (string) ($_POST['type'] ?? 'salary');
+$type = (string) ($_POST['type'] ?? 'jobwork_actual');
 $action = (string) ($_POST['action'] ?? 'lock');
 
 requirePayrollRegisterAccess($deptId);

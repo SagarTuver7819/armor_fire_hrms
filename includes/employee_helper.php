@@ -68,6 +68,9 @@ function ensureEmployeesTable($conn = null)
     ensureEmployeeColumn($conn, 'pan_file', "pan_file VARCHAR(255) DEFAULT NULL AFTER pan_number");
     ensureEmployeeColumn($conn, 'sub_department_id', "sub_department_id INT DEFAULT NULL AFTER department_id");
     ensureEmployeeColumn($conn, 'production_department', "production_department VARCHAR(150) DEFAULT NULL AFTER sub_department_id");
+    // ERP Production → Add Employee join form sync
+    ensureEmployeeColumn($conn, 'erp_join_form_id', "erp_join_form_id INT DEFAULT NULL AFTER id");
+    ensureEmployeeColumn($conn, 'source', "source VARCHAR(20) NOT NULL DEFAULT '' AFTER erp_join_form_id");
     ensureEmployeeColumn($conn, 'main_contractor_id', "main_contractor_id INT DEFAULT NULL AFTER pay_type");
     ensureEmployeeColumn($conn, 'date_of_exit', "date_of_exit DATE DEFAULT NULL AFTER date_of_joining");
     ensureEmployeeColumn($conn, 'office_email', "office_email VARCHAR(150) DEFAULT NULL AFTER emergency_mobile");

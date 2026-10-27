@@ -16,12 +16,12 @@ $deptId = isset($_GET['department_id']) ? (int) $_GET['department_id'] : 0;
 $employeeId = isset($_GET['employee_id']) ? (int) $_GET['employee_id'] : 0;
 $month = (int) ($_GET['month'] ?? date('n'));
 $year = (int) ($_GET['year'] ?? date('Y'));
-$type = (string) ($_GET['type'] ?? 'salary');
+$type = (string) ($_GET['type'] ?? 'jobwork_actual');
 if ($month < 1 || $month > 12) {
     $month = (int) date('n');
 }
 if (!isset(salaryRegisterTypes()[$type])) {
-    $type = 'salary';
+    $type = 'jobwork_actual';
 }
 
 $groups = getSalaryRegisterData($type, $month, $year, $deptId, $employeeId);

@@ -45,6 +45,21 @@ $conn->close();
 
 $masterCount = count(getMastersConfig());
 $deptCount = count($departments);
+$erpEmpCount = 0;
+try {
+    $connErp = getDBConnection();
+    ensureEmployeesTable($connErp);
+    $er = $connErp->query("SELECT COUNT(*) AS c FROM employees WHERE source = 'erp' OR (erp_join_form_id IS NOT NULL AND erp_join_form_id > 0)");
+    if ($er && ($rowc = $er->fetch_assoc())) {
+        $erpEmpCount = (int)$rowc['c'];
+    }
+    if ($er) {
+        $er->free();
+    }
+    $connErp->close();
+} catch (Throwable $e) {
+    $erpEmpCount = 0;
+}
 $userLabel = function_exists('getUserName') ? getUserName() : 'User';
 $hour = (int) date('G');
 if ($hour < 12) {
@@ -128,6 +143,14 @@ if (isAdmin() || isHR()) {
                 <div class="dash-hub-body">
                     <strong>All Employees</strong>
                     <span>Active staff directory</span>
+                </div>
+                <i class="fa-solid fa-arrow-right dash-hub-go"></i>
+            </a>
+            <a href="<?php echo htmlspecialchars(app_url('employees/erp_list.php')); ?>" class="dash-hub-card is-erp-emp" title="ERP Employees">
+                <div class="dash-hub-icon" style="background:#d2232a;"><i class="fa-solid fa-industry"></i></div>
+                <div class="dash-hub-body">
+                    <strong>ERP Employees</strong>
+                    <span><?php echo (int)$erpEmpCount; ?> · Department wise from ERP</span>
                 </div>
                 <i class="fa-solid fa-arrow-right dash-hub-go"></i>
             </a>

@@ -1,6 +1,6 @@
 <?php
 /**
- * Salary register rows — Normal / Jobwork Govt / Jobwork Actual / Contractor Main
+ * Salary register rows — Jobwork Regular / Actual (Qty × Rate)
  */
 
 require_once __DIR__ . '/payroll_helper.php';
@@ -11,10 +11,7 @@ require_once __DIR__ . '/attendance_helper.php';
 function salaryRegisterTypes()
 {
     return [
-        'salary' => '1 · Normal Fixed Salary (Attendance)',
-        'jobwork_govt' => '2 · Jobwork Government (Attendance days)',
-        'jobwork_actual' => '2 · Jobwork Regular / Actual (Qty × Rate)',
-        'contractor_main' => '3 · Contractor Main (Team)',
+        'jobwork_actual' => 'Jobwork Regular / Actual (Qty × Rate)',
     ];
 }
 

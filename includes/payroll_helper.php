@@ -638,6 +638,7 @@ function payrollIsStatutoryDeductionLabel($label)
 /**
  * Employee PF = 12% of Basic (ceiling ₹15,000) → max ₹1,800 / month.
  * $dayFactor = joining / exit / PF-start window only (LOP does not reduce PF).
+ * $gross is used as PF wage fallback for Jobwork (Qty × Rate) when Basic / decided salary is empty.
  */
 function statutoryPf($gross, array $emp, $dayFactor = 1.0)
 {
@@ -650,6 +651,10 @@ function statutoryPf($gross, array $emp, $dayFactor = 1.0)
     }
 
     $wage = payrollPfWageBase($emp, (int) ($emp['id'] ?? 0));
+    // Jobwork / piece-rate often has no Basic line — use wages paid this month (capped)
+    if ($wage <= 0 && (float) $gross > 0) {
+        $wage = min(15000.0, max(0.0, (float) $gross));
+    }
     $formula = round($wage * 0.12, 2);
 
     $fixed = isset($emp['pf_employee_contribution']) && $emp['pf_employee_contribution'] !== '' && $emp['pf_employee_contribution'] !== null
@@ -1095,9 +1100,11 @@ function getPayrollAttendanceBundle(array $emp, $month, $year, $actualAmount)
     $factor = $monthDays > 0 ? ($totalDays / $monthDays) : 1;
     $govtGross = round($salary * $factor, 2);
 
-    // PF = 12% of Basic (max ₹1,800). Not reduced by LOP; zero if no paid days.
+    // PF = 12% of Basic / wages (max ₹1,800). Not reduced by LOP.
+    // Salary: need paid attendance days. Jobwork: Qty × Rate wages also count (attendance may be 0).
     $pfFactor = payrollPfDayFactor($month, $year, $emp, 1.0, $empFrom, $empTo);
-    $pf = ($totalDays > 0) ? statutoryPf($salary, $emp, $pfFactor) : 0.0;
+    $hasPfWages = $totalDays > 0 || ($payType !== 'Salary' && (float) $salary > 0);
+    $pf = $hasPfWages ? statutoryPf($salary, $emp, $pfFactor) : 0.0;
     $pfEmployer = 0.0;
     $pt = statutoryPt($govtGross);
 
