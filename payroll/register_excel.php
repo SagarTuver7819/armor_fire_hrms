@@ -47,7 +47,20 @@ $headers = array_merge($headers, [
 ]);
 
 /**
- * Excel text cell — keeps leading zeros / full digits (no scientific notation).
+ * Plain Excel cell (normal display — no ="..." formula wrapper).
+ */
+function registerExcelTd($value)
+{
+    $v = trim((string) $value);
+    if ($v === '' || $v === '-') {
+        return '<td></td>';
+    }
+    return '<td>' . htmlspecialchars($v, ENT_QUOTES, 'UTF-8') . '</td>';
+}
+
+/**
+ * Excel text cell — Account / UAN as text (leading zeros, no 8.66E+12).
+ * Uses SpreadsheetML Type=String so value shows clean like software.
  */
 function registerExcelTextTd($value)
 {
@@ -55,8 +68,8 @@ function registerExcelTextTd($value)
     if ($v === '' || $v === '-') {
         return '<td></td>';
     }
-    // mso-number-format:@ + ="value" so Excel never converts account/UAN to 8.66E+12
-    return '<td style="mso-number-format:\'@\';">="' . htmlspecialchars($v, ENT_QUOTES, 'UTF-8') . '"</td>';
+    $safe = htmlspecialchars($v, ENT_QUOTES, 'UTF-8');
+    return '<td class="txt" style="mso-number-format:\'\\@\';" x:str="' . $safe . '">' . $safe . '</td>';
 }
 
 /**
@@ -86,7 +99,13 @@ function registerExcelTotalRow(array $sum, $isActual, $label, $bg)
     echo '</tr>';
 }
 
-echo '<html><head><meta charset="UTF-8"></head><body>';
+echo '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">';
+echo '<head><meta charset="UTF-8">';
+echo '<!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet>';
+echo '<x:Name>Salary Register</x:Name><x:WorksheetOptions><x:DisplayGridlines/></x:WorksheetOptions>';
+echo '</x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]-->';
+echo '<style>td.txt{mso-number-format:\\@;}</style>';
+echo '</head><body>';
 echo '<table border="1" cellspacing="0" cellpadding="4">';
 echo '<tr><th colspan="' . count($headers) . '" style="background:#1e3a5f;color:#fff;font-size:16px;">'
     . htmlspecialchars($companyName) . ' — Salary Register — ' . htmlspecialchars(date('F Y', mktime(0, 0, 0, $month, 1, $year)))
@@ -118,24 +137,24 @@ foreach ($groups as $g) {
     foreach ($g['rows'] as $r) {
         $grandRows[] = $r;
         echo '<tr>';
-        echo registerExcelTextTd($r['employee_code'] ?? '');
-        echo '<td>' . htmlspecialchars((string) ($r['employee_name'] ?? '')) . '</td>';
-        echo '<td>' . htmlspecialchars((string) ($r['designation'] ?? '')) . '</td>';
-        echo registerExcelTextTd($r['doj'] ?? '');
+        echo registerExcelTd($r['employee_code'] ?? '');
+        echo registerExcelTd($r['employee_name'] ?? '');
+        echo registerExcelTd($r['designation'] ?? '');
+        echo registerExcelTd($r['doj'] ?? '');
         echo registerExcelTextTd($r['uan'] ?? '');
         if ($isActual) {
-            echo '<td>' . htmlspecialchars((string) ($r['qty'] ?? '')) . '</td>';
+            echo registerExcelTd($r['qty'] ?? '');
             echo '<td>' . (int) registerRoundMoney($r['actual'] ?? 0) . '</td>';
             echo '<td>' . (int) registerRoundMoney($r['gross'] ?? 0) . '</td>';
         } else {
             echo '<td>' . (int) registerRoundMoney($r['salary'] ?? 0) . '</td>';
-            echo '<td>' . htmlspecialchars((string) ($r['present'] ?? '')) . '</td>';
-            echo '<td>' . htmlspecialchars((string) ($r['week_off'] ?? '')) . '</td>';
-            echo '<td>' . htmlspecialchars((string) ($r['holiday'] ?? 0)) . '</td>';
-            echo '<td>' . htmlspecialchars((string) ($r['pl'] ?? '')) . '</td>';
-            echo '<td>' . htmlspecialchars((string) ($r['sl'] ?? '')) . '</td>';
-            echo '<td>' . htmlspecialchars((string) ($r['dl'] ?? '')) . '</td>';
-            echo '<td>' . htmlspecialchars((string) ($r['total_days'] ?? '')) . '</td>';
+            echo registerExcelTd($r['present'] ?? '');
+            echo registerExcelTd($r['week_off'] ?? '');
+            echo registerExcelTd($r['holiday'] ?? 0);
+            echo registerExcelTd($r['pl'] ?? '');
+            echo registerExcelTd($r['sl'] ?? '');
+            echo registerExcelTd($r['dl'] ?? '');
+            echo registerExcelTd($r['total_days'] ?? '');
             echo '<td>' . (int) registerRoundMoney($r['gross'] ?? 0) . '</td>';
         }
         echo '<td>' . (int) registerRoundMoney($r['pf'] ?? 0) . '</td>';
@@ -146,8 +165,8 @@ foreach ($groups as $g) {
         echo '<td>' . (int) registerRoundMoney($r['arrears'] ?? 0) . '</td>';
         echo '<td>' . (int) registerRoundMoney($r['net'] ?? 0) . '</td>';
         echo registerExcelTextTd($r['account'] ?? '');
-        echo registerExcelTextTd($r['ifsc'] ?? '');
-        echo '<td>' . htmlspecialchars((string) ($r['remarks'] ?? '')) . '</td>';
+        echo registerExcelTd($r['ifsc'] ?? '');
+        echo registerExcelTd($r['remarks'] ?? '');
         echo '</tr>';
     }
     $deptSum = registerSumMoneyColumns($g['rows']);
