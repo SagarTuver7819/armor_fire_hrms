@@ -545,7 +545,7 @@ $sidebarCompanyName = function_exists('getCompanyName') ? getCompanyName() : 'Ar
                     <a href="<?php echo app_url('payroll/register.php'); ?>" class="sidebar-link sidebar-sublink <?php echo $sidebarActive === 'salary_register' ? 'active' : ''; ?>"><i class="fa-solid fa-table"></i><span>Salary Register</span></a>
                     <a href="<?php echo app_url('payroll/joining_exit.php'); ?>" class="sidebar-link sidebar-sublink <?php echo $sidebarActive === 'joining_exit_report' ? 'active' : ''; ?>"><i class="fa-solid fa-user-plus"></i><span>Joining / Exit</span></a>
                     <a href="<?php echo app_url('payroll/cost_summary.php'); ?>" class="sidebar-link sidebar-sublink <?php echo $sidebarActive === 'dept_cost_summary' ? 'active' : ''; ?>"><i class="fa-solid fa-chart-pie"></i><span>Dept Cost Summary</span></a>
-                    <a href="<?php echo app_url('payroll/neft.php'); ?>" class="sidebar-link sidebar-sublink <?php echo $sidebarActive === 'neft_sheet' ? 'active' : ''; ?>"><i class="fa-solid fa-building-columns"></i><span>NEFT Sheet</span></a>
+                    <a href="<?php echo app_url('payroll/neft.php?type=all'); ?>" class="sidebar-link sidebar-sublink <?php echo $sidebarActive === 'neft_sheet' ? 'active' : ''; ?>"><i class="fa-solid fa-building-columns"></i><span>NEFT Sheet</span></a>
                     <a href="<?php echo app_url('payroll/approvals.php'); ?>" class="sidebar-link sidebar-sublink <?php echo $sidebarActive === 'payroll_approvals' ? 'active' : ''; ?>"><i class="fa-solid fa-user-check"></i><span>Payroll Approvals</span></a>
                 </div>
             </div>
@@ -696,7 +696,7 @@ $sidebarCompanyName = function_exists('getCompanyName') ? getCompanyName() : 'Ar
                         <i class="fa-solid fa-chart-pie"></i>
                         <span>Dept Cost Summary</span>
                     </a>
-                    <a href="<?php echo app_url('payroll/neft.php?department_id=' . $sidebarDeptId); ?>"
+                    <a href="<?php echo app_url('payroll/neft.php?type=all&department_id=' . $sidebarDeptId); ?>"
                        class="sidebar-link <?php echo $sidebarActive === 'neft_sheet' ? 'active' : ''; ?>">
                         <i class="fa-solid fa-building-columns"></i>
                         <span>NEFT Sheet</span>

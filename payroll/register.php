@@ -89,6 +89,13 @@ $excelQs = http_build_query([
     'employee_id' => $employeeId,
     'view' => $view,
 ]);
+// NEFT always opens Normal + Jobwork combined
+$neftQs = http_build_query([
+    'type' => 'all',
+    'month' => $month,
+    'year' => $year,
+    'department_id' => $deptId,
+]);
 
 require_once __DIR__ . '/../includes/header.php';
 ?>
@@ -106,7 +113,7 @@ require_once __DIR__ . '/../includes/header.php';
         <?php endif; ?>
         <div class="register-toolbar-actions">
             <?php if ($isLocked): ?>
-                <a class="btn-primary" href="<?php echo app_url('payroll/neft.php?' . $excelQs); ?>">
+                <a class="btn-primary" href="<?php echo app_url('payroll/neft.php?' . $neftQs); ?>">
                     <i class="fa-solid fa-building-columns"></i> NEFT Sheet
                 </a>
             <?php endif; ?>
@@ -198,7 +205,7 @@ require_once __DIR__ . '/../includes/header.php';
             </div>
             <?php endif; ?>
             <div class="form-actions" style="margin-bottom:12px;gap:8px;">
-                <a class="btn-primary" href="<?php echo app_url('payroll/neft.php?' . $excelQs); ?>">
+                <a class="btn-primary" href="<?php echo app_url('payroll/neft.php?' . $neftQs); ?>">
                     <i class="fa-solid fa-building-columns"></i> <?php echo $approvalStatus === 'approved' ? 'Open NEFT Sheet' : 'NEFT Sheet (Draft)'; ?>
                 </a>
                 <?php if (function_exists('isAdmin') && isAdmin()): ?>

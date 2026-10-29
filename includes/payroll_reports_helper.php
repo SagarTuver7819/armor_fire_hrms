@@ -389,11 +389,20 @@ function flattenSalaryRegisterGroups(array $groups)
 /**
  * Build NEFT rows from register snapshot rows.
  */
+function neftRegisterKindLabel(array $r)
+{
+    $mode = strtolower((string) ($r['register_mode'] ?? $r['mode'] ?? ''));
+    $pay = strtolower((string) ($r['pay_type'] ?? ''));
+    if ($mode === 'jobwork_actual' || $mode === 'jobwork_govt' || $pay === 'jobwork') {
+        return 'Jobwork';
+    }
+    return 'Normal';
+}
+
 function buildNeftRowsFromRegister(array $registerRows)
 {
     $neft = [];
     $sr = 0;
-    $missingBank = 0;
     foreach ($registerRows as $r) {
         $net = round((float) ($r['net'] ?? 0), 2);
         if ($net <= 0) {
@@ -402,8 +411,8 @@ function buildNeftRowsFromRegister(array $registerRows)
         $account = trim((string) ($r['account'] ?? ''));
         if ($account === '' || $account === '-') {
             $account = '';
-            $missingBank++;
         }
+        $kind = neftRegisterKindLabel($r);
         $sr++;
         $neft[] = [
             'sr' => $sr,
@@ -420,8 +429,28 @@ function buildNeftRowsFromRegister(array $registerRows)
             'remarks' => 'Salary',
             'missing_bank' => ($account === ''),
             'pay_type' => (string) ($r['pay_type'] ?? ''),
+            'register_kind' => $kind,
+            'register_mode' => (string) ($r['register_mode'] ?? $r['mode'] ?? ''),
         ];
     }
+    // Normal first, then Jobwork — both always visible together
+    usort($neft, static function ($a, $b) {
+        $ka = ($a['register_kind'] ?? '') === 'Jobwork' ? 1 : 0;
+        $kb = ($b['register_kind'] ?? '') === 'Jobwork' ? 1 : 0;
+        if ($ka !== $kb) {
+            return $ka - $kb;
+        }
+        $d = strcasecmp((string) ($a['department'] ?? ''), (string) ($b['department'] ?? ''));
+        if ($d !== 0) {
+            return $d;
+        }
+        return strcasecmp((string) ($a['employee_name'] ?? ''), (string) ($b['employee_name'] ?? ''));
+    });
+    $sr = 0;
+    foreach ($neft as &$row) {
+        $row['sr'] = ++$sr;
+    }
+    unset($row);
     return $neft;
 }
 
@@ -824,15 +853,49 @@ function getCombinedNeftSheetData($month, $year, $deptId = 0)
         );
         // Locked snapshot wins (finalized Net / Arrears)
         $typeRows = mergeRegisterRowsByEmployee($live, $typeRows, true);
-        $registerRows = mergeRegisterRowsByEmployee($registerRows, $typeRows, false);
+        foreach ($typeRows as &$tr) {
+            $tr['register_mode'] = $type;
+            if (empty($tr['mode'])) {
+                $tr['mode'] = $type;
+            }
+        }
+        unset($tr);
+        // Append type block — do not drop Jobwork when same id unlikely; merge within type only
+        $registerRows = array_merge($registerRows, $typeRows);
     }
+
+    // Dedupe only within same register_mode (Normal vs Jobwork stay separate lists merged)
+    $deduped = [];
+    $seenKey = [];
+    foreach ($registerRows as $r) {
+        $eid = (int) ($r['employee_id'] ?? 0);
+        $mode = (string) ($r['register_mode'] ?? $r['mode'] ?? '');
+        $key = $eid > 0 ? ($mode . '#' . $eid) : ('row#' . count($deduped));
+        if (isset($seenKey[$key])) {
+            $idx = $seenKey[$key];
+            if ((float) ($r['net'] ?? 0) > (float) ($deduped[$idx]['net'] ?? 0)) {
+                $deduped[$idx] = $r;
+            }
+            continue;
+        }
+        $seenKey[$key] = count($deduped);
+        $deduped[] = $r;
+    }
+    $registerRows = $deduped;
 
     $registerRows = enrichRegisterRowsWithBankDetails($registerRows);
     $neft = buildNeftRowsFromRegister($registerRows);
     $missingBank = 0;
+    $normalCount = 0;
+    $jobworkCount = 0;
     foreach ($neft as $r) {
         if (!empty($r['missing_bank'])) {
             $missingBank++;
+        }
+        if (($r['register_kind'] ?? '') === 'Jobwork') {
+            $jobworkCount++;
+        } else {
+            $normalCount++;
         }
     }
 
@@ -869,6 +932,8 @@ function getCombinedNeftSheetData($month, $year, $deptId = 0)
         'combined' => true,
         'locks' => $locks,
         'missing_bank_count' => $missingBank,
+        'normal_count' => $normalCount,
+        'jobwork_count' => $jobworkCount,
         'register_row_count' => count($registerRows),
         'from_live' => empty($locks),
         'from_snapshot' => !empty($locks),

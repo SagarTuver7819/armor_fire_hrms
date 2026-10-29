@@ -23,16 +23,10 @@ $type = (string) ($_GET['type'] ?? 'all');
 if ($month < 1 || $month > 12) {
     $month = (int) date('n');
 }
-$types = ['all' => 'All Employees (Normal + Jobwork)'] + salaryRegisterTypes();
-if ($type !== 'all' && !isset(salaryRegisterTypes()[$type])) {
-    $type = 'all';
-}
-
-if ($type === 'all') {
-    $data = getCombinedNeftSheetData($month, $year, $deptId);
-} else {
-    $data = getNeftSheetData($month, $year, $type, $deptId);
-}
+// Always show Normal + Jobwork together on NEFT sheet
+$type = 'all';
+$types = ['all' => 'All Employees (Normal + Jobwork)'];
+$data = getCombinedNeftSheetData($month, $year, $deptId);
 $neftStatus = $data ? (string) ($data['lock']['approval_status'] ?? 'approved') : '';
 $neftFinal = in_array($neftStatus, ['approved', 'draft_live'], true);
 $monthLabel = date('F Y', mktime(0, 0, 0, $month, 1, $year));
@@ -51,6 +45,17 @@ if ($payDatePreview === '') {
 }
 $missingBankCount = (int) ($data['missing_bank_count'] ?? 0);
 $readyBankCount = $data ? max(0, count($data['rows'] ?? []) - $missingBankCount) : 0;
+$normalCount = (int) ($data['normal_count'] ?? 0);
+$jobworkCount = (int) ($data['jobwork_count'] ?? 0);
+if ($data && $normalCount === 0 && $jobworkCount === 0) {
+    foreach ($data['rows'] ?? [] as $rr) {
+        if (($rr['register_kind'] ?? '') === 'Jobwork') {
+            $jobworkCount++;
+        } else {
+            $normalCount++;
+        }
+    }
+}
 
 $pageTitle = 'NEFT Sheet';
 $useSidebar = true;
@@ -183,7 +188,9 @@ require_once __DIR__ . '/../includes/header.php';
                         ? 'Live register (not locked)'
                         : ('Locked ' . htmlspecialchars(formatDateDisplay(substr((string) ($lock['locked_at'] ?? ''), 0, 10)) . ' ' . substr((string) ($lock['locked_at'] ?? ''), 11, 5))); ?>
                 </span>
-                <span class="ops-chip"><strong><?php echo count($rows); ?> employees</strong> (Normal + Jobwork)</span>
+                <span class="ops-chip"><strong><?php echo count($rows); ?> total</strong></span>
+                <span class="ops-chip">Normal <?php echo (int) $normalCount; ?></span>
+                <span class="ops-chip">Jobwork <?php echo (int) $jobworkCount; ?></span>
                 <span class="ops-chip"><?php echo (int) $readyBankCount; ?> bank-ready</span>
                 <?php if ($missingBankCount > 0): ?>
                     <span class="ops-chip" style="color:#b45309;"><i class="fa-solid fa-triangle-exclamation"></i> <?php echo (int) $missingBankCount; ?> missing bank A/C</span>
@@ -196,6 +203,7 @@ require_once __DIR__ . '/../includes/header.php';
                     <thead>
                         <tr>
                             <th>Sr</th>
+                            <th>Type</th>
                             <th>BNF_NAME</th>
                             <th>Department</th>
                             <th>BENE_ACC_NO</th>
@@ -208,12 +216,16 @@ require_once __DIR__ . '/../includes/header.php';
                     </thead>
                     <tbody>
                     <?php if (!$rows): ?>
-                        <tr><td colspan="9" class="empty-cell">No employees with Net &gt; 0 for this month. Fill attendance / Jobwork qty in Salary Register first.</td></tr>
+                        <tr><td colspan="10" class="empty-cell">No employees with Net &gt; 0 for this month. Fill attendance / Jobwork qty in Salary Register first.</td></tr>
                     <?php else: ?>
                         <?php foreach ($rows as $r): ?>
-                            <?php $missBank = !empty($r['missing_bank']) || trim((string) ($r['account'] ?? '')) === '' || trim((string) ($r['account'] ?? '')) === '-'; ?>
+                            <?php
+                            $missBank = !empty($r['missing_bank']) || trim((string) ($r['account'] ?? '')) === '' || trim((string) ($r['account'] ?? '')) === '-';
+                            $kind = (string) ($r['register_kind'] ?? 'Normal');
+                            ?>
                             <tr<?php echo $missBank ? ' style="background:#fff7ed;"' : ''; ?>>
                                 <td><?php echo (int) $r['sr']; ?></td>
+                                <td><span class="ops-chip" style="margin:0;"><?php echo htmlspecialchars($kind); ?></span></td>
                                 <td><strong><?php echo htmlspecialchars(neftNfpsBeneName($r['employee_name'] ?? '')); ?></strong>
                                     <div class="sr-code"><?php echo htmlspecialchars($r['employee_code'] ?? ''); ?>
                                         <?php if ($missBank): ?> · <span style="color:#b45309;">No bank A/C</span><?php endif; ?>
@@ -233,7 +245,7 @@ require_once __DIR__ . '/../includes/header.php';
                     <?php if ($rows): ?>
                     <tfoot>
                         <tr>
-                            <td colspan="5"><strong>Final NEFT Total</strong></td>
+                            <td colspan="6"><strong>Final NEFT Total (Normal + Jobwork)</strong></td>
                             <td class="num"><strong><?php echo number_format($neftTotal, 2); ?></strong></td>
                             <td colspan="3"></td>
                         </tr>
