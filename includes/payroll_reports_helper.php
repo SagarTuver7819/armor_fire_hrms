@@ -593,3 +593,232 @@ function getNeftSheetData($month, $year, $type, $deptId = 0)
         }, $neft)), 2),
     ];
 }
+
+/**
+ * ICICI NFPS bank upload constants (from NFPS_FMT SALARY FOUNDARY AND OTHERS.xlsx).
+ */
+function neftNfpsSettings()
+{
+    return [
+        'pymt_prod_type_code' => 'PAB_VENDOR',
+        'pymt_mode' => 'NEFT',
+        'debit_acc_no' => '239451000033',
+        'email_id' => 'accounts@armorfire.co.in',
+    ];
+}
+
+/**
+ * Beneficiary name for bank file — letters/spaces only, uppercase.
+ */
+function neftNfpsBeneName($name)
+{
+    $name = strtoupper(trim((string) $name));
+    $name = preg_replace('/[^A-Z0-9 ]+/', ' ', $name);
+    $name = preg_replace('/\s+/', ' ', $name);
+    return substr(trim((string) $name), 0, 500);
+}
+
+/**
+ * Merge Normal Salary + Jobwork Actual NEFT rows (all employees).
+ */
+function getCombinedNeftSheetData($month, $year, $deptId = 0)
+{
+    $month = (int) $month;
+    $year = (int) $year;
+    $deptId = (int) $deptId;
+    $types = array_keys(function_exists('salaryRegisterTypes') ? salaryRegisterTypes() : ['salary' => 'Salary']);
+    if (!$types) {
+        $types = ['salary', 'jobwork_actual'];
+    }
+
+    $merged = [];
+    $seen = [];
+    $locks = [];
+    $allApproved = true;
+    $any = false;
+    $payDate = '';
+
+    foreach ($types as $type) {
+        $data = getNeftSheetData($month, $year, $type, $deptId);
+        if (!$data || empty($data['rows'])) {
+            // Still track lock presence for status
+            $resolved = function_exists('resolveSalaryRegisterLock')
+                ? resolveSalaryRegisterLock($month, $year, $type, $deptId)
+                : ['lock' => getSalaryRegisterLock($month, $year, $type, $deptId)];
+            if (!empty($resolved['lock'])) {
+                $any = true;
+                $locks[] = $resolved['lock'];
+                if (($resolved['lock']['approval_status'] ?? '') !== 'approved') {
+                    $allApproved = false;
+                }
+            }
+            continue;
+        }
+        $any = true;
+        $locks[] = $data['lock'];
+        if (($data['lock']['approval_status'] ?? '') !== 'approved') {
+            $allApproved = false;
+        }
+        $at = (string) ($data['lock']['approved_at'] ?? $data['lock']['locked_at'] ?? '');
+        if ($at !== '' && ($payDate === '' || strcmp($at, $payDate) > 0)) {
+            $payDate = $at;
+        }
+        foreach ($data['rows'] as $r) {
+            $eid = (int) ($r['employee_id'] ?? 0);
+            $key = $eid > 0 ? 'e' . $eid : 'a' . md5(($r['account'] ?? '') . '|' . ($r['employee_name'] ?? ''));
+            if (isset($seen[$key])) {
+                // Same employee in both registers — keep higher net amount
+                if ((float) ($r['amount'] ?? 0) > (float) ($merged[$seen[$key]]['amount'] ?? 0)) {
+                    $merged[$seen[$key]] = $r;
+                }
+                continue;
+            }
+            $seen[$key] = count($merged);
+            $merged[] = $r;
+        }
+    }
+
+    if (!$any) {
+        return null;
+    }
+
+    $sr = 0;
+    $rows = [];
+    foreach ($merged as $r) {
+        $r['sr'] = ++$sr;
+        $rows[] = $r;
+    }
+
+    $primary = $locks[0] ?? null;
+    return [
+        'lock' => $primary ? array_merge($primary, [
+            'approval_status' => $allApproved ? 'approved' : (string) ($primary['approval_status'] ?? 'pending_check'),
+            'approved_at' => $payDate !== '' ? $payDate : ($primary['approved_at'] ?? $primary['locked_at'] ?? null),
+        ]) : null,
+        'rows' => $rows,
+        'neft_total' => round(array_sum(array_map(static function ($r) {
+            return (float) ($r['amount'] ?? 0);
+        }, $rows)), 2),
+        'total_amount' => round(array_sum(array_map(static function ($r) {
+            return (float) ($r['amount'] ?? 0);
+        }, $rows)), 2),
+        'combined' => true,
+        'locks' => $locks,
+    ];
+}
+
+/**
+ * Build ICICI NFPS rows for Excel export.
+ *
+ * @return array{headers: string[], rows: array<int, array<int, string|float>>, total: float, pay_date: string, credit_narr: string}
+ */
+function buildNfpsNeftExport(array $neftRows, $month, $year, $payDateYmd = null)
+{
+    $cfg = neftNfpsSettings();
+    $month = (int) $month;
+    $year = (int) $year;
+    $monthName = strtoupper(date('F', mktime(0, 0, 0, $month, 1, $year)));
+    $creditNarr = substr('SALARY ' . $monthName . ' ' . $year, 0, 30);
+
+    if ($payDateYmd && preg_match('/^(\d{4})-(\d{2})-(\d{2})/', (string) $payDateYmd, $m)) {
+        $payDate = $m[3] . '-' . $m[2] . '-' . $m[1];
+    } elseif ($payDateYmd && preg_match('/^\d{2}-\d{2}-\d{4}$/', (string) $payDateYmd)) {
+        $payDate = (string) $payDateYmd;
+    } else {
+        $payDate = date('d-m-Y');
+    }
+
+    $headers = [
+        'PYMT_PROD_TYPE_CODE',
+        'PYMT_MODE',
+        'DEBIT_ACC_NO',
+        'BNF_NAME',
+        'BENE_ACC_NO',
+        'BENE_IFSC',
+        'AMOUNT',
+        'CREDIT_NARR',
+        'PYMT_DATE',
+        'MOBILE_NUM',
+        'EMAIL_ID',
+        'REMARK',
+        'REF_NO',
+    ];
+
+    $rows = [];
+    $total = 0.0;
+    foreach ($neftRows as $r) {
+        $amount = round((float) ($r['amount'] ?? 0), 2);
+        if ($amount <= 0) {
+            continue;
+        }
+        $account = preg_replace('/\s+/', '', (string) ($r['account'] ?? ''));
+        $account = preg_replace('/[^0-9]/', '', $account);
+        if ($account === '') {
+            continue;
+        }
+        $ifsc = strtoupper(preg_replace('/\s+/', '', (string) ($r['ifsc'] ?? '')));
+        $mobile = preg_replace('/\D+/', '', (string) ($r['mobile'] ?? ''));
+        if (strlen($mobile) > 10) {
+            $mobile = substr($mobile, -10);
+        }
+        if (strlen($mobile) !== 10) {
+            $mobile = '';
+        }
+
+        $total += $amount;
+        $rows[] = [
+            $cfg['pymt_prod_type_code'],
+            $cfg['pymt_mode'],
+            $cfg['debit_acc_no'],
+            neftNfpsBeneName($r['employee_name'] ?? ''),
+            $account,
+            $ifsc,
+            $amount,
+            $creditNarr,
+            $payDate,
+            $mobile,
+            $cfg['email_id'],
+            '',
+            '',
+        ];
+    }
+
+    return [
+        'headers' => $headers,
+        'rows' => $rows,
+        'total' => round($total, 2),
+        'pay_date' => $payDate,
+        'credit_narr' => $creditNarr,
+    ];
+}
+
+/**
+ * Enrich NEFT rows with mobile from employee master (for NFPS MOBILE_NUM).
+ */
+function enrichNeftRowsWithEmployeeContact(array $neftRows)
+{
+    foreach ($neftRows as &$r) {
+        if (!empty($r['mobile'])) {
+            continue;
+        }
+        $eid = (int) ($r['employee_id'] ?? 0);
+        if ($eid <= 0 || !function_exists('getEmployeeById')) {
+            continue;
+        }
+        $emp = getEmployeeById($eid);
+        if ($emp) {
+            $r['mobile'] = (string) ($emp['mobile_number'] ?? $emp['office_mobile'] ?? '');
+            if (empty($r['account']) || $r['account'] === '-') {
+                $r['account'] = (string) ($emp['bank_account_number'] ?? '');
+            }
+            if (empty($r['ifsc']) || $r['ifsc'] === '-') {
+                $r['ifsc'] = (string) ($emp['ifsc_code'] ?? '');
+            }
+            if (empty($r['employee_name'])) {
+                $r['employee_name'] = (string) ($emp['employee_name'] ?? '');
+            }
+        }
+    }
+    unset($r);
+    return $neftRows;
+}

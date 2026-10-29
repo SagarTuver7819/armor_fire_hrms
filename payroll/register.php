@@ -31,37 +31,20 @@ if (!isset(salaryRegisterTypes()[$type])) {
     $type = 'salary';
 }
 
-$lockResolved = resolveSalaryRegisterLock($month, $year, $type, $deptId);
-$lock = $lockResolved['lock'];
+$lock = getSalaryRegisterLock($month, $year, $type, $deptId);
 $isLocked = $lock !== null;
-$lockFromAllDepts = !empty($lockResolved['from_all_departments']);
+// Arrears always editable on every department — value adds to Net
+$canEditArrears = true;
 $approvalStatus = $isLocked ? (string) ($lock['approval_status'] ?? 'approved') : '';
 $approvalLabels = payrollApprovalStatusLabels();
 $myApprovalAction = $isLocked ? payrollApprovalPendingActionFor($lock) : '';
-$approvalLogDept = $lockFromAllDepts ? 0 : $deptId;
-$approvalLog = fetchPayrollApprovalLog($month, $year, $type, $approvalLogDept);
+$approvalLog = fetchPayrollApprovalLog($month, $year, $type, $deptId);
 
 $department = $deptId > 0 ? getDepartmentById($deptId) : null;
 $monthDays = (int) date('t', strtotime(sprintf('%04d-%02d-01', $year, $month)));
 
-if ($isLocked) {
-    $snap = json_decode((string) ($lock['snapshot_json'] ?? ''), true);
-    $groups = (is_array($snap) && !empty($snap['groups'])) ? $snap['groups'] : [];
-    // All-departments lock opened on one department → show only that department
-    if ($deptId > 0 && $lockFromAllDepts) {
-        $groups = filterSalaryRegisterGroupsByDepartment($groups, $deptId);
-    }
-    if ($employeeId > 0) {
-        foreach ($groups as &$g) {
-            $g['rows'] = array_values(array_filter($g['rows'] ?? [], static function ($r) use ($employeeId) {
-                return (int) ($r['employee_id'] ?? 0) === $employeeId;
-            }));
-        }
-        unset($g);
-    }
-} else {
-    $groups = getSalaryRegisterData($type, $month, $year, $deptId, $employeeId);
-}
+// Always live data so Arrears from diary show correctly (Net = Gross − Ded + Arrears)
+$groups = getSalaryRegisterData($type, $month, $year, $deptId, $employeeId);
 
 if ($view === 'employee' && $type !== 'contractor_main') {
     $flat = [];
@@ -219,12 +202,12 @@ require_once __DIR__ . '/../includes/header.php';
                     <i class="fa-solid fa-building-columns"></i> <?php echo $approvalStatus === 'approved' ? 'Open NEFT Sheet' : 'NEFT Sheet (Draft)'; ?>
                 </a>
                 <?php if (function_exists('isAdmin') && isAdmin()): ?>
-                    <form method="POST" action="<?php echo app_url('payroll/register_lock.php'); ?>" style="display:inline;" onsubmit="return confirm('Unlock this finalized register? Arrears can then be edited for all departments.');">
+                    <form method="POST" action="<?php echo app_url('payroll/register_lock.php'); ?>" style="display:inline;" onsubmit="return confirm('Unlock this finalized register?');">
                         <input type="hidden" name="action" value="unlock">
                         <input type="hidden" name="type" value="<?php echo htmlspecialchars($type); ?>">
                         <input type="hidden" name="month" value="<?php echo $month; ?>">
                         <input type="hidden" name="year" value="<?php echo $year; ?>">
-                        <input type="hidden" name="department_id" value="<?php echo (int) ($lockResolved['scope_dept_id'] ?? $deptId); ?>">
+                        <input type="hidden" name="department_id" value="<?php echo $deptId; ?>">
                         <button type="submit" class="btn-secondary"><i class="fa-solid fa-lock-open"></i> Unlock (Admin)</button>
                     </form>
                 <?php endif; ?>
@@ -339,11 +322,7 @@ require_once __DIR__ . '/../includes/header.php';
         <?php else: ?>
             <p class="form-hint">Normal <strong>Fixed Salary</strong>: Gross = Decided Salary × (Present + Week Off + Holiday + P.L. + S.L. + D.L.) ÷ month days — same totals as <strong>Attendance Report</strong> (employee week-off day for this month).</p>
         <?php endif; ?>
-        <?php if (!$isLocked): ?>
-            <p class="form-hint"><i class="fa-solid fa-pen-to-square" style="color:#d2232a;"></i> <strong>Arrears</strong> every department ma enter kari shako (Department filter change kari ne). Net = Gross − Deduction + Arrears. Lock karva pehla badha departments ni arrears save kari lo.</p>
-        <?php elseif ($lockFromAllDepts && $deptId > 0): ?>
-            <p class="form-hint"><i class="fa-solid fa-lock" style="color:#b45309;"></i> All departments mate register locked chhe — <strong>Arrears</strong> edit bandh. Edit mate Admin Unlock karo, pachi badha departments ma Arrears enter kari ne farithi Lock karo.</p>
-        <?php endif; ?>
+        <p class="form-hint"><i class="fa-solid fa-pen-to-square" style="color:#d2232a;"></i> <strong>Arrears</strong> badha departments ma enter kari shako — value <strong>Net</strong> ma add thase (Net = Gross − Deduction + Arrears).</p>
     </div>
 
     <?php foreach ($groups as $g): ?>
@@ -458,7 +437,7 @@ require_once __DIR__ . '/../includes/header.php';
                             }
                             ?>
                             <td class="num sr-arrears-cell">
-                                <?php if (!$isLocked): ?>
+                                <?php if ($canEditArrears): ?>
                                 <input type="number"
                                        class="sr-arrears-input"
                                        step="0.01"
@@ -498,7 +477,7 @@ require_once __DIR__ . '/../includes/header.php';
         </div>
     <?php endforeach; ?>
 </main>
-<?php if (!$isLocked): ?>
+<?php if ($canEditArrears): ?>
 <script>
 (function () {
     var saveUrl = <?php echo json_encode(app_url('payroll/register_arrears_save.php')); ?>;

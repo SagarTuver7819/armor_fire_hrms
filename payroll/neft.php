@@ -19,20 +19,36 @@ requirePayrollRegisterAccess($deptId);
 ensurePayrollApprovalTables();
 $month = (int) ($_GET['month'] ?? date('n'));
 $year = (int) ($_GET['year'] ?? date('Y'));
-$type = (string) ($_GET['type'] ?? 'salary');
+$type = (string) ($_GET['type'] ?? 'all');
 if ($month < 1 || $month > 12) {
     $month = (int) date('n');
 }
-if (!isset(salaryRegisterTypes()[$type])) {
-    $type = 'salary';
+$types = ['all' => 'All Employees (Normal + Jobwork)'] + salaryRegisterTypes();
+if ($type !== 'all' && !isset(salaryRegisterTypes()[$type])) {
+    $type = 'all';
 }
 
-$data = getNeftSheetData($month, $year, $type, $deptId);
+if ($type === 'all') {
+    $data = getCombinedNeftSheetData($month, $year, $deptId);
+} else {
+    $data = getNeftSheetData($month, $year, $type, $deptId);
+}
 $neftStatus = $data ? (string) ($data['lock']['approval_status'] ?? 'approved') : '';
 $neftFinal = $neftStatus === 'approved';
 $monthLabel = date('F Y', mktime(0, 0, 0, $month, 1, $year));
 $companyName = function_exists('getCompanyName') ? getCompanyName() : 'Company';
-$types = salaryRegisterTypes();
+$nfpsCfg = neftNfpsSettings();
+$creditNarrPreview = 'SALARY ' . strtoupper(date('F', mktime(0, 0, 0, $month, 1, $year))) . ' ' . $year;
+$payDatePreview = '';
+if ($data && !empty($data['lock'])) {
+    $payRaw = (string) ($data['lock']['approved_at'] ?? $data['lock']['locked_at'] ?? '');
+    if (preg_match('/^(\d{4})-(\d{2})-(\d{2})/', $payRaw, $pm)) {
+        $payDatePreview = $pm[3] . '-' . $pm[2] . '-' . $pm[1];
+    }
+}
+if ($payDatePreview === '') {
+    $payDatePreview = date('d-m-Y');
+}
 
 $pageTitle = 'NEFT Sheet';
 $useSidebar = true;
@@ -63,7 +79,7 @@ require_once __DIR__ . '/../includes/header.php';
         <div class="toolbar-actions">
             <?php if ($data && $neftFinal): ?>
                 <a class="btn-secondary" href="<?php echo app_url('payroll/neft_excel.php?' . $qs); ?>">
-                    <i class="fa-solid fa-file-excel"></i> Excel
+                    <i class="fa-solid fa-file-excel"></i> NFPS Excel (Bank Upload)
                 </a>
                 <a class="btn-primary" href="<?php echo app_url('payroll/neft_print.php?' . $qs); ?>" target="_blank">
                     <i class="fa-solid fa-print"></i> Print
@@ -82,9 +98,20 @@ require_once __DIR__ . '/../includes/header.php';
         <div class="form-page-header">
             <div>
                 <h1>NEFT / Bank Transfer Sheet</h1>
-                <p><?php echo htmlspecialchars($companyName); ?> · <?php echo htmlspecialchars($monthLabel); ?></p>
+                <p><?php echo htmlspecialchars($companyName); ?> · <?php echo htmlspecialchars($monthLabel); ?> · NFPS bank format</p>
             </div>
         </div>
+
+        <p class="form-hint" style="margin-bottom:12px;">
+            Excel format: <strong>PYMT_PROD_TYPE_CODE / PYMT_MODE / DEBIT_ACC_NO</strong> fixed
+            (<code><?php echo htmlspecialchars($nfpsCfg['pymt_prod_type_code']); ?></code>,
+            <code><?php echo htmlspecialchars($nfpsCfg['pymt_mode']); ?></code>,
+            <code><?php echo htmlspecialchars($nfpsCfg['debit_acc_no']); ?></code>).
+            Name + Account + IFSC + Amount = Salary Register Net (incl. Arrears).
+            Credit Narration = <code><?php echo htmlspecialchars($creditNarrPreview); ?></code>.
+            Payment Date = NEFT final date (<code><?php echo htmlspecialchars($payDatePreview); ?></code>).
+            Email = <code><?php echo htmlspecialchars($nfpsCfg['email_id']); ?></code>.
+        </p>
 
         <form method="GET" class="employee-form">
             <div class="form-grid form-grid-3">
@@ -158,31 +185,33 @@ require_once __DIR__ . '/../includes/header.php';
                     <thead>
                         <tr>
                             <th>Sr</th>
-                            <th>Code</th>
-                            <th>Beneficiary Name</th>
+                            <th>BNF_NAME</th>
                             <th>Department</th>
-                            <th>Bank</th>
-                            <th>Account No.</th>
-                            <th>IFSC</th>
-                            <th class="num">Amount (₹)</th>
-                            <th>Remarks</th>
+                            <th>BENE_ACC_NO</th>
+                            <th>BENE_IFSC</th>
+                            <th class="num">AMOUNT</th>
+                            <th>CREDIT_NARR</th>
+                            <th>PYMT_DATE</th>
+                            <th>EMAIL_ID</th>
                         </tr>
                     </thead>
                     <tbody>
                     <?php if (!$rows): ?>
-                        <tr><td colspan="9" class="empty-cell">No bank accounts found for NEFT (net &gt; 0 with account number).</td></tr>
+                        <tr><td colspan="9" class="empty-cell">No bank accounts found for NEFT (net &gt; 0 with account number). Lock Normal + Jobwork registers first.</td></tr>
                     <?php else: ?>
                         <?php foreach ($rows as $r): ?>
                             <tr>
                                 <td><?php echo (int) $r['sr']; ?></td>
-                                <td><span class="code-badge"><?php echo htmlspecialchars($r['employee_code']); ?></span></td>
-                                <td><strong><?php echo htmlspecialchars($r['employee_name']); ?></strong></td>
+                                <td><strong><?php echo htmlspecialchars(neftNfpsBeneName($r['employee_name'] ?? '')); ?></strong>
+                                    <div class="sr-code"><?php echo htmlspecialchars($r['employee_code'] ?? ''); ?></div>
+                                </td>
                                 <td><?php echo htmlspecialchars($r['department'] ?: '-'); ?></td>
-                                <td><?php echo htmlspecialchars($r['bank_name'] ?: '-'); ?></td>
                                 <td><?php echo htmlspecialchars($r['account']); ?></td>
                                 <td><?php echo htmlspecialchars($r['ifsc'] ?: '-'); ?></td>
                                 <td class="num"><strong><?php echo number_format((float) $r['amount'], 2); ?></strong></td>
-                                <td><?php echo htmlspecialchars($r['remarks'] ?? 'Salary'); ?></td>
+                                <td><?php echo htmlspecialchars($creditNarrPreview); ?></td>
+                                <td><?php echo htmlspecialchars($payDatePreview); ?></td>
+                                <td><?php echo htmlspecialchars($nfpsCfg['email_id']); ?></td>
                             </tr>
                         <?php endforeach; ?>
                     <?php endif; ?>
@@ -190,9 +219,9 @@ require_once __DIR__ . '/../includes/header.php';
                     <?php if ($rows): ?>
                     <tfoot>
                         <tr>
-                            <td colspan="7"><strong>Total NEFT Amount</strong></td>
+                            <td colspan="5"><strong>Final NEFT Total</strong></td>
                             <td class="num"><strong><?php echo number_format($neftTotal, 2); ?></strong></td>
-                            <td></td>
+                            <td colspan="3"></td>
                         </tr>
                     </tfoot>
                     <?php endif; ?>
