@@ -138,7 +138,7 @@ require_once __DIR__ . '/../includes/header.php';
                     <li>Fill <code>department</code> with exact master name</li>
                 <?php endif; ?>
                 <li>Dates must be <strong>DD-MM-YYYY</strong> (example: 08-09-2026)</li>
-                <li>Leave <code>employee_code</code> blank to auto-generate (AS… / JW…)</li>
+                <li>Leave <code>employee_code</code> blank to auto-generate (AS… / CO…)</li>
                 <li>Upload .xlsx / .xls / .csv and submit</li>
             </ol>
         </div>
@@ -176,7 +176,7 @@ require_once __DIR__ . '/../includes/header.php';
                     <h3>Rules</h3>
                     <ul style="margin:0;padding-left:18px;line-height:1.7;">
                         <li>Duplicate employee code → skipped</li>
-                        <li>Blank code → next AS / JW code generated</li>
+                        <li>Blank code → next AS (Normal) / CO (Jobwork) code generated</li>
                         <?php if ($department): ?>
                             <li>Every row is saved under <strong><?php echo htmlspecialchars($department['department_name']); ?></strong></li>
                         <?php else: ?>

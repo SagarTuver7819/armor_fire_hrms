@@ -287,7 +287,12 @@ function contractorDisplayName(array $row)
 
 function contractorJobworkWhere()
 {
-    return "e.status = 1 AND e.pay_type = 'Jobwork'";
+    // Jobwork pay_type OR CO… / JW… employee codes (all department jobwork workers)
+    return "e.status = 1 AND (
+        e.pay_type = 'Jobwork'
+        OR UPPER(TRIM(e.employee_code)) LIKE 'CO%'
+        OR UPPER(TRIM(e.employee_code)) LIKE 'JW%'
+    )";
 }
 
 function getContractorEmployeeById($id)
@@ -301,7 +306,11 @@ function getContractorEmployeeById($id)
     $stmt = $conn->prepare("SELECT e.*, d.department_name
         FROM employees e
         LEFT JOIN departments d ON d.id = e.department_id
-        WHERE e.id = ? AND e.status = 1 AND e.pay_type = 'Jobwork'
+        WHERE e.id = ? AND e.status = 1 AND (
+            e.pay_type = 'Jobwork'
+            OR UPPER(TRIM(e.employee_code)) LIKE 'CO%'
+            OR UPPER(TRIM(e.employee_code)) LIKE 'JW%'
+        )
         LIMIT 1");
     $stmt->bind_param('i', $id);
     $stmt->execute();

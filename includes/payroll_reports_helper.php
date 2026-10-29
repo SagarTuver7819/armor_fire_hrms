@@ -401,9 +401,21 @@ function neftRegisterKindLabel(array $r)
 
 function buildNeftRowsFromRegister(array $registerRows)
 {
+    if (is_file(__DIR__ . '/contractor_split_helper.php')) {
+        require_once __DIR__ . '/contractor_split_helper.php';
+    }
+    $skipMainIds = function_exists('contractorAttendanceSplitMainIds')
+        ? contractorAttendanceSplitMainIds()
+        : [];
+
     $neft = [];
     $sr = 0;
     foreach ($registerRows as $r) {
+        $eid = (int) ($r['employee_id'] ?? 0);
+        // Puran Singh (attendance-split Contractor Main) — pool already on Melting 1 workers
+        if ($eid > 0 && isset($skipMainIds[$eid])) {
+            continue;
+        }
         $net = round((float) ($r['net'] ?? 0), 2);
         if ($net <= 0) {
             continue;
@@ -416,7 +428,7 @@ function buildNeftRowsFromRegister(array $registerRows)
         $sr++;
         $neft[] = [
             'sr' => $sr,
-            'employee_id' => (int) ($r['employee_id'] ?? 0),
+            'employee_id' => $eid,
             'employee_code' => (string) ($r['employee_code'] ?? ''),
             'employee_name' => (string) ($r['employee_name'] ?? ''),
             'department' => (string) ($r['department'] ?? ''),
@@ -431,6 +443,7 @@ function buildNeftRowsFromRegister(array $registerRows)
             'pay_type' => (string) ($r['pay_type'] ?? ''),
             'register_kind' => $kind,
             'register_mode' => (string) ($r['register_mode'] ?? $r['mode'] ?? ''),
+            'contractor_main_share' => (float) ($r['contractor_main_share'] ?? 0),
         ];
     }
     // Normal first, then Jobwork — both always visible together

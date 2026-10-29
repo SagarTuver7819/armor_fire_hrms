@@ -1055,23 +1055,25 @@ function employeeCodePrefix($payType = 'Salary')
 {
     $payType = normalizePayType($payType);
     if ($payType === 'Jobwork') {
-        return 'JW';
+        // Armor Jobwork / contractor workers use CO… (legacy JW… still accepted)
+        return 'CO';
     }
     if ($payType === 'ContractorMain') {
         return 'CM';
     }
+    // Normal fixed-salary staff
     return 'AS';
 }
 
 /**
- * Generate next unique employee code: AS76007 / JW0001 / CM0001
+ * Generate next unique employee code: AS0001 / CO0001 / CM0001
  */
 function generateEmployeeCode($conn, $payType = 'Salary')
 {
     $payType = normalizePayType($payType);
     $prefix = employeeCodePrefix($payType);
     $max = 0;
-    $pad = 4;
+    $pad = ($prefix === 'CO') ? 5 : 4;
     $like = $conn->real_escape_string($prefix) . '%';
     $result = $conn->query("SELECT employee_code FROM employees WHERE UPPER(employee_code) LIKE '{$like}'");
     if ($result) {
@@ -1083,6 +1085,19 @@ function generateEmployeeCode($conn, $payType = 'Salary')
             }
         }
         $result->free();
+    }
+    // Also scan legacy JW… numbers so new CO codes stay unique / sequential
+    if ($prefix === 'CO') {
+        $jwRes = $conn->query("SELECT employee_code FROM employees WHERE UPPER(employee_code) LIKE 'JW%'");
+        if ($jwRes) {
+            while ($row = $jwRes->fetch_assoc()) {
+                $code = strtoupper(trim((string) $row['employee_code']));
+                if (preg_match('/^JW(\d+)$/', $code, $m)) {
+                    $max = max($max, (int) $m[1]);
+                }
+            }
+            $jwRes->free();
+        }
     }
 
     for ($attempt = 0; $attempt < 1000; $attempt++) {

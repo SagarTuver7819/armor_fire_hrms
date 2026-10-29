@@ -7,6 +7,7 @@ require_once __DIR__ . '/payroll_helper.php';
 require_once __DIR__ . '/employee_helper.php';
 require_once __DIR__ . '/contractor_helper.php';
 require_once __DIR__ . '/attendance_helper.php';
+require_once __DIR__ . '/contractor_split_helper.php';
 
 function salaryRegisterTypes()
 {
@@ -71,7 +72,7 @@ function buildSalaryRegisterRow(array $emp, $month, $year, $mode)
         }
     }
 
-    return [
+    $row = [
         'employee_id' => (int) $emp['id'],
         'pay_type' => $payType,
         'department' => (string) ($emp['department_name'] ?? ''),
@@ -114,7 +115,34 @@ function buildSalaryRegisterRow(array $emp, $month, $year, $mode)
         'eligible_days' => (float) ($att['working'] ?? 0),
         'emp_from' => $att['emp_from'] ?? null,
         'emp_to' => $att['emp_to'] ?? null,
+        'contractor_main_share' => 0.0,
     ];
+
+    // Melting 1 + Puran Singh only — other departments never enter this path
+    if ($mode === 'salary' && function_exists('applyContractorAttendanceShareToRegisterRow')) {
+        $row = applyContractorAttendanceShareToRegisterRow($row, $month, $year);
+    }
+
+    return $row;
+}
+
+function salaryRegisterEmploymentWhereSql()
+{
+    return "(
+                e.status = 1
+                OR (
+                    e.date_of_exit IS NOT NULL
+                    AND e.date_of_exit != ''
+                    AND e.date_of_exit != '0000-00-00'
+                    AND e.date_of_exit >= ?
+                )
+            )
+            AND (
+                e.date_of_joining IS NULL
+                OR e.date_of_joining = ''
+                OR e.date_of_joining = '0000-00-00'
+                OR e.date_of_joining <= ?
+            )";
 }
 
 function fetchSalaryRegisterEmployees($deptId, $employeeId, $payTypes, $month = 0, $year = 0)
@@ -136,21 +164,7 @@ function fetchSalaryRegisterEmployees($deptId, $employeeId, $payTypes, $month = 
     $sql = "SELECT e.*, d.department_name
             FROM employees e
             LEFT JOIN departments d ON d.id = e.department_id
-            WHERE (
-                e.status = 1
-                OR (
-                    e.date_of_exit IS NOT NULL
-                    AND e.date_of_exit != ''
-                    AND e.date_of_exit != '0000-00-00'
-                    AND e.date_of_exit >= ?
-                )
-            )
-            AND (
-                e.date_of_joining IS NULL
-                OR e.date_of_joining = ''
-                OR e.date_of_joining = '0000-00-00'
-                OR e.date_of_joining <= ?
-            )";
+            WHERE " . salaryRegisterEmploymentWhereSql();
     $types = 'ss';
     $params = [$monthStart, $monthEnd];
     if ($payTypes) {
@@ -178,6 +192,192 @@ function fetchSalaryRegisterEmployees($deptId, $employeeId, $payTypes, $month = 
     $rows = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
     $stmt->close();
     $conn->close();
+    return $rows;
+}
+
+/**
+ * Normal (fixed salary) staff for register / NEFT — AS… codes + Salary pay_type.
+ * CO… / JW… Jobwork workers are excluded (they belong on Jobwork register).
+ */
+function fetchNormalRegisterEmployees($deptId, $employeeId, $month = 0, $year = 0)
+{
+    $conn = getDBConnection();
+    ensureEmployeesTable($conn);
+    $month = (int) $month;
+    $year = (int) $year;
+    if ($month < 1 || $month > 12) {
+        $month = (int) date('n');
+    }
+    if ($year < 2000) {
+        $year = (int) date('Y');
+    }
+    $monthStart = sprintf('%04d-%02d-01', $year, $month);
+    $monthEnd = date('Y-m-t', strtotime($monthStart));
+
+    $sql = "SELECT e.*, d.department_name
+            FROM employees e
+            LEFT JOIN departments d ON d.id = e.department_id
+            WHERE " . salaryRegisterEmploymentWhereSql() . "
+            AND e.pay_type = 'Salary'
+            AND UPPER(TRIM(e.employee_code)) NOT LIKE 'CO%'
+            AND UPPER(TRIM(e.employee_code)) NOT LIKE 'JW%'";
+    $types = 'ss';
+    $params = [$monthStart, $monthEnd];
+    if ($deptId > 0) {
+        $sql .= " AND e.department_id = ?";
+        $types .= 'i';
+        $params[] = $deptId;
+    }
+    if ($employeeId > 0) {
+        $sql .= " AND e.id = ?";
+        $types .= 'i';
+        $params[] = $employeeId;
+    }
+    $sql .= " ORDER BY d.department_name ASC, e.employee_code ASC, e.employee_name ASC";
+    $stmt = $conn->prepare($sql);
+    $stmt->bind_param($types, ...$params);
+    $stmt->execute();
+    $rows = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+    $stmt->close();
+    $conn->close();
+    return $rows;
+}
+
+/**
+ * All Jobwork people for register / NEFT:
+ * - pay_type = Jobwork
+ * - OR employee_code CO… / JW… (contractor jobwork codes)
+ * - OR anyone with Ops Rate List / jobwork entries this month (department-wise)
+ */
+function fetchJobworkRegisterEmployees($deptId, $employeeId, $month = 0, $year = 0)
+{
+    $conn = getDBConnection();
+    ensureEmployeesTable($conn);
+    if (is_file(__DIR__ . '/contractor_helper.php')) {
+        require_once __DIR__ . '/contractor_helper.php';
+        ensureContractorTables($conn);
+    }
+    ensurePayrollTables($conn);
+
+    $month = (int) $month;
+    $year = (int) $year;
+    if ($month < 1 || $month > 12) {
+        $month = (int) date('n');
+    }
+    if ($year < 2000) {
+        $year = (int) date('Y');
+    }
+    $monthStart = sprintf('%04d-%02d-01', $year, $month);
+    $monthEnd = date('Y-m-t', strtotime($monthStart));
+
+    $opsIds = [];
+    $resOps = $conn->query(
+        "SELECT DISTINCT employee_id FROM contractor_operation_sheets
+         WHERE month_no = {$month} AND year_no = {$year} AND status = 1 AND employee_id > 0"
+    );
+    if ($resOps) {
+        while ($row = $resOps->fetch_assoc()) {
+            $opsIds[(int) $row['employee_id']] = true;
+        }
+        $resOps->free();
+    }
+    $fromEsc = $conn->real_escape_string($monthStart);
+    $toEsc = $conn->real_escape_string($monthEnd);
+    $resJw = $conn->query(
+        "SELECT DISTINCT employee_id FROM jobwork_entries
+         WHERE work_date BETWEEN '{$fromEsc}' AND '{$toEsc}' AND employee_id > 0"
+    );
+    if ($resJw) {
+        while ($row = $resJw->fetch_assoc()) {
+            $opsIds[(int) $row['employee_id']] = true;
+        }
+        $resJw->free();
+    }
+
+    $sql = "SELECT e.*, d.department_name
+            FROM employees e
+            LEFT JOIN departments d ON d.id = e.department_id
+            WHERE " . salaryRegisterEmploymentWhereSql() . "
+            AND (
+                e.pay_type = 'Jobwork'
+                OR UPPER(TRIM(e.employee_code)) LIKE 'CO%'
+                OR UPPER(TRIM(e.employee_code)) LIKE 'JW%'
+            )";
+    $types = 'ss';
+    $params = [$monthStart, $monthEnd];
+
+    if ($deptId > 0) {
+        $sql .= " AND e.department_id = ?";
+        $types .= 'i';
+        $params[] = $deptId;
+    }
+    if ($employeeId > 0) {
+        $sql .= " AND e.id = ?";
+        $types .= 'i';
+        $params[] = $employeeId;
+    }
+    $sql .= " ORDER BY d.department_name ASC, e.employee_code ASC, e.employee_name ASC";
+    $stmt = $conn->prepare($sql);
+    $stmt->bind_param($types, ...$params);
+    $stmt->execute();
+    $rows = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+    $stmt->close();
+
+    // Add ops / jobwork-entry people this month even if pay_type/code was wrong
+    $have = [];
+    foreach ($rows as $r) {
+        $have[(int) $r['id']] = true;
+    }
+    $missing = [];
+    foreach (array_keys($opsIds) as $oid) {
+        if ($oid > 0 && empty($have[$oid])) {
+            $missing[] = $oid;
+        }
+    }
+    if ($missing) {
+        $idList = implode(',', array_map('intval', $missing));
+        $extraSql = "SELECT e.*, d.department_name
+                     FROM employees e
+                     LEFT JOIN departments d ON d.id = e.department_id
+                     WHERE e.id IN ($idList)
+                     AND " . salaryRegisterEmploymentWhereSql();
+        $extraTypes = 'ss';
+        $extraParams = [$monthStart, $monthEnd];
+        if ($deptId > 0) {
+            $extraSql .= " AND e.department_id = ?";
+            $extraTypes .= 'i';
+            $extraParams[] = $deptId;
+        }
+        if ($employeeId > 0) {
+            $extraSql .= " AND e.id = ?";
+            $extraTypes .= 'i';
+            $extraParams[] = $employeeId;
+        }
+        $extraSql .= " ORDER BY d.department_name ASC, e.employee_code ASC";
+        $stmt2 = $conn->prepare($extraSql);
+        $stmt2->bind_param($extraTypes, ...$extraParams);
+        $stmt2->execute();
+        $extra = $stmt2->get_result()->fetch_all(MYSQLI_ASSOC);
+        $stmt2->close();
+        foreach ($extra as $r) {
+            $rows[] = $r;
+        }
+    }
+
+    $conn->close();
+
+    usort($rows, static function ($a, $b) {
+        $d = strcasecmp((string) ($a['department_name'] ?? ''), (string) ($b['department_name'] ?? ''));
+        if ($d !== 0) {
+            return $d;
+        }
+        $c = strcasecmp((string) ($a['employee_code'] ?? ''), (string) ($b['employee_code'] ?? ''));
+        if ($c !== 0) {
+            return $c;
+        }
+        return strcasecmp((string) ($a['employee_name'] ?? ''), (string) ($b['employee_name'] ?? ''));
+    });
+
     return $rows;
 }
 
@@ -290,17 +490,18 @@ function getSalaryRegisterData($type, $month, $year, $deptId = 0, $employeeId = 
     }
 
     if ($type === 'salary') {
-        $emps = fetchSalaryRegisterEmployees($deptId, $employeeId, ['Salary'], $month, $year);
+        // Normal = Salary pay_type + AS… codes (exclude CO/JW which belong on Jobwork)
+        $emps = fetchNormalRegisterEmployees($deptId, $employeeId, $month, $year);
         $mode = 'salary';
         $title = 'Salaried Person (Fixed)';
-        $subtitle = 'Attendance-wise fixed salary';
+        $subtitle = 'Attendance-wise fixed salary · AS codes';
         $payFilter = 'Salary';
     } else {
-        // Default / jobwork_actual (Jobwork Government & Contractor Main removed from UI)
-        $emps = fetchSalaryRegisterEmployees($deptId, $employeeId, ['Jobwork'], $month, $year);
+        // Jobwork = Jobwork pay_type + CO…/JW… codes + anyone with Ops qty this month
+        $emps = fetchJobworkRegisterEmployees($deptId, $employeeId, $month, $year);
         $mode = 'jobwork_actual';
         $title = 'Jobwork — Regular / Actual';
-        $subtitle = 'Qty × Rate (contract base, no day split)';
+        $subtitle = 'Qty × Rate · all CO / Jobwork employees by department';
         $payFilter = 'Jobwork';
     }
 

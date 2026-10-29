@@ -411,6 +411,9 @@ require_once __DIR__ . '/../includes/header.php';
                                 <?php if ($r['main_contractor']): ?>
                                     <div class="sr-code">Under: <?php echo htmlspecialchars($r['main_contractor']); ?></div>
                                 <?php endif; ?>
+                                <?php if (!empty($r['contractor_main_share']) && (float) $r['contractor_main_share'] > 0): ?>
+                                    <div class="sr-code" style="color:#047857;">+ Contractor share ₹ <?php echo registerNum($r['contractor_main_share']); ?></div>
+                                <?php endif; ?>
                             </td>
                             <td><?php echo htmlspecialchars($r['designation']); ?></td>
                             <td><?php echo htmlspecialchars($r['doj']); ?></td>
