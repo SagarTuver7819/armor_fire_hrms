@@ -332,19 +332,19 @@ require_once __DIR__ . '/../includes/header.php';
         <p class="form-hint"><i class="fa-solid fa-pen-to-square" style="color:#d2232a;"></i> <strong>Arrears</strong> badha departments ma enter kari shako — value <strong>Net</strong> ma add thase (Net = Gross − Deduction + Arrears).</p>
     </div>
 
+    <?php
+    $grandRows = [];
+    foreach ($groups as $g) {
+        foreach ($g['rows'] as $gr) {
+            $grandRows[] = $gr;
+        }
+    }
+    $grandSum = registerSumMoneyColumns($grandRows);
+    ?>
     <?php foreach ($groups as $g): ?>
         <?php
         $rows = $g['rows'];
-        $sumGross = 0;
-        $sumNet = 0;
-        $sumActual = 0;
-        $sumArrears = 0;
-        foreach ($rows as $r) {
-            $sumGross += (float) $r['gross'];
-            $sumNet += (float) $r['net'];
-            $sumActual += (float) $r['actual'];
-            $sumArrears += (float) ($r['arrears'] ?? 0);
-        }
+        $deptSum = registerSumMoneyColumns($rows);
         ?>
         <div class="salary-register-sheet">
             <div class="salary-register-banner">
@@ -427,10 +427,10 @@ require_once __DIR__ . '/../includes/header.php';
                             <td><?php echo htmlspecialchars($r['uan'] ?: '-'); ?></td>
                             <?php if ($isActual): ?>
                                 <td class="num"><?php echo registerNum($r['qty'], 2); ?></td>
-                                <td class="num"><?php echo registerNum($r['actual']); ?></td>
-                                <td class="num"><?php echo registerNum($r['gross']); ?></td>
+                                <td class="num"><?php echo registerNum($r['actual'], 0); ?></td>
+                                <td class="num"><?php echo registerNum($r['gross'], 0); ?></td>
                             <?php else: ?>
-                                <td class="num"><?php echo registerNum($r['salary']); ?></td>
+                                <td class="num"><?php echo registerNum($r['salary'], 0); ?></td>
                                 <td class="num"><?php echo registerNum($r['present'], 1); ?></td>
                                 <td class="num"><?php echo registerNum($r['week_off'], 1); ?></td>
                                 <td class="num"><?php echo registerNum($r['holiday'] ?? 0, 1); ?></td>
@@ -438,38 +438,35 @@ require_once __DIR__ . '/../includes/header.php';
                                 <td class="num"><?php echo registerNum($r['sl'], 1); ?></td>
                                 <td class="num"><?php echo registerNum($r['dl'], 1); ?></td>
                                 <td class="num"><?php echo registerNum($r['total_days'], 1); ?></td>
-                                <td class="num"><?php echo registerNum($r['gross']); ?></td>
+                                <td class="num"><?php echo registerNum($r['gross'], 0); ?></td>
                             <?php endif; ?>
-                            <td class="num"><?php echo registerNum($r['pf']); ?></td>
-                            <td class="num"><?php echo registerNum($r['pt']); ?></td>
-                            <td class="num"><?php echo registerNum($r['loan']); ?></td>
-                            <td class="num"><?php echo registerNum($r['advance']); ?></td>
-                            <td class="num"><?php echo registerNum($r['total_deduction']); ?></td>
+                            <td class="num"><?php echo registerNum($r['pf'], 0); ?></td>
+                            <td class="num"><?php echo registerNum($r['pt'], 0); ?></td>
+                            <td class="num"><?php echo registerNum($r['loan'], 0); ?></td>
+                            <td class="num"><?php echo registerNum($r['advance'], 0); ?></td>
+                            <td class="num"><?php echo registerNum($r['total_deduction'], 0); ?></td>
                             <?php
                             $arrearsVal = (float) ($r['arrears'] ?? 0);
-                            $netBase = round((float) ($r['gross'] ?? 0) - (float) ($r['total_deduction'] ?? 0), 2);
-                            $netShow = round($netBase + $arrearsVal, 2);
-                            if ($netShow < 0) {
-                                $netShow = 0;
-                            }
+                            $netBase = (float) ($r['gross'] ?? 0) - (float) ($r['total_deduction'] ?? 0);
+                            $netShow = (float) ($r['net'] ?? 0);
                             ?>
                             <td class="num sr-arrears-cell">
                                 <?php if ($canEditArrears): ?>
                                 <input type="number"
                                        class="sr-arrears-input"
-                                       step="0.01"
+                                       step="1"
                                        min="0"
                                        data-employee-id="<?php echo (int) $r['employee_id']; ?>"
                                        data-net-base="<?php echo htmlspecialchars((string) $netBase); ?>"
-                                       value="<?php echo $arrearsVal != 0.0 ? htmlspecialchars(number_format($arrearsVal, 2, '.', '')) : ''; ?>"
+                                       value="<?php echo $arrearsVal != 0.0 ? htmlspecialchars(number_format($arrearsVal, 0, '.', '')) : ''; ?>"
                                        placeholder="0"
                                        title="Arrears (added to Net)"
                                        style="width:88px;text-align:right;font-weight:700;border:1px solid #fca5a5;border-radius:6px;padding:4px 6px;background:#fff;">
                                 <?php else: ?>
-                                <?php echo registerNum($arrearsVal); ?>
+                                <?php echo registerNum($arrearsVal, 0); ?>
                                 <?php endif; ?>
                             </td>
-                            <td class="num sr-net-cell"><strong class="sr-net-value"><?php echo registerNum($netShow); ?></strong></td>
+                            <td class="num sr-net-cell"><strong class="sr-net-value"><?php echo registerNum($netShow, 0); ?></strong></td>
                             <td><?php echo htmlspecialchars($r['account'] ?: '-'); ?></td>
                             <td><?php echo htmlspecialchars($r['ifsc'] ?: '-'); ?></td>
                             <td><?php echo htmlspecialchars($r['remarks'] ?: '-'); ?></td>
@@ -478,13 +475,24 @@ require_once __DIR__ . '/../includes/header.php';
                     </tbody>
                     <?php if ($rows): ?>
                     <tfoot>
-                        <tr>
-                            <td colspan="<?php echo $isActual ? 7 : 13; ?>"><strong>Total</strong></td>
-                            <td class="num"><strong><?php echo registerNum($sumGross); ?></strong></td>
-                            <td colspan="4"></td>
-                            <td></td>
-                            <td class="num"><strong class="sr-arrears-total"><?php echo registerNum($sumArrears); ?></strong></td>
-                            <td class="num"><strong class="sr-net-total"><?php echo registerNum($sumNet); ?></strong></td>
+                        <tr style="background:#f1f5f9;font-weight:700;">
+                            <td colspan="5"><strong>Department Total</strong></td>
+                            <?php if ($isActual): ?>
+                                <td></td>
+                                <td class="num"><strong><?php echo registerNum($deptSum['actual'], 0); ?></strong></td>
+                                <td class="num"><strong><?php echo registerNum($deptSum['gross'], 0); ?></strong></td>
+                            <?php else: ?>
+                                <td class="num"><strong><?php echo registerNum($deptSum['salary'], 0); ?></strong></td>
+                                <td colspan="7"></td>
+                                <td class="num"><strong><?php echo registerNum($deptSum['gross'], 0); ?></strong></td>
+                            <?php endif; ?>
+                            <td class="num"><strong><?php echo registerNum($deptSum['pf'], 0); ?></strong></td>
+                            <td class="num"><strong><?php echo registerNum($deptSum['pt'], 0); ?></strong></td>
+                            <td class="num"><strong><?php echo registerNum($deptSum['loan'], 0); ?></strong></td>
+                            <td class="num"><strong><?php echo registerNum($deptSum['advance'], 0); ?></strong></td>
+                            <td class="num"><strong><?php echo registerNum($deptSum['total_deduction'], 0); ?></strong></td>
+                            <td class="num"><strong class="sr-arrears-total"><?php echo registerNum($deptSum['arrears'], 0); ?></strong></td>
+                            <td class="num"><strong class="sr-net-total"><?php echo registerNum($deptSum['net'], 0); ?></strong></td>
                             <td colspan="3"></td>
                         </tr>
                     </tfoot>
@@ -493,6 +501,38 @@ require_once __DIR__ . '/../includes/header.php';
             </div>
         </div>
     <?php endforeach; ?>
+
+    <?php if ($grandRows): ?>
+    <div class="form-page-card" style="margin-top:12px;">
+        <div class="table-wrap">
+            <table class="salary-register-table">
+                <tfoot>
+                    <tr style="background:#1e3a5f;color:#fff;font-weight:800;">
+                        <td colspan="5"><strong>Grand Total</strong></td>
+                        <?php if ($isActual): ?>
+                            <td></td>
+                            <td class="num"><strong><?php echo registerNum($grandSum['actual'], 0); ?></strong></td>
+                            <td class="num"><strong><?php echo registerNum($grandSum['gross'], 0); ?></strong></td>
+                        <?php else: ?>
+                            <td class="num"><strong><?php echo registerNum($grandSum['salary'], 0); ?></strong></td>
+                            <td colspan="7"></td>
+                            <td class="num"><strong><?php echo registerNum($grandSum['gross'], 0); ?></strong></td>
+                        <?php endif; ?>
+                        <td class="num"><strong><?php echo registerNum($grandSum['pf'], 0); ?></strong></td>
+                        <td class="num"><strong><?php echo registerNum($grandSum['pt'], 0); ?></strong></td>
+                        <td class="num"><strong><?php echo registerNum($grandSum['loan'], 0); ?></strong></td>
+                        <td class="num"><strong><?php echo registerNum($grandSum['advance'], 0); ?></strong></td>
+                        <td class="num"><strong><?php echo registerNum($grandSum['total_deduction'], 0); ?></strong></td>
+                        <td class="num"><strong><?php echo registerNum($grandSum['arrears'], 0); ?></strong></td>
+                        <td class="num"><strong><?php echo registerNum($grandSum['net'], 0); ?></strong></td>
+                        <td colspan="3"></td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+        <p class="form-hint" style="margin:8px 0 0;">Amounts rounded to nearest ₹ (.50 and above → up).</p>
+    </div>
+    <?php endif; ?>
 </main>
 <?php if ($canEditArrears): ?>
 <script>
@@ -505,15 +545,16 @@ require_once __DIR__ . '/../includes/header.php';
     var timers = {};
 
     function fmt(n) {
-        n = Math.round((parseFloat(n) || 0) * 100) / 100;
-        return n.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        n = Math.round(parseFloat(n) || 0);
+        return n.toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
     }
 
     function recalcRow(input) {
         var base = parseFloat(input.getAttribute('data-net-base')) || 0;
         var arr = parseFloat(input.value);
         if (isNaN(arr) || arr < 0) arr = 0;
-        var net = Math.round((base + arr) * 100) / 100;
+        arr = Math.round(arr);
+        var net = Math.round(base + arr);
         if (net < 0) net = 0;
         var cell = input.closest('tr').querySelector('.sr-net-value');
         if (cell) cell.textContent = fmt(net);

@@ -1,6 +1,7 @@
 <?php
 /**
  * Salary register Excel (HTML .xls) — same columns as on-screen register
+ * Department-wise totals + Grand Total; money columns rounded (.50+)
  */
 
 require_once __DIR__ . '/../config/app.php';
@@ -35,6 +36,7 @@ header('Content-Type: application/vnd.ms-excel; charset=utf-8');
 header('Content-Disposition: attachment; filename="' . $filename . '"');
 header('Cache-Control: max-age=0');
 
+$colCount = $isActual ? 21 : 24;
 $earnSpan = $isActual ? 3 : 7;
 $headers = $isActual
     ? ['Employee Code', 'Employee Name', 'Designation', 'D.O.J.', 'UAN Number', 'Qty', 'Actual Amount', 'Gross Salary']
@@ -44,11 +46,40 @@ $headers = array_merge($headers, [
     'Account Number', 'IFSC Code', 'Remarks',
 ]);
 
+/**
+ * Write department / grand total row aligned to money columns.
+ */
+function registerExcelTotalRow(array $sum, $isActual, $label, $bg)
+{
+    echo '<tr style="background:' . htmlspecialchars($bg) . ';font-weight:700;">';
+    echo '<td colspan="5"><strong>' . htmlspecialchars($label) . '</strong></td>';
+    if ($isActual) {
+        echo '<td></td>';
+        echo '<td align="right"><strong>' . (int) $sum['actual'] . '</strong></td>';
+        echo '<td align="right"><strong>' . (int) $sum['gross'] . '</strong></td>';
+    } else {
+        echo '<td align="right"><strong>' . (int) $sum['salary'] . '</strong></td>';
+        echo '<td colspan="7"></td>';
+        echo '<td align="right"><strong>' . (int) $sum['gross'] . '</strong></td>';
+    }
+    echo '<td align="right"><strong>' . (int) $sum['pf'] . '</strong></td>';
+    echo '<td align="right"><strong>' . (int) $sum['pt'] . '</strong></td>';
+    echo '<td align="right"><strong>' . (int) $sum['loan'] . '</strong></td>';
+    echo '<td align="right"><strong>' . (int) $sum['advance'] . '</strong></td>';
+    echo '<td align="right"><strong>' . (int) $sum['total_deduction'] . '</strong></td>';
+    echo '<td align="right"><strong>' . (int) $sum['arrears'] . '</strong></td>';
+    echo '<td align="right"><strong>' . (int) $sum['net'] . '</strong></td>';
+    echo '<td colspan="3"></td>';
+    echo '</tr>';
+}
+
 echo '<html><head><meta charset="UTF-8"></head><body>';
 echo '<table border="1" cellspacing="0" cellpadding="4">';
 echo '<tr><th colspan="' . count($headers) . '" style="background:#1e3a5f;color:#fff;font-size:16px;">'
     . htmlspecialchars($companyName) . ' — Salary Register — ' . htmlspecialchars(date('F Y', mktime(0, 0, 0, $month, 1, $year)))
     . ' (Month days ' . $monthDays . ')</th></tr>';
+
+$grandRows = [];
 
 foreach ($groups as $g) {
     echo '<tr><th colspan="' . count($headers) . '" style="background:#94a3b8;color:#111;text-align:left;">'
@@ -72,21 +103,38 @@ foreach ($groups as $g) {
         continue;
     }
     foreach ($g['rows'] as $r) {
+        $grandRows[] = $r;
         $cells = [
             $r['employee_code'], $r['employee_name'], $r['designation'], $r['doj'], $r['uan'],
         ];
         if ($isActual) {
             $cells[] = $r['qty'];
-            $cells[] = $r['actual'];
-            $cells[] = $r['gross'];
+            $cells[] = (int) registerRoundMoney($r['actual'] ?? 0);
+            $cells[] = (int) registerRoundMoney($r['gross'] ?? 0);
         } else {
             $cells = array_merge($cells, [
-                $r['salary'], $r['present'], $r['week_off'], $r['holiday'] ?? 0, $r['pl'], $r['sl'], $r['dl'], $r['total_days'], $r['gross'],
+                (int) registerRoundMoney($r['salary'] ?? 0),
+                $r['present'],
+                $r['week_off'],
+                $r['holiday'] ?? 0,
+                $r['pl'],
+                $r['sl'],
+                $r['dl'],
+                $r['total_days'],
+                (int) registerRoundMoney($r['gross'] ?? 0),
             ]);
         }
         $cells = array_merge($cells, [
-            $r['pf'], $r['pt'], $r['loan'], $r['advance'], $r['total_deduction'], $r['arrears'], $r['net'],
-            $r['account'], $r['ifsc'], $r['remarks'],
+            (int) registerRoundMoney($r['pf'] ?? 0),
+            (int) registerRoundMoney($r['pt'] ?? 0),
+            (int) registerRoundMoney($r['loan'] ?? 0),
+            (int) registerRoundMoney($r['advance'] ?? 0),
+            (int) registerRoundMoney($r['total_deduction'] ?? 0),
+            (int) registerRoundMoney($r['arrears'] ?? 0),
+            (int) registerRoundMoney($r['net'] ?? 0),
+            $r['account'],
+            $r['ifsc'],
+            $r['remarks'],
         ]);
         echo '<tr>';
         foreach ($cells as $c) {
@@ -94,6 +142,14 @@ foreach ($groups as $g) {
         }
         echo '</tr>';
     }
+    $deptSum = registerSumMoneyColumns($g['rows']);
+    registerExcelTotalRow($deptSum, $isActual, 'Department Total', '#f1f5f9');
 }
+
+if ($grandRows) {
+    $grandSum = registerSumMoneyColumns($grandRows);
+    registerExcelTotalRow($grandSum, $isActual, 'Grand Total', '#1e3a5f;color:#fff');
+}
+
 echo '</table></body></html>';
 exit;

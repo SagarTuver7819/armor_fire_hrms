@@ -127,7 +127,7 @@ function buildSalaryRegisterRow(array $emp, $month, $year, $mode)
         $row = applyContractorAttendanceShareToRegisterRow($row, $month, $year);
     }
 
-    return $row;
+    return registerApplyMoneyRoundOff($row);
 }
 
 function salaryRegisterEmploymentWhereSql()
@@ -549,4 +549,64 @@ function registerNum($n, $decimals = 2)
         return '-';
     }
     return number_format((float) $n, $decimals);
+}
+
+/**
+ * Round money: .50+ rounds up to next rupee (0.00–0.49 → down).
+ */
+function registerRoundMoney($n)
+{
+    return (float) round((float) $n, 0, PHP_ROUND_HALF_UP);
+}
+
+/**
+ * Apply rupee round-off on Salary Register money columns.
+ */
+function registerApplyMoneyRoundOff(array $row)
+{
+    foreach (['salary', 'gross', 'actual', 'pf', 'pt', 'loan', 'advance', 'total_deduction', 'arrears', 'net'] as $key) {
+        if (array_key_exists($key, $row) && $row[$key] !== null && $row[$key] !== '') {
+            $row[$key] = registerRoundMoney($row[$key]);
+        }
+    }
+    // Keep Net consistent after round of gross/ded/arrears
+    $gross = (float) ($row['gross'] ?? 0);
+    $ded = (float) ($row['total_deduction'] ?? 0);
+    $arr = (float) ($row['arrears'] ?? 0);
+    $net = registerRoundMoney($gross - $ded + $arr);
+    if ($net < 0) {
+        $net = 0.0;
+    }
+    $row['net'] = $net;
+    return $row;
+}
+
+/**
+ * Sum money columns for a department / grand total row.
+ *
+ * @return array{salary:float,gross:float,actual:float,pf:float,pt:float,loan:float,advance:float,total_deduction:float,arrears:float,net:float}
+ */
+function registerSumMoneyColumns(array $rows)
+{
+    $sum = [
+        'salary' => 0.0,
+        'gross' => 0.0,
+        'actual' => 0.0,
+        'pf' => 0.0,
+        'pt' => 0.0,
+        'loan' => 0.0,
+        'advance' => 0.0,
+        'total_deduction' => 0.0,
+        'arrears' => 0.0,
+        'net' => 0.0,
+    ];
+    foreach ($rows as $r) {
+        foreach (array_keys($sum) as $k) {
+            $sum[$k] += (float) ($r[$k] ?? 0);
+        }
+    }
+    foreach (array_keys($sum) as $k) {
+        $sum[$k] = registerRoundMoney($sum[$k]);
+    }
+    return $sum;
 }
