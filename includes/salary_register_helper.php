@@ -196,8 +196,8 @@ function fetchSalaryRegisterEmployees($deptId, $employeeId, $payTypes, $month = 
 }
 
 /**
- * Normal (fixed salary) staff for register / NEFT — AS… codes + Salary pay_type.
- * CO… / JW… Jobwork workers are excluded (they belong on Jobwork register).
+ * Normal (fixed salary) staff for register / NEFT — pay_type = Salary only.
+ * (CO code + Salary still = Normal; never send them to Jobwork register.)
  */
 function fetchNormalRegisterEmployees($deptId, $employeeId, $month = 0, $year = 0)
 {
@@ -218,9 +218,7 @@ function fetchNormalRegisterEmployees($deptId, $employeeId, $month = 0, $year = 
             FROM employees e
             LEFT JOIN departments d ON d.id = e.department_id
             WHERE " . salaryRegisterEmploymentWhereSql() . "
-            AND e.pay_type = 'Salary'
-            AND UPPER(TRIM(e.employee_code)) NOT LIKE 'CO%'
-            AND UPPER(TRIM(e.employee_code)) NOT LIKE 'JW%'";
+            AND e.pay_type = 'Salary'";
     $types = 'ss';
     $params = [$monthStart, $monthEnd];
     if ($deptId > 0) {
@@ -244,10 +242,8 @@ function fetchNormalRegisterEmployees($deptId, $employeeId, $month = 0, $year = 
 }
 
 /**
- * All Jobwork people for register / NEFT:
- * - pay_type = Jobwork
- * - OR employee_code CO… / JW… (contractor jobwork codes)
- * - OR anyone with Ops Rate List / jobwork entries this month (department-wise)
+ * Jobwork register / NEFT — pay_type = Jobwork ONLY.
+ * Normal Salary employees (even with CO… code) never appear here.
  */
 function fetchJobworkRegisterEmployees($deptId, $employeeId, $month = 0, $year = 0)
 {
@@ -294,15 +290,12 @@ function fetchJobworkRegisterEmployees($deptId, $employeeId, $month = 0, $year =
         $resJw->free();
     }
 
+    // Strict: Jobwork pay_type only — Salary/Normal never listed here
     $sql = "SELECT e.*, d.department_name
             FROM employees e
             LEFT JOIN departments d ON d.id = e.department_id
             WHERE " . salaryRegisterEmploymentWhereSql() . "
-            AND (
-                e.pay_type = 'Jobwork'
-                OR UPPER(TRIM(e.employee_code)) LIKE 'CO%'
-                OR UPPER(TRIM(e.employee_code)) LIKE 'JW%'
-            )";
+            AND e.pay_type = 'Jobwork'";
     $types = 'ss';
     $params = [$monthStart, $monthEnd];
 
@@ -323,7 +316,7 @@ function fetchJobworkRegisterEmployees($deptId, $employeeId, $month = 0, $year =
     $rows = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
     $stmt->close();
 
-    // Add ops / jobwork-entry people this month even if pay_type/code was wrong
+    // Ops extras: only if still Jobwork pay_type (never pull Normal Salary)
     $have = [];
     foreach ($rows as $r) {
         $have[(int) $r['id']] = true;
@@ -340,6 +333,7 @@ function fetchJobworkRegisterEmployees($deptId, $employeeId, $month = 0, $year =
                      FROM employees e
                      LEFT JOIN departments d ON d.id = e.department_id
                      WHERE e.id IN ($idList)
+                     AND e.pay_type = 'Jobwork'
                      AND " . salaryRegisterEmploymentWhereSql();
         $extraTypes = 'ss';
         $extraParams = [$monthStart, $monthEnd];

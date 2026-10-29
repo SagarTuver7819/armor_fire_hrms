@@ -386,7 +386,7 @@ $ob = empField($employee, 'overtime_benefits', 'No');
                         </select>
                         <?php endif; ?>
                     </div>
-                    <div class="form-group" id="mainContractorWrap" style="<?php echo $currentPayType === 'Jobwork' ? '' : 'display:none;'; ?>">
+                    <div class="form-group" id="mainContractorWrap" style="<?php echo in_array($currentPayType, ['Jobwork', 'Salary'], true) ? '' : 'display:none;'; ?>">
                         <label>18. Main Contractor (Under)</label>
                         <select name="main_contractor_id" id="mainContractorId" class="form-control">
                             <option value="0">— Select Main Contractor —</option>
@@ -396,7 +396,7 @@ $ob = empField($employee, 'overtime_benefits', 'No');
                                 </option>
                             <?php endforeach; ?>
                         </select>
-                        <small class="form-help">Jobwork employee aa contractor na under ma aavse (Melting 1 → PURANSINH / Puran).</small>
+                        <small class="form-help">Normal Salary / Jobwork — aa contractor na under ma (Melting 1 → PURANSINH / Puran bhai).</small>
                     </div>
                     <div class="form-group"><label>19. Biometric User ID</label>
                         <input type="text" name="biometric_user_id" class="form-control" maxlength="50"

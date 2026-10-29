@@ -91,7 +91,9 @@
         if (!mainWrap || !payType) {
             return;
         }
-        mainWrap.style.display = payType.value === 'Jobwork' ? '' : 'none';
+        // Normal Salary + Jobwork can select Main Contractor (Melting 1 → Puran)
+        var show = (payType.value === 'Jobwork' || payType.value === 'Salary');
+        mainWrap.style.display = show ? '' : 'none';
     }
 
     var lastCheckedCode = '';
