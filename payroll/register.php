@@ -31,12 +31,15 @@ if (!isset(salaryRegisterTypes()[$type])) {
     $type = 'salary';
 }
 
-$lock = getSalaryRegisterLock($month, $year, $type, $deptId);
+$lockResolved = resolveSalaryRegisterLock($month, $year, $type, $deptId);
+$lock = $lockResolved['lock'];
 $isLocked = $lock !== null;
+$lockFromAllDepts = !empty($lockResolved['from_all_departments']);
 $approvalStatus = $isLocked ? (string) ($lock['approval_status'] ?? 'approved') : '';
 $approvalLabels = payrollApprovalStatusLabels();
 $myApprovalAction = $isLocked ? payrollApprovalPendingActionFor($lock) : '';
-$approvalLog = fetchPayrollApprovalLog($month, $year, $type, $deptId);
+$approvalLogDept = $lockFromAllDepts ? 0 : $deptId;
+$approvalLog = fetchPayrollApprovalLog($month, $year, $type, $approvalLogDept);
 
 $department = $deptId > 0 ? getDepartmentById($deptId) : null;
 $monthDays = (int) date('t', strtotime(sprintf('%04d-%02d-01', $year, $month)));
@@ -44,6 +47,10 @@ $monthDays = (int) date('t', strtotime(sprintf('%04d-%02d-01', $year, $month)));
 if ($isLocked) {
     $snap = json_decode((string) ($lock['snapshot_json'] ?? ''), true);
     $groups = (is_array($snap) && !empty($snap['groups'])) ? $snap['groups'] : [];
+    // All-departments lock opened on one department → show only that department
+    if ($deptId > 0 && $lockFromAllDepts) {
+        $groups = filterSalaryRegisterGroupsByDepartment($groups, $deptId);
+    }
     if ($employeeId > 0) {
         foreach ($groups as &$g) {
             $g['rows'] = array_values(array_filter($g['rows'] ?? [], static function ($r) use ($employeeId) {
@@ -212,12 +219,12 @@ require_once __DIR__ . '/../includes/header.php';
                     <i class="fa-solid fa-building-columns"></i> <?php echo $approvalStatus === 'approved' ? 'Open NEFT Sheet' : 'NEFT Sheet (Draft)'; ?>
                 </a>
                 <?php if (function_exists('isAdmin') && isAdmin()): ?>
-                    <form method="POST" action="<?php echo app_url('payroll/register_lock.php'); ?>" style="display:inline;" onsubmit="return confirm('Unlock this finalized register?');">
+                    <form method="POST" action="<?php echo app_url('payroll/register_lock.php'); ?>" style="display:inline;" onsubmit="return confirm('Unlock this finalized register? Arrears can then be edited for all departments.');">
                         <input type="hidden" name="action" value="unlock">
                         <input type="hidden" name="type" value="<?php echo htmlspecialchars($type); ?>">
                         <input type="hidden" name="month" value="<?php echo $month; ?>">
                         <input type="hidden" name="year" value="<?php echo $year; ?>">
-                        <input type="hidden" name="department_id" value="<?php echo $deptId; ?>">
+                        <input type="hidden" name="department_id" value="<?php echo (int) ($lockResolved['scope_dept_id'] ?? $deptId); ?>">
                         <button type="submit" class="btn-secondary"><i class="fa-solid fa-lock-open"></i> Unlock (Admin)</button>
                     </form>
                 <?php endif; ?>
@@ -332,6 +339,11 @@ require_once __DIR__ . '/../includes/header.php';
         <?php else: ?>
             <p class="form-hint">Normal <strong>Fixed Salary</strong>: Gross = Decided Salary × (Present + Week Off + Holiday + P.L. + S.L. + D.L.) ÷ month days — same totals as <strong>Attendance Report</strong> (employee week-off day for this month).</p>
         <?php endif; ?>
+        <?php if (!$isLocked): ?>
+            <p class="form-hint"><i class="fa-solid fa-pen-to-square" style="color:#d2232a;"></i> <strong>Arrears</strong> every department ma enter kari shako (Department filter change kari ne). Net = Gross − Deduction + Arrears. Lock karva pehla badha departments ni arrears save kari lo.</p>
+        <?php elseif ($lockFromAllDepts && $deptId > 0): ?>
+            <p class="form-hint"><i class="fa-solid fa-lock" style="color:#b45309;"></i> All departments mate register locked chhe — <strong>Arrears</strong> edit bandh. Edit mate Admin Unlock karo, pachi badha departments ma Arrears enter kari ne farithi Lock karo.</p>
+        <?php endif; ?>
     </div>
 
     <?php foreach ($groups as $g): ?>
@@ -340,10 +352,12 @@ require_once __DIR__ . '/../includes/header.php';
         $sumGross = 0;
         $sumNet = 0;
         $sumActual = 0;
+        $sumArrears = 0;
         foreach ($rows as $r) {
             $sumGross += (float) $r['gross'];
             $sumNet += (float) $r['net'];
             $sumActual += (float) $r['actual'];
+            $sumArrears += (float) ($r['arrears'] ?? 0);
         }
         ?>
         <div class="salary-register-sheet">
@@ -473,7 +487,7 @@ require_once __DIR__ . '/../includes/header.php';
                             <td class="num"><strong><?php echo registerNum($sumGross); ?></strong></td>
                             <td colspan="4"></td>
                             <td></td>
-                            <td></td>
+                            <td class="num"><strong class="sr-arrears-total"><?php echo registerNum($sumArrears); ?></strong></td>
                             <td class="num"><strong class="sr-net-total"><?php echo registerNum($sumNet); ?></strong></td>
                             <td colspan="3"></td>
                         </tr>
@@ -514,12 +528,19 @@ require_once __DIR__ . '/../includes/header.php';
     function recalcSheetTotal(table) {
         if (!table) return;
         var total = 0;
+        var arrTotal = 0;
         table.querySelectorAll('.sr-net-value').forEach(function (el) {
             var t = (el.textContent || '').replace(/,/g, '');
             total += parseFloat(t) || 0;
         });
+        table.querySelectorAll('.sr-arrears-input').forEach(function (inp) {
+            var a = parseFloat(inp.value);
+            if (!isNaN(a) && a > 0) arrTotal += a;
+        });
         var foot = table.querySelector('.sr-net-total');
         if (foot) foot.textContent = fmt(total);
+        var footArr = table.querySelector('.sr-arrears-total');
+        if (footArr) footArr.textContent = fmt(arrTotal);
     }
 
     function saveArrears(input) {

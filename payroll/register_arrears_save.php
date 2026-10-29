@@ -35,11 +35,15 @@ requirePayrollRegisterAccess($deptId);
 if (function_exists('ensurePayrollApprovalTables')) {
     ensurePayrollApprovalTables();
 }
-$lock = function_exists('getSalaryRegisterLock')
-    ? getSalaryRegisterLock($month, $year, $type, $deptId)
-    : null;
+// All-departments lock also blocks Arrears on every department sheet
+$lock = null;
+if (function_exists('resolveSalaryRegisterLock')) {
+    $lock = resolveSalaryRegisterLock($month, $year, $type, $deptId)['lock'] ?? null;
+} elseif (function_exists('getSalaryRegisterLock')) {
+    $lock = getSalaryRegisterLock($month, $year, $type, $deptId);
+}
 if ($lock !== null) {
-    echo json_encode(['success' => false, 'message' => 'Register is locked. Unlock to edit Arrears.']);
+    echo json_encode(['success' => false, 'message' => 'Register is locked. Unlock to edit Arrears for all departments.']);
     exit;
 }
 

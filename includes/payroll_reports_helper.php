@@ -306,9 +306,70 @@ function getSalaryRegisterLock($month, $year, $type, $deptId = 0)
     return $row ?: null;
 }
 
+/**
+ * Resolve lock for a register view.
+ * All-departments lock (department_id = 0) covers every department —
+ * so Arrears / edits stay consistent across ADMINISTRATION, CNC, Foundry, etc.
+ *
+ * @return array{lock: ?array, scope_dept_id: int, from_all_departments: bool}
+ */
+function resolveSalaryRegisterLock($month, $year, $type, $deptId = 0)
+{
+    $deptId = (int) $deptId;
+    $exact = getSalaryRegisterLock($month, $year, $type, $deptId);
+    if ($exact) {
+        return [
+            'lock' => $exact,
+            'scope_dept_id' => (int) ($exact['department_id'] ?? $deptId),
+            'from_all_departments' => ((int) ($exact['department_id'] ?? 0) === 0),
+        ];
+    }
+    if ($deptId > 0) {
+        $all = getSalaryRegisterLock($month, $year, $type, 0);
+        if ($all) {
+            return [
+                'lock' => $all,
+                'scope_dept_id' => 0,
+                'from_all_departments' => true,
+            ];
+        }
+    }
+    return [
+        'lock' => null,
+        'scope_dept_id' => $deptId,
+        'from_all_departments' => false,
+    ];
+}
+
+/**
+ * Keep only one department's rows from a locked snapshot (All-departments lock).
+ */
+function filterSalaryRegisterGroupsByDepartment(array $groups, $deptId)
+{
+    $deptId = (int) $deptId;
+    if ($deptId <= 0) {
+        return $groups;
+    }
+    $out = [];
+    foreach ($groups as $g) {
+        $rows = [];
+        foreach ($g['rows'] ?? [] as $r) {
+            if ((int) ($r['department_id'] ?? 0) === $deptId) {
+                $rows[] = $r;
+            }
+        }
+        if ($rows) {
+            $g['rows'] = $rows;
+            $out[] = $g;
+        }
+    }
+    return $out;
+}
+
 function isSalaryRegisterLocked($month, $year, $type, $deptId = 0)
 {
-    return getSalaryRegisterLock($month, $year, $type, $deptId) !== null;
+    $resolved = resolveSalaryRegisterLock($month, $year, $type, $deptId);
+    return $resolved['lock'] !== null;
 }
 
 /**
@@ -348,6 +409,7 @@ function buildNeftRowsFromRegister(array $registerRows)
             'employee_code' => (string) ($r['employee_code'] ?? ''),
             'employee_name' => (string) ($r['employee_name'] ?? ''),
             'department' => (string) ($r['department'] ?? ''),
+            'department_id' => (int) ($r['department_id'] ?? 0),
             'bank_name' => (string) ($r['bank_name'] ?? ''),
             'account' => $account,
             'ifsc' => (string) ($r['ifsc'] ?? ''),
@@ -484,13 +546,42 @@ function unlockSalaryRegister($month, $year, $type, $deptId = 0)
 
 function getNeftSheetData($month, $year, $type, $deptId = 0)
 {
-    $lock = getSalaryRegisterLock($month, $year, $type, $deptId);
+    $deptId = (int) $deptId;
+    $resolved = resolveSalaryRegisterLock($month, $year, $type, $deptId);
+    $lock = $resolved['lock'];
     if (!$lock) {
         return null;
     }
     $neft = json_decode((string) ($lock['neft_json'] ?? '[]'), true);
     if (!is_array($neft)) {
         $neft = [];
+    }
+    // All-departments NEFT viewed for one department → filter rows
+    if ($deptId > 0 && !empty($resolved['from_all_departments'])) {
+        $filtered = array_values(array_filter($neft, static function ($r) use ($deptId) {
+            return (int) ($r['department_id'] ?? 0) === $deptId;
+        }));
+        // Older snapshots may lack department_id on NEFT rows — map via register snapshot
+        if (!$filtered) {
+            $snap = json_decode((string) ($lock['snapshot_json'] ?? ''), true);
+            $empIds = [];
+            foreach (($snap['rows'] ?? []) as $sr) {
+                if ((int) ($sr['department_id'] ?? 0) === $deptId) {
+                    $empIds[(int) ($sr['employee_id'] ?? 0)] = true;
+                }
+            }
+            if ($empIds) {
+                $filtered = array_values(array_filter($neft, static function ($r) use ($empIds) {
+                    return isset($empIds[(int) ($r['employee_id'] ?? 0)]);
+                }));
+            }
+        }
+        $neft = $filtered;
+        $sr = 0;
+        foreach ($neft as &$row) {
+            $row['sr'] = ++$sr;
+        }
+        unset($row);
     }
     return [
         'lock' => $lock,
