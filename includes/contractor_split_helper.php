@@ -393,16 +393,17 @@ function getContractorAttendanceShareForEmployee(array $emp, $month, $year)
 {
     $deptId = (int) ($emp['department_id'] ?? 0);
     $eid = (int) ($emp['id'] ?? 0);
-    if ($deptId <= 0 || $eid <= 0) {
+    if ($eid <= 0) {
         return null;
     }
     $pay = normalizePayType($emp['pay_type'] ?? '');
 
     foreach (contractorAttendanceSplitRules() as $rule) {
         $data = getContractorAttendanceSplitMonthData($month, $year, $rule);
-        if (!$data || (int) $data['department_id'] !== $deptId) {
+        if (!$data) {
             continue;
         }
+        // Main (Puran): always match by id — even if his department_id ≠ MELTING 1
         if ($eid === (int) $data['main_id']) {
             return [
                 'share' => 0.0,
@@ -413,9 +414,13 @@ function getContractorAttendanceShareForEmployee(array $emp, $month, $year)
                 'pool' => (float) $data['pool'],
                 'distributed' => (float) ($data['distributed'] ?? 0),
                 'is_main' => true,
+                'split_department_id' => (int) $data['department_id'],
             ];
         }
-        // Only Normal Salary Melting 1 — mark funded-from-Puran (no amount add)
+        // Melting 1 Normal only
+        if ($deptId <= 0 || (int) $data['department_id'] !== $deptId) {
+            continue;
+        }
         if ($pay !== 'Salary') {
             return null;
         }
@@ -423,7 +428,7 @@ function getContractorAttendanceShareForEmployee(array $emp, $month, $year)
             return null;
         }
         return [
-            'share' => 0.0, // Normal net already correct — do not add pool dump
+            'share' => 0.0,
             'funded' => (float) ($data['shares'][$eid] ?? $data['normal_nets'][$eid] ?? 0),
             'remainder' => 0.0,
             'main_id' => (int) $data['main_id'],
@@ -434,6 +439,46 @@ function getContractorAttendanceShareForEmployee(array $emp, $month, $year)
         ];
     }
     return null;
+}
+
+/**
+ * Ensure Puran appears on Jobwork Salary Register for Melting 1 / All departments.
+ *
+ * @param array<int, array<string, mixed>> $emps
+ * @return array<int, array<string, mixed>>
+ */
+function ensureSplitMainInJobworkEmployeeList(array $emps, $deptId, $month, $year)
+{
+    $deptId = (int) $deptId;
+    foreach (contractorAttendanceSplitRules() as $rule) {
+        $splitDeptId = resolveDepartmentIdByName((string) ($rule['department_name'] ?? ''));
+        // Only when viewing All depts or Melting 1
+        if ($deptId > 0 && $splitDeptId > 0 && $deptId !== $splitDeptId) {
+            continue;
+        }
+        $main = resolveContractorAttendanceSplitMain($rule);
+        if (!$main) {
+            continue;
+        }
+        $mainId = (int) $main['id'];
+        $have = false;
+        foreach ($emps as $e) {
+            if ((int) ($e['id'] ?? 0) === $mainId) {
+                $have = true;
+                break;
+            }
+        }
+        if ($have) {
+            continue;
+        }
+        // Force Melting 1 label on register so he shows under Melting 1 Jobwork group
+        if ($splitDeptId > 0) {
+            $main['department_id'] = $splitDeptId;
+            $main['department_name'] = (string) ($rule['department_name'] ?? 'MELTING 1');
+        }
+        $emps[] = $main;
+    }
+    return $emps;
 }
 
 function applyContractorAttendanceShareToRegisterRow(array $row, $month, $year)
@@ -447,11 +492,11 @@ function applyContractorAttendanceShareToRegisterRow(array $row, $month, $year)
     $pay = normalizePayType($row['pay_type'] ?? '');
     $skip = contractorAttendanceSplitMainIds();
 
-    // PURANSINH: NEFT / register = remainder after Melting 1 Normal salaries
+    // PURANSINH: always show on Jobwork register = Melting 1 remainder after Normal salaries
     if ($eid > 0 && isset($skip[$eid])) {
         $info = getContractorAttendanceShareForEmployee([
             'id' => $eid,
-            'department_id' => $deptId > 0 ? $deptId : resolveDepartmentIdByName('MELTING 1'),
+            'department_id' => resolveDepartmentIdByName('MELTING 1'),
             'pay_type' => $pay ?: 'Jobwork',
         ], $month, $year);
         $remainder = (float) ($info['remainder'] ?? 0);
@@ -462,12 +507,15 @@ function applyContractorAttendanceShareToRegisterRow(array $row, $month, $year)
         $row['contractor_remainder'] = $remainder;
         $row['contractor_pool'] = $pool;
         $row['contractor_distributed'] = $distributed;
+        $row['department'] = 'MELTING 1';
+        $row['department_id'] = (int) ($info['split_department_id'] ?? resolveDepartmentIdByName('MELTING 1'));
         $row['gross'] = $remainder;
         $row['net'] = $remainder;
         $row['actual'] = $remainder;
         $row['salary'] = $remainder;
-        $row['remarks'] = 'Pool ₹ ' . number_format($pool, 2)
-            . ' − Melting 1 Normal ₹ ' . number_format($distributed, 2)
+        $row['qty'] = $remainder > 0 ? 1 : 0;
+        $row['remarks'] = 'Melting 1 after split · Pool ₹ ' . number_format($pool, 2)
+            . ' − Normal ₹ ' . number_format($distributed, 2)
             . ' = Remainder ₹ ' . number_format($remainder, 2);
         return $row;
     }

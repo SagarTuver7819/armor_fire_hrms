@@ -491,11 +491,14 @@ function getSalaryRegisterData($type, $month, $year, $deptId = 0, $employeeId = 
         $subtitle = 'Attendance-wise fixed salary · AS codes';
         $payFilter = 'Salary';
     } else {
-        // Jobwork = Jobwork pay_type + CO…/JW… codes + anyone with Ops qty this month
+        // Jobwork = pay_type Jobwork only (+ force-include Melting 1 main Puran after split)
         $emps = fetchJobworkRegisterEmployees($deptId, $employeeId, $month, $year);
+        if (function_exists('ensureSplitMainInJobworkEmployeeList')) {
+            $emps = ensureSplitMainInJobworkEmployeeList($emps, $deptId, $month, $year);
+        }
         $mode = 'jobwork_actual';
         $title = 'Jobwork — Regular / Actual';
-        $subtitle = 'Qty × Rate · all CO / Jobwork employees by department';
+        $subtitle = 'Qty × Rate · Jobwork employees by department (Melting 1: Puran = remainder after Normal)';
         $payFilter = 'Jobwork';
     }
 
