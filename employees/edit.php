@@ -101,7 +101,12 @@ if (!$employee && (($_GET['pay_type'] ?? '') === 'ContractorMain')) {
     $currentPayType = 'ContractorMain';
 }
 $currentMainContractor = (int) empField($employee, 'main_contractor_id', 0);
-$contractorMains = getEmployeesByPayType('ContractorMain', $empId);
+if (is_file(__DIR__ . '/../includes/contractor_split_helper.php')) {
+    require_once __DIR__ . '/../includes/contractor_split_helper.php';
+}
+$contractorMains = function_exists('getMainContractorSelectOptions')
+    ? getMainContractorSelectOptions($empId)
+    : getEmployeesByPayType('ContractorMain', $empId);
 $currentEmpCode     = empField($employee, 'employee_code');
 if ($currentEmpCode === '') {
     $codeConn = getDBConnection();
@@ -381,15 +386,17 @@ $ob = empField($employee, 'overtime_benefits', 'No');
                         </select>
                         <?php endif; ?>
                     </div>
-                    <div class="form-group" id="mainContractorWrap" style="<?php echo $currentPayType === 'Jobwork' ? '' : 'display:none;'; ?>"><label>18. Contractor Main</label>
+                    <div class="form-group" id="mainContractorWrap" style="<?php echo $currentPayType === 'Jobwork' ? '' : 'display:none;'; ?>">
+                        <label>18. Main Contractor (Under)</label>
                         <select name="main_contractor_id" id="mainContractorId" class="form-control">
-                            <option value="0">— None —</option>
+                            <option value="0">— Select Main Contractor —</option>
                             <?php foreach ($contractorMains as $cm): ?>
                                 <option value="<?php echo (int) $cm['id']; ?>" <?php echo $currentMainContractor === (int) $cm['id'] ? 'selected' : ''; ?>>
                                     <?php echo htmlspecialchars(($cm['employee_code'] ?? '') . ' — ' . ($cm['employee_name'] ?? '')); ?>
                                 </option>
                             <?php endforeach; ?>
                         </select>
+                        <small class="form-help">Jobwork employee aa contractor na under ma aavse (Melting 1 → PURANSINH / Puran).</small>
                     </div>
                     <div class="form-group"><label>19. Biometric User ID</label>
                         <input type="text" name="biometric_user_id" class="form-control" maxlength="50"

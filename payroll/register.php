@@ -416,7 +416,9 @@ require_once __DIR__ . '/../includes/header.php';
                                 <?php endif; ?>
                                 <?php if (!empty($r['contractor_split_out'])): ?>
                                     <div class="sr-code" style="color:#b45309;">
-                                        Melting 1 split · Remainder ₹ <?php echo registerNum($r['contractor_remainder'] ?? $r['net'] ?? 0); ?>
+                                        Pool ₹ <?php echo registerNum($r['contractor_pool'] ?? 0); ?>
+                                        − Melting 1 Normal ₹ <?php echo registerNum($r['contractor_distributed'] ?? 0); ?>
+                                        = <strong>Remainder ₹ <?php echo registerNum($r['contractor_remainder'] ?? $r['net'] ?? 0); ?></strong>
                                     </div>
                                 <?php endif; ?>
                             </td>
