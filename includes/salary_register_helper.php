@@ -118,8 +118,8 @@ function buildSalaryRegisterRow(array $emp, $month, $year, $mode)
         'contractor_main_share' => 0.0,
     ];
 
-    // Melting 1 + Puran Singh only — other departments never enter this path
-    if ($mode === 'salary' && function_exists('applyContractorAttendanceShareToRegisterRow')) {
+    // Melting 1 only: add share on Normal rows; zero-out PURANSINH (CO72216) Jobwork row
+    if (function_exists('applyContractorAttendanceShareToRegisterRow')) {
         $row = applyContractorAttendanceShareToRegisterRow($row, $month, $year);
     }
 

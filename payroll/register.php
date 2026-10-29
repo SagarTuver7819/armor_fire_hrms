@@ -414,6 +414,11 @@ require_once __DIR__ . '/../includes/header.php';
                                 <?php if (!empty($r['contractor_main_share']) && (float) $r['contractor_main_share'] > 0): ?>
                                     <div class="sr-code" style="color:#047857;">+ Contractor share ₹ <?php echo registerNum($r['contractor_main_share']); ?></div>
                                 <?php endif; ?>
+                                <?php if (!empty($r['contractor_split_out'])): ?>
+                                    <div class="sr-code" style="color:#b45309;">
+                                        Melting 1 split · Remainder ₹ <?php echo registerNum($r['contractor_remainder'] ?? $r['net'] ?? 0); ?>
+                                    </div>
+                                <?php endif; ?>
                             </td>
                             <td><?php echo htmlspecialchars($r['designation']); ?></td>
                             <td><?php echo htmlspecialchars($r['doj']); ?></td>

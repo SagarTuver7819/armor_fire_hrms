@@ -229,6 +229,9 @@ require_once __DIR__ . '/../includes/header.php';
                                 <td><strong><?php echo htmlspecialchars(neftNfpsBeneName($r['employee_name'] ?? '')); ?></strong>
                                     <div class="sr-code"><?php echo htmlspecialchars($r['employee_code'] ?? ''); ?>
                                         <?php if ($missBank): ?> · <span style="color:#b45309;">No bank A/C</span><?php endif; ?>
+                                        <?php if (!empty($r['contractor_main_share']) && (float) $r['contractor_main_share'] > 0): ?>
+                                            · <span style="color:#047857;">+ share ₹ <?php echo number_format((float) $r['contractor_main_share'], 2); ?></span>
+                                        <?php endif; ?>
                                     </div>
                                 </td>
                                 <td><?php echo htmlspecialchars($r['department'] ?: '-'); ?></td>

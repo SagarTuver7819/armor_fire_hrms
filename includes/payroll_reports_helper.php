@@ -412,11 +412,11 @@ function buildNeftRowsFromRegister(array $registerRows)
     $sr = 0;
     foreach ($registerRows as $r) {
         $eid = (int) ($r['employee_id'] ?? 0);
-        // Puran Singh (attendance-split Contractor Main) — pool already on Melting 1 workers
-        if ($eid > 0 && isset($skipMainIds[$eid])) {
+        $net = round((float) ($r['net'] ?? 0), 2);
+        // PURANSINH: only include if remainder after Melting 1 split (>0); else skip full pool row
+        if ($eid > 0 && isset($skipMainIds[$eid]) && $net <= 0) {
             continue;
         }
-        $net = round((float) ($r['net'] ?? 0), 2);
         if ($net <= 0) {
             continue;
         }

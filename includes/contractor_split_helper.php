@@ -1,28 +1,36 @@
 <?php
 /**
- * Hard-scoped Contractor Main salary → department Normal staff (attendance split).
- * ONLY rules listed in contractorAttendanceSplitRules() run — Melting 2 / others untouched.
+ * Hard-scoped: PURANSINH PUNITBHAI (CO72216) Jobwork/Contractor amount
+ * → split across MELTING 1 Normal Salary employees by attendance.
+ * Melting 2 / other departments / other contractors: untouched.
  */
 
 require_once __DIR__ . '/payroll_helper.php';
 require_once __DIR__ . '/employee_helper.php';
 
 /**
- * @return array<int, array{main_name: string, department_name: string}>
+ * @return array<int, array{main_name: string, main_code: string, department_name: string, name_aliases: string[]}>
  */
 function contractorAttendanceSplitRules()
 {
     return [
         [
-            'main_name' => 'Puran Singh',
+            // Live NEFT: PURANSINH PUNITBHAI · CO72216 · MELTING 1 · Jobwork ~8.4L
+            'main_name' => 'PURANSINH PUNITBHAI',
+            'main_code' => 'CO72216',
             'department_name' => 'MELTING 1',
+            'name_aliases' => [
+                'PURANSINH PUNITBHAI',
+                'Puran Singh',
+                'Puransinh',
+                'Punit Singh',
+                'PUNITBHAI',
+            ],
         ],
     ];
 }
 
 /**
- * Employee IDs of Contractor Mains used in attendance-split rules (exclude from NEFT).
- *
  * @return array<int, true>
  */
 function contractorAttendanceSplitMainIds()
@@ -33,7 +41,7 @@ function contractorAttendanceSplitMainIds()
     }
     $ids = [];
     foreach (contractorAttendanceSplitRules() as $rule) {
-        $main = resolveContractorAttendanceSplitMain($rule['main_name'] ?? '');
+        $main = resolveContractorAttendanceSplitMain($rule);
         if ($main) {
             $ids[(int) $main['id']] = true;
         }
@@ -41,53 +49,80 @@ function contractorAttendanceSplitMainIds()
     return $ids;
 }
 
-function resolveContractorAttendanceSplitMain($mainName)
+/**
+ * Resolve main contractor/jobwork person for a split rule (code first, then aliases).
+ * Live person is Jobwork (CO…), not necessarily ContractorMain.
+ */
+function resolveContractorAttendanceSplitMain(array $rule)
 {
-    $mainName = trim((string) $mainName);
-    if ($mainName === '') {
+    static $cache = [];
+    $code = strtoupper(trim((string) ($rule['main_code'] ?? '')));
+    $ck = $code !== '' ? $code : strtolower((string) ($rule['main_name'] ?? ''));
+    if ($ck === '') {
         return null;
     }
-    static $cache = [];
-    $key = strtolower($mainName);
-    if (array_key_exists($key, $cache)) {
-        return $cache[$key];
+    if (array_key_exists($ck, $cache)) {
+        return $cache[$ck];
     }
+
     $conn = getDBConnection();
     ensureEmployeesTable($conn);
-    $stmt = $conn->prepare(
-        "SELECT e.*, d.department_name
-         FROM employees e
-         LEFT JOIN departments d ON d.id = e.department_id
-         WHERE e.pay_type = 'ContractorMain'
-           AND e.status = 1
-           AND LOWER(TRIM(e.employee_name)) = LOWER(?)
-         LIMIT 1"
-    );
-    $stmt->bind_param('s', $mainName);
-    $stmt->execute();
-    $row = $stmt->get_result()->fetch_assoc();
-    $stmt->close();
-    if (!$row) {
-        // Partial name match (e.g. "Puran Singh" vs "PURAN SINGH JI")
-        $like = '%' . $mainName . '%';
+    $row = null;
+
+    if ($code !== '') {
         $stmt = $conn->prepare(
             "SELECT e.*, d.department_name
              FROM employees e
              LEFT JOIN departments d ON d.id = e.department_id
-             WHERE e.pay_type = 'ContractorMain'
+             WHERE UPPER(TRIM(e.employee_code)) = ?
                AND e.status = 1
-               AND LOWER(e.employee_name) LIKE LOWER(?)
-             ORDER BY e.id ASC
              LIMIT 1"
         );
-        $stmt->bind_param('s', $like);
+        $stmt->bind_param('s', $code);
         $stmt->execute();
         $row = $stmt->get_result()->fetch_assoc();
         $stmt->close();
     }
+
+    if (!$row) {
+        $aliases = $rule['name_aliases'] ?? [];
+        $aliases[] = (string) ($rule['main_name'] ?? '');
+        foreach ($aliases as $alias) {
+            $alias = trim((string) $alias);
+            if ($alias === '') {
+                continue;
+            }
+            $like = '%' . $alias . '%';
+            $stmt = $conn->prepare(
+                "SELECT e.*, d.department_name
+                 FROM employees e
+                 LEFT JOIN departments d ON d.id = e.department_id
+                 WHERE e.status = 1
+                   AND (
+                        e.pay_type IN ('Jobwork', 'ContractorMain')
+                        OR UPPER(TRIM(e.employee_code)) LIKE 'CO%'
+                   )
+                   AND LOWER(e.employee_name) LIKE LOWER(?)
+                 ORDER BY
+                   CASE WHEN e.pay_type = 'ContractorMain' THEN 0
+                        WHEN e.pay_type = 'Jobwork' THEN 1
+                        ELSE 2 END,
+                   e.id ASC
+                 LIMIT 1"
+            );
+            $stmt->bind_param('s', $like);
+            $stmt->execute();
+            $row = $stmt->get_result()->fetch_assoc();
+            $stmt->close();
+            if ($row) {
+                break;
+            }
+        }
+    }
+
     $conn->close();
-    $cache[$key] = $row ?: null;
-    return $cache[$key];
+    $cache[$ck] = $row ?: null;
+    return $cache[$ck];
 }
 
 function resolveDepartmentIdByName($departmentName)
@@ -119,11 +154,32 @@ function resolveDepartmentIdByName($departmentName)
 }
 
 /**
- * Month cache: shares for Melting 1 Normal employees under a split rule.
- *
+ * Pool amount for the month = Jobwork ops total (live ~8.4L) else decided_salary.
+ */
+function contractorAttendanceSplitPoolAmount(array $main, $month, $year)
+{
+    $mainId = (int) ($main['id'] ?? 0);
+    $month = (int) $month;
+    $year = (int) $year;
+    $jw = 0.0;
+    if ($mainId > 0 && function_exists('getJobworkTotal')) {
+        $jw = (float) getJobworkTotal($mainId, $month, $year);
+    }
+    $monthEnd = sprintf('%04d-%02d-%02d', $year, $month, (int) date('t', strtotime(sprintf('%04d-%02d-01', $year, $month))));
+    $decided = (float) ($main['decided_salary'] ?? 0);
+    if (function_exists('employeeDecidedSalaryAsOf')) {
+        $decided = (float) employeeDecidedSalaryAsOf($mainId, $monthEnd, null, $decided);
+    }
+    // Live NEFT shows ops/jobwork amount — prefer that when present
+    $pool = $jw > 0 ? $jw : $decided;
+    return round(max(0, $pool), 2);
+}
+
+/**
  * @return array{
  *   main_id: int,
  *   main_name: string,
+ *   main_code: string,
  *   department_id: int,
  *   pool: float,
  *   total_days: float,
@@ -136,13 +192,13 @@ function getContractorAttendanceSplitMonthData($month, $year, array $rule)
     $month = (int) $month;
     $year = (int) $year;
     $deptName = (string) ($rule['department_name'] ?? '');
-    $mainName = (string) ($rule['main_name'] ?? '');
-    $ck = $month . '-' . $year . '|' . strtolower($mainName) . '|' . strtolower($deptName);
+    $code = strtoupper(trim((string) ($rule['main_code'] ?? '')));
+    $ck = $month . '-' . $year . '|' . $code . '|' . strtolower($deptName);
     if (array_key_exists($ck, $cache)) {
         return $cache[$ck];
     }
 
-    $main = resolveContractorAttendanceSplitMain($mainName);
+    $main = resolveContractorAttendanceSplitMain($rule);
     $deptId = resolveDepartmentIdByName($deptName);
     if (!$main || $deptId <= 0) {
         $cache[$ck] = null;
@@ -150,16 +206,15 @@ function getContractorAttendanceSplitMonthData($month, $year, array $rule)
     }
 
     $mainId = (int) $main['id'];
+    $pool = contractorAttendanceSplitPoolAmount($main, $month, $year);
     $monthEnd = sprintf('%04d-%02d-%02d', $year, $month, (int) date('t', strtotime(sprintf('%04d-%02d-01', $year, $month))));
-    $pool = (float) ($main['decided_salary'] ?? 0);
-    if (function_exists('employeeDecidedSalaryAsOf')) {
-        $pool = (float) employeeDecidedSalaryAsOf($mainId, $monthEnd, null, $pool);
-    }
-    $pool = round(max(0, $pool), 2);
+    $monthStart = sprintf('%04d-%02d-01', $year, $month);
+
     if ($pool <= 0) {
         $cache[$ck] = [
             'main_id' => $mainId,
-            'main_name' => (string) ($main['employee_name'] ?? $mainName),
+            'main_name' => (string) ($main['employee_name'] ?? ''),
+            'main_code' => (string) ($main['employee_code'] ?? ''),
             'department_id' => $deptId,
             'pool' => 0.0,
             'total_days' => 0.0,
@@ -168,8 +223,7 @@ function getContractorAttendanceSplitMonthData($month, $year, array $rule)
         return $cache[$ck];
     }
 
-    // Recipients: ONLY this department_id + Normal Salary (Melting 2 never queried)
-    $monthStart = sprintf('%04d-%02d-01', $year, $month);
+    // Recipients: MELTING 1 Normal + Jobwork (never Melting 2; never main himself)
     $conn = getDBConnection();
     ensureEmployeesTable($conn);
     $stmt = $conn->prepare(
@@ -177,7 +231,8 @@ function getContractorAttendanceSplitMonthData($month, $year, array $rule)
          FROM employees e
          LEFT JOIN departments d ON d.id = e.department_id
          WHERE e.department_id = ?
-           AND e.pay_type = 'Salary'
+           AND e.pay_type IN ('Salary', 'Jobwork')
+           AND e.id <> ?
            AND (
                 e.status = 1
                 OR (
@@ -193,9 +248,9 @@ function getContractorAttendanceSplitMonthData($month, $year, array $rule)
                 OR e.date_of_joining = '0000-00-00'
                 OR e.date_of_joining <= ?
            )
-         ORDER BY e.employee_code ASC, e.employee_name ASC"
+         ORDER BY e.pay_type ASC, e.employee_code ASC, e.employee_name ASC"
     );
-    $stmt->bind_param('iss', $deptId, $monthStart, $monthEnd);
+    $stmt->bind_param('iiss', $deptId, $mainId, $monthStart, $monthEnd);
     $stmt->execute();
     $emps = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
     $stmt->close();
@@ -205,34 +260,43 @@ function getContractorAttendanceSplitMonthData($month, $year, array $rule)
     $totalDays = 0.0;
     foreach ($emps as $emp) {
         $eid = (int) ($emp['id'] ?? 0);
-        if ($eid <= 0 || $eid === $mainId) {
+        if ($eid <= 0 || (int) ($emp['department_id'] ?? 0) !== $deptId) {
             continue;
         }
-        // Hard guard — never leak other departments
-        if ((int) ($emp['department_id'] ?? 0) !== $deptId) {
-            continue;
-        }
-        if (normalizePayType($emp['pay_type'] ?? '') !== 'Salary') {
+        $pay = normalizePayType($emp['pay_type'] ?? '');
+        if ($pay !== 'Salary' && $pay !== 'Jobwork') {
             continue;
         }
         $base = (float) ($emp['decided_salary'] ?? 0);
-        if (function_exists('employeeDecidedSalaryAsOf')) {
+        if ($pay === 'Salary' && function_exists('employeeDecidedSalaryAsOf')) {
             $base = (float) employeeDecidedSalaryAsOf($eid, $monthEnd, null, $base);
         }
-        $att = getPayrollAttendanceBundle($emp, $month, $year, $base);
+        if ($pay === 'Jobwork' && function_exists('getJobworkTotal')) {
+            $jw = (float) getJobworkTotal($eid, $month, $year);
+            if ($jw > 0) {
+                $base = $jw;
+            }
+        }
+        $att = getPayrollAttendanceBundle($emp, $month, $year, $base > 0 ? $base : 1);
         $days = (float) ($att['total_days'] ?? 0);
+        // Jobwork: if no attendance marks, use ops worked days
+        if ($days <= 0 && $pay === 'Jobwork' && function_exists('getJobworkWorkedDays')) {
+            $days = (float) getJobworkWorkedDays($eid, $month, $year);
+        }
         if ($days < 0) {
             $days = 0;
         }
-        $daysByEmp[$eid] = $days;
-        $totalDays += $days;
+        // Min weight 1 so EVERY Melting 1 Normal+Jobwork gets a share (more days = larger share)
+        $weight = $days > 0 ? $days : 1.0;
+        $daysByEmp[$eid] = $weight;
+        $totalDays += $weight;
     }
 
     $shares = [];
     $ids = array_keys($daysByEmp);
     $n = count($ids);
+    $distributed = 0.0;
     if ($n > 0 && $totalDays > 0) {
-        // Attendance-weighted split (Melting 1 only)
         $assigned = 0.0;
         $last = $n - 1;
         foreach ($ids as $i => $eid) {
@@ -247,38 +311,27 @@ function getContractorAttendanceSplitMonthData($month, $year, array $rule)
                 $shares[$eid] = 0.0;
             }
         }
-    } elseif ($n > 0 && $pool > 0) {
-        // No attendance marked yet — equal split so pool still reaches Melting 1 NEFT
-        $assigned = 0.0;
-        $last = $n - 1;
-        $each = round($pool / $n, 2);
-        foreach ($ids as $i => $eid) {
-            if ($i === $last) {
-                $shares[$eid] = round($pool - $assigned, 2);
-            } else {
-                $shares[$eid] = $each;
-                $assigned += $each;
-            }
-        }
+        $distributed = round(array_sum($shares), 2);
     }
+
+    // Remainder after attendance split (usually 0; if somehow short, keep on main)
+    $remainder = round(max(0, $pool - $distributed), 2);
 
     $cache[$ck] = [
         'main_id' => $mainId,
-        'main_name' => (string) ($main['employee_name'] ?? $mainName),
+        'main_name' => (string) ($main['employee_name'] ?? ''),
         'main_code' => (string) ($main['employee_code'] ?? ''),
         'department_id' => $deptId,
         'pool' => $pool,
         'total_days' => $totalDays,
         'shares' => $shares,
+        'recipient_count' => $n,
+        'distributed' => $distributed,
+        'remainder' => $remainder,
     ];
     return $cache[$ck];
 }
 
-/**
- * Share for one Normal employee this month (0 if not Melting 1 / not in rule).
- *
- * @return array{share: float, main_id: int, main_name: string, pool: float}|null
- */
 function getContractorAttendanceShareForEmployee(array $emp, $month, $year)
 {
     $deptId = (int) ($emp['department_id'] ?? 0);
@@ -286,7 +339,8 @@ function getContractorAttendanceShareForEmployee(array $emp, $month, $year)
     if ($deptId <= 0 || $eid <= 0) {
         return null;
     }
-    if (normalizePayType($emp['pay_type'] ?? '') !== 'Salary') {
+    $pay = normalizePayType($emp['pay_type'] ?? '');
+    if ($pay !== 'Salary' && $pay !== 'Jobwork') {
         return null;
     }
 
@@ -296,33 +350,66 @@ function getContractorAttendanceShareForEmployee(array $emp, $month, $year)
             continue;
         }
         if ($eid === (int) $data['main_id']) {
-            return null;
+            return [
+                'share' => 0.0,
+                'remainder' => (float) ($data['remainder'] ?? 0),
+                'main_id' => (int) $data['main_id'],
+                'main_name' => (string) $data['main_name'],
+                'main_code' => (string) ($data['main_code'] ?? ''),
+                'pool' => (float) $data['pool'],
+                'is_main' => true,
+            ];
         }
         $share = (float) ($data['shares'][$eid] ?? 0);
         return [
             'share' => round($share, 2),
+            'remainder' => 0.0,
             'main_id' => (int) $data['main_id'],
             'main_name' => (string) $data['main_name'],
             'main_code' => (string) ($data['main_code'] ?? ''),
             'pool' => (float) $data['pool'],
+            'is_main' => false,
         ];
     }
     return null;
 }
 
-/**
- * Apply Melting-1-only share onto a Normal salary register row.
- */
 function applyContractorAttendanceShareToRegisterRow(array $row, $month, $year)
 {
-    if (($row['pay_type'] ?? '') !== 'Salary' && normalizePayType($row['pay_type'] ?? '') !== 'Salary') {
+    $eid = (int) ($row['employee_id'] ?? 0);
+    $deptId = (int) ($row['department_id'] ?? 0);
+    $pay = normalizePayType($row['pay_type'] ?? '');
+    $skip = contractorAttendanceSplitMainIds();
+
+    // Main (PURANSINH / CO72216): show only remainder after Melting 1 split
+    if ($eid > 0 && isset($skip[$eid])) {
+        $info = getContractorAttendanceShareForEmployee([
+            'id' => $eid,
+            'department_id' => $deptId,
+            'pay_type' => $pay ?: 'Jobwork',
+        ], $month, $year);
+        $remainder = (float) ($info['remainder'] ?? 0);
+        $row['contractor_main_share'] = 0.0;
+        $row['contractor_split_out'] = true;
+        $row['contractor_remainder'] = $remainder;
+        $row['gross'] = $remainder;
+        $row['net'] = $remainder;
+        $row['actual'] = $remainder;
+        $row['salary'] = $remainder;
+        $row['remarks'] = $remainder > 0
+            ? 'Remainder after Melting 1 attendance split'
+            : 'Fully split to Melting 1 (Normal + Jobwork)';
         return $row;
     }
-    // Reconstruct minimal emp for lookup
+
+    if ($pay !== 'Salary' && $pay !== 'Jobwork') {
+        return $row;
+    }
+
     $emp = [
-        'id' => (int) ($row['employee_id'] ?? 0),
-        'department_id' => (int) ($row['department_id'] ?? 0),
-        'pay_type' => 'Salary',
+        'id' => $eid,
+        'department_id' => $deptId,
+        'pay_type' => $pay,
     ];
     $info = getContractorAttendanceShareForEmployee($emp, $month, $year);
     if (!$info || (float) $info['share'] <= 0) {
@@ -337,7 +424,7 @@ function applyContractorAttendanceShareToRegisterRow(array $row, $month, $year)
         $row['net'] = 0.0;
     }
     $label = trim(($info['main_code'] ?? '') . ' — ' . ($info['main_name'] ?? ''));
-    $row['main_contractor'] = $label !== '—' ? $label : (string) $info['main_name'];
+    $row['main_contractor'] = $label !== '—' && $label !== '' ? $label : (string) $info['main_name'];
     $row['main_contractor_id'] = (int) $info['main_id'];
     return $row;
 }
