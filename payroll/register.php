@@ -435,8 +435,31 @@ require_once __DIR__ . '/../includes/header.php';
                             <td class="num"><?php echo registerNum($r['loan']); ?></td>
                             <td class="num"><?php echo registerNum($r['advance']); ?></td>
                             <td class="num"><?php echo registerNum($r['total_deduction']); ?></td>
-                            <td class="num"><?php echo registerNum($r['arrears']); ?></td>
-                            <td class="num"><strong><?php echo registerNum($r['net']); ?></strong></td>
+                            <?php
+                            $arrearsVal = (float) ($r['arrears'] ?? 0);
+                            $netBase = round((float) ($r['gross'] ?? 0) - (float) ($r['total_deduction'] ?? 0), 2);
+                            $netShow = round($netBase + $arrearsVal, 2);
+                            if ($netShow < 0) {
+                                $netShow = 0;
+                            }
+                            ?>
+                            <td class="num sr-arrears-cell">
+                                <?php if (!$isLocked): ?>
+                                <input type="number"
+                                       class="sr-arrears-input"
+                                       step="0.01"
+                                       min="0"
+                                       data-employee-id="<?php echo (int) $r['employee_id']; ?>"
+                                       data-net-base="<?php echo htmlspecialchars((string) $netBase); ?>"
+                                       value="<?php echo $arrearsVal != 0.0 ? htmlspecialchars(number_format($arrearsVal, 2, '.', '')) : ''; ?>"
+                                       placeholder="0"
+                                       title="Arrears (added to Net)"
+                                       style="width:88px;text-align:right;font-weight:700;border:1px solid #fca5a5;border-radius:6px;padding:4px 6px;background:#fff;">
+                                <?php else: ?>
+                                <?php echo registerNum($arrearsVal); ?>
+                                <?php endif; ?>
+                            </td>
+                            <td class="num sr-net-cell"><strong class="sr-net-value"><?php echo registerNum($netShow); ?></strong></td>
                             <td><?php echo htmlspecialchars($r['account'] ?: '-'); ?></td>
                             <td><?php echo htmlspecialchars($r['ifsc'] ?: '-'); ?></td>
                             <td><?php echo htmlspecialchars($r['remarks'] ?: '-'); ?></td>
@@ -451,7 +474,7 @@ require_once __DIR__ . '/../includes/header.php';
                             <td colspan="4"></td>
                             <td></td>
                             <td></td>
-                            <td class="num"><strong><?php echo registerNum($sumNet); ?></strong></td>
+                            <td class="num"><strong class="sr-net-total"><?php echo registerNum($sumNet); ?></strong></td>
                             <td colspan="3"></td>
                         </tr>
                     </tfoot>
@@ -461,4 +484,84 @@ require_once __DIR__ . '/../includes/header.php';
         </div>
     <?php endforeach; ?>
 </main>
+<?php if (!$isLocked): ?>
+<script>
+(function () {
+    var saveUrl = <?php echo json_encode(app_url('payroll/register_arrears_save.php')); ?>;
+    var month = <?php echo (int) $month; ?>;
+    var year = <?php echo (int) $year; ?>;
+    var deptId = <?php echo (int) $deptId; ?>;
+    var regType = <?php echo json_encode($type); ?>;
+    var timers = {};
+
+    function fmt(n) {
+        n = Math.round((parseFloat(n) || 0) * 100) / 100;
+        return n.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+
+    function recalcRow(input) {
+        var base = parseFloat(input.getAttribute('data-net-base')) || 0;
+        var arr = parseFloat(input.value);
+        if (isNaN(arr) || arr < 0) arr = 0;
+        var net = Math.round((base + arr) * 100) / 100;
+        if (net < 0) net = 0;
+        var cell = input.closest('tr').querySelector('.sr-net-value');
+        if (cell) cell.textContent = fmt(net);
+        recalcSheetTotal(input.closest('table'));
+        return arr;
+    }
+
+    function recalcSheetTotal(table) {
+        if (!table) return;
+        var total = 0;
+        table.querySelectorAll('.sr-net-value').forEach(function (el) {
+            var t = (el.textContent || '').replace(/,/g, '');
+            total += parseFloat(t) || 0;
+        });
+        var foot = table.querySelector('.sr-net-total');
+        if (foot) foot.textContent = fmt(total);
+    }
+
+    function saveArrears(input) {
+        var empId = parseInt(input.getAttribute('data-employee-id'), 10) || 0;
+        if (!empId) return;
+        var arr = recalcRow(input);
+        var body = new FormData();
+        body.append('employee_id', empId);
+        body.append('month', month);
+        body.append('year', year);
+        body.append('department_id', deptId);
+        body.append('type', regType);
+        body.append('arrears', arr);
+        fetch(saveUrl, { method: 'POST', body: body, credentials: 'same-origin' })
+            .then(function (r) { return r.json(); })
+            .then(function (res) {
+                if (!res || !res.success) {
+                    if (window.toastr) toastr.error((res && res.message) || 'Arrears save failed');
+                    else alert((res && res.message) || 'Arrears save failed');
+                    return;
+                }
+                if (window.toastr) toastr.success('Arrears saved');
+            })
+            .catch(function () {
+                if (window.toastr) toastr.error('Arrears save failed');
+            });
+    }
+
+    document.querySelectorAll('.sr-arrears-input').forEach(function (input) {
+        input.addEventListener('input', function () {
+            recalcRow(input);
+            var key = input.getAttribute('data-employee-id');
+            if (timers[key]) clearTimeout(timers[key]);
+            timers[key] = setTimeout(function () { saveArrears(input); }, 450);
+        });
+        input.addEventListener('change', function () {
+            var key = input.getAttribute('data-employee-id');
+            if (timers[key]) clearTimeout(timers[key]);
+            saveArrears(input);
+        });
+    });
+})();
+</script>
+<?php endif; ?>
 <?php require_once __DIR__ . '/../includes/footer.php'; ?>
