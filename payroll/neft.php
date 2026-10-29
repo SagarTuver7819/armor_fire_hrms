@@ -34,7 +34,7 @@ if ($type === 'all') {
     $data = getNeftSheetData($month, $year, $type, $deptId);
 }
 $neftStatus = $data ? (string) ($data['lock']['approval_status'] ?? 'approved') : '';
-$neftFinal = $neftStatus === 'approved';
+$neftFinal = in_array($neftStatus, ['approved', 'draft_live'], true);
 $monthLabel = date('F Y', mktime(0, 0, 0, $month, 1, $year));
 $companyName = function_exists('getCompanyName') ? getCompanyName() : 'Company';
 $nfpsCfg = neftNfpsSettings();
@@ -49,6 +49,8 @@ if ($data && !empty($data['lock'])) {
 if ($payDatePreview === '') {
     $payDatePreview = date('d-m-Y');
 }
+$missingBankCount = (int) ($data['missing_bank_count'] ?? 0);
+$readyBankCount = $data ? max(0, count($data['rows'] ?? []) - $missingBankCount) : 0;
 
 $pageTitle = 'NEFT Sheet';
 $useSidebar = true;
@@ -155,8 +157,9 @@ require_once __DIR__ . '/../includes/header.php';
 
         <?php if (!$data): ?>
             <p class="form-hint" style="margin-top:16px;">
-                NEFT sheet is created only after you <strong>Finalize &amp; Lock</strong> the Salary Register for this month / type.
-                <a href="<?php echo app_url('payroll/register.php?' . $qs); ?>">Open Salary Register →</a>
+                No salary / jobwork employees found for this month.
+                Open <a href="<?php echo app_url('payroll/register.php?' . $qs); ?>">Salary Register</a>
+                (Normal + Jobwork) and ensure attendance / ops qty is filled.
             </p>
         <?php else: ?>
             <?php
@@ -175,8 +178,16 @@ require_once __DIR__ . '/../includes/header.php';
                 </div>
             <?php endif; ?>
             <div class="ops-live-summary" style="margin-top:12px;">
-                <span class="ops-chip"><i class="fa-solid fa-lock"></i> Locked <?php echo htmlspecialchars(formatDateDisplay(substr((string) $lock['locked_at'], 0, 10)) . ' ' . substr((string) $lock['locked_at'], 11, 5)); ?></span>
-                <span class="ops-chip"><?php echo count($rows); ?> NEFT rows</span>
+                <span class="ops-chip"><i class="fa-solid fa-lock"></i>
+                    <?php echo $neftStatus === 'draft_live'
+                        ? 'Live register (not locked)'
+                        : ('Locked ' . htmlspecialchars(formatDateDisplay(substr((string) ($lock['locked_at'] ?? ''), 0, 10)) . ' ' . substr((string) ($lock['locked_at'] ?? ''), 11, 5))); ?>
+                </span>
+                <span class="ops-chip"><strong><?php echo count($rows); ?> employees</strong> (Normal + Jobwork)</span>
+                <span class="ops-chip"><?php echo (int) $readyBankCount; ?> bank-ready</span>
+                <?php if ($missingBankCount > 0): ?>
+                    <span class="ops-chip" style="color:#b45309;"><i class="fa-solid fa-triangle-exclamation"></i> <?php echo (int) $missingBankCount; ?> missing bank A/C</span>
+                <?php endif; ?>
                 <span class="ops-chip"><strong>Total ₹ <?php echo number_format($neftTotal, 2); ?></strong></span>
             </div>
 
@@ -197,16 +208,19 @@ require_once __DIR__ . '/../includes/header.php';
                     </thead>
                     <tbody>
                     <?php if (!$rows): ?>
-                        <tr><td colspan="9" class="empty-cell">No bank accounts found for NEFT (net &gt; 0 with account number). Lock Normal + Jobwork registers first.</td></tr>
+                        <tr><td colspan="9" class="empty-cell">No employees with Net &gt; 0 for this month. Fill attendance / Jobwork qty in Salary Register first.</td></tr>
                     <?php else: ?>
                         <?php foreach ($rows as $r): ?>
-                            <tr>
+                            <?php $missBank = !empty($r['missing_bank']) || trim((string) ($r['account'] ?? '')) === '' || trim((string) ($r['account'] ?? '')) === '-'; ?>
+                            <tr<?php echo $missBank ? ' style="background:#fff7ed;"' : ''; ?>>
                                 <td><?php echo (int) $r['sr']; ?></td>
                                 <td><strong><?php echo htmlspecialchars(neftNfpsBeneName($r['employee_name'] ?? '')); ?></strong>
-                                    <div class="sr-code"><?php echo htmlspecialchars($r['employee_code'] ?? ''); ?></div>
+                                    <div class="sr-code"><?php echo htmlspecialchars($r['employee_code'] ?? ''); ?>
+                                        <?php if ($missBank): ?> · <span style="color:#b45309;">No bank A/C</span><?php endif; ?>
+                                    </div>
                                 </td>
                                 <td><?php echo htmlspecialchars($r['department'] ?: '-'); ?></td>
-                                <td><?php echo htmlspecialchars($r['account']); ?></td>
+                                <td><?php echo htmlspecialchars($missBank ? '—' : $r['account']); ?></td>
                                 <td><?php echo htmlspecialchars($r['ifsc'] ?: '-'); ?></td>
                                 <td class="num"><strong><?php echo number_format((float) $r['amount'], 2); ?></strong></td>
                                 <td><?php echo htmlspecialchars($creditNarrPreview); ?></td>

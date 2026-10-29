@@ -44,7 +44,8 @@ $backQs = http_build_query([
     'department_id' => $deptId,
 ]);
 
-if (!$data || ($data['lock']['approval_status'] ?? 'approved') !== 'approved') {
+$status = (string) ($data['lock']['approval_status'] ?? '');
+if (!$data || !in_array($status, ['approved', 'draft_live'], true)) {
     header('Location: ' . app_url('payroll/neft.php?' . $backQs));
     exit;
 }

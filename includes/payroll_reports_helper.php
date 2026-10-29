@@ -393,6 +393,7 @@ function buildNeftRowsFromRegister(array $registerRows)
 {
     $neft = [];
     $sr = 0;
+    $missingBank = 0;
     foreach ($registerRows as $r) {
         $net = round((float) ($r['net'] ?? 0), 2);
         if ($net <= 0) {
@@ -400,7 +401,8 @@ function buildNeftRowsFromRegister(array $registerRows)
         }
         $account = trim((string) ($r['account'] ?? ''));
         if ($account === '' || $account === '-') {
-            continue;
+            $account = '';
+            $missingBank++;
         }
         $sr++;
         $neft[] = [
@@ -411,13 +413,164 @@ function buildNeftRowsFromRegister(array $registerRows)
             'department' => (string) ($r['department'] ?? ''),
             'department_id' => (int) ($r['department_id'] ?? 0),
             'bank_name' => (string) ($r['bank_name'] ?? ''),
-            'account' => $account,
+            'account' => $account !== '' ? $account : '-',
             'ifsc' => (string) ($r['ifsc'] ?? ''),
             'amount' => $net,
+            'mobile' => (string) ($r['mobile'] ?? ''),
             'remarks' => 'Salary',
+            'missing_bank' => ($account === ''),
+            'pay_type' => (string) ($r['pay_type'] ?? ''),
         ];
     }
     return $neft;
+}
+
+/**
+ * Batch-load bank / IFSC / mobile for register rows.
+ */
+function enrichRegisterRowsWithBankDetails(array $registerRows)
+{
+    $ids = [];
+    foreach ($registerRows as $r) {
+        $eid = (int) ($r['employee_id'] ?? 0);
+        if ($eid > 0) {
+            $ids[$eid] = $eid;
+        }
+    }
+    if (!$ids) {
+        return $registerRows;
+    }
+    $conn = getDBConnection();
+    $idList = implode(',', array_map('intval', $ids));
+    $bankById = [];
+    $res = $conn->query(
+        "SELECT id, employee_name, bank_name, bank_account_number, ifsc_code,
+                mobile_number, office_mobile
+         FROM employees WHERE id IN ($idList)"
+    );
+    if ($res) {
+        while ($emp = $res->fetch_assoc()) {
+            $bankById[(int) $emp['id']] = $emp;
+        }
+        $res->free();
+    }
+    $conn->close();
+
+    foreach ($registerRows as &$r) {
+        $eid = (int) ($r['employee_id'] ?? 0);
+        $emp = $bankById[$eid] ?? null;
+        if (!$emp) {
+            continue;
+        }
+        $acc = trim((string) ($r['account'] ?? ''));
+        if ($acc === '' || $acc === '-') {
+            $r['account'] = trim((string) ($emp['bank_account_number'] ?? ''));
+        }
+        $ifsc = trim((string) ($r['ifsc'] ?? ''));
+        if ($ifsc === '' || $ifsc === '-') {
+            $r['ifsc'] = trim((string) ($emp['ifsc_code'] ?? ''));
+        }
+        if (empty($r['bank_name'])) {
+            $r['bank_name'] = (string) ($emp['bank_name'] ?? '');
+        }
+        if (empty($r['mobile'])) {
+            $r['mobile'] = (string) ($emp['mobile_number'] ?? $emp['office_mobile'] ?? '');
+        }
+        if (empty($r['employee_name'])) {
+            $r['employee_name'] = (string) ($emp['employee_name'] ?? '');
+        }
+    }
+    unset($r);
+    return $registerRows;
+}
+
+/**
+ * All salary_register_locks for a month (optionally one register type).
+ */
+function listSalaryRegisterLocks($month, $year, $type = null)
+{
+    ensurePayrollReportTables();
+    $month = (int) $month;
+    $year = (int) $year;
+    $conn = getDBConnection();
+    ensurePayrollReportTables($conn);
+    if ($type !== null && $type !== '') {
+        $type = (string) $type;
+        $stmt = $conn->prepare(
+            'SELECT * FROM salary_register_locks
+             WHERE month_no = ? AND year_no = ? AND register_type = ?
+             ORDER BY department_id ASC, id ASC'
+        );
+        $stmt->bind_param('iis', $month, $year, $type);
+    } else {
+        $stmt = $conn->prepare(
+            'SELECT * FROM salary_register_locks
+             WHERE month_no = ? AND year_no = ?
+             ORDER BY register_type ASC, department_id ASC, id ASC'
+        );
+        $stmt->bind_param('ii', $month, $year);
+    }
+    $stmt->execute();
+    $rows = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+    $stmt->close();
+    $conn->close();
+    return $rows ?: [];
+}
+
+/**
+ * Rows from a lock snapshot (rows[] or flattened groups).
+ */
+function registerRowsFromLockSnapshot(array $lock, $deptId = 0)
+{
+    $deptId = (int) $deptId;
+    $snap = json_decode((string) ($lock['snapshot_json'] ?? ''), true);
+    if (!is_array($snap)) {
+        return [];
+    }
+    $rows = $snap['rows'] ?? null;
+    if (!is_array($rows)) {
+        $rows = flattenSalaryRegisterGroups($snap['groups'] ?? []);
+    }
+    if ($deptId <= 0) {
+        return $rows;
+    }
+    return array_values(array_filter($rows, static function ($r) use ($deptId) {
+        return (int) ($r['department_id'] ?? 0) === $deptId;
+    }));
+}
+
+/**
+ * Merge register rows by employee_id (prefer higher net; locked overlay preferred when flag set).
+ */
+function mergeRegisterRowsByEmployee(array $base, array $overlay, $overlayWins = true)
+{
+    $out = $base;
+    $seen = [];
+    foreach ($out as $i => $r) {
+        $eid = (int) ($r['employee_id'] ?? 0);
+        if ($eid > 0) {
+            $seen[$eid] = $i;
+        }
+    }
+    foreach ($overlay as $r) {
+        $eid = (int) ($r['employee_id'] ?? 0);
+        if ($eid <= 0) {
+            $out[] = $r;
+            continue;
+        }
+        if (!isset($seen[$eid])) {
+            $seen[$eid] = count($out);
+            $out[] = $r;
+            continue;
+        }
+        $idx = $seen[$eid];
+        if ($overlayWins) {
+            $out[$idx] = $r;
+        } elseif ((float) ($r['net'] ?? 0) > (float) ($out[$idx]['net'] ?? 0)) {
+            $out[$idx] = $r;
+        }
+    }
+    return $out;
 }
 
 /**
@@ -438,25 +591,7 @@ function lockSalaryRegister($month, $year, $type, $deptId = 0, $userId = null)
     }
 
     $groups = getSalaryRegisterData($type, $month, $year, $deptId, 0);
-    $rows = flattenSalaryRegisterGroups($groups);
-
-    // Enrich bank name if missing
-    foreach ($rows as &$r) {
-        if (empty($r['bank_name']) && !empty($r['employee_id'])) {
-            $emp = getEmployeeById((int) $r['employee_id']);
-            if ($emp) {
-                $r['bank_name'] = (string) ($emp['bank_name'] ?? '');
-                if (empty($r['account']) || $r['account'] === '-') {
-                    $r['account'] = (string) ($emp['bank_account_number'] ?? '');
-                }
-                if (empty($r['ifsc']) || $r['ifsc'] === '-') {
-                    $r['ifsc'] = (string) ($emp['ifsc_code'] ?? '');
-                }
-            }
-        }
-    }
-    unset($r);
-
+    $rows = enrichRegisterRowsWithBankDetails(flattenSalaryRegisterGroups($groups));
     $neft = buildNeftRowsFromRegister($rows);
     $totalGross = 0.0;
     $totalNet = 0.0;
@@ -547,50 +682,71 @@ function unlockSalaryRegister($month, $year, $type, $deptId = 0)
 function getNeftSheetData($month, $year, $type, $deptId = 0)
 {
     $deptId = (int) $deptId;
-    $resolved = resolveSalaryRegisterLock($month, $year, $type, $deptId);
-    $lock = $resolved['lock'];
-    if (!$lock) {
-        return null;
-    }
-    $neft = json_decode((string) ($lock['neft_json'] ?? '[]'), true);
-    if (!is_array($neft)) {
-        $neft = [];
-    }
-    // All-departments NEFT viewed for one department → filter rows
-    if ($deptId > 0 && !empty($resolved['from_all_departments'])) {
-        $filtered = array_values(array_filter($neft, static function ($r) use ($deptId) {
-            return (int) ($r['department_id'] ?? 0) === $deptId;
-        }));
-        // Older snapshots may lack department_id on NEFT rows — map via register snapshot
-        if (!$filtered) {
-            $snap = json_decode((string) ($lock['snapshot_json'] ?? ''), true);
-            $empIds = [];
-            foreach (($snap['rows'] ?? []) as $sr) {
-                if ((int) ($sr['department_id'] ?? 0) === $deptId) {
-                    $empIds[(int) ($sr['employee_id'] ?? 0)] = true;
-                }
-            }
-            if ($empIds) {
-                $filtered = array_values(array_filter($neft, static function ($r) use ($empIds) {
-                    return isset($empIds[(int) ($r['employee_id'] ?? 0)]);
-                }));
-            }
+    $month = (int) $month;
+    $year = (int) $year;
+    $type = (string) $type;
+
+    // Prefer full register snapshot (all net>0) over old neft_json (bank-only)
+    $registerRows = [];
+    $locks = listSalaryRegisterLocks($month, $year, $type);
+    $primary = null;
+    foreach ($locks as $lock) {
+        $lockDept = (int) ($lock['department_id'] ?? 0);
+        if ($deptId > 0 && $lockDept > 0 && $lockDept !== $deptId) {
+            continue;
         }
-        $neft = $filtered;
-        $sr = 0;
-        foreach ($neft as &$row) {
-            $row['sr'] = ++$sr;
+        if (!$primary) {
+            $primary = $lock;
         }
-        unset($row);
+        $registerRows = mergeRegisterRowsByEmployee(
+            $registerRows,
+            registerRowsFromLockSnapshot($lock, $deptId),
+            true
+        );
     }
+
+    // No lock → live register
+    if (!$registerRows) {
+        $groups = getSalaryRegisterData($type, $month, $year, $deptId, 0);
+        $registerRows = flattenSalaryRegisterGroups($groups);
+        if (!$registerRows) {
+            return null;
+        }
+        $primary = [
+            'locked_at' => date('Y-m-d H:i:s'),
+            'approval_status' => 'draft_live',
+        ];
+    }
+
+    $registerRows = enrichRegisterRowsWithBankDetails($registerRows);
+    $neft = buildNeftRowsFromRegister($registerRows);
+    $missingBank = 0;
+    foreach ($neft as $r) {
+        if (!empty($r['missing_bank'])) {
+            $missingBank++;
+        }
+    }
+    $total = round(array_sum(array_map(static function ($r) {
+        return (float) ($r['amount'] ?? 0);
+    }, $neft)), 2);
+
+    $status = (string) ($primary['approval_status'] ?? 'approved');
+    if (!$locks) {
+        $status = 'draft_live';
+    }
+
     return [
-        'lock' => $lock,
+        'lock' => array_merge($primary ?: [], [
+            'approval_status' => $status,
+            'employee_count' => count($neft),
+            'neft_count' => count($neft),
+            'total_net' => $total,
+        ]),
         'rows' => $neft,
-        'total_amount' => round((float) ($lock['total_net'] ?? 0), 2),
-        // Prefer sum of NEFT amounts (excludes missing bank)
-        'neft_total' => round(array_sum(array_map(static function ($r) {
-            return (float) ($r['amount'] ?? 0);
-        }, $neft)), 2),
+        'total_amount' => $total,
+        'neft_total' => $total,
+        'missing_bank_count' => $missingBank,
+        'from_snapshot' => !empty($locks),
     ];
 }
 
@@ -619,91 +775,103 @@ function neftNfpsBeneName($name)
 }
 
 /**
- * Merge Normal Salary + Jobwork Actual NEFT rows (all employees).
+ * Merge Normal Salary + Jobwork Actual NEFT rows for ALL employees.
+ * Rebuilds from LIVE salary registers (not only locked neft_json), so Foundry /
+ * Jobwork / every department is included — not just the ~66 bank-ready rows
+ * saved at lock time.
  */
 function getCombinedNeftSheetData($month, $year, $deptId = 0)
 {
     $month = (int) $month;
     $year = (int) $year;
     $deptId = (int) $deptId;
-    $types = array_keys(function_exists('salaryRegisterTypes') ? salaryRegisterTypes() : ['salary' => 'Salary']);
+    $types = array_keys(function_exists('salaryRegisterTypes') ? salaryRegisterTypes() : []);
     if (!$types) {
         $types = ['salary', 'jobwork_actual'];
     }
 
-    $merged = [];
-    $seen = [];
+    $registerRows = [];
     $locks = [];
-    $allApproved = true;
-    $any = false;
+    $anyApproved = false;
     $payDate = '';
 
     foreach ($types as $type) {
-        $data = getNeftSheetData($month, $year, $type, $deptId);
-        if (!$data || empty($data['rows'])) {
-            // Still track lock presence for status
-            $resolved = function_exists('resolveSalaryRegisterLock')
-                ? resolveSalaryRegisterLock($month, $year, $type, $deptId)
-                : ['lock' => getSalaryRegisterLock($month, $year, $type, $deptId)];
-            if (!empty($resolved['lock'])) {
-                $any = true;
-                $locks[] = $resolved['lock'];
-                if (($resolved['lock']['approval_status'] ?? '') !== 'approved') {
-                    $allApproved = false;
-                }
-            }
-            continue;
-        }
-        $any = true;
-        $locks[] = $data['lock'];
-        if (($data['lock']['approval_status'] ?? '') !== 'approved') {
-            $allApproved = false;
-        }
-        $at = (string) ($data['lock']['approved_at'] ?? $data['lock']['locked_at'] ?? '');
-        if ($at !== '' && ($payDate === '' || strcmp($at, $payDate) > 0)) {
-            $payDate = $at;
-        }
-        foreach ($data['rows'] as $r) {
-            $eid = (int) ($r['employee_id'] ?? 0);
-            $key = $eid > 0 ? 'e' . $eid : 'a' . md5(($r['account'] ?? '') . '|' . ($r['employee_name'] ?? ''));
-            if (isset($seen[$key])) {
-                // Same employee in both registers — keep higher net amount
-                if ((float) ($r['amount'] ?? 0) > (float) ($merged[$seen[$key]]['amount'] ?? 0)) {
-                    $merged[$seen[$key]] = $r;
-                }
+        $typeLocks = listSalaryRegisterLocks($month, $year, $type);
+        $typeRows = [];
+        foreach ($typeLocks as $lock) {
+            $lockDept = (int) ($lock['department_id'] ?? 0);
+            if ($deptId > 0 && $lockDept > 0 && $lockDept !== $deptId) {
                 continue;
             }
-            $seen[$key] = count($merged);
-            $merged[] = $r;
+            $locks[] = $lock;
+            if (($lock['approval_status'] ?? '') === 'approved') {
+                $anyApproved = true;
+            }
+            $at = (string) ($lock['approved_at'] ?? $lock['locked_at'] ?? '');
+            if ($at !== '' && ($payDate === '' || strcmp($at, $payDate) > 0)) {
+                $payDate = $at;
+            }
+            $typeRows = mergeRegisterRowsByEmployee(
+                $typeRows,
+                registerRowsFromLockSnapshot($lock, $deptId),
+                true
+            );
+        }
+
+        // Live fill so unlocked depts / Jobwork still appear
+        $live = flattenSalaryRegisterGroups(
+            getSalaryRegisterData($type, $month, $year, $deptId, 0)
+        );
+        // Locked snapshot wins (finalized Net / Arrears)
+        $typeRows = mergeRegisterRowsByEmployee($live, $typeRows, true);
+        $registerRows = mergeRegisterRowsByEmployee($registerRows, $typeRows, false);
+    }
+
+    $registerRows = enrichRegisterRowsWithBankDetails($registerRows);
+    $neft = buildNeftRowsFromRegister($registerRows);
+    $missingBank = 0;
+    foreach ($neft as $r) {
+        if (!empty($r['missing_bank'])) {
+            $missingBank++;
         }
     }
 
-    if (!$any) {
+    if (!$neft && !$locks) {
         return null;
     }
 
-    $sr = 0;
-    $rows = [];
-    foreach ($merged as $r) {
-        $r['sr'] = ++$sr;
-        $rows[] = $r;
-    }
+    $primary = $locks[0] ?? [
+        'locked_at' => date('Y-m-d H:i:s'),
+        'approval_status' => 'draft_live',
+        'employee_count' => count($neft),
+        'neft_count' => count($neft),
+        'total_net' => 0,
+    ];
+    $status = $anyApproved
+        ? 'approved'
+        : (!$locks ? 'draft_live' : (string) ($primary['approval_status'] ?? 'pending_check'));
 
-    $primary = $locks[0] ?? null;
+    $total = round(array_sum(array_map(static function ($r) {
+        return (float) ($r['amount'] ?? 0);
+    }, $neft)), 2);
+
     return [
-        'lock' => $primary ? array_merge($primary, [
-            'approval_status' => $allApproved ? 'approved' : (string) ($primary['approval_status'] ?? 'pending_check'),
+        'lock' => array_merge($primary, [
+            'approval_status' => $status,
             'approved_at' => $payDate !== '' ? $payDate : ($primary['approved_at'] ?? $primary['locked_at'] ?? null),
-        ]) : null,
-        'rows' => $rows,
-        'neft_total' => round(array_sum(array_map(static function ($r) {
-            return (float) ($r['amount'] ?? 0);
-        }, $rows)), 2),
-        'total_amount' => round(array_sum(array_map(static function ($r) {
-            return (float) ($r['amount'] ?? 0);
-        }, $rows)), 2),
+            'employee_count' => count($neft),
+            'neft_count' => count($neft),
+            'total_net' => $total,
+        ]),
+        'rows' => $neft,
+        'neft_total' => $total,
+        'total_amount' => $total,
         'combined' => true,
         'locks' => $locks,
+        'missing_bank_count' => $missingBank,
+        'register_row_count' => count($registerRows),
+        'from_live' => empty($locks),
+        'from_snapshot' => !empty($locks),
     ];
 }
 
@@ -752,11 +920,12 @@ function buildNfpsNeftExport(array $neftRows, $month, $year, $payDateYmd = null)
             continue;
         }
         $account = preg_replace('/\s+/', '', (string) ($r['account'] ?? ''));
-        $account = preg_replace('/[^0-9]/', '', $account);
-        if ($account === '') {
-            continue;
-        }
+        $account = preg_replace('/[^0-9A-Za-z]/', '', $account);
+        // Keep employees even without bank A/C so full sheet matches Salary Register
         $ifsc = strtoupper(preg_replace('/\s+/', '', (string) ($r['ifsc'] ?? '')));
+        if ($ifsc === '-' ) {
+            $ifsc = '';
+        }
         $mobile = preg_replace('/\D+/', '', (string) ($r['mobile'] ?? ''));
         if (strlen($mobile) > 10) {
             $mobile = substr($mobile, -10);
@@ -764,6 +933,7 @@ function buildNfpsNeftExport(array $neftRows, $month, $year, $payDateYmd = null)
         if (strlen($mobile) !== 10) {
             $mobile = '';
         }
+        $remark = ($account === '' || $account === '-') ? 'MISSING BANK A/C' : '';
 
         $total += $amount;
         $rows[] = [
@@ -771,14 +941,14 @@ function buildNfpsNeftExport(array $neftRows, $month, $year, $payDateYmd = null)
             $cfg['pymt_mode'],
             $cfg['debit_acc_no'],
             neftNfpsBeneName($r['employee_name'] ?? ''),
-            $account,
+            ($account === '-' ? '' : $account),
             $ifsc,
             $amount,
             $creditNarr,
             $payDate,
             $mobile,
             $cfg['email_id'],
-            '',
+            $remark,
             '',
         ];
     }

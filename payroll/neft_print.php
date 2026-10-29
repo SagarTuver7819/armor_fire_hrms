@@ -32,7 +32,8 @@ if ($type === 'all' || $type === '') {
 if (!$data) {
     die('NEFT sheet not found. Finalize &amp; Lock the Salary Register first.');
 }
-if (($data['lock']['approval_status'] ?? 'approved') !== 'approved') {
+$status = (string) ($data['lock']['approval_status'] ?? '');
+if (!in_array($status, ['approved', 'draft_live'], true)) {
     die('NEFT sheet is not final yet. It can be printed after Accounts marks it Done.');
 }
 $monthLabel = date('F Y', mktime(0, 0, 0, $month, 1, $year));

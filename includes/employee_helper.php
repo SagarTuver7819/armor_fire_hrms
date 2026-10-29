@@ -1363,10 +1363,18 @@ function countEmployeesByDepartment($departmentId)
 if (!function_exists('formatDateDisplay')) {
     function formatDateDisplay($date)
     {
-        if (empty($date) || $date === '0000-00-00') {
+        if (empty($date) || $date === '0000-00-00' || $date === '0000-00-00 00:00:00') {
             return '';
         }
-        return formatDateDisplay($date);
+        if ($date instanceof DateTimeInterface) {
+            return $date->format('d-m-Y');
+        }
+        $raw = trim((string) $date);
+        if (preg_match('/^\d{2}-\d{2}-\d{4}$/', $raw)) {
+            return $raw;
+        }
+        $ts = strtotime($raw);
+        return $ts ? date('d-m-Y', $ts) : '';
     }
 }
 
