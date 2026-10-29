@@ -966,10 +966,12 @@ function getPayrollAttendanceBundle(array $emp, $month, $year, $actualAmount)
         $dl = (float) $aligned['dl'];
         $coff = (float) ($aligned['coff'] ?? 0);
         $lwp = (float) $aligned['lwp'];
-        // Same paid-day rule as Attendance Report (WO + Holiday + C-Off included; LWP excluded)
-        $weekOffPaid = $weekOffRaw;
-        $holidayPaid = $holidayRaw;
-        $totalDays = (float) $aligned['total_pay_days'];
+        // Employee form: Week-off Benefits No → WO days not paid (Normal + Jobwork)
+        $weekOffPaid = (($emp['week_off_benefits'] ?? 'No') === 'Yes') ? $weekOffRaw : 0.0;
+        // Holiday Benefits No → holiday days not paid
+        $holidayPaid = (($emp['holiday_benefits'] ?? 'No') === 'Yes') ? $holidayRaw : 0.0;
+        // Pay days exclude unpaid WO / unpaid holiday (LWP still unpaid)
+        $totalDays = $present + $weekOffPaid + $holidayPaid + $pl + $sl + $dl + $coff;
         if ($totalDays > $eligibleDays) {
             $totalDays = $eligibleDays;
         }
