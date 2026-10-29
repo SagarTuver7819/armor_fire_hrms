@@ -287,8 +287,13 @@ function contractorDisplayName(array $row)
 
 function contractorJobworkWhere()
 {
-    // Strict Jobwork pay_type — Normal Salary (even CO… code) never treated as Jobwork
-    return "e.status = 1 AND e.pay_type = 'Jobwork'";
+    // Ops Rate List / contractor employees: Jobwork pay_type OR CO…/JW… codes
+    // (Melting workers with CO code must appear here — Salary Register stays separate)
+    return "e.status = 1 AND (
+        e.pay_type = 'Jobwork'
+        OR UPPER(TRIM(e.employee_code)) LIKE 'CO%'
+        OR UPPER(TRIM(e.employee_code)) LIKE 'JW%'
+    )";
 }
 
 function getContractorEmployeeById($id)
@@ -299,11 +304,17 @@ function getContractorEmployeeById($id)
     $conn = getDBConnection();
     ensureEmployeesTable($conn);
     $id = (int) $id;
-    $stmt = $conn->prepare("SELECT e.*, d.department_name
-        FROM employees e
-        LEFT JOIN departments d ON d.id = e.department_id
-        WHERE e.id = ? AND e.status = 1 AND e.pay_type = 'Jobwork'
-        LIMIT 1");
+    $stmt = $conn->prepare(
+        "SELECT e.*, d.department_name
+         FROM employees e
+         LEFT JOIN departments d ON d.id = e.department_id
+         WHERE e.id = ? AND e.status = 1 AND (
+            e.pay_type = 'Jobwork'
+            OR UPPER(TRIM(e.employee_code)) LIKE 'CO%'
+            OR UPPER(TRIM(e.employee_code)) LIKE 'JW%'
+         )
+         LIMIT 1"
+    );
     $stmt->bind_param('i', $id);
     $stmt->execute();
     $row = $stmt->get_result()->fetch_assoc();
