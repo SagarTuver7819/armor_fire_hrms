@@ -13,8 +13,13 @@ if ($id > 0 && !$sheet) {
 $employees = getActiveContractorEmployees($conn);
 $ops = contractorOperations();
 $months = contractorMonths();
-$curOp = (string) ($sheet['operation'] ?? 'Lathe Employee wise');
+$prefillOp = trim((string) ($_GET['operation'] ?? ''));
+$prefillEmp = (int) ($_GET['employee_id'] ?? 0);
+$curOp = (string) ($sheet['operation'] ?? ($prefillOp !== '' && isset($ops[$prefillOp]) ? $prefillOp : 'Lathe Employee wise'));
 $curEmp = (int) ($sheet['employee_id'] ?? 0);
+if ($curEmp <= 0 && $prefillEmp > 0) {
+    $curEmp = $prefillEmp;
+}
 $curMonth = (int) ($sheet['month_no'] ?? date('n'));
 $curYear = (int) ($sheet['year_no'] ?? date('Y'));
 // Edit: keep saved employee in Name list even if no longer Jobwork (CNC / Foundry etc.)
