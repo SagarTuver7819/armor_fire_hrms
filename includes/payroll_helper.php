@@ -1108,7 +1108,9 @@ function getPayrollAttendanceBundle(array $emp, $month, $year, $actualAmount)
     $hasPfWages = $totalDays > 0 || ($payType !== 'Salary' && (float) $salary > 0);
     $pf = $hasPfWages ? statutoryPf($salary, $emp, $pfFactor) : 0.0;
     $pfEmployer = 0.0;
-    $pt = statutoryPt($govtGross);
+    // Salary: PT on attendance-day gross. Jobwork: PT on Qty × Rate wages (full actual).
+    $ptBase = ($payType !== 'Salary' && (float) $salary > 0) ? (float) $salary : $govtGross;
+    $pt = statutoryPt($ptBase);
 
     return [
         'month_days' => $monthDays,

@@ -2290,9 +2290,25 @@ function attendanceSaveManualDay($conn, $employeeId, $date, $status, $punchIn, $
     $del->execute();
     $del->close();
 
+    // Week Off Working: use CURRENT employees.week_off_day (not history),
+    // so a just-changed week-off reflects on Manual Attendance Save immediately.
     $workedOnWeekOff = false;
-    if (in_array($status, ['Present', 'Half Day'], true) && attendanceDateIsEmployeeWeekOff($conn, $employeeId, $date)) {
-        $workedOnWeekOff = true;
+    if (in_array($status, ['Present', 'Half Day'], true)) {
+        $stWoNow = $conn->prepare('SELECT week_off_day FROM employees WHERE id = ? LIMIT 1');
+        $woNow = 'Sunday';
+        if ($stWoNow) {
+            $stWoNow->bind_param('i', $employeeId);
+            $stWoNow->execute();
+            $woRow = $stWoNow->get_result()->fetch_assoc();
+            $stWoNow->close();
+            $woNow = trim((string) ($woRow['week_off_day'] ?? 'Sunday'));
+            if ($woNow === '') {
+                $woNow = 'Sunday';
+            }
+        }
+        if (strcasecmp(date('l', strtotime($date)), $woNow) === 0) {
+            $workedOnWeekOff = true;
+        }
     }
 
     $minutes = 0;

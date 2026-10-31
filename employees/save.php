@@ -303,7 +303,8 @@ if (!$ok) {
 // Week-off: apply from today forward — do not change back-dated attendance logic
 if ($savedId > 0 && $weekOffDay !== '') {
     if ($id > 0) {
-        employeeRecordWeekOffChange($conn, $savedId, $oldWeekOffDay, $weekOffDay, date('Y-m-d'), $createdBy);
+        // Apply from 1st of current month so Manual Attendance / Mark Week Offs pick up the new day immediately
+        employeeRecordWeekOffChange($conn, $savedId, $oldWeekOffDay, $weekOffDay, date('Y-m-01'), $createdBy);
     } else {
         $seedFrom = ($doj !== '' ? $doj : date('Y-m-d'));
         employeeSeedWeekOffHistory($conn, $savedId, $weekOffDay, $seedFrom, $createdBy);

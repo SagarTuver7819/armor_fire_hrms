@@ -288,12 +288,31 @@ function contractorDisplayName(array $row)
 
 function contractorJobworkWhere()
 {
-    // Ops Rate List / contractor employees: Jobwork pay_type OR CO…/JW… codes
-    // (Melting workers with CO code must appear here — Salary Register stays separate)
+    // Ops Rate List / contractor employees:
+    // - Jobwork pay_type OR CO…/JW… codes (Melting CO workers)
+    // - OR department name matches an Operations Rate List operation (e.g. CUTTING)
+    // Salary Register stays separate (does not use this WHERE).
+    $opsIn = [];
+    foreach (array_keys(contractorOperations()) as $opName) {
+        $opName = strtoupper(trim((string) $opName));
+        if ($opName === '') {
+            continue;
+        }
+        $opsIn[] = "'" . str_replace("'", "''", $opName) . "'";
+    }
+    $deptMatch = '';
+    if ($opsIn) {
+        $deptMatch = " OR EXISTS (
+            SELECT 1 FROM departments d_ops
+            WHERE d_ops.id = e.department_id
+              AND UPPER(TRIM(d_ops.department_name)) IN (" . implode(',', $opsIn) . ")
+        )";
+    }
     return "e.status = 1 AND (
         e.pay_type = 'Jobwork'
         OR UPPER(TRIM(e.employee_code)) LIKE 'CO%'
         OR UPPER(TRIM(e.employee_code)) LIKE 'JW%'
+        {$deptMatch}
     )";
 }
 
@@ -309,11 +328,7 @@ function getContractorEmployeeById($id)
         "SELECT e.*, d.department_name
          FROM employees e
          LEFT JOIN departments d ON d.id = e.department_id
-         WHERE e.id = ? AND e.status = 1 AND (
-            e.pay_type = 'Jobwork'
-            OR UPPER(TRIM(e.employee_code)) LIKE 'CO%'
-            OR UPPER(TRIM(e.employee_code)) LIKE 'JW%'
-         )
+         WHERE e.id = ? AND " . contractorJobworkWhere() . "
          LIMIT 1"
     );
     $stmt->bind_param('i', $id);

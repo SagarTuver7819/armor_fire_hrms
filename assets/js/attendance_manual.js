@@ -463,7 +463,14 @@
 
             $('#mStatus').val(status);
             $('#mLeaveType').val(lt);
-            $('#mLeaveHalf').val(lh || (status === 'Leave' ? 'FULL' : 'SHL'));
+            // Leave half only for Leave / Half Day — never default SHL on Present (wrong preview)
+            if (status === 'Leave') {
+                $('#mLeaveHalf').val(lh || 'FULL');
+            } else if (status === 'Half Day') {
+                $('#mLeaveHalf').val(lh || 'SHL');
+            } else {
+                $('#mLeaveHalf').val(lh || 'FULL');
+            }
             if ($('#mLeaveHalf').val() === 'FHF') $('#mLeaveHalf').val('FHL');
             if ($('#mLeaveHalf').val() === 'SHF') $('#mLeaveHalf').val('SHL');
             syncModalPreview();
@@ -686,8 +693,9 @@
                     return;
                 }
                 n++;
-                var emp = String($td.data('emp') || '');
-                var date = String($td.data('date') || '');
+                // Use attr() — jQuery .data() can cache/parse dates and break Y-m-d keys
+                var emp = String($td.attr('data-emp') || '');
+                var date = String($td.attr('data-date') || '');
                 var row = {
                     status: $td.find('.cell-status').val() || '',
                     punch_in: $td.find('.cell-in').val() || '',
@@ -717,45 +725,6 @@
             }
 
             $('#cellsJson').val(JSON.stringify(payload));
-
-            // #region agent log
-            try {
-                var dbgSamples = [];
-                Object.keys(payload).forEach(function (empId) {
-                    var $tr = $('#manualAttTable tr.excel-emp-row[data-emp="' + empId + '"]');
-                    var dates = Object.keys(payload[empId] || {}).slice(0, 8);
-                    dates.forEach(function (d) {
-                        dbgSamples.push({
-                            emp_id: empId,
-                            date: d,
-                            weekday: weekdayNameOf(d),
-                            js_wo_day: weekOffDayForDate($tr, d),
-                            data_week_off: String($tr.attr('data-week-off') || ''),
-                            history_len: parseWeekOffHistory($tr).length,
-                            status: (payload[empId][d] && payload[empId][d].status) || '',
-                            is_js_wo: weekdayNameOf(d).toLowerCase() === weekOffDayForDate($tr, d).toLowerCase()
-                        });
-                    });
-                });
-                fetch('http://127.0.0.1:7773/ingest/9028e09d-4f59-4918-ae60-c09c1f78ce7e', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '219c73' },
-                    body: JSON.stringify({
-                        sessionId: '219c73',
-                        runId: 'wo-pre',
-                        hypothesisId: 'H4',
-                        location: 'attendance_manual.js:submit',
-                        message: 'js_submit_payload',
-                        data: {
-                            touched: n,
-                            emp_keys: Object.keys(payload).length,
-                            samples: dbgSamples.slice(0, 20)
-                        },
-                        timestamp: Date.now()
-                    })
-                }).catch(function () {});
-            } catch (errDbg) {}
-            // #endregion
 
             $('#manualAttForm .js-save-att').prop('disabled', true).each(function () {
                 $(this).html('<i class="fa-solid fa-spinner fa-spin"></i> Saving...');

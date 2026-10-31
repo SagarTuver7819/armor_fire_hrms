@@ -288,6 +288,11 @@ if (isset($_GET['msg']) && $_GET['msg'] === 'saved') {
                             $woHist = function_exists('employeeWeekOffHistoryRows')
                                 ? employeeWeekOffHistoryRows($eid)
                                 : [];
+                            // Open month: current week_off applies from day 1 so WO change + Mark/Save match
+                            $woHist[] = [
+                                'week_off_day' => $empWeekOff,
+                                'effective_from' => sprintf('%04d-%02d-01', $year, $month),
+                            ];
                             $woHistJson = htmlspecialchars(json_encode($woHist), ENT_QUOTES, 'UTF-8');
                             $empShift = attendanceResolveEmployeeShiftTimes($emp, $shifts, $defaultInDisp, $defaultOutDisp);
                             $fmtTot = static function ($n) {

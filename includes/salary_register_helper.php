@@ -50,12 +50,14 @@ function buildSalaryRegisterRow(array $emp, $month, $year, $mode)
     $salaryCol = $att['salary'];
     $gross = $att['govt_gross'];
     if ($mode === 'jobwork_actual') {
+        // Regular/Actual: full Qty × Rate (no attendance day split)
         $gross = round($actual, 2);
         $salaryCol = round($actual, 2);
     }
 
     $pf = $att['pf'];
-    $pt = $att['pt'];
+    // PT on the Gross shown on this register (Jobwork Actual = full amount ≥ ₹12,001 → ₹200)
+    $pt = function_exists('statutoryPt') ? statutoryPt($gross) : (float) ($att['pt'] ?? 0);
     $loan = $att['loan'];
     $advance = $att['advance'];
     $totalDed = round($pf + $pt + $loan + $advance, 2);
