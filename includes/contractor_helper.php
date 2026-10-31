@@ -13,6 +13,7 @@ function contractorOperations()
         'Lathe Employee wise' => 'Lathe Employee wise',
         'GRINDING' => 'GRINDING',
         'CNC' => 'CNC',
+        'CUTTING' => 'CUTTING',
         'ARGON WELDING' => 'ARGON WELDING',
         'BUFF' => 'BUFF',
         'COATING' => 'COATING',
