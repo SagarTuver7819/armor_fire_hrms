@@ -507,7 +507,7 @@ require_once __DIR__ . '/../includes/header.php';
         <div class="table-wrap">
             <table class="salary-register-table">
                 <tfoot>
-                    <tr style="background:#1e3a5f;color:#fff;font-weight:800;">
+                    <tr class="sr-grand-total">
                         <td colspan="5"><strong>Grand Total</strong></td>
                         <?php if ($isActual): ?>
                             <td></td>
