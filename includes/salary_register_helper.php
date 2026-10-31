@@ -124,7 +124,7 @@ function buildSalaryRegisterRow(array $emp, $month, $year, $mode)
         'contractor_main_share' => 0.0,
     ];
 
-    // Melting 1 / Melting 2: Normal funded from Main pool; Main Jobwork row = remainder
+    // Melting 1 / Melting 2 / CNC: Normal funded from Main pool; Main Jobwork row = remainder
     if (function_exists('applyContractorAttendanceShareToRegisterRow')) {
         $row = applyContractorAttendanceShareToRegisterRow($row, $month, $year);
     }
@@ -497,14 +497,14 @@ function getSalaryRegisterData($type, $month, $year, $deptId = 0, $employeeId = 
         $subtitle = 'Attendance-wise fixed salary · AS codes';
         $payFilter = 'Salary';
     } else {
-        // Jobwork = pay_type Jobwork only (+ force-include Melting 1 main Puran after split)
+        // Jobwork = pay_type Jobwork only (+ force-include Melting/CNC mains after split)
         $emps = fetchJobworkRegisterEmployees($deptId, $employeeId, $month, $year);
         if (function_exists('ensureSplitMainInJobworkEmployeeList')) {
             $emps = ensureSplitMainInJobworkEmployeeList($emps, $deptId, $month, $year);
         }
         $mode = 'jobwork_actual';
         $title = 'Jobwork — Regular / Actual';
-        $subtitle = 'Qty × Rate · Jobwork employees by department (Melting 1: Puran = remainder after Normal)';
+        $subtitle = 'Qty × Rate · Jobwork by department (Main Contractor = remainder after Normal Salary fund)';
         $payFilter = 'Jobwork';
     }
 

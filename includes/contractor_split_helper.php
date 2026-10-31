@@ -1,13 +1,14 @@
 <?php
 /**
- * Melting Main Contractor pool → Normal Salary attendance fund + remainder on Main
- * (same rule for Melting 1 and Melting 2):
+ * Main Contractor pool → department Normal Salary attendance fund + remainder on Main
+ * (Melting 1, Melting 2, CNC — same rule):
  * - Dept Normal Salary keep attendance net on register/NEFT (funded from Main pool).
  * - Main Jobwork/NEFT = pool − Σ(Normal nets) → remainder.
  * - Dept Jobwork (not main) stay on Jobwork register with own qty — no pool dump.
  *
- * Melting 1 main: PURANSINH PUNITBHAI / CO72216
- * Melting 2 main: auto from department main_contractor links / Jobwork CO in MELTING 2
+ * Melting 1: PURANSINH PUNITBHAI / CO72216
+ * Melting 2: auto from department main_contractor links / Jobwork CO
+ * CNC: Ravi (name match + department auto-resolve)
  */
 
 require_once __DIR__ . '/payroll_helper.php';
@@ -32,11 +33,23 @@ function contractorAttendanceSplitRules()
             ],
         ],
         [
-            // Same split as Melting 1 / Puran — Main resolved from Melting 2 links
             'main_name' => 'Melting 2 Main Contractor',
             'main_code' => '',
             'department_name' => 'MELTING 2',
             'name_aliases' => [],
+            'resolve_from_department' => true,
+        ],
+        [
+            // Same as Melting 1 / Puran — Ravi CNC Main Contractor
+            'main_name' => 'RAVI',
+            'main_code' => '',
+            'department_name' => 'CNC',
+            'name_aliases' => [
+                'RAVI',
+                'Ravi',
+                'RAVI BHAI',
+                'Ravi Bhai',
+            ],
             'resolve_from_department' => true,
         ],
     ];
@@ -93,7 +106,7 @@ function contractorAttendanceSplitMainIds()
 }
 
 /**
- * Find Main Contractor for a Melting department (most-linked main_contractor_id, else Jobwork/CO in dept).
+ * Find Main Contractor for a split department (most-linked main_contractor_id, else Jobwork/CO in dept).
  *
  * @return array<string, mixed>|null
  */
@@ -187,6 +200,7 @@ function resolveContractorAttendanceSplitMain(array $rule)
     $conn = getDBConnection();
     ensureEmployeesTable($conn);
     $row = null;
+    $deptId = $deptName !== '' ? resolveDepartmentIdByName($deptName) : 0;
 
     if ($code !== '') {
         $stmt = $conn->prepare(
@@ -203,6 +217,18 @@ function resolveContractorAttendanceSplitMain(array $rule)
         $stmt->close();
     }
 
+    // Prefer department Main (linked / Jobwork CO) before loose name match — CNC Ravi etc.
+    if (!$row && (!empty($rule['resolve_from_department']) || $code === '') && $deptName !== '') {
+        $conn->close();
+        $row = resolveMainContractorForDepartment($deptName);
+        if ($row) {
+            $cache[$ck] = $row;
+            return $cache[$ck];
+        }
+        $conn = getDBConnection();
+        ensureEmployeesTable($conn);
+    }
+
     if (!$row) {
         $aliases = $rule['name_aliases'] ?? [];
         $aliases[] = (string) ($rule['main_name'] ?? '');
@@ -212,24 +238,46 @@ function resolveContractorAttendanceSplitMain(array $rule)
                 continue;
             }
             $like = '%' . $alias . '%';
-            $stmt = $conn->prepare(
-                "SELECT e.*, d.department_name
-                 FROM employees e
-                 LEFT JOIN departments d ON d.id = e.department_id
-                 WHERE e.status = 1
-                   AND (
-                        e.pay_type IN ('Jobwork', 'ContractorMain')
-                        OR UPPER(TRIM(e.employee_code)) LIKE 'CO%'
-                   )
-                   AND LOWER(e.employee_name) LIKE LOWER(?)
-                 ORDER BY
-                   CASE WHEN e.pay_type = 'ContractorMain' THEN 0
-                        WHEN e.pay_type = 'Jobwork' THEN 1
-                        ELSE 2 END,
-                   e.id ASC
-                 LIMIT 1"
-            );
-            $stmt->bind_param('s', $like);
+            if ($deptId > 0) {
+                $stmt = $conn->prepare(
+                    "SELECT e.*, d.department_name
+                     FROM employees e
+                     LEFT JOIN departments d ON d.id = e.department_id
+                     WHERE e.status = 1
+                       AND e.department_id = ?
+                       AND (
+                            e.pay_type IN ('Jobwork', 'ContractorMain')
+                            OR UPPER(TRIM(e.employee_code)) LIKE 'CO%'
+                       )
+                       AND LOWER(e.employee_name) LIKE LOWER(?)
+                     ORDER BY
+                       CASE WHEN e.pay_type = 'ContractorMain' THEN 0
+                            WHEN e.pay_type = 'Jobwork' THEN 1
+                            ELSE 2 END,
+                       e.id ASC
+                     LIMIT 1"
+                );
+                $stmt->bind_param('is', $deptId, $like);
+            } else {
+                $stmt = $conn->prepare(
+                    "SELECT e.*, d.department_name
+                     FROM employees e
+                     LEFT JOIN departments d ON d.id = e.department_id
+                     WHERE e.status = 1
+                       AND (
+                            e.pay_type IN ('Jobwork', 'ContractorMain')
+                            OR UPPER(TRIM(e.employee_code)) LIKE 'CO%'
+                       )
+                       AND LOWER(e.employee_name) LIKE LOWER(?)
+                     ORDER BY
+                       CASE WHEN e.pay_type = 'ContractorMain' THEN 0
+                            WHEN e.pay_type = 'Jobwork' THEN 1
+                            ELSE 2 END,
+                       e.id ASC
+                     LIMIT 1"
+                );
+                $stmt->bind_param('s', $like);
+            }
             $stmt->execute();
             $row = $stmt->get_result()->fetch_assoc();
             $stmt->close();
@@ -240,10 +288,6 @@ function resolveContractorAttendanceSplitMain(array $rule)
     }
 
     $conn->close();
-
-    if (!$row && (!empty($rule['resolve_from_department']) || $code === '') && $deptName !== '') {
-        $row = resolveMainContractorForDepartment($deptName);
-    }
 
     $cache[$ck] = $row ?: null;
     return $cache[$ck];
@@ -559,7 +603,7 @@ function ensureSplitMainInJobworkEmployeeList(array $emps, $deptId, $month, $yea
     $deptId = (int) $deptId;
     foreach (contractorAttendanceSplitRules() as $rule) {
         $splitDeptId = resolveDepartmentIdByName((string) ($rule['department_name'] ?? ''));
-        // Only when viewing All depts or Melting 1
+        // Only when viewing All depts or this split department
         if ($deptId > 0 && $splitDeptId > 0 && $deptId !== $splitDeptId) {
             continue;
         }
@@ -578,7 +622,7 @@ function ensureSplitMainInJobworkEmployeeList(array $emps, $deptId, $month, $yea
         if ($have) {
             continue;
         }
-        // Force split-dept label on register (Melting 1 / Melting 2 Jobwork group)
+        // Force split-dept label on Jobwork register (Melting 1 / 2 / CNC)
         if ($splitDeptId > 0) {
             $main['department_id'] = $splitDeptId;
             $main['department_name'] = (string) ($rule['department_name'] ?? '');
@@ -599,7 +643,7 @@ function applyContractorAttendanceShareToRegisterRow(array $row, $month, $year)
     $pay = normalizePayType($row['pay_type'] ?? '');
     $skip = contractorAttendanceSplitMainIds();
 
-    // Melting Main: Jobwork register = remainder after Normal salaries (same as Puran / Melting 1)
+    // Split Main: Jobwork register = remainder after Normal salaries (Melting / CNC)
     if ($eid > 0 && isset($skip[$eid])) {
         $info = getContractorAttendanceShareForEmployee([
             'id' => $eid,
@@ -611,7 +655,7 @@ function applyContractorAttendanceShareToRegisterRow(array $row, $month, $year)
         $distributed = (float) ($info['distributed'] ?? 0);
         $deptLabel = trim((string) ($info['split_department_name'] ?? ''));
         if ($deptLabel === '') {
-            $deptLabel = 'MELTING';
+            $deptLabel = 'DEPT';
         }
         $splitDeptId = (int) ($info['split_department_id'] ?? 0);
         $row['contractor_main_share'] = 0.0;
@@ -632,7 +676,7 @@ function applyContractorAttendanceShareToRegisterRow(array $row, $month, $year)
         return $row;
     }
 
-    // Melting Normal: keep Normal net; tag under Main (no Jobwork dump)
+    // Split Normal: keep Normal net; tag under Main (no Jobwork dump)
     if ($pay === 'Salary') {
         $info = getContractorAttendanceShareForEmployee([
             'id' => $eid,
