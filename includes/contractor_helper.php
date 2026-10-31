@@ -589,6 +589,243 @@ function getContractorGrades($conn = null)
     return $rows;
 }
 
+/**
+ * Ensure a contractor_products row exists for operation + product name (for Ops Rate sheets).
+ */
+function contractorEnsureProduct($conn, $operation, $productName, $rate = 0.0)
+{
+    $operation = trim((string) $operation);
+    $productName = trim((string) $productName);
+    if ($productName === '') {
+        $productName = 'General';
+    }
+    if ($operation === '') {
+        return 0;
+    }
+    $st = $conn->prepare(
+        "SELECT id FROM contractor_products
+         WHERE status = 1 AND operation = ?
+           AND (UPPER(TRIM(product_name)) = UPPER(?) OR UPPER(TRIM(IFNULL(process,''))) = UPPER(?))
+         LIMIT 1"
+    );
+    $st->bind_param('sss', $operation, $productName, $productName);
+    $st->execute();
+    $row = $st->get_result()->fetch_assoc();
+    $st->close();
+    if ($row) {
+        return (int) $row['id'];
+    }
+    $rate = (float) $rate;
+    $ins = $conn->prepare(
+        'INSERT INTO contractor_products (operation, product_name, process, unit, rate, ot_text, rejection_rate, status)
+         VALUES (?, ?, ?, \'PCS\', ?, NULL, 0, 1)'
+    );
+    $ins->bind_param('sssd', $operation, $productName, $productName, $rate);
+    $ins->execute();
+    $id = (int) $conn->insert_id;
+    $ins->close();
+    return $id;
+}
+
+/**
+ * Create Ops Rate List sheets (same format as RRL) from department Manual Jobwork Entry rows.
+ * Skips emp/month that already have a sheet for this operation. Removes synced jobwork_entries
+ * so salary (getJobworkTotal) does not double-count — data remains on the Ops sheet.
+ *
+ * @return int number of sheets created
+ */
+function contractorSyncJobworkEntriesToOpSheets($conn, $operation)
+{
+    $operation = trim((string) $operation);
+    if ($operation === '' || !isset(contractorOperations()[$operation])) {
+        return 0;
+    }
+    if (!function_exists('ensurePayrollTables')) {
+        require_once __DIR__ . '/payroll_helper.php';
+    }
+    ensureContractorTables($conn);
+    ensurePayrollTables($conn);
+
+    $stD = $conn->prepare(
+        "SELECT id FROM departments
+         WHERE status = 1 AND (
+            UPPER(TRIM(department_name)) = UPPER(?)
+            OR UPPER(TRIM(department_name)) LIKE CONCAT('%', UPPER(?), '%')
+         )
+         ORDER BY (UPPER(TRIM(department_name)) = UPPER(?)) DESC, id ASC
+         LIMIT 1"
+    );
+    $stD->bind_param('sss', $operation, $operation, $operation);
+    $stD->execute();
+    $dept = $stD->get_result()->fetch_assoc();
+    $stD->close();
+    $deptId = (int) ($dept['id'] ?? 0);
+    if ($deptId <= 0) {
+        return 0;
+    }
+
+    // Distinct emp + month + year that have manual entries
+    $sql = "SELECT e.id AS employee_id, YEAR(j.work_date) AS year_no, MONTH(j.work_date) AS month_no
+            FROM jobwork_entries j
+            INNER JOIN employees e ON e.id = j.employee_id
+            WHERE e.department_id = ? AND e.status = 1
+            GROUP BY e.id, YEAR(j.work_date), MONTH(j.work_date)";
+    $st = $conn->prepare($sql);
+    $st->bind_param('i', $deptId);
+    $st->execute();
+    $groups = $st->get_result()->fetch_all(MYSQLI_ASSOC);
+    $st->close();
+
+    $created = 0;
+    foreach ($groups as $g) {
+        $empId = (int) $g['employee_id'];
+        $month = (int) $g['month_no'];
+        $year = (int) $g['year_no'];
+        if ($empId <= 0 || $month < 1 || $month > 12 || $year < 2000) {
+            continue;
+        }
+
+        $chk = $conn->prepare(
+            'SELECT id FROM contractor_operation_sheets
+             WHERE employee_id = ? AND operation = ? AND month_no = ? AND year_no = ? AND status = 1
+             LIMIT 1'
+        );
+        $chk->bind_param('isii', $empId, $operation, $month, $year);
+        $chk->execute();
+        $exists = $chk->get_result()->fetch_assoc();
+        $chk->close();
+        if ($exists) {
+            continue;
+        }
+
+        $from = sprintf('%04d-%02d-01', $year, $month);
+        $to = date('Y-m-t', strtotime($from));
+        $lq = $conn->prepare(
+            "SELECT work_date, item_name, quantity, rate, amount
+             FROM jobwork_entries
+             WHERE employee_id = ? AND work_date BETWEEN ? AND ?
+             ORDER BY work_date ASC, id ASC"
+        );
+        $lq->bind_param('iss', $empId, $from, $to);
+        $lq->execute();
+        $entries = $lq->get_result()->fetch_all(MYSQLI_ASSOC);
+        $lq->close();
+        if (!$entries) {
+            continue;
+        }
+
+        // Group by item name → product lines; days_json from daily qty
+        $byItem = [];
+        foreach ($entries as $en) {
+            $item = trim((string) ($en['item_name'] ?? ''));
+            if ($item === '') {
+                $item = 'General';
+            }
+            if (!isset($byItem[$item])) {
+                $byItem[$item] = ['days' => [], 'rate_sum' => 0.0, 'rate_n' => 0];
+            }
+            $d = (int) date('j', strtotime((string) $en['work_date']));
+            if ($d < 1 || $d > 31) {
+                continue;
+            }
+            $key = (string) $d;
+            if (!isset($byItem[$item]['days'][$key])) {
+                $byItem[$item]['days'][$key] = ['q' => 0.0, 'r' => 0.0, 'ot' => 0.0];
+            }
+            $byItem[$item]['days'][$key]['q'] += (float) ($en['quantity'] ?? 0);
+            $rate = (float) ($en['rate'] ?? 0);
+            if ($rate > 0) {
+                $byItem[$item]['rate_sum'] += $rate;
+                $byItem[$item]['rate_n']++;
+            }
+        }
+
+        $built = [];
+        $grandQty = 0.0;
+        $grandR = 0.0;
+        $grandAmt = 0.0;
+        $sort = 0;
+        foreach ($byItem as $itemName => $pack) {
+            $rate = $pack['rate_n'] > 0 ? round($pack['rate_sum'] / $pack['rate_n'], 4) : 0.0;
+            $pid = contractorEnsureProduct($conn, $operation, $itemName, $rate);
+            if ($pid <= 0) {
+                continue;
+            }
+            $calc = calculateContractorRow($operation, $rate, 0.0, 0.0, $pack['days']);
+            $grandQty += $calc['total_qty'];
+            $grandR += $calc['total_r'];
+            $grandAmt += $calc['total_amount'];
+            $built[] = [
+                'product_id' => $pid,
+                'grade_id' => 0,
+                'rate' => $rate,
+                'ot_rate' => 0.0,
+                'rejection_rate' => 0.0,
+                'days_json' => json_encode($pack['days']),
+                'total_qty' => $calc['total_qty'],
+                'total_r' => $calc['total_r'],
+                'total_amount' => $calc['total_amount'],
+                'sort_order' => $sort++,
+            ];
+        }
+        if (!$built) {
+            continue;
+        }
+
+        $ins = $conn->prepare(
+            'INSERT INTO contractor_operation_sheets
+                (employee_id, operation, month_no, year_no, total_qty, total_r, total_amount, status)
+             VALUES (?,?,?,?,?,?,?,1)'
+        );
+        $ins->bind_param('isiiddd', $empId, $operation, $month, $year, $grandQty, $grandR, $grandAmt);
+        if (!$ins->execute()) {
+            $ins->close();
+            continue;
+        }
+        $sheetId = (int) $conn->insert_id;
+        $ins->close();
+        if ($sheetId <= 0) {
+            continue;
+        }
+
+        $insI = $conn->prepare(
+            'INSERT INTO contractor_operation_items
+                (sheet_id, product_id, grade_id, rate, ot_rate, rejection_rate, days_json, total_qty, total_r, total_amount, sort_order)
+             VALUES (?,?,?,?,?,?,?,?,?,?,?)'
+        );
+        foreach ($built as $b) {
+            $insI->bind_param(
+                'iiidddsdddi',
+                $sheetId,
+                $b['product_id'],
+                $b['grade_id'],
+                $b['rate'],
+                $b['ot_rate'],
+                $b['rejection_rate'],
+                $b['days_json'],
+                $b['total_qty'],
+                $b['total_r'],
+                $b['total_amount'],
+                $b['sort_order']
+            );
+            $insI->execute();
+        }
+        $insI->close();
+
+        // Remove synced manual rows — now live on Ops Rate sheet (avoids double salary)
+        $del = $conn->prepare(
+            'DELETE FROM jobwork_entries WHERE employee_id = ? AND work_date BETWEEN ? AND ?'
+        );
+        $del->bind_param('iss', $empId, $from, $to);
+        $del->execute();
+        $del->close();
+
+        $created++;
+    }
+
+    return $created;
+}
+
 function getContractorProductsByOperation($operation, $conn = null)
 {
     $closeAfter = false;

@@ -46,27 +46,24 @@ if ($employeeId <= 0 && $id > 0) {
     }
 }
 
-$jw = $conn->prepare("SELECT id, pay_type FROM employees WHERE id = ? AND status = 1 LIMIT 1");
-$jw->bind_param('i', $employeeId);
-$jw->execute();
-$jwRow = $jw->get_result()->fetch_assoc();
-$jw->close();
+// Ops-eligible: Jobwork / CO / JW / operation-department (same as Name dropdown)
 $jwOk = false;
-if ($jwRow) {
-    if (($jwRow['pay_type'] ?? '') === 'Jobwork') {
-        $jwOk = true;
-    } elseif ($id > 0) {
-        // Allow update when sheet already belongs to this employee (even if pay type changed)
-        $own = $conn->prepare('SELECT id FROM contractor_operation_sheets WHERE id = ? AND employee_id = ? AND status = 1 LIMIT 1');
-        $own->bind_param('ii', $id, $employeeId);
-        $own->execute();
-        $jwOk = (bool) $own->get_result()->fetch_assoc();
-        $own->close();
-    }
+$chkEmp = $conn->prepare('SELECT id FROM employees e WHERE e.id = ? AND ' . contractorJobworkWhere() . ' LIMIT 1');
+$chkEmp->bind_param('i', $employeeId);
+$chkEmp->execute();
+$jwOk = (bool) $chkEmp->get_result()->fetch_assoc();
+$chkEmp->close();
+if (!$jwOk && $id > 0) {
+    // Allow update when sheet already belongs to this employee (even if pay type changed)
+    $own = $conn->prepare('SELECT id FROM contractor_operation_sheets WHERE id = ? AND employee_id = ? AND status = 1 LIMIT 1');
+    $own->bind_param('ii', $id, $employeeId);
+    $own->execute();
+    $jwOk = (bool) $own->get_result()->fetch_assoc();
+    $own->close();
 }
 if (!$jwOk) {
     $conn->close();
-    die('Select a Jobwork employee from Join Employee. <a href="javascript:history.back()">Go Back</a>');
+    die('Select a Jobwork / Operations employee from the list. <a href="javascript:history.back()">Go Back</a>');
 }
 
 $dupSql = 'SELECT id FROM contractor_operation_sheets WHERE employee_id=? AND operation=? AND month_no=? AND year_no=? AND status=1 AND id<>? LIMIT 1';
