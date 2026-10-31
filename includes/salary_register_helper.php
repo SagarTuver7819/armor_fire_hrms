@@ -124,7 +124,7 @@ function buildSalaryRegisterRow(array $emp, $month, $year, $mode)
         'contractor_main_share' => 0.0,
     ];
 
-    // Melting 1 only: add share on Normal rows; zero-out PURANSINH (CO72216) Jobwork row
+    // Melting 1 / Melting 2: Normal funded from Main pool; Main Jobwork row = remainder
     if (function_exists('applyContractorAttendanceShareToRegisterRow')) {
         $row = applyContractorAttendanceShareToRegisterRow($row, $month, $year);
     }
