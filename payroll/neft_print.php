@@ -18,23 +18,11 @@ requirePayrollRegisterAccess($deptId);
 ensurePayrollApprovalTables();
 $month = (int) ($_GET['month'] ?? date('n'));
 $year = (int) ($_GET['year'] ?? date('Y'));
-$type = (string) ($_GET['type'] ?? 'all');
-if ($type === 'all' || $type === '') {
-    $data = getCombinedNeftSheetData($month, $year, $deptId);
-    $typeLabel = 'All Employees (Normal + Jobwork)';
-} else {
-    if (!isset(salaryRegisterTypes()[$type])) {
-        $type = 'salary';
-    }
-    $data = getNeftSheetData($month, $year, $type, $deptId);
-    $typeLabel = salaryRegisterTypes()[$type] ?? $type;
-}
-if (!$data) {
-    die('NEFT sheet not found. Finalize &amp; Lock the Salary Register first.');
-}
-$status = (string) ($data['lock']['approval_status'] ?? '');
-if (!in_array($status, ['approved', 'draft_live'], true)) {
-    die('NEFT sheet is not final yet. It can be printed after Accounts marks it Done.');
+// Always one combined sheet (Normal + Jobwork) — Salary Register stays separate
+$data = getCombinedNeftSheetData($month, $year, $deptId);
+$typeLabel = 'All Employees (Normal + Jobwork)';
+if (!$data || empty($data['rows'])) {
+    die('NEFT sheet empty. Open Salary Register (Normal + Jobwork), fill attendance / qty, then retry.');
 }
 $monthLabel = date('F Y', mktime(0, 0, 0, $month, 1, $year));
 $companyName = function_exists('getCompanyName') ? getCompanyName() : 'Company';

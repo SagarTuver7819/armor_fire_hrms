@@ -566,12 +566,18 @@ function getContractorUnderEmployees($mainContractorId)
     ensureEmployeesTable($conn);
     $mainContractorId = (int) $mainContractorId;
     $rows = [];
+    // All staff linked under Main — Jobwork + Normal Salary (every department)
     $stmt = $conn->prepare(
         "SELECT e.*, d.department_name
          FROM employees e
          LEFT JOIN departments d ON d.id = e.department_id
-         WHERE e.status = 1 AND e.pay_type = 'Jobwork' AND e.main_contractor_id = ?
-         ORDER BY e.employee_code ASC"
+         WHERE e.status = 1
+           AND e.main_contractor_id = ?
+           AND e.pay_type IN ('Jobwork', 'Salary')
+         ORDER BY
+           CASE e.pay_type WHEN 'Salary' THEN 0 WHEN 'Jobwork' THEN 1 ELSE 2 END,
+           d.department_name ASC,
+           e.employee_code ASC"
     );
     $stmt->bind_param('i', $mainContractorId);
     $stmt->execute();

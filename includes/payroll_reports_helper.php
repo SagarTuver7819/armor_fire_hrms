@@ -448,6 +448,51 @@ function getSalaryRegisterDisplayBundle($type, $month, $year, $deptId = 0, $empl
             $i += $n;
         }
         unset($g);
+
+        // Append any live employees missing from old lock (all depts / under-main)
+        if ($type !== 'contractor_main') {
+            $liveGroups = getSalaryRegisterData($type, $month, $year, $deptId, $employeeId);
+            $haveIds = [];
+            foreach ($rows as $r) {
+                $eid = (int) ($r['employee_id'] ?? 0);
+                if ($eid > 0) {
+                    $haveIds[$eid] = true;
+                }
+            }
+            foreach ($liveGroups as $lg) {
+                foreach ($lg['rows'] ?? [] as $lr) {
+                    $eid = (int) ($lr['employee_id'] ?? 0);
+                    if ($eid <= 0 || isset($haveIds[$eid])) {
+                        continue;
+                    }
+                    $haveIds[$eid] = true;
+                    $lr['register_mode'] = $type;
+                    if (empty($lr['mode'])) {
+                        $lr['mode'] = $type;
+                    }
+                    $deptName = (string) ($lr['department'] ?? 'Department');
+                    $placed = false;
+                    foreach ($groups as &$g) {
+                        if (stripos((string) ($g['title'] ?? ''), $deptName) !== false) {
+                            $g['rows'][] = $lr;
+                            $placed = true;
+                            break;
+                        }
+                    }
+                    unset($g);
+                    if (!$placed) {
+                        $groups[] = [
+                            'title' => (($type === 'jobwork_actual') ? 'Jobwork — Regular / Actual' : 'Salaried Person (Fixed)') . ' · ' . $deptName,
+                            'subtitle' => 'Added from live (missing in lock)',
+                            'mode' => $type,
+                            'rows' => [$lr],
+                        ];
+                    }
+                    $rows[] = $lr;
+                }
+            }
+        }
+
         return [
             'groups' => $groups,
             'rows' => $rows,
@@ -496,7 +541,12 @@ function neftRegisterKindLabel(array $r)
 {
     $mode = strtolower((string) ($r['register_mode'] ?? $r['mode'] ?? ''));
     $pay = strtolower((string) ($r['pay_type'] ?? ''));
-    if ($mode === 'jobwork_actual' || $mode === 'jobwork_govt' || $pay === 'jobwork') {
+    if (
+        $mode === 'jobwork_actual'
+        || $mode === 'jobwork_govt'
+        || $pay === 'jobwork'
+        || $pay === 'contractormain'
+    ) {
         return 'Jobwork';
     }
     return 'Normal';
@@ -913,10 +963,8 @@ function getCombinedNeftSheetData($month, $year, $deptId = 0)
     $month = (int) $month;
     $year = (int) $year;
     $deptId = (int) $deptId;
-    $types = array_keys(function_exists('salaryRegisterTypes') ? salaryRegisterTypes() : []);
-    if (!$types) {
-        $types = ['salary', 'jobwork_actual'];
-    }
+    // NEFT = Normal + Jobwork only (Main Contractor view is a rollup — would double-count)
+    $types = ['salary', 'jobwork_actual'];
 
     $registerRows = [];
     $locks = [];
@@ -1064,7 +1112,12 @@ function buildNfpsNeftExport(array $neftRows, $month, $year, $payDateYmd = null)
     $rows = [];
     $total = 0.0;
     foreach ($neftRows as $r) {
-        $amount = round((float) ($r['amount'] ?? 0), 2);
+        $amount = (float) ($r['amount'] ?? 0);
+        if (function_exists('registerRoundMoney')) {
+            $amount = registerRoundMoney($amount);
+        } else {
+            $amount = round($amount, 2);
+        }
         if ($amount <= 0) {
             continue;
         }
@@ -1072,7 +1125,7 @@ function buildNfpsNeftExport(array $neftRows, $month, $year, $payDateYmd = null)
         $account = preg_replace('/[^0-9A-Za-z]/', '', $account);
         // Keep employees even without bank A/C so full sheet matches Salary Register
         $ifsc = strtoupper(preg_replace('/\s+/', '', (string) ($r['ifsc'] ?? '')));
-        if ($ifsc === '-' ) {
+        if ($ifsc === '-') {
             $ifsc = '';
         }
         $mobile = preg_replace('/\D+/', '', (string) ($r['mobile'] ?? ''));
@@ -1082,7 +1135,16 @@ function buildNfpsNeftExport(array $neftRows, $month, $year, $payDateYmd = null)
         if (strlen($mobile) !== 10) {
             $mobile = '';
         }
-        $remark = ($account === '' || $account === '-') ? 'MISSING BANK A/C' : '';
+        $kind = trim((string) ($r['register_kind'] ?? ''));
+        $remarkParts = [];
+        if ($account === '' || $account === '-') {
+            $remarkParts[] = 'MISSING BANK A/C';
+        }
+        if ($kind !== '') {
+            $remarkParts[] = strtoupper($kind);
+        }
+        $remark = implode(' · ', $remarkParts);
+        $refNo = trim((string) ($r['employee_code'] ?? ''));
 
         $total += $amount;
         $rows[] = [
@@ -1098,14 +1160,20 @@ function buildNfpsNeftExport(array $neftRows, $month, $year, $payDateYmd = null)
             $mobile,
             $cfg['email_id'],
             $remark,
-            '',
+            $refNo,
         ];
+    }
+
+    if (function_exists('registerRoundMoney')) {
+        $total = registerRoundMoney($total);
+    } else {
+        $total = round($total, 2);
     }
 
     return [
         'headers' => $headers,
         'rows' => $rows,
-        'total' => round($total, 2),
+        'total' => $total,
         'pay_date' => $payDate,
         'credit_narr' => $creditNarr,
     ];

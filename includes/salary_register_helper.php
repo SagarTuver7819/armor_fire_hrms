@@ -14,6 +14,7 @@ function salaryRegisterTypes()
     return [
         'salary' => '1 · Normal Fixed Salary (Attendance)',
         'jobwork_actual' => '2 · Jobwork Regular / Actual (Qty × Rate)',
+        'contractor_main' => '3 · Main Contractor (Under Employees)',
     ];
 }
 
@@ -248,8 +249,9 @@ function fetchNormalRegisterEmployees($deptId, $employeeId, $month = 0, $year = 
 }
 
 /**
- * Jobwork register / NEFT — pay_type = Jobwork ONLY.
+ * Jobwork register / NEFT — pay_type Jobwork + ContractorMain.
  * Normal Salary employees (even with CO… code) never appear here.
+ * Main Contractors appear so every dept pool / remainder row is on Jobwork + NEFT.
  */
 function fetchJobworkRegisterEmployees($deptId, $employeeId, $month = 0, $year = 0)
 {
@@ -296,12 +298,12 @@ function fetchJobworkRegisterEmployees($deptId, $employeeId, $month = 0, $year =
         $resJw->free();
     }
 
-    // Strict: Jobwork pay_type only — Salary/Normal never listed here
+    // Jobwork + Main Contractor — Salary/Normal never listed here
     $sql = "SELECT e.*, d.department_name
             FROM employees e
             LEFT JOIN departments d ON d.id = e.department_id
             WHERE " . salaryRegisterEmploymentWhereSql() . "
-            AND e.pay_type = 'Jobwork'";
+            AND e.pay_type IN ('Jobwork', 'ContractorMain')";
     $types = 'ss';
     $params = [$monthStart, $monthEnd];
 
@@ -322,7 +324,7 @@ function fetchJobworkRegisterEmployees($deptId, $employeeId, $month = 0, $year =
     $rows = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
     $stmt->close();
 
-    // Ops extras: only if still Jobwork pay_type (never pull Normal Salary)
+    // Ops extras: Jobwork / ContractorMain only (never pull Normal Salary)
     $have = [];
     foreach ($rows as $r) {
         $have[(int) $r['id']] = true;
@@ -339,7 +341,7 @@ function fetchJobworkRegisterEmployees($deptId, $employeeId, $month = 0, $year =
                      FROM employees e
                      LEFT JOIN departments d ON d.id = e.department_id
                      WHERE e.id IN ($idList)
-                     AND e.pay_type = 'Jobwork'
+                     AND e.pay_type IN ('Jobwork', 'ContractorMain')
                      AND " . salaryRegisterEmploymentWhereSql();
         $extraTypes = 'ss';
         $extraParams = [$monthStart, $monthEnd];
@@ -455,33 +457,77 @@ function getSalaryRegisterData($type, $month, $year, $deptId = 0, $employeeId = 
     $groups = [];
 
     if ($type === 'contractor_main') {
+        // All Main Contractors (pay_type) + configured Melting/CNC split mains
         $mains = fetchSalaryRegisterEmployees($deptId, $employeeId, ['ContractorMain'], $month, $year);
-        if ($employeeId > 0 && !$mains) {
-            $one = getEmployeeById($employeeId);
-            if ($one && normalizePayType($one['pay_type'] ?? '') === 'ContractorMain') {
-                $mains = [$one];
+        $byId = [];
+        foreach ($mains as $main) {
+            $byId[(int) $main['id']] = $main;
+        }
+        if (function_exists('contractorAttendanceSplitRules')) {
+            foreach (contractorAttendanceSplitRules() as $rule) {
+                $main = resolveContractorAttendanceSplitMain($rule);
+                if (!$main) {
+                    continue;
+                }
+                $mid = (int) $main['id'];
+                if ($employeeId > 0 && $mid !== $employeeId) {
+                    continue;
+                }
+                if ($deptId > 0) {
+                    $splitDept = resolveDepartmentIdByName((string) ($rule['department_name'] ?? ''));
+                    $mainDept = (int) ($main['department_id'] ?? 0);
+                    if ($splitDept > 0 && $deptId !== $splitDept && $deptId !== $mainDept) {
+                        continue;
+                    }
+                }
+                if (!isset($byId[$mid])) {
+                    $byId[$mid] = $main;
+                }
             }
         }
+        if ($employeeId > 0 && !$byId) {
+            $one = getEmployeeById($employeeId);
+            if ($one && normalizePayType($one['pay_type'] ?? '') === 'ContractorMain') {
+                $byId[(int) $one['id']] = $one;
+            }
+        }
+        $mains = array_values($byId);
+        usort($mains, static function ($a, $b) {
+            return strcasecmp((string) ($a['employee_name'] ?? ''), (string) ($b['employee_name'] ?? ''));
+        });
+
         foreach ($mains as $main) {
             $under = getContractorUnderEmployees((int) $main['id']);
             if ($deptId > 0) {
-                $under = array_values(array_filter($under, function ($u) use ($deptId) {
-                    return (int) $u['department_id'] === (int) $deptId;
+                $under = array_values(array_filter($under, static function ($u) use ($deptId) {
+                    return (int) ($u['department_id'] ?? 0) === $deptId;
                 }));
             }
             $syncIds = array_map(static function ($u) {
                 return (int) $u['id'];
             }, $under);
+            // Also sync the Main row itself on Jobwork register path
+            $syncIds[] = (int) $main['id'];
             payrollBatchSyncDiariesFromAttendance($syncIds, $month, $year);
             $rows = [];
+            // Main contractor remainder / jobwork row first
+            $mainRow = buildSalaryRegisterRow($main, $month, $year, 'jobwork_actual');
+            $mainRow['mode'] = 'jobwork_actual';
+            $mainRow['remarks'] = trim((string) ($mainRow['remarks'] ?? ''));
+            if ($mainRow['remarks'] === '' || $mainRow['remarks'] === '-') {
+                $mainRow['remarks'] = 'Main Contractor';
+            }
+            $rows[] = $mainRow;
             foreach ($under as $u) {
-                $row = buildSalaryRegisterRow($u, $month, $year, 'jobwork_govt');
-                $row['mode'] = 'jobwork_govt';
+                $uPay = normalizePayType($u['pay_type'] ?? '');
+                $uMode = $uPay === 'Salary' ? 'salary' : 'jobwork_actual';
+                $row = buildSalaryRegisterRow($u, $month, $year, $uMode);
+                $row['mode'] = $uMode;
                 $rows[] = $row;
             }
             $groups[] = [
-                'title' => 'Contractor Main: ' . ($main['employee_code'] ?? '') . ' — ' . ($main['employee_name'] ?? ''),
-                'subtitle' => 'Under employees · government days split',
+                'title' => 'Main Contractor: ' . ($main['employee_code'] ?? '') . ' — ' . ($main['employee_name'] ?? ''),
+                'subtitle' => 'Main + all under employees (Normal Salary + Jobwork) · every linked department',
                 'mode' => 'contractor_main',
                 'rows' => $rows,
             ];

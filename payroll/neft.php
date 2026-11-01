@@ -28,6 +28,9 @@ $type = 'all';
 $types = ['all' => 'All Employees (Normal + Jobwork)'];
 $data = getCombinedNeftSheetData($month, $year, $deptId);
 $neftStatus = $data ? (string) ($data['lock']['approval_status'] ?? 'approved') : '';
+$neftRowCount = $data ? count($data['rows'] ?? []) : 0;
+// Excel/Print whenever combined sheet has employees (Normal + Jobwork)
+$neftCanExport = $neftRowCount > 0;
 $neftFinal = in_array($neftStatus, ['approved', 'draft_live'], true);
 $monthLabel = date('F Y', mktime(0, 0, 0, $month, 1, $year));
 $companyName = function_exists('getCompanyName') ? getCompanyName() : 'Company';
@@ -84,9 +87,9 @@ require_once __DIR__ . '/../includes/header.php';
             <i class="fa-solid fa-arrow-left"></i> Back to Salary Register
         </a>
         <div class="toolbar-actions">
-            <?php if ($data && $neftFinal): ?>
+            <?php if ($neftCanExport): ?>
                 <a class="btn-secondary" href="<?php echo app_url('payroll/neft_excel.php?' . $qs); ?>">
-                    <i class="fa-solid fa-file-excel"></i> NFPS Excel (Bank Upload)
+                    <i class="fa-solid fa-file-excel"></i> NFPS Excel (All Employees)
                 </a>
                 <a class="btn-primary" href="<?php echo app_url('payroll/neft_print.php?' . $qs); ?>" target="_blank">
                     <i class="fa-solid fa-print"></i> Print
@@ -105,33 +108,24 @@ require_once __DIR__ . '/../includes/header.php';
         <div class="form-page-header">
             <div>
                 <h1>NEFT / Bank Transfer Sheet</h1>
-                <p><?php echo htmlspecialchars($companyName); ?> · <?php echo htmlspecialchars($monthLabel); ?> · NFPS bank format</p>
+                <p><?php echo htmlspecialchars($companyName); ?> · <?php echo htmlspecialchars($monthLabel); ?> · One combined sheet (Normal + Jobwork)</p>
             </div>
         </div>
 
         <p class="form-hint" style="margin-bottom:12px;">
-            Excel format: <strong>PYMT_PROD_TYPE_CODE / PYMT_MODE / DEBIT_ACC_NO</strong> fixed
-            (<code><?php echo htmlspecialchars($nfpsCfg['pymt_prod_type_code']); ?></code>,
-            <code><?php echo htmlspecialchars($nfpsCfg['pymt_mode']); ?></code>,
-            <code><?php echo htmlspecialchars($nfpsCfg['debit_acc_no']); ?></code>).
-            Name + Account + IFSC + Amount = Salary Register Net (incl. Arrears).
-            Credit Narration = <code><?php echo htmlspecialchars($creditNarrPreview); ?></code>.
-            Payment Date = NEFT final date (<code><?php echo htmlspecialchars($payDatePreview); ?></code>).
-            Email = <code><?php echo htmlspecialchars($nfpsCfg['email_id']); ?></code>.
+            <strong>Salary Register</strong> stays separate (Normal / Jobwork screens).
+            <strong>NEFT</strong> = both registers together, one list + one NFPS Excel for all employees with Net &gt; 0.
+            Format: <code>PYMT_PROD_TYPE_CODE</code>=<?php echo htmlspecialchars($nfpsCfg['pymt_prod_type_code']); ?>,
+            <code>PYMT_MODE</code>=<?php echo htmlspecialchars($nfpsCfg['pymt_mode']); ?>,
+            <code>DEBIT_ACC_NO</code>=<?php echo htmlspecialchars($nfpsCfg['debit_acc_no']); ?>,
+            AMOUNT = Register Net, CREDIT_NARR=<code><?php echo htmlspecialchars($creditNarrPreview); ?></code>,
+            PYMT_DATE=<code><?php echo htmlspecialchars($payDatePreview); ?></code>,
+            EMAIL=<code><?php echo htmlspecialchars($nfpsCfg['email_id']); ?></code>.
         </p>
 
         <form method="GET" class="employee-form">
+            <input type="hidden" name="type" value="all">
             <div class="form-grid form-grid-3">
-                <div class="form-group">
-                    <label>Register Type</label>
-                    <select name="type" class="form-control" onchange="this.form.submit()">
-                        <?php foreach ($types as $key => $label): ?>
-                            <option value="<?php echo htmlspecialchars($key); ?>" <?php echo $type === $key ? 'selected' : ''; ?>>
-                                <?php echo htmlspecialchars($label); ?>
-                            </option>
-                        <?php endforeach; ?>
-                    </select>
-                </div>
                 <div class="form-group">
                     <label>Department</label>
                     <select name="department_id" class="form-control" onchange="this.form.submit()">
@@ -178,7 +172,7 @@ require_once __DIR__ . '/../includes/header.php';
                     <p style="margin:0;">
                         <i class="fa-solid fa-hourglass-half" style="color:#b45309;"></i>
                         <strong>Draft · <?php echo htmlspecialchars($neftLabels[$neftStatus] ?? $neftStatus); ?></strong>
-                        — Excel / Print will be available after Accounts marks it Done.
+                        — Excel already includes all Normal + Jobwork employees. Bank upload final after Accounts Done.
                     </p>
                 </div>
             <?php endif; ?>

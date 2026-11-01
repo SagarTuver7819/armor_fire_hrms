@@ -113,11 +113,9 @@ require_once __DIR__ . '/../includes/header.php';
             </a>
         <?php endif; ?>
         <div class="register-toolbar-actions">
-            <?php if ($isLocked): ?>
-                <a class="btn-primary" href="<?php echo app_url('payroll/neft.php?' . $neftQs); ?>">
-                    <i class="fa-solid fa-building-columns"></i> NEFT Sheet
-                </a>
-            <?php endif; ?>
+            <a class="btn-primary" href="<?php echo app_url('payroll/neft.php?' . $neftQs); ?>">
+                <i class="fa-solid fa-building-columns"></i> NEFT Sheet (Normal + Jobwork)
+            </a>
             <a class="btn-secondary" href="<?php echo app_url('payroll/register_excel.php?' . $excelQs); ?>">
                 <i class="fa-solid fa-file-excel"></i> Excel
             </a>
@@ -326,7 +324,7 @@ require_once __DIR__ . '/../includes/header.php';
         <?php elseif ($type === 'jobwork_actual'): ?>
             <p class="form-hint">Jobwork <strong>Regular / Actual</strong>: full production amount (Qty × Rate) from Operations Rate List. No attendance day split — contract base earning.</p>
         <?php elseif ($type === 'contractor_main'): ?>
-            <p class="form-hint">Contractor Main: under employees, government-style day split using each member’s attendance. Link Jobwork employees to a Contractor Main on the employee form.</p>
+            <p class="form-hint">Main Contractor: shows each Main + <strong>all under employees</strong> (Normal Salary + Jobwork) linked via employee form. Melting / CNC split mains included. NEFT still uses Register types 1 + 2 only (no double count).</p>
         <?php else: ?>
             <p class="form-hint">Normal <strong>Fixed Salary</strong>: Gross = Decided Salary × (Present + Week Off + Holiday + P.L. + S.L. + D.L.) ÷ month days — same totals as <strong>Attendance Report</strong> (employee week-off day for this month).</p>
         <?php endif; ?>

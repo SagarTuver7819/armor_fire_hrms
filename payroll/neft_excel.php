@@ -2,6 +2,8 @@
 /**
  * NEFT Excel — ICICI NFPS format (same headings as NFPS_FMT SALARY FOUNDARY AND OTHERS.xlsx)
  *
+ * Always one combined file: Normal Salary Register + Jobwork Register (all employees with Net > 0).
+ *
  * Columns:
  * PYMT_PROD_TYPE_CODE | PYMT_MODE | DEBIT_ACC_NO | BNF_NAME | BENE_ACC_NO | BENE_IFSC |
  * AMOUNT | CREDIT_NARR | PYMT_DATE | MOBILE_NUM | EMAIL_ID | REMARK | REF_NO
@@ -23,29 +25,21 @@ requirePayrollRegisterAccess($deptId);
 ensurePayrollApprovalTables();
 $month = (int) ($_GET['month'] ?? date('n'));
 $year = (int) ($_GET['year'] ?? date('Y'));
-$type = (string) ($_GET['type'] ?? 'all');
 if ($month < 1 || $month > 12) {
     $month = (int) date('n');
 }
 
-if ($type === 'all' || $type === '') {
-    $data = getCombinedNeftSheetData($month, $year, $deptId);
-} else {
-    if (!isset(salaryRegisterTypes()[$type])) {
-        $type = 'salary';
-    }
-    $data = getNeftSheetData($month, $year, $type, $deptId);
-}
+// Always Normal + Jobwork together (Salary Register stays separate screens)
+$data = getCombinedNeftSheetData($month, $year, $deptId);
 
 $backQs = http_build_query([
-    'type' => $type === '' ? 'all' : $type,
+    'type' => 'all',
     'month' => $month,
     'year' => $year,
     'department_id' => $deptId,
 ]);
 
-$status = (string) ($data['lock']['approval_status'] ?? '');
-if (!$data || !in_array($status, ['approved', 'draft_live'], true)) {
+if (!$data || empty($data['rows'])) {
     header('Location: ' . app_url('payroll/neft.php?' . $backQs));
     exit;
 }
@@ -75,7 +69,7 @@ echo '</tr>';
 foreach ($export['rows'] as $row) {
     echo '<tr>';
     foreach ($row as $i => $cell) {
-        // AMOUNT as number; account/IFSC as text so Excel keeps leading zeros
+        // AMOUNT as number; account/IFSC/debit/mobile as text so Excel keeps leading zeros
         if ($i === 6) {
             echo '<td style="mso-number-format:0.00;">' . htmlspecialchars(number_format((float) $cell, 2, '.', '')) . '</td>';
         } elseif ($i === 4 || $i === 5 || $i === 2 || $i === 9) {
