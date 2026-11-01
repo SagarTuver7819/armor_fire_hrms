@@ -31,9 +31,11 @@ if (!isset(salaryRegisterTypes()[$type])) {
     $type = 'salary';
 }
 
-$lock = getSalaryRegisterLock($month, $year, $type, $deptId);
-$isLocked = $lock !== null;
-// Arrears always editable on every department — value adds to Net
+// Same source as NEFT: locked snapshot when locked, else live
+$displayBundle = getSalaryRegisterDisplayBundle($type, $month, $year, $deptId, $employeeId);
+$lock = $displayBundle['lock'];
+$isLocked = !empty($displayBundle['from_lock']);
+// Arrears always editable on every department — value adds to Net (also patches lock)
 $canEditArrears = true;
 $approvalStatus = $isLocked ? (string) ($lock['approval_status'] ?? 'approved') : '';
 $approvalLabels = payrollApprovalStatusLabels();
@@ -43,8 +45,7 @@ $approvalLog = fetchPayrollApprovalLog($month, $year, $type, $deptId);
 $department = $deptId > 0 ? getDepartmentById($deptId) : null;
 $monthDays = (int) date('t', strtotime(sprintf('%04d-%02d-01', $year, $month)));
 
-// Always live data so Arrears from diary show correctly (Net = Gross − Ded + Arrears)
-$groups = getSalaryRegisterData($type, $month, $year, $deptId, $employeeId);
+$groups = $displayBundle['groups'];
 
 if ($view === 'employee' && $type !== 'contractor_main') {
     $flat = [];

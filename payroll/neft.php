@@ -188,14 +188,31 @@ require_once __DIR__ . '/../includes/header.php';
                         ? 'Live register (not locked)'
                         : ('Locked ' . htmlspecialchars(formatDateDisplay(substr((string) ($lock['locked_at'] ?? ''), 0, 10)) . ' ' . substr((string) ($lock['locked_at'] ?? ''), 11, 5))); ?>
                 </span>
+                <?php
+                $neftNormalSum = 0.0;
+                $neftJobworkSum = 0.0;
+                foreach ($rows as $nrSum) {
+                    $amtSum = (float) ($nrSum['amount'] ?? 0);
+                    if (($nrSum['register_kind'] ?? '') === 'Jobwork') {
+                        $neftJobworkSum += $amtSum;
+                    } else {
+                        $neftNormalSum += $amtSum;
+                    }
+                }
+                if (function_exists('registerRoundMoney')) {
+                    $neftNormalSum = registerRoundMoney($neftNormalSum);
+                    $neftJobworkSum = registerRoundMoney($neftJobworkSum);
+                }
+                ?>
                 <span class="ops-chip"><strong><?php echo count($rows); ?> total</strong></span>
-                <span class="ops-chip">Normal <?php echo (int) $normalCount; ?></span>
-                <span class="ops-chip">Jobwork <?php echo (int) $jobworkCount; ?></span>
+                <span class="ops-chip">Normal <?php echo (int) $normalCount; ?> · ₹ <?php echo number_format($neftNormalSum, 2); ?></span>
+                <span class="ops-chip">Jobwork <?php echo (int) $jobworkCount; ?> · ₹ <?php echo number_format($neftJobworkSum, 2); ?></span>
                 <span class="ops-chip"><?php echo (int) $readyBankCount; ?> bank-ready</span>
                 <?php if ($missingBankCount > 0): ?>
                     <span class="ops-chip" style="color:#b45309;"><i class="fa-solid fa-triangle-exclamation"></i> <?php echo (int) $missingBankCount; ?> missing bank A/C</span>
                 <?php endif; ?>
                 <span class="ops-chip"><strong>Total ₹ <?php echo number_format($neftTotal, 2); ?></strong></span>
+                <span class="ops-chip" style="color:#16a085;"><i class="fa-solid fa-equals"></i> = Normal + Jobwork register nets</span>
             </div>
 
             <div class="table-wrap" style="margin-top:14px;">

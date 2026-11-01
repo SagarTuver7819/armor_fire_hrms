@@ -373,6 +373,109 @@ function isSalaryRegisterLocked($month, $year, $type, $deptId = 0)
 }
 
 /**
+ * Same rows for Salary Register screen and NEFT:
+ * locked → snapshot (final nets); unlocked → live calculation.
+ *
+ * @return array{groups: array, rows: array, lock: ?array, from_lock: bool, from_all_departments: bool}
+ */
+function getSalaryRegisterDisplayBundle($type, $month, $year, $deptId = 0, $employeeId = 0)
+{
+    $type = (string) $type;
+    $month = (int) $month;
+    $year = (int) $year;
+    $deptId = (int) $deptId;
+    $employeeId = (int) $employeeId;
+
+    $resolved = resolveSalaryRegisterLock($month, $year, $type, $deptId);
+    $lock = $resolved['lock'];
+    $fromAll = !empty($resolved['from_all_departments']);
+
+    if ($lock) {
+        $snap = json_decode((string) ($lock['snapshot_json'] ?? ''), true);
+        $groups = [];
+        if (is_array($snap) && !empty($snap['groups']) && is_array($snap['groups'])) {
+            $groups = $snap['groups'];
+        } elseif (is_array($snap) && !empty($snap['rows']) && is_array($snap['rows'])) {
+            $byDept = [];
+            foreach ($snap['rows'] as $r) {
+                $dn = (string) ($r['department'] ?? $r['department_name'] ?? 'Department');
+                if (!isset($byDept[$dn])) {
+                    $byDept[$dn] = [];
+                }
+                $byDept[$dn][] = $r;
+            }
+            $title = $type === 'jobwork_actual' ? 'Jobwork — Regular / Actual' : 'Salaried Person (Fixed)';
+            foreach ($byDept as $dn => $rows) {
+                $groups[] = [
+                    'title' => $title . ' · ' . $dn,
+                    'subtitle' => 'Locked snapshot',
+                    'mode' => $type,
+                    'rows' => $rows,
+                ];
+            }
+        }
+        if ($deptId > 0 && $fromAll) {
+            $groups = filterSalaryRegisterGroupsByDepartment($groups, $deptId);
+        }
+        if ($employeeId > 0) {
+            foreach ($groups as &$g) {
+                $g['rows'] = array_values(array_filter($g['rows'] ?? [], static function ($r) use ($employeeId) {
+                    return (int) ($r['employee_id'] ?? 0) === $employeeId;
+                }));
+            }
+            unset($g);
+            $groups = array_values(array_filter($groups, static function ($g) {
+                return !empty($g['rows']);
+            }));
+        }
+        $rows = flattenSalaryRegisterGroups($groups);
+        foreach ($rows as &$r) {
+            $r['register_mode'] = $type;
+            if (empty($r['mode'])) {
+                $r['mode'] = $type;
+            }
+            if (function_exists('registerApplyMoneyRoundOff')) {
+                $r = registerApplyMoneyRoundOff($r);
+            }
+        }
+        unset($r);
+        // Rebuild groups rows after round-off
+        $i = 0;
+        foreach ($groups as &$g) {
+            $n = count($g['rows'] ?? []);
+            $g['rows'] = array_slice($rows, $i, $n);
+            $g['mode'] = $type;
+            $i += $n;
+        }
+        unset($g);
+        return [
+            'groups' => $groups,
+            'rows' => $rows,
+            'lock' => $lock,
+            'from_lock' => true,
+            'from_all_departments' => $fromAll,
+        ];
+    }
+
+    $groups = getSalaryRegisterData($type, $month, $year, $deptId, $employeeId);
+    $rows = flattenSalaryRegisterGroups($groups);
+    foreach ($rows as &$r) {
+        $r['register_mode'] = $type;
+        if (empty($r['mode'])) {
+            $r['mode'] = $type;
+        }
+    }
+    unset($r);
+    return [
+        'groups' => $groups,
+        'rows' => $rows,
+        'lock' => null,
+        'from_lock' => false,
+        'from_all_departments' => false,
+    ];
+}
+
+/**
  * Flatten register groups into employee rows for lock / NEFT.
  */
 function flattenSalaryRegisterGroups(array $groups)
@@ -425,6 +528,12 @@ function buildNeftRowsFromRegister(array $registerRows)
             $account = '';
         }
         $kind = neftRegisterKindLabel($r);
+        if (function_exists('registerRoundMoney')) {
+            $net = registerRoundMoney($net);
+        }
+        if ($net <= 0) {
+            continue;
+        }
         $sr++;
         $neft[] = [
             'sr' => $sr,
@@ -728,36 +837,11 @@ function getNeftSheetData($month, $year, $type, $deptId = 0)
     $year = (int) $year;
     $type = (string) $type;
 
-    // Prefer full register snapshot (all net>0) over old neft_json (bank-only)
-    $registerRows = [];
-    $locks = listSalaryRegisterLocks($month, $year, $type);
-    $primary = null;
-    foreach ($locks as $lock) {
-        $lockDept = (int) ($lock['department_id'] ?? 0);
-        if ($deptId > 0 && $lockDept > 0 && $lockDept !== $deptId) {
-            continue;
-        }
-        if (!$primary) {
-            $primary = $lock;
-        }
-        $registerRows = mergeRegisterRowsByEmployee(
-            $registerRows,
-            registerRowsFromLockSnapshot($lock, $deptId),
-            true
-        );
-    }
-
-    // No lock → live register
+    // Same source as Salary Register (lock snapshot or live)
+    $bundle = getSalaryRegisterDisplayBundle($type, $month, $year, $deptId, 0);
+    $registerRows = $bundle['rows'];
     if (!$registerRows) {
-        $groups = getSalaryRegisterData($type, $month, $year, $deptId, 0);
-        $registerRows = flattenSalaryRegisterGroups($groups);
-        if (!$registerRows) {
-            return null;
-        }
-        $primary = [
-            'locked_at' => date('Y-m-d H:i:s'),
-            'approval_status' => 'draft_live',
-        ];
+        return null;
     }
 
     $registerRows = enrichRegisterRowsWithBankDetails($registerRows);
@@ -772,13 +856,16 @@ function getNeftSheetData($month, $year, $type, $deptId = 0)
         return (float) ($r['amount'] ?? 0);
     }, $neft)), 2);
 
-    $status = (string) ($primary['approval_status'] ?? 'approved');
-    if (!$locks) {
-        $status = 'draft_live';
-    }
+    $primary = $bundle['lock'] ?: [
+        'locked_at' => date('Y-m-d H:i:s'),
+        'approval_status' => 'draft_live',
+    ];
+    $status = $bundle['from_lock']
+        ? (string) ($primary['approval_status'] ?? 'approved')
+        : 'draft_live';
 
     return [
-        'lock' => array_merge($primary ?: [], [
+        'lock' => array_merge($primary, [
             'approval_status' => $status,
             'employee_count' => count($neft),
             'neft_count' => count($neft),
@@ -788,7 +875,7 @@ function getNeftSheetData($month, $year, $type, $deptId = 0)
         'total_amount' => $total,
         'neft_total' => $total,
         'missing_bank_count' => $missingBank,
-        'from_snapshot' => !empty($locks),
+        'from_snapshot' => !empty($bundle['from_lock']),
     ];
 }
 
@@ -817,10 +904,9 @@ function neftNfpsBeneName($name)
 }
 
 /**
- * Merge Normal Salary + Jobwork Actual NEFT rows for ALL employees.
- * Rebuilds from LIVE salary registers (not only locked neft_json), so Foundry /
- * Jobwork / every department is included — not just the ~66 bank-ready rows
- * saved at lock time.
+ * Merge Normal Salary + Jobwork Actual NEFT rows.
+ * Uses the SAME source as each Salary Register screen (lock snapshot or live),
+ * so NEFT amounts always match Normal + Jobwork register nets.
  */
 function getCombinedNeftSheetData($month, $year, $deptId = 0)
 {
@@ -835,49 +921,34 @@ function getCombinedNeftSheetData($month, $year, $deptId = 0)
     $registerRows = [];
     $locks = [];
     $anyApproved = false;
+    $anyFromLock = false;
     $payDate = '';
 
     foreach ($types as $type) {
-        $typeLocks = listSalaryRegisterLocks($month, $year, $type);
-        $typeRows = [];
-        foreach ($typeLocks as $lock) {
-            $lockDept = (int) ($lock['department_id'] ?? 0);
-            if ($deptId > 0 && $lockDept > 0 && $lockDept !== $deptId) {
-                continue;
-            }
-            $locks[] = $lock;
-            if (($lock['approval_status'] ?? '') === 'approved') {
+        $bundle = getSalaryRegisterDisplayBundle($type, $month, $year, $deptId, 0);
+        if (!empty($bundle['lock'])) {
+            $locks[] = $bundle['lock'];
+            if (($bundle['lock']['approval_status'] ?? '') === 'approved') {
                 $anyApproved = true;
             }
-            $at = (string) ($lock['approved_at'] ?? $lock['locked_at'] ?? '');
+            $at = (string) ($bundle['lock']['approved_at'] ?? $bundle['lock']['locked_at'] ?? '');
             if ($at !== '' && ($payDate === '' || strcmp($at, $payDate) > 0)) {
                 $payDate = $at;
             }
-            $typeRows = mergeRegisterRowsByEmployee(
-                $typeRows,
-                registerRowsFromLockSnapshot($lock, $deptId),
-                true
-            );
         }
-
-        // Live fill so unlocked depts / Jobwork still appear
-        $live = flattenSalaryRegisterGroups(
-            getSalaryRegisterData($type, $month, $year, $deptId, 0)
-        );
-        // Locked snapshot wins (finalized Net / Arrears)
-        $typeRows = mergeRegisterRowsByEmployee($live, $typeRows, true);
-        foreach ($typeRows as &$tr) {
+        if (!empty($bundle['from_lock'])) {
+            $anyFromLock = true;
+        }
+        foreach ($bundle['rows'] as $tr) {
             $tr['register_mode'] = $type;
             if (empty($tr['mode'])) {
                 $tr['mode'] = $type;
             }
+            $registerRows[] = $tr;
         }
-        unset($tr);
-        // Append type block — do not drop Jobwork when same id unlikely; merge within type only
-        $registerRows = array_merge($registerRows, $typeRows);
     }
 
-    // Dedupe only within same register_mode (Normal vs Jobwork stay separate lists merged)
+    // Dedupe only within same register_mode (Normal vs Jobwork stay separate)
     $deduped = [];
     $seenKey = [];
     foreach ($registerRows as $r) {
@@ -948,8 +1019,8 @@ function getCombinedNeftSheetData($month, $year, $deptId = 0)
         'normal_count' => $normalCount,
         'jobwork_count' => $jobworkCount,
         'register_row_count' => count($registerRows),
-        'from_live' => empty($locks),
-        'from_snapshot' => !empty($locks),
+        'from_live' => !$anyFromLock,
+        'from_snapshot' => $anyFromLock,
     ];
 }
 
