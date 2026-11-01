@@ -36,11 +36,11 @@ header('Content-Type: application/vnd.ms-excel; charset=utf-8');
 header('Content-Disposition: attachment; filename="' . $filename . '"');
 header('Cache-Control: max-age=0');
 
-$colCount = $isActual ? 21 : 24;
-$earnSpan = $isActual ? 3 : 7;
+$colCount = $isActual ? 21 : 25;
+$earnSpan = $isActual ? 3 : 8;
 $headers = $isActual
     ? ['Employee Code', 'Employee Name', 'Designation', 'D.O.J.', 'UAN Number', 'Qty', 'Actual Amount', 'Gross Salary']
-    : ['Employee Code', 'Employee Name', 'Designation', 'D.O.J.', 'UAN Number', 'Salary', 'Present Days', 'Week Off', 'Holiday', 'P.L.', 'S.L.', 'D.L.', 'Total Days', 'Gross Salary'];
+    : ['Employee Code', 'Employee Name', 'Designation', 'D.O.J.', 'UAN Number', 'Salary', 'Present Days', 'Week Off', 'Holiday', 'P.L.', 'S.L.', 'D.L.', 'C-Off', 'Total Days', 'Gross Salary'];
 $headers = array_merge($headers, [
     'Employee PF', 'P.T.', 'Loan', 'Advance', 'Total Deduction', 'Salary Arrears', 'Net Salary',
     'Account Number', 'IFSC Code', 'Remarks',
@@ -85,7 +85,7 @@ function registerExcelTotalRow(array $sum, $isActual, $label, $bg)
         echo '<td align="right"><strong>' . (int) $sum['gross'] . '</strong></td>';
     } else {
         echo '<td align="right"><strong>' . (int) $sum['salary'] . '</strong></td>';
-        echo '<td colspan="7"></td>';
+        echo '<td colspan="8"></td>';
         echo '<td align="right"><strong>' . (int) $sum['gross'] . '</strong></td>';
     }
     echo '<td align="right"><strong>' . (int) $sum['pf'] . '</strong></td>';
@@ -154,6 +154,7 @@ foreach ($groups as $g) {
             echo registerExcelTd($r['pl'] ?? '');
             echo registerExcelTd($r['sl'] ?? '');
             echo registerExcelTd($r['dl'] ?? '');
+            echo registerExcelTd($r['coff'] ?? 0);
             echo registerExcelTd($r['total_days'] ?? '');
             echo '<td>' . (int) registerRoundMoney($r['gross'] ?? 0) . '</td>';
         }

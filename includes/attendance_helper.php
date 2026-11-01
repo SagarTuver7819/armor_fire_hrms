@@ -1918,11 +1918,32 @@ function attendanceBuildEmployeeMonthTotals(array $emp, array &$dayMapByDate, $m
             continue;
         }
         if ($status === 'Week Off') {
-            // Only the employee's calendar week-off day counts (history-aware).
-            // Extra "Week Off" marks on other weekdays inflated WO (e.g. 6) — ignore for pay.
+            // Only calendar week-off day (history-aware) counts as WO.
+            // Mis-tagged Week Off on other weekdays must NOT inflate WO, but the day
+            // still counts for pay (Present if punched, else auto-LWP when eligible).
             if ($isCalWeekOff && !$isCalHoliday) {
                 attendanceAddDayToLeaveTotals($totals, $status, $type, $half);
                 $weekOffDatesCounted[] = $date;
+                continue;
+            }
+            $mins = (int) ($cell['working_minutes'] ?? 0);
+            $hasPunch = !empty($cell['punch_in']) || !empty($cell['punch_out']) || $mins > 0;
+            if ($hasPunch) {
+                // Worked on a non-week-off day wrongly marked Week Off → count Present / Half
+                $asStatus = ($mins > 0 && $mins < 240) ? 'Half Day' : 'Present';
+                $dayMapByDate[$date]['day_status'] = $asStatus;
+                $prevRem = trim((string) ($dayMapByDate[$date]['remarks'] ?? ''));
+                if ($prevRem === '' || stripos($prevRem, 'Week Off') !== false) {
+                    $dayMapByDate[$date]['remarks'] = 'Worked (not week-off day)';
+                }
+                attendanceAddDayToLeaveTotals($totals, $asStatus, $type, $half);
+                continue;
+            }
+            if (!$isCalHoliday && attendanceDateEligibleForAutoLwp($date)) {
+                $dayMapByDate[$date]['day_status'] = 'Leave';
+                $dayMapByDate[$date]['remarks'] = 'LWP';
+                $dayMapByDate[$date]['_auto_lwp'] = 1;
+                attendanceAddDayToLeaveTotals($totals, 'Leave', 'LWP');
             }
             continue;
         }

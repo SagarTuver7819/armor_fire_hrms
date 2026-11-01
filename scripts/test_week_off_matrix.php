@@ -127,13 +127,36 @@ $cases[] = [
 
 // 8) Bogus Week Off marks on non-Sunday must NOT inflate WO (was 6 bug)
 $map = buildDayMap('Present', [
-    '2026-10-01' => day('Week Off'), // Thursday
-    '2026-10-02' => day('Week Off'), // Friday
+    '2026-10-01' => day('Week Off'), // Thursday — no punch
+    '2026-10-02' => day('Week Off'), // Friday — no punch
 ]);
 $t = attendanceBuildEmployeeMonthTotals(makeEmp('Yes'), $map, $month, $year, $holidaySet);
 $cases[] = [
-    'Bogus WO on Thu/Fri ignored → still WO=4',
+    'Bogus WO no-punch → not in WOpay (still 4 Sundays)',
     (float) $t['week_off_paid'] === 4.0 && (float) $t['week_off_raw'] === 4.0,
+    $t,
+];
+
+// 9) Bogus WO WITH punches on working days → count Present (Arjun-style lost days)
+$map = buildDayMap('Present', [
+    '2026-10-01' => day('Week Off', [
+        'punch_in' => '09:00:00',
+        'punch_out' => '18:00:00',
+        'working_minutes' => 480,
+    ]),
+    '2026-10-02' => day('Week Off', [
+        'punch_in' => '09:00:00',
+        'punch_out' => '18:00:00',
+        'working_minutes' => 480,
+    ]),
+]);
+$t = attendanceBuildEmployeeMonthTotals(makeEmp('Yes'), $map, $month, $year, $holidaySet);
+// Full Oct Present all non-Sun + 4 Sun WO = 27 + 4 = 31 (Thu+Fri still present via reclassify)
+$cases[] = [
+    'Bogus WO with punch → Present, pay=31',
+    (float) $t['week_off_paid'] === 4.0
+        && (float) $t['present'] === 27.0
+        && abs((float) $t['total_pay_days'] - 31.0) < 0.001,
     $t,
 ];
 

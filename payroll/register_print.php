@@ -205,7 +205,7 @@ foreach ($groups as $g) {
             $sumGross += (float) $r['gross'];
             $sumNet += (float) $r['net'];
         }
-        $colSpanLead = $isActual ? 7 : 13;
+        $colSpanLead = $isActual ? 7 : 14;
         ?>
         <div class="sheet">
             <div class="sheet-banner">
@@ -219,7 +219,7 @@ foreach ($groups as $g) {
                             <?php if ($isActual): ?>
                                 <th colspan="3" class="sr-earn">Earning</th>
                             <?php else: ?>
-                                <th colspan="7" class="sr-earn">Earning</th>
+                                <th colspan="8" class="sr-earn">Earning</th>
                                 <th colspan="2" class="sr-gross">Gross</th>
                             <?php endif; ?>
                         <th colspan="4" class="sr-ded">Deduction</th>
@@ -244,6 +244,7 @@ foreach ($groups as $g) {
                             <th class="num">P.L.</th>
                             <th class="num">S.L.</th>
                             <th class="num">D.L.</th>
+                            <th class="num">C-Off</th>
                             <th class="num">Total Days</th>
                             <th class="num">Gross</th>
                         <?php endif; ?>
@@ -261,7 +262,7 @@ foreach ($groups as $g) {
                 </thead>
                 <tbody>
                 <?php if (!$rows): ?>
-                    <tr><td colspan="25">No employees for this register.</td></tr>
+                    <tr><td colspan="26">No employees for this register.</td></tr>
                 <?php endif; ?>
                 <?php foreach ($rows as $r): ?>
                     <?php
@@ -299,6 +300,7 @@ foreach ($groups as $g) {
                             <td class="num"><?php echo registerNum($r['pl'], 1); ?></td>
                             <td class="num"><?php echo registerNum($r['sl'], 1); ?></td>
                             <td class="num"><?php echo registerNum($r['dl'], 1); ?></td>
+                            <td class="num"><?php echo registerNum($r['coff'] ?? 0, 1); ?></td>
                             <td class="num"><?php echo registerNum($r['total_days'], 1); ?></td>
                             <td class="num"><?php echo registerNum($r['gross']); ?></td>
                         <?php endif; ?>
