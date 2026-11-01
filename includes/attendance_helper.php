@@ -1709,6 +1709,22 @@ function attendanceApplyWeekOffSandwichRule(
 }
 
 /**
+ * Normalize employee WO/Holiday benefit flags for pay columns.
+ * Week Off blank → No; Holiday blank/missing → Yes (master paid holidays are normal).
+ *
+ * @return array{week_off_benefits:string,holiday_benefits:string}
+ */
+function attendanceNormalizeBenefitFlags(array $emp)
+{
+    $wo = trim((string) ($emp['week_off_benefits'] ?? ''));
+    $hol = trim((string) ($emp['holiday_benefits'] ?? ''));
+    return [
+        'week_off_benefits' => $wo !== '' ? $wo : 'No',
+        'holiday_benefits' => $hol !== '' ? $hol : 'Yes',
+    ];
+}
+
+/**
  * Finalise Total Days / Total Pay Days from component columns.
  * Week Off / Holiday summary columns = paid only (benefits Yes + after sandwich).
  * Total Days = Total Pay Days = Salary Register total_days (all departments).
@@ -1725,10 +1741,9 @@ function attendanceFinalizeLeaveTotals(array &$totals, array $benefits = [])
     $dl = (float) ($totals['DL'] ?? 0);
     $coff = (float) ($totals['C-Off'] ?? 0);
 
-    $woBen = strtoupper(trim((string) ($benefits['week_off_benefits'] ?? 'No')));
-    // Holiday Benefits blank → Yes (paid holiday master is normal); Week Off blank → No
-    $holBenRaw = trim((string) ($benefits['holiday_benefits'] ?? 'Yes'));
-    $holBen = strtoupper($holBenRaw !== '' ? $holBenRaw : 'Yes');
+    $flags = attendanceNormalizeBenefitFlags($benefits);
+    $woBen = strtoupper($flags['week_off_benefits']);
+    $holBen = strtoupper($flags['holiday_benefits']);
     $weekOffPaid = ($woBen === 'YES') ? $weekOff : 0.0;
     $holidayPaid = ($holBen === 'YES') ? $holiday : 0.0;
 
@@ -1839,20 +1854,39 @@ function attendanceBuildEmployeeMonthTotals(array $emp, array &$dayMapByDate, $m
             continue;
         }
 
-        // Holiday wins over Week Off — same day must count only once
-        if ($isCalHoliday && (($status === '' && $beforeLastEntry) || $status === 'Week Off' || $status === 'Absent')) {
+        // Holiday wins over Week Off / Absent / LWP — same day must count only once.
+        // Arjun case: master holiday days wrongly saved as LWP were unpaid (29 instead of 31).
+        $statusIsLwp = (
+            $status === 'Leave'
+            && (
+                stripos($cellRemarks, 'LWP') !== false
+                || $cellSource === 'auto_lwp'
+                || !empty($cell['_auto_lwp'])
+            )
+        );
+        if (
+            $isCalHoliday
+            && (
+                ($status === '' && $beforeLastEntry)
+                || $status === 'Week Off'
+                || $status === 'Absent'
+                || $statusIsLwp
+            )
+        ) {
             $wasEmpty = ($status === '' || !empty($cell['_virtual']));
             $status = 'Holiday';
             $dayMapByDate[$date] = [
                 'employee_id' => (int) ($emp['id'] ?? 0),
                 'attendance_date' => $date,
                 'day_status' => 'Holiday',
-                'punch_in' => null,
-                'punch_out' => null,
-                'remarks' => (string) (($cell['remarks'] ?? '') ?: ''),
-                'working_minutes' => 0,
+                'punch_in' => $cell['punch_in'] ?? null,
+                'punch_out' => $cell['punch_out'] ?? null,
+                'remarks' => $statusIsLwp ? 'Holiday (was LWP)' : (string) (($cell['remarks'] ?? '') ?: ''),
+                'working_minutes' => (int) ($cell['working_minutes'] ?? 0),
+                'source' => (string) ($cell['source'] ?? ''),
                 '_virtual' => $wasEmpty ? 1 : 0,
             ];
+            unset($dayMapByDate[$date]['_auto_lwp']);
             attendanceAddDayToLeaveTotals($totals, 'Holiday');
             continue;
         }
@@ -2008,6 +2042,8 @@ function attendanceBuildEmployeeMonthTotals(array $emp, array &$dayMapByDate, $m
         $totals['week_off'] = (float) $maxCalWeekOff;
     }
 
+    $benefitFlags = attendanceNormalizeBenefitFlags($emp);
+
     // Benefits=Yes: WO counted only if attendance on day before OR after; both Leave → not counted
     attendanceApplyWeekOffSandwichRule(
         $totals,
@@ -2019,13 +2055,10 @@ function attendanceBuildEmployeeMonthTotals(array $emp, array &$dayMapByDate, $m
         $exitDate,
         $holidaySet,
         $isWeekOffDateFn,
-        $emp['week_off_benefits'] ?? 'No'
+        $benefitFlags['week_off_benefits']
     );
 
-    attendanceFinalizeLeaveTotals($totals, [
-        'week_off_benefits' => $emp['week_off_benefits'] ?? 'No',
-        'holiday_benefits' => $emp['holiday_benefits'] ?? 'No',
-    ]);
+    attendanceFinalizeLeaveTotals($totals, $benefitFlags);
     return $totals;
 }
 
@@ -2116,6 +2149,55 @@ function getAttendanceExcelMonthGrid($month, $year, $deptId = 0, $employeeId = 0
         if ($res) {
             while ($r = $res->fetch_assoc()) {
                 $dayMap[(int) $r['employee_id']][$r['attendance_date']] = $r;
+            }
+        }
+        // Merge biometric punches when day_status punch columns are empty
+        // (LWP/WO rows often lack punch_in/out even though attendance_punches has times)
+        $pres = $conn->query(
+            "SELECT employee_id, attendance_date,
+                    MIN(CASE WHEN punch_type = 'in' THEN punch_time END) AS first_in,
+                    MAX(CASE WHEN punch_type = 'out' THEN punch_time END) AS last_out,
+                    MIN(punch_time) AS any_first,
+                    MAX(punch_time) AS any_last
+             FROM attendance_punches
+             WHERE attendance_date BETWEEN '{$conn->real_escape_string($from)}' AND '{$conn->real_escape_string($to)}'
+               AND employee_id IN ({$idList})
+             GROUP BY employee_id, attendance_date"
+        );
+        if ($pres) {
+            while ($pr = $pres->fetch_assoc()) {
+                $eidP = (int) $pr['employee_id'];
+                $dP = substr((string) $pr['attendance_date'], 0, 10);
+                $inP = $pr['first_in'] ?: ($pr['any_first'] ?? null);
+                $outP = $pr['last_out'] ?: ($pr['any_last'] ?? null);
+                if (!isset($dayMap[$eidP][$dP])) {
+                    $dayMap[$eidP][$dP] = [
+                        'employee_id' => $eidP,
+                        'attendance_date' => $dP,
+                        'day_status' => 'Present',
+                        'punch_in' => $inP,
+                        'punch_out' => $outP,
+                        'remarks' => '',
+                        'working_minutes' => 0,
+                        'source' => 'punch',
+                    ];
+                }
+                $cellP = &$dayMap[$eidP][$dP];
+                if (empty($cellP['punch_in']) && !empty($inP)) {
+                    $cellP['punch_in'] = $inP;
+                }
+                if (empty($cellP['punch_out']) && !empty($outP)) {
+                    $cellP['punch_out'] = $outP;
+                }
+                $minsP = (int) ($cellP['working_minutes'] ?? 0);
+                if ($minsP <= 0 && !empty($cellP['punch_in']) && !empty($cellP['punch_out'])) {
+                    $cellP['working_minutes'] = attendanceWorkingMinutes(
+                        $dP,
+                        $cellP['punch_in'],
+                        $cellP['punch_out']
+                    );
+                }
+                unset($cellP);
             }
         }
     }

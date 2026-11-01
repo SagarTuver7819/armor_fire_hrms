@@ -8,6 +8,7 @@ require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/employee_helper.php';
 require_once __DIR__ . '/../includes/attendance_helper.php';
+require_once __DIR__ . '/../includes/build_meta.php';
 
 requireLogin();
 require_once __DIR__ . '/../includes/permission_helper.php';
@@ -90,6 +91,7 @@ require_once __DIR__ . '/../includes/header.php';
         <div class="form-page-header">
             <h1>Attendance Report</h1>
             <p>Same Excel format · Present / Week Off (paid) / PL / SL / DL / C-Off / Holiday (paid) · Total Days = Total Pay Days (= Salary Register). Week-off Benefits = Yes → WO only if attendance on day before or after; Leave both sides → WO not counted. Benefits = No → WO/Holiday 0 in summary (all departments). · Export</p>
+            <p style="margin:6px 0 0;font-size:12px;opacity:.65;">Build <?php echo htmlspecialchars(HRMS_BUILD_ID); ?></p>
         </div>
 
         <form method="GET" class="employee-form" style="margin-bottom:16px;">

@@ -202,6 +202,25 @@ $cases[] = [
     $t,
 ];
 
+// 12) Master holiday marked as LWP → Holiday (paid when benefits blank/Yes)
+$holSet = [
+    '2026-10-01' => ['paid' => true],
+    '2026-10-02' => ['paid' => true],
+];
+$map = buildDayMap('Present', [
+    '2026-10-01' => day('Leave', ['remarks' => 'LWP', 'source' => 'auto_lwp', '_auto_lwp' => 1]),
+    '2026-10-02' => day('Leave', ['remarks' => 'LWP']),
+]);
+$t = attendanceBuildEmployeeMonthTotals(makeEmp('Yes', ''), $map, $month, $year, $holSet);
+$cases[] = [
+    'Holiday+LWP → Holiday paid, pay=31',
+    (float) ($t['LWP'] ?? 0) === 0.0
+        && (float) ($t['holiday_paid'] ?? 0) === 2.0
+        && abs((float) $t['total_pay_days'] - 31.0) < 0.001
+        && ($map['2026-10-01']['day_status'] ?? '') === 'Holiday',
+    $t,
+];
+
 echo "=== Week Off / Pay Days unit matrix ===\n";
 foreach ($cases as $c) {
     $ok = !empty($c[1]);
