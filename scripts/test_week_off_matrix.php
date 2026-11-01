@@ -176,6 +176,32 @@ $cases[] = [
     $t,
 ];
 
+// 11) Working day LWP + punch → Present (Arjun lost Present days)
+$map = buildDayMap('Present', [
+    '2026-10-01' => day('Leave', [
+        'remarks' => 'LWP',
+        'source' => 'auto_lwp',
+        '_auto_lwp' => 1,
+        'punch_in' => '09:00:00',
+        'punch_out' => '18:00:00',
+        'working_minutes' => 480,
+    ]),
+    '2026-10-02' => day('Leave', [
+        'remarks' => 'LWP',
+        'punch_in' => '09:00:00',
+        'punch_out' => '18:00:00',
+        'working_minutes' => 480,
+    ]),
+]);
+$t = attendanceBuildEmployeeMonthTotals(makeEmp('Yes'), $map, $month, $year, $holidaySet);
+$cases[] = [
+    'LWP+punch on Thu/Fri → Present, pay=31',
+    (float) ($t['LWP'] ?? 0) === 0.0
+        && (float) $t['present'] === 27.0
+        && abs((float) $t['total_pay_days'] - 31.0) < 0.001,
+    $t,
+];
+
 echo "=== Week Off / Pay Days unit matrix ===\n";
 foreach ($cases as $c) {
     $ok = !empty($c[1]);

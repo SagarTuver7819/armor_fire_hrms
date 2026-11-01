@@ -37,6 +37,14 @@ function getDBConnection()
         die('Database connection failed: ' . $conn->connect_error);
     }
 
+    // Persistent (p:) connections can keep another DB selected — force configured DB every time
+    if (!$conn->select_db(DB_NAME)) {
+        if (isProduction()) {
+            die('Database connection failed. Please contact administrator.');
+        }
+        die('Database select failed: ' . $conn->error);
+    }
+
     $conn->set_charset('utf8mb4');
     return $conn;
 }

@@ -1726,8 +1726,9 @@ function attendanceFinalizeLeaveTotals(array &$totals, array $benefits = [])
     $coff = (float) ($totals['C-Off'] ?? 0);
 
     $woBen = strtoupper(trim((string) ($benefits['week_off_benefits'] ?? 'No')));
-    $holBen = strtoupper(trim((string) ($benefits['holiday_benefits'] ?? 'No')));
-    // Default No when blank — same as Salary Register / payroll
+    // Holiday Benefits blank → Yes (paid holiday master is normal); Week Off blank → No
+    $holBenRaw = trim((string) ($benefits['holiday_benefits'] ?? 'Yes'));
+    $holBen = strtoupper($holBenRaw !== '' ? $holBenRaw : 'Yes');
     $weekOffPaid = ($woBen === 'YES') ? $weekOff : 0.0;
     $holidayPaid = ($holBen === 'YES') ? $holiday : 0.0;
 
@@ -1910,6 +1911,34 @@ function attendanceBuildEmployeeMonthTotals(array $emp, array &$dayMapByDate, $m
         $half = $parsed['leave_half'];
         if ($type === '' && $status === 'Leave') {
             $type = 'PL';
+        }
+
+        // Punch wins over LWP/Absent (worked day wrongly saved as LWP → count Present)
+        $minsPunch = (int) ($cell['working_minutes'] ?? 0);
+        $hasPunchNow = !empty($cell['punch_in']) || !empty($cell['punch_out']) || $minsPunch > 0;
+        if (
+            $hasPunchNow
+            && !$isCalWeekOff
+            && !$isCalHoliday
+            && (
+                $status === 'Absent'
+                || (
+                    $status === 'Leave'
+                    && (
+                        strtoupper(trim((string) $type)) === 'LWP'
+                        || stripos($cellRemarks, 'LWP') !== false
+                        || $cellSource === 'auto_lwp'
+                        || !empty($cell['_auto_lwp'])
+                    )
+                )
+            )
+        ) {
+            $status = ($minsPunch > 0 && $minsPunch < 240) ? 'Half Day' : 'Present';
+            $dayMapByDate[$date]['day_status'] = $status;
+            $dayMapByDate[$date]['remarks'] = 'Present (punch overrides LWP)';
+            unset($dayMapByDate[$date]['_auto_lwp']);
+            $type = '';
+            $half = '';
         }
 
         // Calendar week-off day: always Week Off for pay/display — never LWP / Leave
