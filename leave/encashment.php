@@ -140,24 +140,24 @@ require_once __DIR__ . '/../includes/header.php';
                     </div>
                     <div class="leave-rpt-kpi kpi-blue">
                         <div class="leave-rpt-kpi-label">Accrued</div>
-                        <div class="leave-rpt-kpi-value"><?php echo number_format($totAcc, 2); ?></div>
+                        <div class="leave-rpt-kpi-value"><?php echo formatIndianNumber($totAcc, 2); ?></div>
                         <div class="leave-rpt-kpi-sub">Days credited</div>
                     </div>
                     <div class="leave-rpt-kpi kpi-amber">
                         <div class="leave-rpt-kpi-label">Used</div>
-                        <div class="leave-rpt-kpi-value"><?php echo number_format($totUsed, 2); ?></div>
+                        <div class="leave-rpt-kpi-value"><?php echo formatIndianNumber($totUsed, 2); ?></div>
                         <div class="leave-rpt-kpi-sub">Days consumed</div>
                     </div>
                     <div class="leave-rpt-kpi kpi-green">
                         <div class="leave-rpt-kpi-label">Remaining</div>
-                        <div class="leave-rpt-kpi-value green"><?php echo number_format($totRem, 2); ?></div>
+                        <div class="leave-rpt-kpi-value green"><?php echo formatIndianNumber($totRem, 2); ?></div>
                         <div class="leave-rpt-kpi-sub">Days for encash</div>
                     </div>
                 </div>
                 <div class="leave-rpt-kpis" style="grid-template-columns:1fr;margin-top:-6px;">
                     <div class="leave-rpt-kpi">
                         <div class="leave-rpt-kpi-label">Total Encashment Amount</div>
-                        <div class="leave-rpt-kpi-value accent">₹ <?php echo number_format($totEnc, 2); ?></div>
+                        <div class="leave-rpt-kpi-value accent">₹ <?php echo formatIndianNumber($totEnc, 2); ?></div>
                         <div class="leave-rpt-kpi-sub">Remaining × (Salary ÷ 30)</div>
                     </div>
                 </div>
@@ -194,19 +194,19 @@ require_once __DIR__ . '/../includes/header.php';
                                     <td class="emp-code"><?php echo htmlspecialchars($r['employee_code']); ?></td>
                                     <td class="emp-name"><?php echo htmlspecialchars($r['employee_name']); ?></td>
                                     <td class="txt"><?php echo htmlspecialchars($r['department_name']); ?></td>
-                                    <td class="num"><?php echo number_format((float) $r['decided_salary'], 2); ?></td>
+                                    <td class="num"><?php echo formatIndianNumber((float) $r['decided_salary'], 2); ?></td>
                                     <td class="ctr"><?php echo number_format((float) $r['quota'], 1); ?></td>
-                                    <td class="ctr"><?php echo number_format((float) $r['accrued'], 2); ?></td>
-                                    <td class="ctr"><?php echo number_format((float) $r['used'], 2); ?></td>
+                                    <td class="ctr"><?php echo formatIndianNumber((float) $r['accrued'], 2); ?></td>
+                                    <td class="ctr"><?php echo formatIndianNumber((float) $r['used'], 2); ?></td>
                                     <td class="ctr">
                                         <?php if ($rem > 0): ?>
-                                            <span class="leave-rem-hi"><?php echo number_format($rem, 2); ?></span>
+                                            <span class="leave-rem-hi"><?php echo formatIndianNumber($rem, 2); ?></span>
                                         <?php else: ?>
                                             <span class="leave-rem-zero">0.00</span>
                                         <?php endif; ?>
                                     </td>
-                                    <td class="num"><?php echo number_format((float) $r['daily_rate'], 2); ?></td>
-                                    <td class="num"><span class="leave-amt">₹ <?php echo number_format($amt, 2); ?></span></td>
+                                    <td class="num"><?php echo formatIndianNumber((float) $r['daily_rate'], 2); ?></td>
+                                    <td class="num"><span class="leave-amt">₹ <?php echo formatIndianNumber($amt, 2); ?></span></td>
                                 </tr>
                             <?php endforeach; ?>
                         <?php endif; ?>
@@ -216,11 +216,11 @@ require_once __DIR__ . '/../includes/header.php';
                             <tr>
                                 <td class="txt" colspan="5">Total</td>
                                 <td class="ctr"><?php echo number_format((float) $report['totals']['quota'], 1); ?></td>
-                                <td class="ctr"><?php echo number_format($totAcc, 2); ?></td>
-                                <td class="ctr"><?php echo number_format($totUsed, 2); ?></td>
-                                <td class="ctr"><?php echo number_format($totRem, 2); ?></td>
+                                <td class="ctr"><?php echo formatIndianNumber($totAcc, 2); ?></td>
+                                <td class="ctr"><?php echo formatIndianNumber($totUsed, 2); ?></td>
+                                <td class="ctr"><?php echo formatIndianNumber($totRem, 2); ?></td>
                                 <td class="num"></td>
-                                <td class="num">₹ <?php echo number_format($totEnc, 2); ?></td>
+                                <td class="num">₹ <?php echo formatIndianNumber($totEnc, 2); ?></td>
                             </tr>
                         </tfoot>
                         <?php endif; ?>

@@ -164,17 +164,17 @@ require_once __DIR__ . '/../includes/header.php';
                                 <?php endif; ?>
                             </td>
                             <td><?php echo htmlspecialchars(date('d-m-Y', strtotime($r['txn_date']))); ?></td>
-                            <td class="num"><?php echo number_format((float) $r['amount'], 2); ?></td>
+                            <td class="num"><?php echo formatIndianNumber((float) $r['amount'], 2); ?></td>
                             <?php if ($isLoan): ?>
-                                <td class="num"><?php echo (float) $r['installment_amount'] > 0 ? number_format((float) $r['installment_amount'], 2) : 'Full'; ?></td>
+                                <td class="num"><?php echo (float) $r['installment_amount'] > 0 ? formatIndianNumber((float) $r['installment_amount'], 2) : 'Full'; ?></td>
                                 <td><?php echo htmlspecialchars(advanceLoanMonthLabel($r['start_month'], $r['start_year'])); ?></td>
-                                <td class="num"><?php echo number_format($sch['this'], 2); ?></td>
-                                <td class="num"><?php echo number_format($sch['recovered'], 2); ?></td>
-                                <td class="num"><?php echo number_format($sch['balance'], 2); ?></td>
+                                <td class="num"><?php echo formatIndianNumber($sch['this'], 2); ?></td>
+                                <td class="num"><?php echo formatIndianNumber($sch['recovered'], 2); ?></td>
+                                <td class="num"><?php echo formatIndianNumber($sch['balance'], 2); ?></td>
                             <?php else: ?>
                                 <?php $cut = advanceFullMonthCut($r, $viewMonth, $viewYear); ?>
                                 <td><?php echo htmlspecialchars(date('M Y', strtotime($r['txn_date']))); ?></td>
-                                <td class="num"><?php echo number_format($cut, 2); ?></td>
+                                <td class="num"><?php echo formatIndianNumber($cut, 2); ?></td>
                             <?php endif; ?>
                             <td>
                                 <?php if (($r['status'] ?? '') === 'Closed'): ?>

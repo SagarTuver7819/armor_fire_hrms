@@ -114,11 +114,11 @@ require_once __DIR__ . '/../includes/header.php';
                                 <?php echo htmlspecialchars($r['pay_type'] ?? 'Salary'); ?>
                             </span>
                         </td>
-                        <td class="num"><?php echo number_format($basic, 2); ?></td>
-                        <td class="num"><?php echo number_format($earn, 2); ?></td>
+                        <td class="num"><?php echo formatIndianNumber($basic, 2); ?></td>
+                        <td class="num"><?php echo formatIndianNumber($earn, 2); ?></td>
                         <td><?php echo $pfYes ? 'Yes' : 'No'; ?></td>
-                        <td class="num"><?php echo number_format($pfAmt, 2); ?></td>
-                        <td class="num"><?php echo number_format($ptAmt, 2); ?></td>
+                        <td class="num"><?php echo formatIndianNumber($pfAmt, 2); ?></td>
+                        <td class="num"><?php echo formatIndianNumber($ptAmt, 2); ?></td>
                         <td>
                             <?php if ($hasStructure): ?>
                                 <span class="pay-pill is-salary">Set</span>

@@ -19,8 +19,8 @@ $out = contractorDtAjax(
             htmlspecialchars((string) ($row['process'] ?: '-')),
             htmlspecialchars((string) ($row['unit'] ?: '-')),
             htmlspecialchars((string) ($row['ot_text'] ?: '-')),
-            number_format((float) $row['rate'], 2),
-            number_format((float) $row['rejection_rate'], 2),
+            formatIndianNumber((float) $row['rate'], 2),
+            formatIndianNumber((float) $row['rejection_rate'], 2),
             contractorActionBtns(
                 app_url('contractor/products/edit.php?id=' . (int) $row['id']),
                 app_url('contractor/products/delete.php?id=' . (int) $row['id']),

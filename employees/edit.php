@@ -652,9 +652,9 @@ $ob = empField($employee, 'overtime_benefits', 'No');
                                             ?>
                                             <tr>
                                                 <td class="col-eff"><?php echo htmlspecialchars(formatDateDisplay($h['effective_date'])); ?></td>
-                                                <td class="col-amt">₹ <?php echo number_format((float) $h['old_salary'], 2); ?></td>
-                                                <td class="col-chg <?php echo $cls; ?>"><?php echo ($chg >= 0 ? '+' : '') . number_format($chg, 2); ?></td>
-                                                <td class="col-amt"><strong>₹ <?php echo number_format((float) $h['new_salary'], 2); ?></strong></td>
+                                                <td class="col-amt">₹ <?php echo formatIndianNumber((float) $h['old_salary'], 2); ?></td>
+                                                <td class="col-chg <?php echo $cls; ?>"><?php echo ($chg >= 0 ? '+' : '') . formatIndianNumber($chg, 2); ?></td>
+                                                <td class="col-amt"><strong>₹ <?php echo formatIndianNumber((float) $h['new_salary'], 2); ?></strong></td>
                                                 <td class="col-note"><?php echo htmlspecialchars((string) ($h['remarks'] ?? '—')); ?></td>
                                                 <td class="col-by"><?php echo htmlspecialchars((string) ($h['changed_by_label'] ?? '—')); ?></td>
                                             </tr>

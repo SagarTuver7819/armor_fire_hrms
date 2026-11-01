@@ -41,10 +41,10 @@ try {
         $chg = (float) $h['change_amount'];
         $historyHtml[] = [
             'id' => (int) $h['id'],
-            'old_salary' => number_format((float) $h['old_salary'], 2),
-            'change_amount' => number_format($chg, 2),
-            'change_signed' => ($chg >= 0 ? '+' : '') . number_format($chg, 2),
-            'new_salary' => number_format((float) $h['new_salary'], 2),
+            'old_salary' => formatIndianNumber((float) $h['old_salary'], 2),
+            'change_amount' => formatIndianNumber($chg, 2),
+            'change_signed' => ($chg >= 0 ? '+' : '') . formatIndianNumber($chg, 2),
+            'new_salary' => formatIndianNumber((float) $h['new_salary'], 2),
             'effective_date' => formatDateDisplay($h['effective_date']),
             'remarks' => (string) ($h['remarks'] ?? ''),
             'changed_by' => (string) ($h['changed_by_label'] ?? '—'),

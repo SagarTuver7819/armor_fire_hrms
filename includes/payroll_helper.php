@@ -1441,5 +1441,5 @@ function savePayslip($employeeId, $month, $year, array $calc)
 
 function moneyInr($n)
 {
-    return '₹ ' . number_format((float) $n, 2);
+    return '₹ ' . formatIndianNumber((float) $n, 2);
 }

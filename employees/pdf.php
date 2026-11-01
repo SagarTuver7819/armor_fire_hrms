@@ -97,7 +97,7 @@ $uan = trim((string) ($emp['uan_number'] ?? ''));
 $pf = trim((string) ($emp['pf_deduction'] ?? ''));
 $salary = '';
 if ($emp['decided_salary'] !== null && $emp['decided_salary'] !== '') {
-    $salary = number_format((float) $emp['decided_salary'], 2);
+    $salary = formatIndianNumber((float) $emp['decided_salary'], 2);
 }
 
 $L = $isHi ? [

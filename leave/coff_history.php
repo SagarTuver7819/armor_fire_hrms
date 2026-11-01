@@ -171,17 +171,17 @@ $soonLimit = date('Y-m-d', strtotime('+14 days'));
             </div>
             <div class="leave-rpt-kpi kpi-blue">
                 <div class="leave-rpt-kpi-label">Credited</div>
-                <div class="leave-rpt-kpi-value"><?php echo number_format($sumCredit, 2); ?></div>
+                <div class="leave-rpt-kpi-value"><?php echo formatIndianNumber($sumCredit, 2); ?></div>
                 <div class="leave-rpt-kpi-sub">Total days earned</div>
             </div>
             <div class="leave-rpt-kpi kpi-amber">
                 <div class="leave-rpt-kpi-label">Used</div>
-                <div class="leave-rpt-kpi-value"><?php echo number_format($sumUsed, 2); ?></div>
+                <div class="leave-rpt-kpi-value"><?php echo formatIndianNumber($sumUsed, 2); ?></div>
                 <div class="leave-rpt-kpi-sub"><?php echo $cntUsed; ?> fully used</div>
             </div>
             <div class="leave-rpt-kpi kpi-green">
                 <div class="leave-rpt-kpi-label">Available</div>
-                <div class="leave-rpt-kpi-value green"><?php echo number_format($avail !== null ? (float) $avail : $sumRem, 2); ?></div>
+                <div class="leave-rpt-kpi-value green"><?php echo formatIndianNumber($avail !== null ? (float) $avail : $sumRem, 2); ?></div>
                 <div class="leave-rpt-kpi-sub"><?php echo $cntOpen; ?> open credits</div>
             </div>
             <div class="leave-rpt-kpi kpi-red">
@@ -260,14 +260,14 @@ $soonLimit = date('Y-m-d', strtotime('+14 days'));
                             <td class="txt"><?php echo htmlspecialchars($r['department_name'] ?? ''); ?></td>
                             <td class="date"><?php echo htmlspecialchars(formatDateDisplay($r['work_date'] ?? '')); ?></td>
                             <td class="ctr"><span class="leave-badge <?php echo $srcClass; ?>"><?php echo htmlspecialchars($src); ?></span></td>
-                            <td class="ctr"><?php echo number_format($hrs, 2); ?></td>
-                            <td class="ctr"><strong><?php echo number_format((float) $r['credit_days'], 2); ?></strong></td>
-                            <td class="ctr"><?php echo number_format((float) $r['used_days'], 2); ?></td>
+                            <td class="ctr"><?php echo formatIndianNumber($hrs, 2); ?></td>
+                            <td class="ctr"><strong><?php echo formatIndianNumber((float) $r['credit_days'], 2); ?></strong></td>
+                            <td class="ctr"><?php echo formatIndianNumber((float) $r['used_days'], 2); ?></td>
                             <td class="ctr">
                                 <?php if ($rem > 0.001 && $stLabel !== 'Expired'): ?>
-                                    <span class="leave-rem-hi"><?php echo number_format($rem, 2); ?></span>
+                                    <span class="leave-rem-hi"><?php echo formatIndianNumber($rem, 2); ?></span>
                                 <?php else: ?>
-                                    <span class="leave-rem-zero"><?php echo number_format($rem, 2); ?></span>
+                                    <span class="leave-rem-zero"><?php echo formatIndianNumber($rem, 2); ?></span>
                                 <?php endif; ?>
                             </td>
                             <td class="date"><?php echo htmlspecialchars(formatDateDisplay($r['earned_at'] ?? '')); ?></td>

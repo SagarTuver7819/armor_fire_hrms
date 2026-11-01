@@ -199,13 +199,13 @@ require_once __DIR__ . '/../includes/header.php';
                 }
                 ?>
                 <span class="ops-chip"><strong><?php echo count($rows); ?> total</strong></span>
-                <span class="ops-chip">Normal <?php echo (int) $normalCount; ?> · ₹ <?php echo number_format($neftNormalSum, 2); ?></span>
-                <span class="ops-chip">Jobwork <?php echo (int) $jobworkCount; ?> · ₹ <?php echo number_format($neftJobworkSum, 2); ?></span>
+                <span class="ops-chip">Normal <?php echo (int) $normalCount; ?> · ₹ <?php echo formatIndianNumber($neftNormalSum, 2); ?></span>
+                <span class="ops-chip">Jobwork <?php echo (int) $jobworkCount; ?> · ₹ <?php echo formatIndianNumber($neftJobworkSum, 2); ?></span>
                 <span class="ops-chip"><?php echo (int) $readyBankCount; ?> bank-ready</span>
                 <?php if ($missingBankCount > 0): ?>
                     <span class="ops-chip" style="color:#b45309;"><i class="fa-solid fa-triangle-exclamation"></i> <?php echo (int) $missingBankCount; ?> missing bank A/C</span>
                 <?php endif; ?>
-                <span class="ops-chip"><strong>Total ₹ <?php echo number_format($neftTotal, 2); ?></strong></span>
+                <span class="ops-chip"><strong>Total ₹ <?php echo formatIndianNumber($neftTotal, 2); ?></strong></span>
                 <span class="ops-chip" style="color:#16a085;"><i class="fa-solid fa-equals"></i> = Normal + Jobwork register nets</span>
             </div>
 
@@ -241,14 +241,14 @@ require_once __DIR__ . '/../includes/header.php';
                                     <div class="sr-code"><?php echo htmlspecialchars($r['employee_code'] ?? ''); ?>
                                         <?php if ($missBank): ?> · <span style="color:#b45309;">No bank A/C</span><?php endif; ?>
                                         <?php if (!empty($r['contractor_main_share']) && (float) $r['contractor_main_share'] > 0): ?>
-                                            · <span style="color:#047857;">+ share ₹ <?php echo number_format((float) $r['contractor_main_share'], 2); ?></span>
+                                            · <span style="color:#047857;">+ share ₹ <?php echo formatIndianNumber((float) $r['contractor_main_share'], 2); ?></span>
                                         <?php endif; ?>
                                     </div>
                                 </td>
                                 <td><?php echo htmlspecialchars($r['department'] ?: '-'); ?></td>
                                 <td><?php echo htmlspecialchars($missBank ? '—' : $r['account']); ?></td>
                                 <td><?php echo htmlspecialchars($r['ifsc'] ?: '-'); ?></td>
-                                <td class="num"><strong><?php echo number_format((float) $r['amount'], 2); ?></strong></td>
+                                <td class="num"><strong><?php echo formatIndianNumber((float) $r['amount'], 2); ?></strong></td>
                                 <td><?php echo htmlspecialchars($creditNarrPreview); ?></td>
                                 <td><?php echo htmlspecialchars($payDatePreview); ?></td>
                                 <td><?php echo htmlspecialchars($nfpsCfg['email_id']); ?></td>
@@ -260,7 +260,7 @@ require_once __DIR__ . '/../includes/header.php';
                     <tfoot>
                         <tr>
                             <td colspan="6"><strong>Final NEFT Total (Normal + Jobwork)</strong></td>
-                            <td class="num"><strong><?php echo number_format($neftTotal, 2); ?></strong></td>
+                            <td class="num"><strong><?php echo formatIndianNumber($neftTotal, 2); ?></strong></td>
                             <td colspan="3"></td>
                         </tr>
                     </tfoot>

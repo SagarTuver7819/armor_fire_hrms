@@ -596,6 +596,9 @@ function registerNum($n, $decimals = 2)
     if ($n === null || $n === '') {
         return '-';
     }
+    if (function_exists('formatIndianNumber')) {
+        return formatIndianNumber((float) $n, $decimals);
+    }
     return number_format((float) $n, $decimals);
 }
 

@@ -131,12 +131,12 @@ $monthNames = [
                 </div>
                 <div class="leave-rpt-kpi kpi-red">
                     <div class="leave-rpt-kpi-label">LWP Days</div>
-                    <div class="leave-rpt-kpi-value red"><?php echo number_format($totDays, 2); ?></div>
+                    <div class="leave-rpt-kpi-value red"><?php echo formatIndianNumber($totDays, 2); ?></div>
                     <div class="leave-rpt-kpi-sub"><?php echo htmlspecialchars($monthNames[$month] ?? ''); ?> · <?php echo $year; ?></div>
                 </div>
                 <div class="leave-rpt-kpi kpi-amber">
                     <div class="leave-rpt-kpi-label">Est. Salary Impact</div>
-                    <div class="leave-rpt-kpi-value accent">₹ <?php echo number_format($totImpact, 2); ?></div>
+                    <div class="leave-rpt-kpi-value accent">₹ <?php echo formatIndianNumber($totImpact, 2); ?></div>
                     <div class="leave-rpt-kpi-sub">Days × (Salary ÷ 30)</div>
                 </div>
                 <div class="leave-rpt-kpi kpi-blue">
@@ -180,10 +180,10 @@ $monthNames = [
                                 <td class="emp-code"><?php echo htmlspecialchars($r['employee_code'] ?? ''); ?></td>
                                 <td class="emp-name"><?php echo htmlspecialchars($r['employee_name'] ?? ''); ?></td>
                                 <td class="txt"><?php echo htmlspecialchars($r['department_name'] ?? ''); ?></td>
-                                <td class="ctr"><span class="leave-badge leave-badge-expired"><?php echo number_format((float) $r['lwp_days'], 2); ?></span></td>
-                                <td class="num"><?php echo number_format((float) ($r['decided_salary'] ?? 0), 2); ?></td>
-                                <td class="num"><?php echo number_format((float) ($r['daily_rate'] ?? 0), 2); ?></td>
-                                <td class="num"><span class="leave-amt">₹ <?php echo number_format((float) ($r['salary_impact'] ?? 0), 2); ?></span></td>
+                                <td class="ctr"><span class="leave-badge leave-badge-expired"><?php echo formatIndianNumber((float) $r['lwp_days'], 2); ?></span></td>
+                                <td class="num"><?php echo formatIndianNumber((float) ($r['decided_salary'] ?? 0), 2); ?></td>
+                                <td class="num"><?php echo formatIndianNumber((float) ($r['daily_rate'] ?? 0), 2); ?></td>
+                                <td class="num"><span class="leave-amt">₹ <?php echo formatIndianNumber((float) ($r['salary_impact'] ?? 0), 2); ?></span></td>
                             </tr>
                         <?php endforeach; ?>
                     <?php endif; ?>
@@ -192,9 +192,9 @@ $monthNames = [
                     <tfoot>
                         <tr>
                             <td class="txt" colspan="4">Total</td>
-                            <td class="ctr"><?php echo number_format($totDays, 2); ?></td>
+                            <td class="ctr"><?php echo formatIndianNumber($totDays, 2); ?></td>
                             <td class="num" colspan="2"></td>
-                            <td class="num">₹ <?php echo number_format($totImpact, 2); ?></td>
+                            <td class="num">₹ <?php echo formatIndianNumber($totImpact, 2); ?></td>
                         </tr>
                     </tfoot>
                     <?php endif; ?>

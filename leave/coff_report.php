@@ -107,24 +107,24 @@ $soonLimit = date('Y-m-d', strtotime('+14 days'));
             </div>
             <div class="leave-rpt-kpi kpi-blue">
                 <div class="leave-rpt-kpi-label">Total Earned</div>
-                <div class="leave-rpt-kpi-value"><?php echo number_format($totEarned, 2); ?></div>
+                <div class="leave-rpt-kpi-value"><?php echo formatIndianNumber($totEarned, 2); ?></div>
                 <div class="leave-rpt-kpi-sub">Days credited</div>
             </div>
             <div class="leave-rpt-kpi kpi-amber">
                 <div class="leave-rpt-kpi-label">Used</div>
-                <div class="leave-rpt-kpi-value"><?php echo number_format($totUsed, 2); ?></div>
+                <div class="leave-rpt-kpi-value"><?php echo formatIndianNumber($totUsed, 2); ?></div>
                 <div class="leave-rpt-kpi-sub"><?php echo number_format(($totUsed / $totAll) * 100, 0); ?>% of earned</div>
             </div>
             <div class="leave-rpt-kpi kpi-red">
                 <div class="leave-rpt-kpi-label">Expired</div>
-                <div class="leave-rpt-kpi-value red"><?php echo number_format($totExpired, 2); ?></div>
+                <div class="leave-rpt-kpi-value red"><?php echo formatIndianNumber($totExpired, 2); ?></div>
                 <div class="leave-rpt-kpi-sub">Wiped balance</div>
             </div>
         </div>
         <div class="leave-rpt-kpis" style="grid-template-columns:1fr;margin-top:-6px;">
             <div class="leave-rpt-kpi kpi-green">
                 <div class="leave-rpt-kpi-label">Available Balance</div>
-                <div class="leave-rpt-kpi-value green"><?php echo number_format($totAvail, 2); ?> days</div>
+                <div class="leave-rpt-kpi-value green"><?php echo formatIndianNumber($totAvail, 2); ?> days</div>
                 <div class="leave-rpt-kpi-sub" style="margin-top:10px;">
                     <div class="leave-bar" title="Used / Expired / Available">
                         <span class="leave-bar-used" style="width:<?php echo max(0, min(100, ($totUsed / $totAll) * 100)); ?>%;"></span>
@@ -196,18 +196,18 @@ $soonLimit = date('Y-m-d', strtotime('+14 days'));
                             <td class="emp-code"><?php echo htmlspecialchars($r['employee_code'] ?? ''); ?></td>
                             <td class="emp-name"><?php echo htmlspecialchars($r['employee_name'] ?? ''); ?></td>
                             <td class="txt"><?php echo htmlspecialchars($r['department_name'] ?? ''); ?></td>
-                            <td class="ctr"><?php echo number_format($earned, 2); ?></td>
-                            <td class="ctr"><?php echo number_format($used, 2); ?></td>
+                            <td class="ctr"><?php echo formatIndianNumber($earned, 2); ?></td>
+                            <td class="ctr"><?php echo formatIndianNumber($used, 2); ?></td>
                             <td class="ctr">
                                 <?php if ($expired > 0): ?>
-                                    <span class="leave-badge leave-badge-expired"><?php echo number_format($expired, 2); ?></span>
+                                    <span class="leave-badge leave-badge-expired"><?php echo formatIndianNumber($expired, 2); ?></span>
                                 <?php else: ?>
                                     0.00
                                 <?php endif; ?>
                             </td>
                             <td class="ctr">
                                 <?php if ($availR > 0): ?>
-                                    <span class="leave-rem-hi"><?php echo number_format($availR, 2); ?></span>
+                                    <span class="leave-rem-hi"><?php echo formatIndianNumber($availR, 2); ?></span>
                                 <?php else: ?>
                                     <span class="leave-rem-zero">0.00</span>
                                 <?php endif; ?>
@@ -240,10 +240,10 @@ $soonLimit = date('Y-m-d', strtotime('+14 days'));
                 <tfoot>
                     <tr>
                         <td class="txt" colspan="4">Total</td>
-                        <td class="ctr"><?php echo number_format($totEarned, 2); ?></td>
-                        <td class="ctr"><?php echo number_format($totUsed, 2); ?></td>
-                        <td class="ctr"><?php echo number_format($totExpired, 2); ?></td>
-                        <td class="ctr"><?php echo number_format($totAvail, 2); ?></td>
+                        <td class="ctr"><?php echo formatIndianNumber($totEarned, 2); ?></td>
+                        <td class="ctr"><?php echo formatIndianNumber($totUsed, 2); ?></td>
+                        <td class="ctr"><?php echo formatIndianNumber($totExpired, 2); ?></td>
+                        <td class="ctr"><?php echo formatIndianNumber($totAvail, 2); ?></td>
                         <td class="ctr" colspan="3"></td>
                     </tr>
                 </tfoot>

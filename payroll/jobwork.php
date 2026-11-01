@@ -104,7 +104,7 @@ require_once __DIR__ . '/../includes/header.php';
                     <label>&nbsp;</label>
                     <div class="form-hint" style="padding-top:10px;">
                         Showing <strong><?php echo htmlspecialchars($monthLabel); ?></strong>
-                        · Total ₹ <?php echo number_format($listTotal, 2); ?>
+                        · Total ₹ <?php echo formatIndianNumber($listTotal, 2); ?>
                     </div>
                 </div>
             </div>

@@ -137,12 +137,12 @@ $monthNames = [
                 </div>
                 <div class="leave-rpt-kpi kpi-green">
                     <div class="leave-rpt-kpi-label">Approved Days</div>
-                    <div class="leave-rpt-kpi-value green"><?php echo number_format($totApproved, 2); ?></div>
+                    <div class="leave-rpt-kpi-value green"><?php echo formatIndianNumber($totApproved, 2); ?></div>
                     <div class="leave-rpt-kpi-sub">Paid in salary</div>
                 </div>
                 <div class="leave-rpt-kpi kpi-amber">
                     <div class="leave-rpt-kpi-label">Pending Days</div>
-                    <div class="leave-rpt-kpi-value"><?php echo number_format($totPending, 2); ?></div>
+                    <div class="leave-rpt-kpi-value"><?php echo formatIndianNumber($totPending, 2); ?></div>
                     <div class="leave-rpt-kpi-sub">Awaiting approval</div>
                 </div>
             </div>
@@ -182,8 +182,8 @@ $monthNames = [
                                 <td class="emp-name"><?php echo htmlspecialchars($r['employee_name'] ?? ''); ?></td>
                                 <td class="txt"><?php echo htmlspecialchars($r['department_name'] ?? ''); ?></td>
                                 <td class="ctr"><?php echo (int) ($r['approved_count'] ?? 0); ?></td>
-                                <td class="ctr"><span class="leave-rem-hi"><?php echo number_format($ad, 2); ?></span></td>
-                                <td class="ctr"><?php echo number_format((float) ($r['pending_days'] ?? 0), 2); ?></td>
+                                <td class="ctr"><span class="leave-rem-hi"><?php echo formatIndianNumber($ad, 2); ?></span></td>
+                                <td class="ctr"><?php echo formatIndianNumber((float) ($r['pending_days'] ?? 0), 2); ?></td>
                             </tr>
                         <?php endforeach; ?>
                     <?php endif; ?>
@@ -192,8 +192,8 @@ $monthNames = [
                     <tfoot>
                         <tr>
                             <td class="txt" colspan="5">Total</td>
-                            <td class="ctr"><?php echo number_format($totApproved, 2); ?></td>
-                            <td class="ctr"><?php echo number_format($totPending, 2); ?></td>
+                            <td class="ctr"><?php echo formatIndianNumber($totApproved, 2); ?></td>
+                            <td class="ctr"><?php echo formatIndianNumber($totPending, 2); ?></td>
                         </tr>
                     </tfoot>
                     <?php endif; ?>
@@ -250,7 +250,7 @@ $monthNames = [
                                 <td class="emp-name"><?php echo htmlspecialchars($r['employee_name'] ?? ''); ?></td>
                                 <td class="date"><?php echo htmlspecialchars(formatDateDisplay($r['from_date'] ?? '')); ?></td>
                                 <td class="date"><?php echo htmlspecialchars(formatDateDisplay($r['to_date'] ?? '')); ?></td>
-                                <td class="ctr"><strong><?php echo number_format((float) ($r['days'] ?? 0), 2); ?></strong></td>
+                                <td class="ctr"><strong><?php echo formatIndianNumber((float) ($r['days'] ?? 0), 2); ?></strong></td>
                                 <td class="ctr"><?php echo htmlspecialchars(leaveHalfLabel($r['leave_half'] ?? 'FULL')); ?></td>
                                 <td class="ctr"><span class="leave-badge <?php echo $badge; ?>"><?php echo htmlspecialchars($st); ?></span></td>
                                 <td class="txt" style="max-width:240px;white-space:normal;font-size:12px;color:#64748b;">

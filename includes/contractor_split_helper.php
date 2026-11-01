@@ -670,9 +670,9 @@ function applyContractorAttendanceShareToRegisterRow(array $row, $month, $year)
         $row['actual'] = $remainder;
         $row['salary'] = $remainder;
         $row['qty'] = $remainder > 0 ? 1 : 0;
-        $row['remarks'] = $deptLabel . ' after split · Pool ₹ ' . number_format($pool, 2)
-            . ' − Normal ₹ ' . number_format($distributed, 2)
-            . ' = Remainder ₹ ' . number_format($remainder, 2);
+        $row['remarks'] = $deptLabel . ' after split · Pool ₹ ' . formatIndianNumber($pool, 2)
+            . ' − Normal ₹ ' . formatIndianNumber($distributed, 2)
+            . ' = Remainder ₹ ' . formatIndianNumber($remainder, 2);
         return $row;
     }
 

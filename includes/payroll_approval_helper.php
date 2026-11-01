@@ -443,7 +443,7 @@ function payrollApprovalOnLocked($lockId)
 
     $period = payrollLockPeriodLabel($lock);
     $url = payrollLockRegisterUrl($lock);
-    $net = 'Net ₹ ' . number_format((float) $lock['total_net'], 2);
+    $net = 'Net ₹ ' . formatIndianNumber((float) $lock['total_net'], 2);
     if ($status === 'pending_check') {
         payrollNotify($s['checker_user_id'], 'check', 'Salary ready for your check', $period . ' · ' . $net, $url);
     } elseif ($status === 'pending_accounts') {
@@ -470,7 +470,7 @@ function payrollApprovalAct($lockId, $action, $remarks = '')
     $s = getPayrollApprovalSettings();
     $period = payrollLockPeriodLabel($lock);
     $url = payrollLockRegisterUrl($lock);
-    $net = 'Net ₹ ' . number_format((float) $lock['total_net'], 2);
+    $net = 'Net ₹ ' . formatIndianNumber((float) $lock['total_net'], 2);
     $makerIds = [(int) $lock['locked_by'], $s['maker_user_id']];
     $uid = payrollCurrentUserId();
     $lockId = (int) $lock['id'];

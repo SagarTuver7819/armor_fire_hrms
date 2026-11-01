@@ -129,15 +129,15 @@ require_once __DIR__ . '/../includes/header.php';
                         <tr>
                             <td><strong><?php echo htmlspecialchars($r['department']); ?></strong></td>
                             <td class="num"><?php echo (int) $r['employees']; ?></td>
-                            <td class="num"><?php echo number_format($r['by_type']['salary']['gross'], 2); ?></td>
-                            <td class="num"><?php echo number_format($r['by_type']['jobwork_govt']['gross'], 2); ?></td>
-                            <td class="num"><?php echo number_format($r['by_type']['jobwork_actual']['gross'], 2); ?></td>
-                            <td class="num"><strong><?php echo number_format($r['gross'], 2); ?></strong></td>
-                            <td class="num"><?php echo number_format($r['pf'], 2); ?></td>
-                            <td class="num"><?php echo number_format($r['pt'], 2); ?></td>
-                            <td class="num"><?php echo number_format($r['loan'] + $r['advance'], 2); ?></td>
-                            <td class="num"><?php echo number_format($r['deduction'], 2); ?></td>
-                            <td class="num"><strong><?php echo number_format($r['net'], 2); ?></strong></td>
+                            <td class="num"><?php echo formatIndianNumber($r['by_type']['salary']['gross'], 2); ?></td>
+                            <td class="num"><?php echo formatIndianNumber($r['by_type']['jobwork_govt']['gross'], 2); ?></td>
+                            <td class="num"><?php echo formatIndianNumber($r['by_type']['jobwork_actual']['gross'], 2); ?></td>
+                            <td class="num"><strong><?php echo formatIndianNumber($r['gross'], 2); ?></strong></td>
+                            <td class="num"><?php echo formatIndianNumber($r['pf'], 2); ?></td>
+                            <td class="num"><?php echo formatIndianNumber($r['pt'], 2); ?></td>
+                            <td class="num"><?php echo formatIndianNumber($r['loan'] + $r['advance'], 2); ?></td>
+                            <td class="num"><?php echo formatIndianNumber($r['deduction'], 2); ?></td>
+                            <td class="num"><strong><?php echo formatIndianNumber($r['net'], 2); ?></strong></td>
                         </tr>
                     <?php endforeach; ?>
                 <?php endif; ?>
@@ -156,21 +156,21 @@ require_once __DIR__ . '/../includes/header.php';
         <div class="ops-live-summary" style="margin:0 0 16px;">
             <span class="ops-chip"><?php echo (int) $sum['departments']; ?> Departments</span>
             <span class="ops-chip"><?php echo (int) $sum['employees']; ?> Employees</span>
-            <span class="ops-chip">Gross ₹ <?php echo number_format($sum['gross'], 2); ?></span>
-            <span class="ops-chip">Deductions ₹ <?php echo number_format($sum['deduction'], 2); ?></span>
-            <span class="ops-chip"><strong>Net Payable ₹ <?php echo number_format($sum['net'], 2); ?></strong></span>
+            <span class="ops-chip">Gross ₹ <?php echo formatIndianNumber($sum['gross'], 2); ?></span>
+            <span class="ops-chip">Deductions ₹ <?php echo formatIndianNumber($sum['deduction'], 2); ?></span>
+            <span class="ops-chip"><strong>Net Payable ₹ <?php echo formatIndianNumber($sum['net'], 2); ?></strong></span>
         </div>
         <div class="table-wrap">
             <table class="data-table">
                 <tbody>
-                    <tr><th>Total Gross Earnings</th><td class="num"><strong>₹ <?php echo number_format($sum['gross'], 2); ?></strong></td></tr>
-                    <tr><th>Employee PF</th><td class="num">₹ <?php echo number_format($sum['pf'], 2); ?></td></tr>
-                    <tr><th>Professional Tax</th><td class="num">₹ <?php echo number_format($sum['pt'], 2); ?></td></tr>
-                    <tr><th>Loan</th><td class="num">₹ <?php echo number_format($sum['loan'], 2); ?></td></tr>
-                    <tr><th>Advance</th><td class="num">₹ <?php echo number_format($sum['advance'], 2); ?></td></tr>
-                    <tr><th>Total Deductions</th><td class="num"><strong>₹ <?php echo number_format($sum['deduction'], 2); ?></strong></td></tr>
-                    <tr><th>Salary Arrears</th><td class="num">₹ <?php echo number_format($sum['arrears'], 2); ?></td></tr>
-                    <tr style="background:#eef6ff;"><th>Final Net Payable (Company Cost to Bank)</th><td class="num"><strong style="font-size:1.1rem;">₹ <?php echo number_format($sum['net'], 2); ?></strong></td></tr>
+                    <tr><th>Total Gross Earnings</th><td class="num"><strong>₹ <?php echo formatIndianNumber($sum['gross'], 2); ?></strong></td></tr>
+                    <tr><th>Employee PF</th><td class="num">₹ <?php echo formatIndianNumber($sum['pf'], 2); ?></td></tr>
+                    <tr><th>Professional Tax</th><td class="num">₹ <?php echo formatIndianNumber($sum['pt'], 2); ?></td></tr>
+                    <tr><th>Loan</th><td class="num">₹ <?php echo formatIndianNumber($sum['loan'], 2); ?></td></tr>
+                    <tr><th>Advance</th><td class="num">₹ <?php echo formatIndianNumber($sum['advance'], 2); ?></td></tr>
+                    <tr><th>Total Deductions</th><td class="num"><strong>₹ <?php echo formatIndianNumber($sum['deduction'], 2); ?></strong></td></tr>
+                    <tr><th>Salary Arrears</th><td class="num">₹ <?php echo formatIndianNumber($sum['arrears'], 2); ?></td></tr>
+                    <tr style="background:#eef6ff;"><th>Final Net Payable (Company Cost to Bank)</th><td class="num"><strong style="font-size:1.1rem;">₹ <?php echo formatIndianNumber($sum['net'], 2); ?></strong></td></tr>
                 </tbody>
             </table>
         </div>

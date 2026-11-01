@@ -247,24 +247,24 @@ if ($filterMonth > 0 && $filterYear > 0) {
                     <td class="merge-mid" rowspan="<?php echo $span; ?>"><?php echo htmlspecialchars($g['employee_name']); ?></td>
                 <?php endif; ?>
                 <td><?php echo htmlspecialchars($r['_product']); ?></td>
-                <td class="num"><?php echo number_format($r['_qty'], 2); ?></td>
-                <td class="num"><?php echo $hasItem ? number_format($r['_rate'], 2) : '-'; ?></td>
-                <td class="num"><?php echo number_format($r['_calc'], 2); ?></td>
-                <td class="num"><?php echo $hasItem ? number_format($r['_rej_qty'], 2) : '-'; ?></td>
-                <td class="num"><?php echo $hasItem ? number_format($r['_rej_rate'], 2) : '-'; ?></td>
-                <td class="num"><?php echo number_format($r['_rework_calc'], 2); ?></td>
-                <td class="num grand"><?php echo number_format($r['_grand'], 2); ?></td>
+                <td class="num"><?php echo formatIndianNumber($r['_qty'], 2); ?></td>
+                <td class="num"><?php echo $hasItem ? formatIndianNumber($r['_rate'], 2) : '-'; ?></td>
+                <td class="num"><?php echo formatIndianNumber($r['_calc'], 2); ?></td>
+                <td class="num"><?php echo $hasItem ? formatIndianNumber($r['_rej_qty'], 2) : '-'; ?></td>
+                <td class="num"><?php echo $hasItem ? formatIndianNumber($r['_rej_rate'], 2) : '-'; ?></td>
+                <td class="num"><?php echo formatIndianNumber($r['_rework_calc'], 2); ?></td>
+                <td class="num grand"><?php echo formatIndianNumber($r['_grand'], 2); ?></td>
             </tr>
             <?php endforeach; ?>
             <tr class="emp-total">
                 <td colspan="5">EMPLOYEE TOTAL — <?php echo htmlspecialchars(trim($g['employee_code'] . ' — ' . $g['employee_name'], ' —')); ?> (<?php echo (int) $span; ?> item<?php echo $span === 1 ? '' : 's'; ?>)</td>
-                <td class="num"><?php echo number_format($g['qty'], 2); ?></td>
+                <td class="num"><?php echo formatIndianNumber($g['qty'], 2); ?></td>
                 <td></td>
-                <td class="num"><?php echo number_format($g['calc'], 2); ?></td>
-                <td class="num"><?php echo number_format($g['rework_qty'], 2); ?></td>
+                <td class="num"><?php echo formatIndianNumber($g['calc'], 2); ?></td>
+                <td class="num"><?php echo formatIndianNumber($g['rework_qty'], 2); ?></td>
                 <td></td>
-                <td class="num"><?php echo number_format($g['rework_calc'], 2); ?></td>
-                <td class="num grand"><?php echo number_format($g['grand'], 2); ?></td>
+                <td class="num"><?php echo formatIndianNumber($g['rework_calc'], 2); ?></td>
+                <td class="num grand"><?php echo formatIndianNumber($g['grand'], 2); ?></td>
             </tr>
         <?php endforeach; ?>
         </tbody>
@@ -272,13 +272,13 @@ if ($filterMonth > 0 && $filterYear > 0) {
         <tfoot>
             <tr>
                 <td colspan="5">GRAND TOTAL</td>
-                <td class="num"><?php echo number_format($sumQty, 2); ?></td>
+                <td class="num"><?php echo formatIndianNumber($sumQty, 2); ?></td>
                 <td></td>
-                <td class="num"><?php echo number_format($sumCalcAmt, 2); ?></td>
-                <td class="num"><?php echo number_format($sumReworkQty, 2); ?></td>
+                <td class="num"><?php echo formatIndianNumber($sumCalcAmt, 2); ?></td>
+                <td class="num"><?php echo formatIndianNumber($sumReworkQty, 2); ?></td>
                 <td></td>
-                <td class="num"><?php echo number_format($sumReworkCalcAmt, 2); ?></td>
-                <td class="num grand"><?php echo number_format($sumGrand, 2); ?></td>
+                <td class="num"><?php echo formatIndianNumber($sumReworkCalcAmt, 2); ?></td>
+                <td class="num grand"><?php echo formatIndianNumber($sumGrand, 2); ?></td>
             </tr>
         </tfoot>
         <?php endif; ?>

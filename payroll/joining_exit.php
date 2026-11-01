@@ -162,8 +162,8 @@ function jeNum($n, $d = 1)
                                 <td class="num"><?php echo jeNum($r['sl']); ?></td>
                                 <td class="num"><?php echo jeNum($r['dl']); ?></td>
                                 <td class="num"><strong><?php echo jeNum($r['total_days']); ?></strong></td>
-                                <td class="num"><?php echo number_format($r['gross'], 2); ?></td>
-                                <td class="num"><strong><?php echo number_format($r['net'], 2); ?></strong></td>
+                                <td class="num"><?php echo formatIndianNumber($r['gross'], 2); ?></td>
+                                <td class="num"><strong><?php echo formatIndianNumber($r['net'], 2); ?></strong></td>
                             </tr>
                         <?php endforeach; ?>
                     <?php endif; ?>

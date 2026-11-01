@@ -131,13 +131,13 @@ if ($mode === 'summary') {
         echo '<tr style="font-weight:bold;background:#fff7ed;">';
         echo '<td colspan="5">EMPLOYEE TOTAL — ' . htmlspecialchars($label)
             . ' (' . (int) $empItemCount . ' item' . ($empItemCount === 1 ? '' : 's') . ')</td>';
-        echo '<td>' . number_format($empQty, 2) . '</td>';
+        echo '<td>' . formatIndianNumber($empQty, 2) . '</td>';
         echo '<td></td>';
-        echo '<td>' . number_format($empCalcAmt, 2) . '</td>';
-        echo '<td>' . number_format($empReworkQty, 2) . '</td>';
+        echo '<td>' . formatIndianNumber($empCalcAmt, 2) . '</td>';
+        echo '<td>' . formatIndianNumber($empReworkQty, 2) . '</td>';
         echo '<td></td>';
-        echo '<td>' . number_format($empReworkCalcAmt, 2) . '</td>';
-        echo '<td>' . number_format($empGrand, 2) . '</td>';
+        echo '<td>' . formatIndianNumber($empReworkCalcAmt, 2) . '</td>';
+        echo '<td>' . formatIndianNumber($empGrand, 2) . '</td>';
         echo '<td colspan="2"></td>';
         echo '</tr>';
         // spacer
@@ -194,13 +194,13 @@ if ($mode === 'summary') {
         echo '<td>' . htmlspecialchars($r['employee_code']) . '</td>';
         echo '<td>' . htmlspecialchars($r['employee_name']) . '</td>';
         echo '<td>' . htmlspecialchars($product) . '</td>';
-        echo '<td>' . number_format($qty, 2) . '</td>';
-        echo '<td>' . ($hasItem ? number_format($rate, 2) : '-') . '</td>';
-        echo '<td>' . number_format($calcAmt, 2) . '</td>';
-        echo '<td>' . ($hasItem ? number_format($rejQty, 2) : '-') . '</td>';
-        echo '<td>' . ($hasItem ? number_format($rejRate, 2) : '-') . '</td>';
-        echo '<td>' . number_format($reworkCalcAmt, 2) . '</td>';
-        echo '<td>' . number_format($grand, 2) . '</td>';
+        echo '<td>' . formatIndianNumber($qty, 2) . '</td>';
+        echo '<td>' . ($hasItem ? formatIndianNumber($rate, 2) : '-') . '</td>';
+        echo '<td>' . formatIndianNumber($calcAmt, 2) . '</td>';
+        echo '<td>' . ($hasItem ? formatIndianNumber($rejQty, 2) : '-') . '</td>';
+        echo '<td>' . ($hasItem ? formatIndianNumber($rejRate, 2) : '-') . '</td>';
+        echo '<td>' . formatIndianNumber($reworkCalcAmt, 2) . '</td>';
+        echo '<td>' . formatIndianNumber($grand, 2) . '</td>';
         echo '<td>' . htmlspecialchars($months[(int) $r['month_no']] ?? $r['month_no']) . '</td>';
         echo '<td>' . (int) $r['year_no'] . '</td>';
         echo '</tr>';
@@ -212,13 +212,13 @@ if ($mode === 'summary') {
         $flushEmployeeTotal();
         echo '<tr style="font-weight:bold;background:#fde8e9;">';
         echo '<td colspan="5">GRAND TOTAL</td>';
-        echo '<td>' . number_format($sumQty, 2) . '</td>';
+        echo '<td>' . formatIndianNumber($sumQty, 2) . '</td>';
         echo '<td></td>';
-        echo '<td>' . number_format($sumCalcAmt, 2) . '</td>';
-        echo '<td>' . number_format($sumReworkQty, 2) . '</td>';
+        echo '<td>' . formatIndianNumber($sumCalcAmt, 2) . '</td>';
+        echo '<td>' . formatIndianNumber($sumReworkQty, 2) . '</td>';
         echo '<td></td>';
-        echo '<td>' . number_format($sumReworkCalcAmt, 2) . '</td>';
-        echo '<td>' . number_format($sumGrand, 2) . '</td>';
+        echo '<td>' . formatIndianNumber($sumReworkCalcAmt, 2) . '</td>';
+        echo '<td>' . formatIndianNumber($sumGrand, 2) . '</td>';
         echo '<td colspan="2"></td>';
         echo '</tr>';
     }
@@ -361,7 +361,7 @@ foreach ($sheets as $sheet) {
         echo '<tr>';
         echo '<td>' . $sr . '</td>';
         echo '<td>' . htmlspecialchars($label) . '</td>';
-        echo '<td>' . number_format((float) ($it['rate'] ?? 0), 2) . '</td>';
+        echo '<td>' . formatIndianNumber((float) ($it['rate'] ?? 0), 2) . '</td>';
         for ($d = 1; $d <= $daysInMonth; $d++) {
             $q = (string) ($days[(string) $d]['q'] ?? '');
             if ($q === '0' || $q === '0.00') {
@@ -369,8 +369,8 @@ foreach ($sheets as $sheet) {
             }
             echo '<td>' . htmlspecialchars($q) . '</td>';
         }
-        echo '<td>' . number_format((float) ($it['total_qty'] ?? 0), 2) . '</td>';
-        echo '<td>' . number_format((float) ($it['total_amount'] ?? 0), 2) . '</td>';
+        echo '<td>' . formatIndianNumber((float) ($it['total_qty'] ?? 0), 2) . '</td>';
+        echo '<td>' . formatIndianNumber((float) ($it['total_amount'] ?? 0), 2) . '</td>';
         echo '</tr>';
     }
 
@@ -381,8 +381,8 @@ foreach ($sheets as $sheet) {
 
     echo '<tr style="font-weight:bold;background:#f8fafc;">';
     echo '<td colspan="' . (3 + $daysInMonth) . '">GROUP TOTAL — ' . htmlspecialchars($empLabel) . '</td>';
-    echo '<td>' . number_format($sheetQty, 2) . '</td>';
-    echo '<td>' . number_format($sheetAmt, 2) . '</td>';
+    echo '<td>' . formatIndianNumber($sheetQty, 2) . '</td>';
+    echo '<td>' . formatIndianNumber($sheetAmt, 2) . '</td>';
     echo '</tr>';
 
     // Spacer between employees
@@ -399,8 +399,8 @@ if ($filterMonth > 0 && $filterYear > 0) {
 $footSpan = 5 + $maxDays;
 echo '<tr style="font-weight:bold;background:#d2232a;color:#fff;">';
 echo '<td colspan="' . (3 + $maxDays) . '">DEPARTMENT TOTAL (' . (int) $empCount . ' employee sheet(s))</td>';
-echo '<td>' . number_format($grandQty, 2) . '</td>';
-echo '<td>' . number_format($grandAmt, 2) . '</td>';
+echo '<td>' . formatIndianNumber($grandQty, 2) . '</td>';
+echo '<td>' . formatIndianNumber($grandAmt, 2) . '</td>';
 echo '</tr>';
 
 echo '</table></body></html>';

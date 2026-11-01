@@ -185,7 +185,7 @@ function empInitials($name)
 }
 
 $salaryShow = ($emp['decided_salary'] !== null && $emp['decided_salary'] !== '')
-    ? '₹ ' . number_format((float) $emp['decided_salary'], 2)
+    ? '₹ ' . formatIndianNumber((float) $emp['decided_salary'], 2)
     : '-';
 
 $shiftClass = (strtolower((string) $emp['shift_type']) === 'night') ? 'is-night' : 'is-day';
@@ -816,7 +816,7 @@ $tabUrl = function ($t) use ($baseQs, $year, $month) {
                 <div class="info-row"><dt>PF Start Date</dt><dd><?php echo showVal(formatDateDisplay($emp['pf_start_date'] ?? '')); ?></dd></div>
                 <div class="info-row"><dt>Employee PF Contribution</dt><dd><?php
                     $pec = $emp['pf_employee_contribution'] ?? '';
-                    echo ($pec !== null && $pec !== '') ? ('₹ ' . number_format((float) $pec, 2)) : '-';
+                    echo ($pec !== null && $pec !== '') ? ('₹ ' . formatIndianNumber((float) $pec, 2)) : '-';
                 ?></dd></div>
                 <div class="info-row"><dt>UAN Number</dt><dd><?php echo showVal($emp['uan_number']); ?></dd></div>
                 <div class="info-row"><dt>Bank Name</dt><dd><?php echo showVal($emp['bank_name']); ?></dd></div>
@@ -848,9 +848,9 @@ $tabUrl = function ($t) use ($baseQs, $year, $month) {
                                 ?>
                                 <tr>
                                     <td class="col-eff"><?php echo htmlspecialchars(formatDateDisplay($h['effective_date'])); ?></td>
-                                    <td class="col-amt">₹ <?php echo number_format((float) $h['old_salary'], 2); ?></td>
-                                    <td class="col-chg <?php echo $cls; ?>"><?php echo ($chg >= 0 ? '+' : '') . number_format($chg, 2); ?></td>
-                                    <td class="col-amt"><strong>₹ <?php echo number_format((float) $h['new_salary'], 2); ?></strong></td>
+                                    <td class="col-amt">₹ <?php echo formatIndianNumber((float) $h['old_salary'], 2); ?></td>
+                                    <td class="col-chg <?php echo $cls; ?>"><?php echo ($chg >= 0 ? '+' : '') . formatIndianNumber($chg, 2); ?></td>
+                                    <td class="col-amt"><strong>₹ <?php echo formatIndianNumber((float) $h['new_salary'], 2); ?></strong></td>
                                     <td class="col-note"><?php echo htmlspecialchars((string) ($h['remarks'] ?? '—')); ?></td>
                                     <td class="col-by"><?php echo htmlspecialchars((string) ($h['changed_by_label'] ?? '—')); ?></td>
                                 </tr>
@@ -1015,7 +1015,7 @@ $tabUrl = function ($t) use ($baseQs, $year, $month) {
                     <div class="info-row"><dt>PF Start Date</dt><dd><?php echo showVal(formatDateDisplay($emp['pf_start_date'] ?? '')); ?></dd></div>
                     <div class="info-row"><dt>Employee PF Contribution</dt><dd><?php
                         $pec = $emp['pf_employee_contribution'] ?? '';
-                        echo ($pec !== null && $pec !== '') ? ('₹ ' . number_format((float) $pec, 2)) : '-';
+                        echo ($pec !== null && $pec !== '') ? ('₹ ' . formatIndianNumber((float) $pec, 2)) : '-';
                     ?></dd></div>
                     <div class="info-row"><dt>UAN Number</dt><dd><?php echo showVal($emp['uan_number']); ?></dd></div>
                     <div class="info-row"><dt>Reporting Head</dt><dd><?php echo showVal($emp['reporting_head']); ?></dd></div>

@@ -129,7 +129,7 @@ $stageCards = [
                             <div class="pa-sub"><?php echo htmlspecialchars($types[$r['register_type']] ?? $r['register_type']); ?> · <?php echo htmlspecialchars($deptName); ?></div>
                         </td>
                         <td class="ctr"><?php echo (int) $r['employee_count']; ?></td>
-                        <td class="num"><?php echo number_format((float) $r['total_net'], 2); ?></td>
+                        <td class="num"><?php echo formatIndianNumber((float) $r['total_net'], 2); ?></td>
                         <?php foreach ($people as [$pid, $pwhen]):
                             $pname = payrollUserDisplayName($pid);
                             ?>

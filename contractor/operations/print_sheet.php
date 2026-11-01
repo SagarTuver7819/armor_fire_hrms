@@ -84,18 +84,18 @@ if ($format === 'excel') {
         echo '<tr>';
         echo '<td>' . $sr . '</td>';
         echo '<td>' . htmlspecialchars($label) . '</td>';
-        echo '<td>' . number_format((float) ($it['rate'] ?? 0), 2) . '</td>';
+        echo '<td>' . formatIndianNumber((float) ($it['rate'] ?? 0), 2) . '</td>';
         for ($d = 1; $d <= $daysInMonth; $d++) {
             $q = $days[(string) $d]['q'] ?? '';
             echo '<td>' . htmlspecialchars((string) $q) . '</td>';
         }
-        echo '<td>' . number_format((float) ($it['total_qty'] ?? 0), 2) . '</td>';
-        echo '<td>' . number_format((float) ($it['total_amount'] ?? 0), 2) . '</td>';
+        echo '<td>' . formatIndianNumber((float) ($it['total_qty'] ?? 0), 2) . '</td>';
+        echo '<td>' . formatIndianNumber((float) ($it['total_amount'] ?? 0), 2) . '</td>';
         echo '</tr>';
     }
     echo '<tr style="font-weight:bold;"><td colspan="' . (3 + $daysInMonth) . '">GROUP TOTAL</td>';
-    echo '<td>' . number_format((float) $sheet['total_qty'], 2) . '</td>';
-    echo '<td>' . number_format((float) $sheet['total_amount'], 2) . '</td></tr>';
+    echo '<td>' . formatIndianNumber((float) $sheet['total_qty'], 2) . '</td>';
+    echo '<td>' . formatIndianNumber((float) $sheet['total_amount'], 2) . '</td></tr>';
     echo '</table></body></html>';
     exit;
 }
@@ -225,7 +225,7 @@ if ($format === 'excel') {
                 <tr>
                     <td class="sr"><?php echo $i + 1; ?></td>
                     <td class="name"><?php echo htmlspecialchars($label); ?></td>
-                    <td class="rate"><?php echo number_format((float) ($it['rate'] ?? 0), 2); ?></td>
+                    <td class="rate"><?php echo formatIndianNumber((float) ($it['rate'] ?? 0), 2); ?></td>
                     <?php for ($d = 1; $d <= $daysInMonth; $d++):
                         $q = (string) ($days[(string) $d]['q'] ?? '');
                         if ($q === '0' || $q === '0.00') {
@@ -234,16 +234,16 @@ if ($format === 'excel') {
                         ?>
                         <td><?php echo htmlspecialchars($q); ?></td>
                     <?php endfor; ?>
-                    <td class="tot"><?php echo number_format((float) ($it['total_qty'] ?? 0), 2); ?></td>
-                    <td class="tot"><?php echo number_format((float) ($it['total_amount'] ?? 0), 2); ?></td>
+                    <td class="tot"><?php echo formatIndianNumber((float) ($it['total_qty'] ?? 0), 2); ?></td>
+                    <td class="tot"><?php echo formatIndianNumber((float) ($it['total_amount'] ?? 0), 2); ?></td>
                 </tr>
             <?php endforeach; ?>
             </tbody>
             <tfoot>
                 <tr>
                     <td colspan="<?php echo 3 + $daysInMonth; ?>">GROUP TOTAL</td>
-                    <td class="tot"><?php echo number_format((float) $sheet['total_qty'], 2); ?></td>
-                    <td class="tot"><?php echo number_format((float) $sheet['total_amount'], 2); ?></td>
+                    <td class="tot"><?php echo formatIndianNumber((float) $sheet['total_qty'], 2); ?></td>
+                    <td class="tot"><?php echo formatIndianNumber((float) $sheet['total_amount'], 2); ?></td>
                 </tr>
             </tfoot>
         </table>

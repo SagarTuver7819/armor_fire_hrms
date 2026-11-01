@@ -77,14 +77,14 @@ $companyName = function_exists('getCompanyName') ? getCompanyName() : 'Company';
                 <td><?php echo htmlspecialchars($r['bank_name'] ?: '-'); ?></td>
                 <td><?php echo htmlspecialchars($r['account']); ?></td>
                 <td><?php echo htmlspecialchars($r['ifsc'] ?: '-'); ?></td>
-                <td class="num"><?php echo number_format((float) $r['amount'], 2); ?></td>
+                <td class="num"><?php echo formatIndianNumber((float) $r['amount'], 2); ?></td>
             </tr>
         <?php endforeach; ?>
         </tbody>
         <tfoot>
             <tr>
                 <td colspan="6">Total NEFT Amount</td>
-                <td class="num"><?php echo number_format($data['neft_total'], 2); ?></td>
+                <td class="num"><?php echo formatIndianNumber($data['neft_total'], 2); ?></td>
             </tr>
         </tfoot>
     </table>

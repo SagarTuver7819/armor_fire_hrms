@@ -167,7 +167,7 @@ require_once __DIR__ . '/../includes/header.php';
             <div class="ops-live-summary" style="margin-bottom:12px;">
                 <span class="ops-chip"><i class="fa-solid fa-lock"></i> Finalized <?php echo htmlspecialchars((string) ($lock['locked_at'] ?? '')); ?></span>
                 <span class="ops-chip"><?php echo (int) ($lock['employee_count'] ?? 0); ?> employees</span>
-                <span class="ops-chip">Net ₹ <?php echo number_format((float) ($lock['total_net'] ?? 0), 2); ?></span>
+                <span class="ops-chip">Net ₹ <?php echo formatIndianNumber((float) ($lock['total_net'] ?? 0), 2); ?></span>
                 <span class="ops-chip"><?php echo (int) ($lock['neft_count'] ?? 0); ?> NEFT rows</span>
                 <span class="ops-chip" style="font-weight:700;color:<?php echo $approvalStatus === 'approved' ? '#047857' : '#b45309'; ?>;">
                     <i class="fa-solid <?php echo $approvalStatus === 'approved' ? 'fa-circle-check' : 'fa-hourglass-half'; ?>"></i>

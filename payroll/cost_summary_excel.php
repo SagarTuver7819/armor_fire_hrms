@@ -52,6 +52,6 @@ foreach ($tot as $c) {
 }
 echo '</tr>';
 echo '<tr><td colspan="11"></td></tr>';
-echo '<tr><th colspan="2">Final Net Payable</th><td colspan="9"><strong>' . number_format($sum['net'], 2) . '</strong></td></tr>';
+echo '<tr><th colspan="2">Final Net Payable</th><td colspan="9"><strong>' . formatIndianNumber($sum['net'], 2) . '</strong></td></tr>';
 echo '</table></body></html>';
 exit;

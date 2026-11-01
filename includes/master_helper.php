@@ -728,7 +728,7 @@ function formatMasterCell($key, $value)
         return date('h:i A', strtotime($value));
     }
     if ($key === 'default_value' || $key === 'min_amount' || $key === 'max_amount' || $key === 'monthly_salary') {
-        return number_format((float) $value, 2);
+        return formatIndianNumber((float) $value, 2);
     }
     return htmlspecialchars((string) $value);
 }

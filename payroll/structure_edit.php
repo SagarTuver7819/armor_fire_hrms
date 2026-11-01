@@ -135,12 +135,12 @@ require_once __DIR__ . '/../includes/header.php';
                     </div>
                     <div class="form-group">
                         <label>PF Amount (auto)</label>
-                        <input type="text" class="form-control" id="pfPreview" readonly value="<?php echo number_format($pfPreview, 2); ?>">
+                        <input type="text" class="form-control" id="pfPreview" readonly value="<?php echo formatIndianNumber($pfPreview, 2); ?>">
                         <small class="form-hint">Basic ₹<?php echo number_format($pfWageBase, 0); ?> × 12% (ceiling ₹15,000)</small>
                     </div>
                     <div class="form-group">
                         <label>PT Amount (auto)</label>
-                        <input type="text" class="form-control" id="ptPreview" readonly value="<?php echo number_format($ptPreview, 2); ?>">
+                        <input type="text" class="form-control" id="ptPreview" readonly value="<?php echo formatIndianNumber($ptPreview, 2); ?>">
                         <small class="form-hint">₹200 if salary ≥ ₹12,001 else ₹0</small>
                     </div>
                 </div>

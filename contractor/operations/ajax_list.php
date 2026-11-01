@@ -117,8 +117,8 @@ while ($row = $res->fetch_assoc()) {
         $name,
         htmlspecialchars($months[(int) $row['month_no']] ?? (string) $row['month_no']),
         (int) $row['year_no'],
-        number_format((float) $row['total_qty'], 2),
-        number_format((float) $row['total_amount'], 2),
+        formatIndianNumber((float) $row['total_qty'], 2),
+        formatIndianNumber((float) $row['total_amount'], 2),
         $actions,
     ];
 }

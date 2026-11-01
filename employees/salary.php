@@ -114,7 +114,7 @@ $basic = (float) ($emp['decided_salary'] ?? 0);
                     <h3><i class="fa-solid fa-indian-rupee-sign"></i> Salary Components</h3>
                     <p class="form-hint" style="margin-bottom:12px;">
                         Values Salary Master mathi aave. Percentage Basic (Decided Salary
-                        <?php echo $basic > 0 ? number_format($basic, 2) : '0'; ?>) par calculate thay.
+                        <?php echo $basic > 0 ? formatIndianNumber($basic, 2) : '0'; ?>) par calculate thay.
                     </p>
                     <div class="table-wrap">
                         <table class="data-table" style="width:100%">
