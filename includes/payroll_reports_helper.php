@@ -373,8 +373,56 @@ function isSalaryRegisterLocked($month, $year, $type, $deptId = 0)
 }
 
 /**
+ * Recompute attendance / gross from live Attendance Report engine.
+ * Keeps Arrears (and lock-entered extras) from the snapshot row so Register
+ * days always match Attendance Report (e.g. Cleaning · Gopal DL/Present).
+ */
+function refreshSalaryRegisterRowFromLiveAttendance(array $lockedRow, $type, $month, $year)
+{
+    $eid = (int) ($lockedRow['employee_id'] ?? 0);
+    if ($eid <= 0 || !function_exists('getEmployeeById') || !function_exists('buildSalaryRegisterRow')) {
+        return $lockedRow;
+    }
+    $emp = getEmployeeById($eid);
+    if (!$emp) {
+        return $lockedRow;
+    }
+    // Ensure department_name for grouping
+    if (empty($emp['department_name']) && !empty($lockedRow['department'])) {
+        $emp['department_name'] = $lockedRow['department'];
+    }
+    $mode = (string) ($lockedRow['mode'] ?? $type);
+    if ($mode === '' || $mode === 'contractor_main') {
+        $mode = ($type === 'jobwork_actual') ? 'jobwork_actual' : 'salary';
+    }
+    $live = buildSalaryRegisterRow($emp, $month, $year, $mode);
+    $arrears = (float) ($lockedRow['arrears'] ?? $live['arrears'] ?? 0);
+    $live['arrears'] = $arrears;
+    $gross = (float) ($live['gross'] ?? 0);
+    $ded = (float) ($live['total_deduction'] ?? 0);
+    $net = $gross - $ded + $arrears;
+    if ($net < 0) {
+        $net = 0;
+    }
+    $live['net'] = $net;
+    // Preserve bank / identity display from lock when live blank
+    foreach (['account', 'ifsc', 'bank_name', 'uan', 'doj', 'designation'] as $k) {
+        if ((empty($live[$k]) || $live[$k] === '-') && !empty($lockedRow[$k])) {
+            $live[$k] = $lockedRow[$k];
+        }
+    }
+    $live['register_mode'] = $type;
+    $live['mode'] = $mode;
+    if (function_exists('registerApplyMoneyRoundOff')) {
+        $live = registerApplyMoneyRoundOff($live);
+    }
+    return $live;
+}
+
+/**
  * Same rows for Salary Register screen and NEFT:
- * locked → snapshot (final nets); unlocked → live calculation.
+ * locked → snapshot identity + live Attendance Report days/gross (Arrears kept);
+ * unlocked → live calculation.
  *
  * @return array{groups: array, rows: array, lock: ?array, from_lock: bool, from_all_departments: bool}
  */
@@ -429,28 +477,39 @@ function getSalaryRegisterDisplayBundle($type, $month, $year, $deptId = 0, $empl
             }));
         }
         $rows = flattenSalaryRegisterGroups($groups);
-        foreach ($rows as &$r) {
-            $r['register_mode'] = $type;
-            if (empty($r['mode'])) {
-                $r['mode'] = $type;
-            }
-            if (function_exists('registerApplyMoneyRoundOff')) {
-                $r = registerApplyMoneyRoundOff($r);
-            }
-        }
-        unset($r);
-        // Rebuild groups rows after round-off
-        $i = 0;
-        foreach ($groups as &$g) {
-            $n = count($g['rows'] ?? []);
-            $g['rows'] = array_slice($rows, $i, $n);
-            $g['mode'] = $type;
-            $i += $n;
-        }
-        unset($g);
 
-        // Append any live employees missing from old lock (all depts / under-main)
+        // Locked snapshot often lags Manual Attendance (Gopal: DL/Present mismatch).
+        // Recompute every row from live Attendance Report; keep Arrears from lock.
         if ($type !== 'contractor_main') {
+            $refreshed = [];
+            foreach ($rows as $r) {
+                $refreshed[] = refreshSalaryRegisterRowFromLiveAttendance($r, $type, $month, $year);
+            }
+            $rows = $refreshed;
+
+            // Rebuild groups by department from refreshed rows
+            $byDept = [];
+            $titleBase = ($type === 'jobwork_actual')
+                ? 'Jobwork — Regular / Actual'
+                : 'Salaried Person (Fixed)';
+            foreach ($rows as $r) {
+                $dn = (string) ($r['department'] ?? 'Department');
+                if (!isset($byDept[$dn])) {
+                    $byDept[$dn] = [];
+                }
+                $byDept[$dn][] = $r;
+            }
+            $groups = [];
+            foreach ($byDept as $dn => $deptRows) {
+                $groups[] = [
+                    'title' => $titleBase . ' · ' . $dn,
+                    'subtitle' => 'Locked · attendance synced with Attendance Report',
+                    'mode' => $type,
+                    'rows' => $deptRows,
+                ];
+            }
+
+            // Append live employees missing from old lock
             $liveGroups = getSalaryRegisterData($type, $month, $year, $deptId, $employeeId);
             $haveIds = [];
             foreach ($rows as $r) {
@@ -482,7 +541,7 @@ function getSalaryRegisterDisplayBundle($type, $month, $year, $deptId = 0, $empl
                     unset($g);
                     if (!$placed) {
                         $groups[] = [
-                            'title' => (($type === 'jobwork_actual') ? 'Jobwork — Regular / Actual' : 'Salaried Person (Fixed)') . ' · ' . $deptName,
+                            'title' => $titleBase . ' · ' . $deptName,
                             'subtitle' => 'Added from live (missing in lock)',
                             'mode' => $type,
                             'rows' => [$lr],
@@ -491,6 +550,26 @@ function getSalaryRegisterDisplayBundle($type, $month, $year, $deptId = 0, $empl
                     $rows[] = $lr;
                 }
             }
+            $rows = flattenSalaryRegisterGroups($groups);
+        } else {
+            foreach ($rows as &$r) {
+                $r['register_mode'] = $type;
+                if (empty($r['mode'])) {
+                    $r['mode'] = $type;
+                }
+                if (function_exists('registerApplyMoneyRoundOff')) {
+                    $r = registerApplyMoneyRoundOff($r);
+                }
+            }
+            unset($r);
+            $i = 0;
+            foreach ($groups as &$g) {
+                $n = count($g['rows'] ?? []);
+                $g['rows'] = array_slice($rows, $i, $n);
+                $g['mode'] = $type;
+                $i += $n;
+            }
+            unset($g);
         }
 
         return [

@@ -173,6 +173,7 @@ require_once __DIR__ . '/../includes/header.php';
                     <i class="fa-solid <?php echo $approvalStatus === 'approved' ? 'fa-circle-check' : 'fa-hourglass-half'; ?>"></i>
                     <?php echo htmlspecialchars($approvalLabels[$approvalStatus] ?? $approvalStatus); ?>
                 </span>
+                <span class="ops-chip" style="color:#047857;"><i class="fa-solid fa-calendar-check"></i> Days/Gross = live Attendance Report</span>
             </div>
             <?php if ($myApprovalAction !== ''): ?>
             <div class="form-page-card" style="margin-bottom:12px;border-left:4px solid #d2232a;background:#fff7f7;">
