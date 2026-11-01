@@ -1918,11 +1918,36 @@ function attendanceBuildEmployeeMonthTotals(array $emp, array &$dayMapByDate, $m
             continue;
         }
         if ($status === 'Week Off') {
-            attendanceAddDayToLeaveTotals($totals, $status, $type, $half);
-            $weekOffDatesCounted[] = $date;
+            // Only the employee's calendar week-off day counts (history-aware).
+            // Extra "Week Off" marks on other weekdays inflated WO (e.g. 6) — ignore for pay.
+            if ($isCalWeekOff && !$isCalHoliday) {
+                attendanceAddDayToLeaveTotals($totals, $status, $type, $half);
+                $weekOffDatesCounted[] = $date;
+            }
             continue;
         }
         attendanceAddDayToLeaveTotals($totals, $status, $type, $half);
+    }
+
+    // Hard cap: paid/raw WO cannot exceed calendar week-off days in range (max 4–5 for one weekday)
+    $maxCalWeekOff = 0;
+    for ($d = 1; $d <= $monthDays; $d++) {
+        $date = sprintf('%04d-%02d-%02d', $year, $month, $d);
+        if ($joinDate !== '' && $date < $joinDate) {
+            continue;
+        }
+        if ($exitDate !== '' && $date > $exitDate) {
+            continue;
+        }
+        if (isset($holidaySet[$date])) {
+            continue;
+        }
+        if ($isWeekOffDateFn($date)) {
+            $maxCalWeekOff++;
+        }
+    }
+    if ((float) ($totals['week_off'] ?? 0) > $maxCalWeekOff) {
+        $totals['week_off'] = (float) $maxCalWeekOff;
     }
 
     // Benefits=Yes: WO counted only if attendance on day before OR after; both Leave → not counted

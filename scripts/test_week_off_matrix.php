@@ -125,6 +125,18 @@ $cases[] = [
     $t,
 ];
 
+// 8) Bogus Week Off marks on non-Sunday must NOT inflate WO (was 6 bug)
+$map = buildDayMap('Present', [
+    '2026-10-01' => day('Week Off'), // Thursday
+    '2026-10-02' => day('Week Off'), // Friday
+]);
+$t = attendanceBuildEmployeeMonthTotals(makeEmp('Yes'), $map, $month, $year, $holidaySet);
+$cases[] = [
+    'Bogus WO on Thu/Fri ignored → still WO=4',
+    (float) $t['week_off_paid'] === 4.0 && (float) $t['week_off_raw'] === 4.0,
+    $t,
+];
+
 echo "=== Week Off / Pay Days unit matrix ===\n";
 foreach ($cases as $c) {
     $ok = !empty($c[1]);
