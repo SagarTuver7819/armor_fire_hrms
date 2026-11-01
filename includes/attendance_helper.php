@@ -1894,6 +1894,7 @@ function attendanceBuildEmployeeMonthTotals(array $emp, array &$dayMapByDate, $m
         }
 
         // Plain Absent on working day → LWP only after grace (not advance)
+        // Never LWP on the employee's calendar week-off day (WO wins)
         if ($status === 'Absent' && !$isCalWeekOff && !$isCalHoliday) {
             if (attendanceDateEligibleForAutoLwp($date)) {
                 $dayMapByDate[$date]['remarks'] = 'LWP';
@@ -1910,26 +1911,33 @@ function attendanceBuildEmployeeMonthTotals(array $emp, array &$dayMapByDate, $m
         if ($type === '' && $status === 'Leave') {
             $type = 'PL';
         }
-        // Worked on the employee's week-off (manual Present) still pays as Week Off, not Present.
-        // C-Off is added to leave balance separately — not as an extra salary day.
-        if ($isCalWeekOff && !$isCalHoliday && in_array($status, ['Present', 'Half Day'], true)) {
-            attendanceAddDayToLeaveTotals($totals, 'Week Off');
+
+        // Calendar week-off day: always Week Off for pay/display — never LWP / Leave
+        if ($isCalWeekOff && !$isCalHoliday) {
+            if (in_array($status, ['Present', 'Half Day'], true)) {
+                // Worked on week-off → still pays as Week Off (C-Off balance separate)
+                attendanceAddDayToLeaveTotals($totals, 'Week Off');
+            } elseif ($status === 'Week Off' || $status === 'Absent' || $status === 'Leave') {
+                // Keep / restore Week Off — do not show LWP on WO day (Arjun case)
+                $dayMapByDate[$date]['day_status'] = 'Week Off';
+                if ($status === 'Leave' || stripos((string) ($cell['remarks'] ?? ''), 'LWP') !== false) {
+                    $dayMapByDate[$date]['remarks'] = '';
+                }
+                unset($dayMapByDate[$date]['_auto_lwp']);
+                attendanceAddDayToLeaveTotals($totals, 'Week Off');
+            } else {
+                attendanceAddDayToLeaveTotals($totals, 'Week Off');
+            }
             $weekOffDatesCounted[] = $date;
             continue;
         }
+
         if ($status === 'Week Off') {
-            // Only calendar week-off day (history-aware) counts as WO.
-            // Mis-tagged Week Off on other weekdays must NOT inflate WO, but the day
-            // still counts for pay (Present if punched, else auto-LWP when eligible).
-            if ($isCalWeekOff && !$isCalHoliday) {
-                attendanceAddDayToLeaveTotals($totals, $status, $type, $half);
-                $weekOffDatesCounted[] = $date;
-                continue;
-            }
+            // Marked Week Off but NOT employee's week-off weekday:
+            // keep label as Week Off (never convert to LWP). Punch → Present for pay.
             $mins = (int) ($cell['working_minutes'] ?? 0);
             $hasPunch = !empty($cell['punch_in']) || !empty($cell['punch_out']) || $mins > 0;
             if ($hasPunch) {
-                // Worked on a non-week-off day wrongly marked Week Off → count Present / Half
                 $asStatus = ($mins > 0 && $mins < 240) ? 'Half Day' : 'Present';
                 $dayMapByDate[$date]['day_status'] = $asStatus;
                 $prevRem = trim((string) ($dayMapByDate[$date]['remarks'] ?? ''));
@@ -1939,11 +1947,11 @@ function attendanceBuildEmployeeMonthTotals(array $emp, array &$dayMapByDate, $m
                 attendanceAddDayToLeaveTotals($totals, $asStatus, $type, $half);
                 continue;
             }
-            if (!$isCalHoliday && attendanceDateEligibleForAutoLwp($date)) {
-                $dayMapByDate[$date]['day_status'] = 'Leave';
-                $dayMapByDate[$date]['remarks'] = 'LWP';
-                $dayMapByDate[$date]['_auto_lwp'] = 1;
-                attendanceAddDayToLeaveTotals($totals, 'Leave', 'LWP');
+            // No punch: stay Week Off on grid, unpaid (not LWP, not paid WO)
+            $dayMapByDate[$date]['_wo_unpaid_non_calendar'] = 1;
+            $rem = trim((string) ($dayMapByDate[$date]['remarks'] ?? ''));
+            if ($rem === '' || stripos($rem, 'LWP') !== false) {
+                $dayMapByDate[$date]['remarks'] = 'Week Off (unpaid — not employee week-off day)';
             }
             continue;
         }

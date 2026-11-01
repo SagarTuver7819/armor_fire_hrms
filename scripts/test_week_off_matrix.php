@@ -125,19 +125,21 @@ $cases[] = [
     $t,
 ];
 
-// 8) Bogus Week Off marks on non-Sunday must NOT inflate WO (was 6 bug)
+// 8) Bogus Week Off marks on non-Sunday must NOT inflate WO / must NOT become LWP
 $map = buildDayMap('Present', [
     '2026-10-01' => day('Week Off'), // Thursday — no punch
     '2026-10-02' => day('Week Off'), // Friday — no punch
 ]);
 $t = attendanceBuildEmployeeMonthTotals(makeEmp('Yes'), $map, $month, $year, $holidaySet);
 $cases[] = [
-    'Bogus WO no-punch → not in WOpay (still 4 Sundays)',
-    (float) $t['week_off_paid'] === 4.0 && (float) $t['week_off_raw'] === 4.0,
+    'Bogus WO no-punch → WOpay=4, LWP=0 (stay WO unpaid)',
+    (float) $t['week_off_paid'] === 4.0
+        && (float) ($t['LWP'] ?? 0) === 0.0
+        && ($map['2026-10-01']['day_status'] ?? '') === 'Week Off',
     $t,
 ];
 
-// 9) Bogus WO WITH punches on working days → count Present (Arjun-style lost days)
+// 9) Bogus WO WITH punches on working days → count Present
 $map = buildDayMap('Present', [
     '2026-10-01' => day('Week Off', [
         'punch_in' => '09:00:00',
@@ -151,12 +153,26 @@ $map = buildDayMap('Present', [
     ]),
 ]);
 $t = attendanceBuildEmployeeMonthTotals(makeEmp('Yes'), $map, $month, $year, $holidaySet);
-// Full Oct Present all non-Sun + 4 Sun WO = 27 + 4 = 31 (Thu+Fri still present via reclassify)
 $cases[] = [
     'Bogus WO with punch → Present, pay=31',
     (float) $t['week_off_paid'] === 4.0
         && (float) $t['present'] === 27.0
         && abs((float) $t['total_pay_days'] - 31.0) < 0.001,
+    $t,
+];
+
+// 10) LWP/Leave marked ON calendar Sunday → must show/count as Week Off, not LWP
+$map = buildDayMap('Present', [
+    '2026-10-04' => day('Leave', ['remarks' => 'LWP', 'source' => 'auto_lwp', '_auto_lwp' => 1]),
+    '2026-10-11' => day('Leave', ['remarks' => 'LWP']),
+]);
+$t = attendanceBuildEmployeeMonthTotals(makeEmp('Yes'), $map, $month, $year, $holidaySet);
+$cases[] = [
+    'LWP on Sunday → WO not LWP',
+    (float) ($t['LWP'] ?? 0) === 0.0
+        && (float) $t['week_off_paid'] === 4.0
+        && ($map['2026-10-04']['day_status'] ?? '') === 'Week Off'
+        && ($map['2026-10-11']['day_status'] ?? '') === 'Week Off',
     $t,
 ];
 
