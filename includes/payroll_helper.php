@@ -809,6 +809,8 @@ function payrollAttendanceAlignedTotals(array $emp, $month, $year, $conn = null)
     $empRow = [
         'id' => $employeeId,
         'week_off_day' => trim((string) ($emp['week_off_day'] ?? 'Sunday')) ?: 'Sunday',
+        'week_off_benefits' => $emp['week_off_benefits'] ?? 'No',
+        'holiday_benefits' => $emp['holiday_benefits'] ?? 'No',
         'date_of_joining' => $emp['date_of_joining'] ?? null,
         'date_of_exit' => $emp['date_of_exit'] ?? null,
         'department_id' => (int) ($emp['department_id'] ?? 0),
@@ -833,12 +835,14 @@ function payrollAttendanceAlignedTotals(array $emp, $month, $year, $conn = null)
         'present' => (float) ($totals['present'] ?? 0),
         'week_off' => (float) ($totals['week_off'] ?? 0),
         'holiday' => (float) ($totals['holiday'] ?? 0),
+        'week_off_paid' => (float) ($totals['week_off_paid'] ?? 0),
+        'holiday_paid' => (float) ($totals['holiday_paid'] ?? 0),
         'pl' => (float) ($totals['PL'] ?? 0),
         'sl' => (float) ($totals['SL'] ?? 0),
         'dl' => (float) ($totals['DL'] ?? 0),
         'coff' => (float) ($totals['C-Off'] ?? 0),
         'lwp' => $lwp,
-        'total_pay_days' => $pay,
+        'total_pay_days' => (float) ($totals['total_pay_days'] ?? $pay),
         'from_attendance' => true,
         'has_day_rows' => $hasAny,
     ];
@@ -961,7 +965,7 @@ function getPayrollAttendanceBundle(array $emp, $month, $year, $actualAmount)
         }
     }
 
-    // Prefer Attendance Report totals (employee.week_off_day + holiday master + day marks)
+    // Prefer Attendance Report totals (same engine + Total Pay Days / benefits)
     $aligned = payrollAttendanceAlignedTotals($emp, $month, $year);
     if (is_array($aligned)) {
         $present = (float) $aligned['present'];
@@ -972,12 +976,16 @@ function getPayrollAttendanceBundle(array $emp, $month, $year, $actualAmount)
         $dl = (float) $aligned['dl'];
         $coff = (float) ($aligned['coff'] ?? 0);
         $lwp = (float) $aligned['lwp'];
-        // Employee form: Week-off Benefits No → WO days not paid (Normal + Jobwork)
-        $weekOffPaid = (($emp['week_off_benefits'] ?? 'No') === 'Yes') ? $weekOffRaw : 0.0;
-        // Holiday Benefits No → holiday days not paid
-        $holidayPaid = (($emp['holiday_benefits'] ?? 'No') === 'Yes') ? $holidayRaw : 0.0;
-        // Pay days exclude unpaid WO / unpaid holiday (LWP still unpaid)
-        $totalDays = $present + $weekOffPaid + $holidayPaid + $pl + $sl + $dl + $coff;
+        // Same paid WO/Holiday as Attendance Report Total Pay Days
+        $weekOffPaid = array_key_exists('week_off_paid', $aligned)
+            ? (float) $aligned['week_off_paid']
+            : ((($emp['week_off_benefits'] ?? 'No') === 'Yes') ? $weekOffRaw : 0.0);
+        $holidayPaid = array_key_exists('holiday_paid', $aligned)
+            ? (float) $aligned['holiday_paid']
+            : ((($emp['holiday_benefits'] ?? 'No') === 'Yes') ? $holidayRaw : 0.0);
+        $totalDays = array_key_exists('total_pay_days', $aligned)
+            ? (float) $aligned['total_pay_days']
+            : ($present + $weekOffPaid + $holidayPaid + $pl + $sl + $dl + $coff);
         if ($totalDays > $eligibleDays) {
             $totalDays = $eligibleDays;
         }

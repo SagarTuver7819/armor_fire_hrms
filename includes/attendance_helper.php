@@ -1516,21 +1516,39 @@ function attendanceAddDayToLeaveTotals(array &$totals, $status, $leaveType = '',
 
 /**
  * Finalise Total Days / Total Pay Days from component columns.
+ * Total Days = all attendance components (incl. WO / Holiday).
+ * Total Pay Days = Salary Register paid days (WO/Holiday only if employee benefits = Yes).
+ *
+ * @param array $benefits optional {week_off_benefits, holiday_benefits}
  */
-function attendanceFinalizeLeaveTotals(array &$totals)
+function attendanceFinalizeLeaveTotals(array &$totals, array $benefits = [])
 {
+    $present = (float) ($totals['present'] ?? 0);
+    $weekOff = (float) ($totals['week_off'] ?? 0);
+    $holiday = (float) ($totals['holiday'] ?? 0);
+    $pl = (float) ($totals['PL'] ?? 0);
+    $sl = (float) ($totals['SL'] ?? 0);
+    $dl = (float) ($totals['DL'] ?? 0);
+    $coff = (float) ($totals['C-Off'] ?? 0);
+
     $totals['total_days'] = round(
-        (float) $totals['present']
-        + (float) $totals['week_off']
-        + (float) $totals['PL']
-        + (float) $totals['SL']
-        + (float) $totals['DL']
-        + (float) $totals['C-Off']
-        + (float) $totals['holiday'],
+        $present + $weekOff + $pl + $sl + $dl + $coff + $holiday,
         2
     );
-    // Paid days = same (LWP / Absent excluded)
-    $totals['total_pay_days'] = $totals['total_days'];
+
+    $woBen = strtoupper(trim((string) ($benefits['week_off_benefits'] ?? 'No')));
+    $holBen = strtoupper(trim((string) ($benefits['holiday_benefits'] ?? 'No')));
+    // Default No when blank — same as Salary Register / payroll
+    $weekOffPaid = ($woBen === 'YES') ? $weekOff : 0.0;
+    $holidayPaid = ($holBen === 'YES') ? $holiday : 0.0;
+
+    $totals['week_off_paid'] = $weekOffPaid;
+    $totals['holiday_paid'] = $holidayPaid;
+    // Same formula as getPayrollAttendanceBundle (aligned path)
+    $totals['total_pay_days'] = round(
+        $present + $weekOffPaid + $holidayPaid + $pl + $sl + $dl + $coff,
+        2
+    );
 }
 
 /**
@@ -1694,7 +1712,10 @@ function attendanceBuildEmployeeMonthTotals(array $emp, array &$dayMapByDate, $m
         attendanceAddDayToLeaveTotals($totals, $status, $type, $half);
     }
 
-    attendanceFinalizeLeaveTotals($totals);
+    attendanceFinalizeLeaveTotals($totals, [
+        'week_off_benefits' => $emp['week_off_benefits'] ?? 'No',
+        'holiday_benefits' => $emp['holiday_benefits'] ?? 'No',
+    ]);
     return $totals;
 }
 
@@ -1752,7 +1773,8 @@ function getAttendanceExcelMonthGrid($month, $year, $deptId = 0, $employeeId = 0
     }
 
     $sql = "SELECT e.id, e.employee_code, e.employee_name, e.designation, e.date_of_joining, e.date_of_exit,
-                   e.week_off_day, e.shift_type, e.shift_time, e.pay_type, e.department_id,
+                   e.week_off_day, e.week_off_benefits, e.holiday_benefits,
+                   e.shift_type, e.shift_time, e.pay_type, e.department_id,
                    d.department_name
             FROM employees e
             LEFT JOIN departments d ON d.id = e.department_id
