@@ -1,0 +1,17 @@
+{
+  // Permanent fix for this repo only:
+  // Cursor/VS Code Sync was treating git fetch stderr ("From https://github.com/...")
+  // / tag pull failures as a push error after every commit.
+  "git.pullTags": false,
+  "git.followTagsWhenSync": false,
+  "git.fetchOnPull": false,
+  "git.pruneOnFetch": false,
+  "git.autofetch": false,
+  "git.autoRepositoryDetection": true,
+  "git.postCommitCommand": "push",
+  "git.confirmSync": false,
+  "git.showPushSuccessNotification": true,
+  "git.replaceTagsWhenPull": false,
+  "git.useIntegratedAskPass": true,
+  "git.terminalAuthentication": true
+}

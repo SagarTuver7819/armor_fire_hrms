@@ -16,7 +16,8 @@ Desktop.ini
 *.swp
 *.swo
 .idea/
-.vscode/
+.vscode/*
+!.vscode/settings.json
 *.code-workspace
 
 # Logs & temp
