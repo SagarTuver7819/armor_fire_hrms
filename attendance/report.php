@@ -89,7 +89,7 @@ require_once __DIR__ . '/../includes/header.php';
     <div class="form-page-card">
         <div class="form-page-header">
             <h1>Attendance Report</h1>
-            <p>Same Excel format · Present / Week Off / PL / SL / DL / C-Off / Holiday · Total Days · Total Pay Days (= Salary Register; WO/Holiday only if Benefits = Yes) · Export</p>
+            <p>Same Excel format · Present / Week Off (paid) / PL / SL / DL / C-Off / Holiday (paid) · Total Days = Total Pay Days (= Salary Register). Week-off Benefits = Yes → WO only if attendance on day before or after; Leave both sides → WO not counted. Benefits = No → WO/Holiday 0 in summary (all departments). · Export</p>
         </div>
 
         <form method="GET" class="employee-form" style="margin-bottom:16px;">

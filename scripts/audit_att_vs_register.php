@@ -8,12 +8,12 @@ ini_set('display_errors', '1');
 @set_time_limit(600);
 @ini_set('memory_limit', '1024M');
 
-require_once __DIR__ . '/config/database.php';
-require_once __DIR__ . '/includes/attendance_helper.php';
-require_once __DIR__ . '/includes/salary_register_helper.php';
-require_once __DIR__ . '/includes/payroll_reports_helper.php';
-require_once __DIR__ . '/includes/payroll_helper.php';
-require_once __DIR__ . '/includes/employee_helper.php';
+require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/../includes/attendance_helper.php';
+require_once __DIR__ . '/../includes/salary_register_helper.php';
+require_once __DIR__ . '/../includes/payroll_reports_helper.php';
+require_once __DIR__ . '/../includes/payroll_helper.php';
+require_once __DIR__ . '/../includes/employee_helper.php';
 
 $month = (int) ($argv[1] ?? 10);
 $year = (int) ($argv[2] ?? 2026);

@@ -1515,9 +1515,203 @@ function attendanceAddDayToLeaveTotals(array &$totals, $status, $leaveType = '',
 }
 
 /**
+ * Leave-like day for Week Off sandwich rule (manual PL/SL/DL/LWP/Absent).
+ * Auto-LWP fill / Present / worked Half Day / blank = not leave.
+ */
+function attendanceDayIsLeaveForSandwich($cell)
+{
+    if (!is_array($cell)) {
+        return false;
+    }
+    // System auto-LWP must not cancel Week Off (would sandwich every WO in the month)
+    if (!empty($cell['_auto_lwp'])) {
+        return false;
+    }
+    $source = strtolower(trim((string) ($cell['source'] ?? '')));
+    if ($source === 'auto_lwp') {
+        return false;
+    }
+    $status = trim((string) ($cell['day_status'] ?? ''));
+    if ($status === 'Leave' || $status === 'Absent') {
+        return true;
+    }
+    if ($status === 'Half Day') {
+        // Worked half (has punch) → not a leave sandwich side
+        if (!empty($cell['punch_in']) || !empty($cell['punch_out'])) {
+            return false;
+        }
+        $parsed = attendanceParseLeaveRemark($cell['remarks'] ?? '');
+        return trim((string) ($parsed['leave_type'] ?? '')) !== '';
+    }
+    return false;
+}
+
+/**
+ * Nearest non-WO / non-Holiday day status for sandwich check.
+ * @param int $dir -1 = before, +1 = after
+ * @return string leave|work|none
+ */
+function attendanceNearestSandwichSide(
+    array $dayMapByDate,
+    $fromDate,
+    $dir,
+    $monthStart,
+    $monthEnd,
+    $joinDate,
+    $exitDate,
+    array $holidaySet,
+    callable $isWeekOffDate
+) {
+    $ts = strtotime((string) $fromDate);
+    if ($ts === false) {
+        return 'none';
+    }
+    $dir = ((int) $dir) >= 0 ? 1 : -1;
+    for ($i = 0; $i < 62; $i++) {
+        $ts = strtotime(($dir > 0 ? '+1 day' : '-1 day'), $ts);
+        if ($ts === false) {
+            return 'none';
+        }
+        $d = date('Y-m-d', $ts);
+        if ($d < $monthStart || $d > $monthEnd) {
+            return 'none';
+        }
+        if ($joinDate !== '' && $d < $joinDate) {
+            return 'none';
+        }
+        if ($exitDate !== '' && $d > $exitDate) {
+            return 'none';
+        }
+        $cell = $dayMapByDate[$d] ?? null;
+        $status = trim((string) ($cell['day_status'] ?? ''));
+        $calWo = (bool) call_user_func($isWeekOffDate, $d);
+        $calHol = isset($holidaySet[$d]);
+
+        // Skip only Week Off / Holiday chain (Sat+Sun between Fri & Mon)
+        if ($status === 'Week Off' || $status === 'Holiday' || $calWo || $calHol) {
+            continue;
+        }
+        // Immediate previous/next working day (ek divas agal / pachhad)
+        if ($status === '' || $cell === null) {
+            return 'none'; // no attendance beside
+        }
+        if (!empty($cell['_auto_lwp']) || strtolower(trim((string) ($cell['source'] ?? ''))) === 'auto_lwp') {
+            return 'none';
+        }
+        if (attendanceDayIsLeaveForSandwich($cell)) {
+            return 'leave';
+        }
+        if (in_array($status, ['Present', 'Half Day'], true)) {
+            return 'work';
+        }
+        return 'none';
+    }
+    return 'none';
+}
+
+/**
+ * Week Off count rule (all departments) when employee Week-off Benefits = Yes:
+ * - Count WO only if nearest working day BEFORE or AFTER has attendance (Present).
+ * - If BOTH sides are Leave → do not count that WO.
+ * - Week Off Working (punches) is always kept.
+ * When Benefits = No, WO is already unpaid in finalize; raw WO column unchanged here.
+ *
+ * @return int number of week-off days removed
+ */
+function attendanceApplyWeekOffSandwichRule(
+    array &$totals,
+    array &$dayMapByDate,
+    array $weekOffDates,
+    $month,
+    $year,
+    $joinDate,
+    $exitDate,
+    array $holidaySet,
+    callable $isWeekOffDate,
+    $weekOffBenefits = 'No'
+) {
+    // Only apply "attendance beside WO" rule when benefits are Yes
+    if (strtoupper(trim((string) $weekOffBenefits)) !== 'YES') {
+        $totals['sandwich_wo_removed'] = 0.0;
+        return 0;
+    }
+
+    $month = (int) $month;
+    $year = (int) $year;
+    $monthStart = sprintf('%04d-%02d-01', $year, $month);
+    $monthEnd = date('Y-m-t', strtotime($monthStart));
+    $removed = 0;
+
+    foreach ($weekOffDates as $woDate) {
+        $woDate = substr((string) $woDate, 0, 10);
+        if ($woDate === '' || !isset($dayMapByDate[$woDate])) {
+            continue;
+        }
+        $cell = $dayMapByDate[$woDate];
+        $status = trim((string) ($cell['day_status'] ?? ''));
+        if ($status !== 'Week Off') {
+            continue;
+        }
+        // Worked on week-off → always keep (paid week-off working)
+        if (!empty($cell['punch_in']) || !empty($cell['punch_out']) || (int) ($cell['working_minutes'] ?? 0) > 0) {
+            continue;
+        }
+
+        $before = attendanceNearestSandwichSide(
+            $dayMapByDate,
+            $woDate,
+            -1,
+            $monthStart,
+            $monthEnd,
+            $joinDate,
+            $exitDate,
+            $holidaySet,
+            $isWeekOffDate
+        );
+        $after = attendanceNearestSandwichSide(
+            $dayMapByDate,
+            $woDate,
+            1,
+            $monthStart,
+            $monthEnd,
+            $joinDate,
+            $exitDate,
+            $holidaySet,
+            $isWeekOffDate
+        );
+
+        // Keep only if at least one side has attendance (Present / worked half)
+        // Both Leave → remove; neither side attendance → remove
+        $hasAttendanceBeside = ($before === 'work' || $after === 'work');
+        if ($hasAttendanceBeside) {
+            continue;
+        }
+
+        $dayMapByDate[$woDate]['_sandwich_unpaid'] = 1;
+        $reason = ($before === 'leave' && $after === 'leave')
+            ? 'WO unpaid (Leave both sides)'
+            : 'WO unpaid (no attendance beside)';
+        $remark = trim((string) ($dayMapByDate[$woDate]['remarks'] ?? ''));
+        if (stripos($remark, 'WO unpaid') === false) {
+            $dayMapByDate[$woDate]['remarks'] = trim($remark . ($remark !== '' ? ' · ' : '') . $reason);
+        }
+        if ((float) ($totals['week_off'] ?? 0) > 0) {
+            $totals['week_off'] = round((float) $totals['week_off'] - 1.0, 2);
+            if ($totals['week_off'] < 0) {
+                $totals['week_off'] = 0.0;
+            }
+        }
+        $removed++;
+    }
+
+    $totals['sandwich_wo_removed'] = (float) $removed;
+    return $removed;
+}
+
+/**
  * Finalise Total Days / Total Pay Days from component columns.
- * Total Days = all attendance components (incl. WO / Holiday).
- * Total Pay Days = Salary Register paid days (WO/Holiday only if employee benefits = Yes).
+ * Week Off / Holiday summary columns = paid only (benefits Yes + after sandwich).
+ * Total Days = Total Pay Days = Salary Register total_days (all departments).
  *
  * @param array $benefits optional {week_off_benefits, holiday_benefits}
  */
@@ -1531,24 +1725,27 @@ function attendanceFinalizeLeaveTotals(array &$totals, array $benefits = [])
     $dl = (float) ($totals['DL'] ?? 0);
     $coff = (float) ($totals['C-Off'] ?? 0);
 
-    $totals['total_days'] = round(
-        $present + $weekOff + $pl + $sl + $dl + $coff + $holiday,
-        2
-    );
-
     $woBen = strtoupper(trim((string) ($benefits['week_off_benefits'] ?? 'No')));
     $holBen = strtoupper(trim((string) ($benefits['holiday_benefits'] ?? 'No')));
     // Default No when blank — same as Salary Register / payroll
     $weekOffPaid = ($woBen === 'YES') ? $weekOff : 0.0;
     $holidayPaid = ($holBen === 'YES') ? $holiday : 0.0;
 
+    $totals['week_off_raw'] = $weekOff;
+    $totals['holiday_raw'] = $holiday;
     $totals['week_off_paid'] = $weekOffPaid;
     $totals['holiday_paid'] = $holidayPaid;
-    // Same formula as getPayrollAttendanceBundle (aligned path)
-    $totals['total_pay_days'] = round(
+    // Summary columns match Salary Register (paid WO/Holiday only)
+    $totals['week_off'] = $weekOffPaid;
+    $totals['holiday'] = $holidayPaid;
+
+    $payDays = round(
         $present + $weekOffPaid + $holidayPaid + $pl + $sl + $dl + $coff,
         2
     );
+    $totals['total_pay_days'] = $payDays;
+    // Total Days = same as Total Pay Days so Att Report ↔ Salary Register match
+    $totals['total_days'] = $payDays;
 }
 
 /**
@@ -1599,6 +1796,15 @@ function attendanceBuildEmployeeMonthTotals(array $emp, array &$dayMapByDate, $m
             $lastEntryDate = $entryDate;
         }
     }
+
+    $weekOffDatesCounted = [];
+    $isWeekOffDateFn = static function ($date) use ($weekOffHistory, $weekOffFallback) {
+        $dowName = date('l', strtotime($date));
+        $weekOffName = function_exists('employeeWeekOffDayFromHistory')
+            ? employeeWeekOffDayFromHistory($weekOffHistory, $date, $weekOffFallback)
+            : $weekOffFallback;
+        return strcasecmp($dowName, $weekOffName) === 0;
+    };
 
     for ($d = 1; $d <= $monthDays; $d++) {
         $date = sprintf('%04d-%02d-%02d', $year, $month, $d);
@@ -1668,6 +1874,7 @@ function attendanceBuildEmployeeMonthTotals(array $emp, array &$dayMapByDate, $m
                     '_virtual' => 1,
                 ];
                 attendanceAddDayToLeaveTotals($totals, $status);
+                $weekOffDatesCounted[] = $date;
             } elseif (!$isCalHoliday && attendanceDateEligibleForAutoLwp($date)) {
                 $dayMapByDate[$date] = [
                     'employee_id' => (int) ($emp['id'] ?? 0),
@@ -1707,10 +1914,30 @@ function attendanceBuildEmployeeMonthTotals(array $emp, array &$dayMapByDate, $m
         // C-Off is added to leave balance separately — not as an extra salary day.
         if ($isCalWeekOff && !$isCalHoliday && in_array($status, ['Present', 'Half Day'], true)) {
             attendanceAddDayToLeaveTotals($totals, 'Week Off');
+            $weekOffDatesCounted[] = $date;
+            continue;
+        }
+        if ($status === 'Week Off') {
+            attendanceAddDayToLeaveTotals($totals, $status, $type, $half);
+            $weekOffDatesCounted[] = $date;
             continue;
         }
         attendanceAddDayToLeaveTotals($totals, $status, $type, $half);
     }
+
+    // Benefits=Yes: WO counted only if attendance on day before OR after; both Leave → not counted
+    attendanceApplyWeekOffSandwichRule(
+        $totals,
+        $dayMapByDate,
+        $weekOffDatesCounted,
+        $month,
+        $year,
+        $joinDate,
+        $exitDate,
+        $holidaySet,
+        $isWeekOffDateFn,
+        $emp['week_off_benefits'] ?? 'No'
+    );
 
     attendanceFinalizeLeaveTotals($totals, [
         'week_off_benefits' => $emp['week_off_benefits'] ?? 'No',

@@ -833,8 +833,9 @@ function payrollAttendanceAlignedTotals(array $emp, $month, $year, $conn = null)
 
     return [
         'present' => (float) ($totals['present'] ?? 0),
-        'week_off' => (float) ($totals['week_off'] ?? 0),
-        'holiday' => (float) ($totals['holiday'] ?? 0),
+        // raw = before benefits filter; paid = Salary Register columns
+        'week_off' => (float) ($totals['week_off_raw'] ?? $totals['week_off'] ?? 0),
+        'holiday' => (float) ($totals['holiday_raw'] ?? $totals['holiday'] ?? 0),
         'week_off_paid' => (float) ($totals['week_off_paid'] ?? 0),
         'holiday_paid' => (float) ($totals['holiday_paid'] ?? 0),
         'pl' => (float) ($totals['PL'] ?? 0),
@@ -976,19 +977,19 @@ function getPayrollAttendanceBundle(array $emp, $month, $year, $actualAmount)
         $dl = (float) $aligned['dl'];
         $coff = (float) ($aligned['coff'] ?? 0);
         $lwp = (float) $aligned['lwp'];
-        // Same paid WO/Holiday as Attendance Report Total Pay Days
+        // Same paid WO/Holiday / Total Pay Days as Attendance Report (all departments)
+        $woBenYes = strtoupper(trim((string) ($emp['week_off_benefits'] ?? 'No'))) === 'YES';
+        $holBenYes = strtoupper(trim((string) ($emp['holiday_benefits'] ?? 'No'))) === 'YES';
         $weekOffPaid = array_key_exists('week_off_paid', $aligned)
             ? (float) $aligned['week_off_paid']
-            : ((($emp['week_off_benefits'] ?? 'No') === 'Yes') ? $weekOffRaw : 0.0);
+            : ($woBenYes ? $weekOffRaw : 0.0);
         $holidayPaid = array_key_exists('holiday_paid', $aligned)
             ? (float) $aligned['holiday_paid']
-            : ((($emp['holiday_benefits'] ?? 'No') === 'Yes') ? $holidayRaw : 0.0);
+            : ($holBenYes ? $holidayRaw : 0.0);
+        // Attendance engine already respects DOJ/exit — trust total_pay_days
         $totalDays = array_key_exists('total_pay_days', $aligned)
             ? (float) $aligned['total_pay_days']
             : ($present + $weekOffPaid + $holidayPaid + $pl + $sl + $dl + $coff);
-        if ($totalDays > $eligibleDays) {
-            $totalDays = $eligibleDays;
-        }
         if ($totalDays > $monthDays) {
             $totalDays = (float) $monthDays;
         }
@@ -1079,9 +1080,11 @@ function getPayrollAttendanceBundle(array $emp, $month, $year, $actualAmount)
             $present = max(0, $eligibleDays - $weekOffRaw - $holidayRaw - $pl - $sl - $dl - $coff - $lwp);
         }
 
-        $weekOffPaid = (($emp['week_off_benefits'] ?? 'No') === 'Yes') ? $weekOffRaw : 0.0;
+        $woBenYes = strtoupper(trim((string) ($emp['week_off_benefits'] ?? 'No'))) === 'YES';
+        $holBenYes = strtoupper(trim((string) ($emp['holiday_benefits'] ?? 'No'))) === 'YES';
+        $weekOffPaid = $woBenYes ? $weekOffRaw : 0.0;
         $holidayPaid = 0.0;
-        if (($emp['holiday_benefits'] ?? 'No') === 'Yes') {
+        if ($holBenYes) {
             if ($hasDiary && $holidayRaw > 0 && $autoHoliday > 0) {
                 $holidayPaid = round($holidayRaw * ($autoPaidHoliday / max(1.0, $autoHoliday)), 2);
                 $holidayPaid = min($holidayPaid, $autoPaidHoliday);
