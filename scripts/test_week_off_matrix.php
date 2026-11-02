@@ -221,6 +221,36 @@ $cases[] = [
     $t,
 ];
 
+// 13) Arjun case: history Sunday early month, current WO Wednesday; grid Present + Wed WO
+$map = [];
+for ($d = 1; $d <= 31; $d++) {
+    $date = sprintf('2026-10-%02d', $d);
+    $dow = date('l', strtotime($date));
+    if ($dow === 'Wednesday') {
+        $map[$date] = day('Week Off');
+    } else {
+        $map[$date] = day('Present', [
+            'punch_in' => '09:00:00',
+            'punch_out' => '18:00:00',
+            'working_minutes' => 480,
+        ]);
+    }
+}
+$empArjun = makeEmp('Yes', 'Yes');
+$empArjun['week_off_day'] = 'Wednesday';
+$empArjun['_week_off_history'] = [
+    ['week_off_day' => 'Sunday', 'effective_from' => '2026-01-01'],
+    ['week_off_day' => 'Wednesday', 'effective_from' => '2026-10-15'],
+];
+$t = attendanceBuildEmployeeMonthTotals($empArjun, $map, $month, $year, []);
+$cases[] = [
+    'Arjun stale WO history → Present+WO pay=31',
+    abs((float) $t['total_pay_days'] - 31.0) < 0.001
+        && (float) $t['week_off_paid'] === 4.0
+        && (float) $t['present'] === 27.0,
+    $t,
+];
+
 echo "=== Week Off / Pay Days unit matrix ===\n";
 foreach ($cases as $c) {
     $ok = !empty($c[1]);

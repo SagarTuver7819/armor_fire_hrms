@@ -1786,7 +1786,10 @@ function attendanceBuildEmployeeMonthTotals(array $emp, array &$dayMapByDate, $m
     }
     $empId = (int) ($emp['id'] ?? 0);
     $weekOffHistory = [];
-    if ($empId > 0 && function_exists('employeeWeekOffHistoryRows')) {
+    if (!empty($emp['_week_off_history']) && is_array($emp['_week_off_history'])) {
+        // Test / caller override (avoid DB)
+        $weekOffHistory = $emp['_week_off_history'];
+    } elseif ($empId > 0 && function_exists('employeeWeekOffHistoryRows')) {
         $weekOffHistory = employeeWeekOffHistoryRows($empId);
     }
 
@@ -1838,6 +1841,8 @@ function attendanceBuildEmployeeMonthTotals(array $emp, array &$dayMapByDate, $m
             ? employeeWeekOffDayFromHistory($weekOffHistory, $date, $weekOffFallback)
             : $weekOffFallback;
         $isCalWeekOff = (strcasecmp($dowName, $weekOffName) === 0);
+        // Current employees.week_off_day (Manual marks follow this). History may lag after a WO change.
+        $isCurrentWeekOff = (strcasecmp($dowName, $weekOffFallback) === 0);
         $isCalHoliday = isset($holidaySet[$date]);
         $cellSource = strtolower(trim((string) ($cell['source'] ?? '')));
         $cellRemarks = (string) ($cell['remarks'] ?? '');
@@ -1929,8 +1934,8 @@ function attendanceBuildEmployeeMonthTotals(array $emp, array &$dayMapByDate, $m
         }
 
         // Plain Absent on working day → LWP only after grace (not advance)
-        // Never LWP on the employee's calendar week-off day (WO wins)
-        if ($status === 'Absent' && !$isCalWeekOff && !$isCalHoliday) {
+        // Never LWP on history OR current week-off weekday (WO wins)
+        if ($status === 'Absent' && !$isCalWeekOff && !$isCurrentWeekOff && !$isCalHoliday) {
             if (attendanceDateEligibleForAutoLwp($date)) {
                 $dayMapByDate[$date]['remarks'] = 'LWP';
                 $dayMapByDate[$date]['day_status'] = 'Leave';
@@ -1953,6 +1958,7 @@ function attendanceBuildEmployeeMonthTotals(array $emp, array &$dayMapByDate, $m
         if (
             $hasPunchNow
             && !$isCalWeekOff
+            && !$isCurrentWeekOff
             && !$isCalHoliday
             && (
                 $status === 'Absent'
@@ -1975,29 +1981,44 @@ function attendanceBuildEmployeeMonthTotals(array $emp, array &$dayMapByDate, $m
             $half = '';
         }
 
-        // Calendar week-off day: always Week Off for pay/display — never LWP / Leave
+        // History week-off weekday
         if ($isCalWeekOff && !$isCalHoliday) {
             if (in_array($status, ['Present', 'Half Day'], true)) {
-                // Worked on week-off → still pays as Week Off (C-Off balance separate)
-                attendanceAddDayToLeaveTotals($totals, 'Week Off');
-            } elseif ($status === 'Week Off' || $status === 'Absent' || $status === 'Leave') {
-                // Keep / restore Week Off — do not show LWP on WO day (Arjun case)
+                if ($isCurrentWeekOff) {
+                    // Worked on current week-off → pay as Week Off (C-Off separate)
+                    attendanceAddDayToLeaveTotals($totals, 'Week Off');
+                    $weekOffDatesCounted[] = $date;
+                } else {
+                    // Stale history (WO changed later): worked day must stay Present for pay.
+                    // Arjun: Sundays still Present on grid but old history stole them into WO → 29.
+                    attendanceAddDayToLeaveTotals($totals, $status, $type, $half);
+                }
+                continue;
+            }
+            if ($status === 'Week Off' || $status === 'Absent' || $status === 'Leave') {
                 $dayMapByDate[$date]['day_status'] = 'Week Off';
                 if ($status === 'Leave' || stripos((string) ($cell['remarks'] ?? ''), 'LWP') !== false) {
                     $dayMapByDate[$date]['remarks'] = '';
                 }
                 unset($dayMapByDate[$date]['_auto_lwp']);
                 attendanceAddDayToLeaveTotals($totals, 'Week Off');
-            } else {
-                attendanceAddDayToLeaveTotals($totals, 'Week Off');
+                $weekOffDatesCounted[] = $date;
+                continue;
             }
+            attendanceAddDayToLeaveTotals($totals, 'Week Off');
             $weekOffDatesCounted[] = $date;
             continue;
         }
 
         if ($status === 'Week Off') {
-            // Marked Week Off but NOT employee's week-off weekday:
-            // keep label as Week Off (never convert to LWP). Punch → Present for pay.
+            // Matches CURRENT week-off day (Manual) even if history still has old weekday
+            if ($isCurrentWeekOff) {
+                attendanceAddDayToLeaveTotals($totals, 'Week Off');
+                $weekOffDatesCounted[] = $date;
+                continue;
+            }
+            // Marked Week Off but NOT employee week-off weekday:
+            // Punch → Present for pay; no punch → unpaid (never LWP).
             $mins = (int) ($cell['working_minutes'] ?? 0);
             $hasPunch = !empty($cell['punch_in']) || !empty($cell['punch_out']) || $mins > 0;
             if ($hasPunch) {
@@ -2010,7 +2031,6 @@ function attendanceBuildEmployeeMonthTotals(array $emp, array &$dayMapByDate, $m
                 attendanceAddDayToLeaveTotals($totals, $asStatus, $type, $half);
                 continue;
             }
-            // No punch: stay Week Off on grid, unpaid (not LWP, not paid WO)
             $dayMapByDate[$date]['_wo_unpaid_non_calendar'] = 1;
             $rem = trim((string) ($dayMapByDate[$date]['remarks'] ?? ''));
             if ($rem === '' || stripos($rem, 'LWP') !== false) {
@@ -2021,7 +2041,8 @@ function attendanceBuildEmployeeMonthTotals(array $emp, array &$dayMapByDate, $m
         attendanceAddDayToLeaveTotals($totals, $status, $type, $half);
     }
 
-    // Hard cap: paid/raw WO cannot exceed calendar week-off days in range (max 4–5 for one weekday)
+    // Hard cap: WO cannot exceed history∪current week-off dates.
+    // Excess (Present counted as WO under stale history) is restored to Present — never drop pay days.
     $maxCalWeekOff = 0;
     for ($d = 1; $d <= $monthDays; $d++) {
         $date = sprintf('%04d-%02d-%02d', $year, $month, $d);
@@ -2034,12 +2055,19 @@ function attendanceBuildEmployeeMonthTotals(array $emp, array &$dayMapByDate, $m
         if (isset($holidaySet[$date])) {
             continue;
         }
-        if ($isWeekOffDateFn($date)) {
+        $dowCap = date('l', strtotime($date));
+        $histWo = function_exists('employeeWeekOffDayFromHistory')
+            ? employeeWeekOffDayFromHistory($weekOffHistory, $date, $weekOffFallback)
+            : $weekOffFallback;
+        if (strcasecmp($dowCap, $histWo) === 0 || strcasecmp($dowCap, $weekOffFallback) === 0) {
             $maxCalWeekOff++;
         }
     }
-    if ((float) ($totals['week_off'] ?? 0) > $maxCalWeekOff) {
+    $woNow = (float) ($totals['week_off'] ?? 0);
+    if ($woNow > $maxCalWeekOff) {
+        $excess = $woNow - (float) $maxCalWeekOff;
         $totals['week_off'] = (float) $maxCalWeekOff;
+        $totals['present'] = (float) ($totals['present'] ?? 0) + $excess;
     }
 
     $benefitFlags = attendanceNormalizeBenefitFlags($emp);
