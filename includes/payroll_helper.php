@@ -211,6 +211,7 @@ function jobworkMonthCache($month, $year)
     $amount = [];
     $qty = [];
     $days = [];
+    $hasOpsSheet = []; // employee_id => true when Operations Rate List sheet exists this month
     $from = sprintf('%04d-%02d-01', $year, $month);
     $to = date('Y-m-t', strtotime($from));
 
@@ -229,6 +230,7 @@ function jobworkMonthCache($month, $year)
                 $id = (int) $row['employee_id'];
                 $amount[$id] = (float) $row['a'];
                 $qty[$id] = (float) $row['q'];
+                $hasOpsSheet[$id] = true;
             }
         }
         $res2 = $conn->query(
@@ -257,6 +259,8 @@ function jobworkMonthCache($month, $year)
         }
     }
 
+    // Manual Jobwork Entry: only when employee has NO Operations Rate List sheet for this month.
+    // Otherwise sheet + manual duplicates inflate Salary Register (e.g. CUTTING AS79026).
     $fromEsc = $conn->real_escape_string($from);
     $toEsc = $conn->real_escape_string($to);
     $res3 = $conn->query(
@@ -268,6 +272,9 @@ function jobworkMonthCache($month, $year)
     if ($res3) {
         while ($row = $res3->fetch_assoc()) {
             $id = (int) $row['employee_id'];
+            if (!empty($hasOpsSheet[$id])) {
+                continue;
+            }
             $amount[$id] = ($amount[$id] ?? 0) + (float) $row['a'];
             $qty[$id] = ($qty[$id] ?? 0) + (float) $row['q'];
         }
@@ -279,6 +286,9 @@ function jobworkMonthCache($month, $year)
     if ($res4) {
         while ($row = $res4->fetch_assoc()) {
             $id = (int) $row['employee_id'];
+            if (!empty($hasOpsSheet[$id])) {
+                continue;
+            }
             if (!isset($days[$id])) {
                 $days[$id] = [];
             }

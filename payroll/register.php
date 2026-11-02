@@ -324,7 +324,7 @@ require_once __DIR__ . '/../includes/header.php';
         <?php if ($type === 'jobwork_govt'): ?>
             <p class="form-hint">Jobwork <strong>Government</strong>: Actual (Ops Qty × Rate) ÷ <?php echo $monthDays; ?> month days × paid days from <strong>Attendance Report</strong> (Present + Week Off + Holiday + P.L. + S.L. + D.L. + C-Off). Enter Manual Attendance first, then open this register / Generate Salary.</p>
         <?php elseif ($type === 'jobwork_actual'): ?>
-            <p class="form-hint">Jobwork <strong>Regular / Actual</strong>: full production amount (Qty × Rate) from Operations Rate List. No attendance day split — contract base earning.</p>
+            <p class="form-hint">Jobwork <strong>Regular / Actual</strong>: Qty × Rate from <strong>Operations Rate List</strong> only (same sheet totals). Manual Jobwork Entry is used only if no rate-list sheet exists for that employee/month. No attendance day split.</p>
         <?php elseif ($type === 'contractor_main'): ?>
             <p class="form-hint">Main Contractor: shows each Main + <strong>all under employees</strong> (Normal Salary + Jobwork) linked via employee form. Melting / CNC split mains included. NEFT still uses Register types 1 + 2 only (no double count).</p>
         <?php else: ?>
