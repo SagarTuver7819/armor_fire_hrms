@@ -36,7 +36,8 @@ function contractorAttendanceSplitRules()
                 'Punit Singh',
                 'PUNITBHAI',
             ],
-            // Under Normal Salary: deduct Σ(Net + PT) from Main pool → remainder to Puran
+            // Under Normal Salary register: deduct Σ(Net) + Σ(PT) from Main pool → remainder to Puran
+            // (same Net total as Melting 1 Salary Register / Excel, e.g. 7,52,059 + PT 6,200)
             'fund_basis' => 'net_plus_pt',
         ],
         [
@@ -554,69 +555,30 @@ function buildContractorAttendanceSplitForMain(array $main, $deptId, $deptName, 
     }
 
     $pool = contractorAttendanceSplitPoolAmount($main, $month, $year);
-    $monthEnd = sprintf('%04d-%02d-%02d', $year, $month, (int) date('t', strtotime(sprintf('%04d-%02d-01', $year, $month))));
-    $monthStart = sprintf('%04d-%02d-01', $year, $month);
 
-    $conn = getDBConnection();
-    ensureEmployeesTable($conn);
-    if ($requireLinkedUnder) {
-        $stmt = $conn->prepare(
-            "SELECT e.*, d.department_name
-             FROM employees e
-             LEFT JOIN departments d ON d.id = e.department_id
-             WHERE e.department_id = ?
-               AND e.pay_type = 'Salary'
-               AND e.main_contractor_id = ?
-               AND e.id <> ?
-               AND (
-                    e.status = 1
-                    OR (
-                        e.date_of_exit IS NOT NULL
-                        AND e.date_of_exit != ''
-                        AND e.date_of_exit != '0000-00-00'
-                        AND e.date_of_exit >= ?
-                    )
-               )
-               AND (
-                    e.date_of_joining IS NULL
-                    OR e.date_of_joining = ''
-                    OR e.date_of_joining = '0000-00-00'
-                    OR e.date_of_joining <= ?
-               )
-             ORDER BY e.employee_code ASC, e.employee_name ASC"
-        );
-        $stmt->bind_param('iiiss', $deptId, $mainId, $mainId, $monthStart, $monthEnd);
-    } else {
-        $stmt = $conn->prepare(
-            "SELECT e.*, d.department_name
-             FROM employees e
-             LEFT JOIN departments d ON d.id = e.department_id
-             WHERE e.department_id = ?
-               AND e.pay_type = 'Salary'
-               AND e.id <> ?
-               AND (
-                    e.status = 1
-                    OR (
-                        e.date_of_exit IS NOT NULL
-                        AND e.date_of_exit != ''
-                        AND e.date_of_exit != '0000-00-00'
-                        AND e.date_of_exit >= ?
-                    )
-               )
-               AND (
-                    e.date_of_joining IS NULL
-                    OR e.date_of_joining = ''
-                    OR e.date_of_joining = '0000-00-00'
-                    OR e.date_of_joining <= ?
-               )
-             ORDER BY e.employee_code ASC, e.employee_name ASC"
-        );
-        $stmt->bind_param('iiss', $deptId, $mainId, $monthStart, $monthEnd);
+    // Same employee set as Melting 1 Salary Register / Excel (not a looser SQL list)
+    if (!function_exists('fetchNormalRegisterEmployees')) {
+        require_once __DIR__ . '/salary_register_helper.php';
     }
-    $stmt->execute();
-    $emps = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
-    $stmt->close();
-    $conn->close();
+    $emps = fetchNormalRegisterEmployees($deptId, 0, $month, $year);
+    $filtered = [];
+    foreach ($emps as $emp) {
+        $eid = (int) ($emp['id'] ?? 0);
+        if ($eid <= 0 || $eid === $mainId) {
+            continue;
+        }
+        if ((int) ($emp['department_id'] ?? 0) !== $deptId) {
+            continue;
+        }
+        if (normalizePayType($emp['pay_type'] ?? '') !== 'Salary') {
+            continue;
+        }
+        if ($requireLinkedUnder && (int) ($emp['main_contractor_id'] ?? 0) !== $mainId) {
+            continue;
+        }
+        $filtered[] = $emp;
+    }
+    $emps = $filtered;
 
     $normalGrossByEmp = [];
     $normalFundByEmp = [];
@@ -627,32 +589,20 @@ function buildContractorAttendanceSplitForMain(array $main, $deptId, $deptName, 
     $sumPt = 0.0;
     foreach ($emps as $emp) {
         $eid = (int) ($emp['id'] ?? 0);
-        if ($eid <= 0 || (int) ($emp['department_id'] ?? 0) !== $deptId) {
-            continue;
-        }
-        if (normalizePayType($emp['pay_type'] ?? '') !== 'Salary') {
-            continue;
-        }
         $row = buildSalaryRegisterRowWithoutContractorSplit($emp, $month, $year, 'salary');
         $gross = round((float) ($row['gross'] ?? 0), 2);
         $net = round((float) ($row['net'] ?? 0), 2);
         $pt = round((float) ($row['pt'] ?? 0), 2);
-        $arrears = round((float) ($row['arrears'] ?? 0), 2);
         if ($net < 0) {
             $net = 0.0;
         }
         if ($pt < 0) {
             $pt = 0.0;
         }
-        if ($arrears < 0) {
-            $arrears = 0.0;
-        }
-        // Melting 1: Main pool funds Normal take-home + PT only.
-        // Net on register includes Arrears — do NOT subtract arrears from Main (that inflated the deduct).
-        // fund = (Net − Arrears) + PT  ≈ Gross − PF − Loan − Advance
-        $netBeforeArrears = round(max(0.0, $net - $arrears), 2);
+        // Melting 1: Pool − (Salary Register Net + PT) → remainder to Main
+        // Net = same figure as on-screen / Excel Net column (includes Arrears)
         $fundAmt = ($fundBasis === 'net_plus_pt')
-            ? round($netBeforeArrears + $pt, 2)
+            ? round($net + $pt, 2)
             : max(0.0, $gross);
         $days = (float) ($row['total_days'] ?? 0);
         if ($days < 0) {
@@ -663,7 +613,7 @@ function buildContractorAttendanceSplitForMain(array $main, $deptId, $deptName, 
         $daysByEmp[$eid] = $days;
         $totalDays += $days;
         $distributed += max(0.0, $fundAmt);
-        $sumNet += $netBeforeArrears;
+        $sumNet += $net;
         $sumPt += $pt;
     }
     $distributed = round($distributed, 2);
@@ -708,7 +658,7 @@ function buildContractorAttendanceSplitForMain(array $main, $deptId, $deptName, 
         'distributed' => $distributed,
         'remainder' => $remainder,
         'fund_basis' => $fundBasis,
-        'fund_label' => $fundBasis === 'net_plus_pt' ? 'Normal (Net−Arrears)+PT' : 'Normal Gross',
+        'fund_label' => $fundBasis === 'net_plus_pt' ? 'Normal Net+PT' : 'Normal Gross',
         'mode' => $fundBasis === 'net_plus_pt' ? 'normal_salary_net_plus_pt_fund' : 'normal_salary_gross_fund',
         'multi_main' => $requireLinkedUnder,
     ];
