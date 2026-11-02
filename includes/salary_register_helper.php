@@ -529,17 +529,72 @@ function getSalaryRegisterData($type, $month, $year, $deptId = 0, $employeeId = 
                 $mainRow['remarks'] = 'Main Contractor';
             }
             $rows[] = $mainRow;
+            $salaryUnder = [];
+            $jwUnder = [];
+            $normalGrossTotal = 0.0;
             foreach ($under as $u) {
                 $uPay = normalizePayType($u['pay_type'] ?? '');
                 $uMode = $uPay === 'Salary' ? 'salary' : 'jobwork_actual';
                 $row = buildSalaryRegisterRow($u, $month, $year, $uMode);
                 $row['mode'] = $uMode;
+                if ($uMode === 'salary') {
+                    $normalGrossTotal += (float) ($row['gross'] ?? 0);
+                    $salaryUnder[] = $row;
+                } else {
+                    $jwUnder[] = $row;
+                }
+            }
+            // Normal Salary under first → Gross total after them → then Jobwork under
+            foreach ($salaryUnder as $row) {
+                $rows[] = $row;
+            }
+            if ($salaryUnder) {
+                $rows[] = [
+                    'employee_id' => 0,
+                    'employee_code' => '',
+                    'employee_name' => 'Normal Salary Gross Total',
+                    'is_normal_gross_total' => true,
+                    'pay_type' => 'Salary',
+                    'mode' => 'salary',
+                    'designation' => '',
+                    'doj' => '',
+                    'uan' => '',
+                    'salary' => 0,
+                    'present' => 0,
+                    'week_off' => 0,
+                    'holiday' => 0,
+                    'pl' => 0,
+                    'sl' => 0,
+                    'dl' => 0,
+                    'coff' => 0,
+                    'total_days' => 0,
+                    'qty' => 0,
+                    'actual' => 0,
+                    'gross' => round($normalGrossTotal, 2),
+                    'pf' => 0,
+                    'pt' => 0,
+                    'loan' => 0,
+                    'advance' => 0,
+                    'total_deduction' => 0,
+                    'memo' => 0,
+                    'arrears' => 0,
+                    'net' => 0,
+                    'account' => '',
+                    'ifsc' => '',
+                    'remarks' => 'Σ Gross · Normal Salary under Main',
+                    'main_contractor' => '',
+                    'department' => (string) ($mainRow['department'] ?? ''),
+                    'department_id' => (int) ($mainRow['department_id'] ?? 0),
+                ];
+            }
+            foreach ($jwUnder as $row) {
                 $rows[] = $row;
             }
             $groups[] = [
                 'title' => 'Main Contractor: ' . ($main['employee_code'] ?? '') . ' — ' . ($main['employee_name'] ?? ''),
-                'subtitle' => 'Main + all under employees (Normal Salary + Jobwork) · every linked department',
+                'subtitle' => 'Main + Normal Salary under (Gross total) + Jobwork under',
                 'mode' => 'contractor_main',
+                'normal_salary_gross' => round($normalGrossTotal, 2),
                 'rows' => $rows,
             ];
         }

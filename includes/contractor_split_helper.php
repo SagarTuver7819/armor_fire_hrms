@@ -2,8 +2,8 @@
 /**
  * Main Contractor pool → department Normal Salary attendance fund + remainder on Main
  * (Melting 1, Melting 2, CNC, BUFF, ASSEMBLY 2 / 3 — same money rule):
- * - Normal Salary keep attendance net (funded from their Main's pool).
- * - Main Jobwork/NEFT = pool − Σ(that Main's Normal nets) → remainder.
+ * - Normal Salary under Main keep attendance pay (funded from their Main's pool).
+ * - Main Jobwork/NEFT = pool − Σ(that Main's Normal Salary Gross) → remainder.
  * - Jobwork who are not a Main keep own qty — no pool dump.
  * - multi_main (ASSEMBLY 3): do NOT auto-link whole dept; use employee.main_contractor_id.
  *
@@ -527,13 +527,9 @@ function ensureMelting1EmployeesUnderMain(array $rule)
 }
 
 /**
- * Month data: dept Normal nets funded from Main pool; remainder on Main.
- *
- * @return array<string, mixed>|null
- */
-/**
- * Pool / Normal nets / remainder for one Main inside a split department.
+ * Pool / Normal Salary Gross / remainder for one Main inside a split department.
  * $requireLinkedUnder: multi_main → only Salary with main_contractor_id = this main.
+ * Distributed = Σ Gross of Normal Salary under this Main (not Net).
  *
  * @return array<string, mixed>|null
  */
@@ -617,7 +613,7 @@ function buildContractorAttendanceSplitForMain(array $main, $deptId, $deptName, 
     $stmt->close();
     $conn->close();
 
-    $normalNetByEmp = [];
+    $normalGrossByEmp = [];
     $daysByEmp = [];
     $totalDays = 0.0;
     $distributed = 0.0;
@@ -630,36 +626,37 @@ function buildContractorAttendanceSplitForMain(array $main, $deptId, $deptName, 
             continue;
         }
         $row = buildSalaryRegisterRowWithoutContractorSplit($emp, $month, $year, 'salary');
-        $net = round((float) ($row['net'] ?? 0), 2);
+        // Fund / remainder uses Normal Salary Gross (attendance), not Net
+        $gross = round((float) ($row['gross'] ?? 0), 2);
         $days = (float) ($row['total_days'] ?? 0);
         if ($days < 0) {
             $days = 0;
         }
-        $normalNetByEmp[$eid] = max(0, $net);
+        $normalGrossByEmp[$eid] = max(0, $gross);
         $daysByEmp[$eid] = $days;
         $totalDays += $days;
-        $distributed += max(0, $net);
+        $distributed += max(0, $gross);
     }
     $distributed = round($distributed, 2);
 
     $shares = [];
     if ($pool > 0 && $distributed > $pool && $distributed > 0) {
         $assigned = 0.0;
-        $ids = array_keys($normalNetByEmp);
+        $ids = array_keys($normalGrossByEmp);
         $n = count($ids);
         foreach ($ids as $i => $eid) {
             if ($i === $n - 1) {
                 $shares[$eid] = round($pool - $assigned, 2);
             } else {
-                $part = round($pool * ($normalNetByEmp[$eid] / $distributed), 2);
+                $part = round($pool * ($normalGrossByEmp[$eid] / $distributed), 2);
                 $shares[$eid] = $part;
                 $assigned += $part;
             }
         }
         $distributed = round(array_sum($shares), 2);
     } else {
-        foreach ($normalNetByEmp as $eid => $net) {
-            $shares[$eid] = $net;
+        foreach ($normalGrossByEmp as $eid => $gross) {
+            $shares[$eid] = $gross;
         }
     }
 
@@ -673,11 +670,12 @@ function buildContractorAttendanceSplitForMain(array $main, $deptId, $deptName, 
         'pool' => $pool,
         'total_days' => $totalDays,
         'shares' => $shares,
-        'normal_nets' => $normalNetByEmp,
-        'recipient_count' => count($normalNetByEmp),
+        'normal_grosses' => $normalGrossByEmp,
+        'normal_nets' => $normalGrossByEmp, // BC alias — values are Gross
+        'recipient_count' => count($normalGrossByEmp),
         'distributed' => $distributed,
         'remainder' => $remainder,
-        'mode' => 'normal_salary_fund',
+        'mode' => 'normal_salary_gross_fund',
         'multi_main' => $requireLinkedUnder,
     ];
     return $cache[$ck];
@@ -792,12 +790,12 @@ function getContractorAttendanceShareForEmployee(array $emp, $month, $year)
                 continue;
             }
             $data = buildContractorAttendanceSplitForMain($mainsById[$linkedMainId], $splitDeptId, $deptName, $month, $year, true);
-            if (!$data || (!isset($data['shares'][$eid]) && !isset($data['normal_nets'][$eid]))) {
+            if (!$data || (!isset($data['shares'][$eid]) && !isset($data['normal_grosses'][$eid]) && !isset($data['normal_nets'][$eid]))) {
                 continue;
             }
             return [
                 'share' => 0.0,
-                'funded' => (float) ($data['shares'][$eid] ?? $data['normal_nets'][$eid] ?? 0),
+                'funded' => (float) ($data['shares'][$eid] ?? $data['normal_grosses'][$eid] ?? $data['normal_nets'][$eid] ?? 0),
                 'remainder' => 0.0,
                 'main_id' => (int) $data['main_id'],
                 'main_name' => (string) $data['main_name'],
@@ -835,12 +833,12 @@ function getContractorAttendanceShareForEmployee(array $emp, $month, $year)
         if ($pay !== 'Salary') {
             return null;
         }
-        if (!isset($data['shares'][$eid]) && !isset($data['normal_nets'][$eid])) {
+        if (!isset($data['shares'][$eid]) && !isset($data['normal_grosses'][$eid]) && !isset($data['normal_nets'][$eid])) {
             return null;
         }
         return [
             'share' => 0.0,
-            'funded' => (float) ($data['shares'][$eid] ?? $data['normal_nets'][$eid] ?? 0),
+            'funded' => (float) ($data['shares'][$eid] ?? $data['normal_grosses'][$eid] ?? $data['normal_nets'][$eid] ?? 0),
             'remainder' => 0.0,
             'main_id' => (int) $data['main_id'],
             'main_name' => (string) $data['main_name'],
@@ -950,12 +948,12 @@ function applyContractorAttendanceShareToRegisterRow(array $row, $month, $year, 
         $row['salary'] = $remainder;
         $row['qty'] = $remainder > 0 ? 1 : 0;
         $row['remarks'] = $deptLabel . ' after split · Pool ₹ ' . formatIndianNumber($pool, 2)
-            . ' − Normal ₹ ' . formatIndianNumber($distributed, 2)
+            . ' − Normal Gross ₹ ' . formatIndianNumber($distributed, 2)
             . ' = Remainder ₹ ' . formatIndianNumber($remainder, 2);
         return $row;
     }
 
-    // Split Normal: keep Normal net; tag under Main (no Jobwork dump)
+    // Split Normal: keep attendance Gross/Net; tag under Main (no Jobwork dump)
     if ($pay === 'Salary') {
         $info = getContractorAttendanceShareForEmployee([
             'id' => $eid,
@@ -968,13 +966,13 @@ function applyContractorAttendanceShareToRegisterRow(array $row, $month, $year, 
             $label = trim(($info['main_code'] ?? '') . ' — ' . ($info['main_name'] ?? ''));
             $row['main_contractor'] = $label !== '' && $label !== '—' ? $label : (string) ($info['main_name'] ?? '');
             $row['main_contractor_id'] = (int) ($info['main_id'] ?? 0);
-            // If pool was short and funded < net, scale net/gross to funded amount
+            // If pool was short and funded < Gross, scale Gross/Net to funded share
             $funded = (float) ($info['funded'] ?? 0);
-            $net = round((float) ($row['net'] ?? 0), 2);
-            if ($funded > 0 && $net > 0 && $funded + 0.009 < $net) {
-                $factor = $funded / $net;
-                $row['gross'] = round((float) ($row['gross'] ?? 0) * $factor, 2);
-                $row['net'] = $funded;
+            $gross = round((float) ($row['gross'] ?? 0), 2);
+            if ($funded > 0 && $gross > 0 && $funded + 0.009 < $gross) {
+                $factor = $funded / $gross;
+                $row['gross'] = $funded;
+                $row['net'] = round((float) ($row['net'] ?? 0) * $factor, 2);
             }
         }
         return $row;

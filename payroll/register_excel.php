@@ -135,6 +135,20 @@ foreach ($groups as $g) {
         continue;
     }
     foreach ($g['rows'] as $r) {
+        if (!empty($r['is_normal_gross_total'])) {
+            echo '<tr style="background:#fef3c7;font-weight:700;">';
+            echo '<td colspan="2"><strong>Normal Salary Gross Total</strong></td>';
+            if ($isActual) {
+                echo '<td colspan="5"></td>';
+                echo '<td><strong>' . (int) registerRoundMoney($r['gross'] ?? 0) . '</strong></td>';
+            } else {
+                echo '<td colspan="12"></td>';
+                echo '<td><strong>' . (int) registerRoundMoney($r['gross'] ?? 0) . '</strong></td>';
+            }
+            echo '<td colspan="10">' . htmlspecialchars((string) ($r['remarks'] ?? 'Σ Gross · Normal Salary under Main')) . '</td>';
+            echo '</tr>';
+            continue;
+        }
         $grandRows[] = $r;
         echo '<tr>';
         echo registerExcelTd($r['employee_code'] ?? '');
@@ -170,7 +184,10 @@ foreach ($groups as $g) {
         echo registerExcelTd($r['remarks'] ?? '');
         echo '</tr>';
     }
-    $deptSum = registerSumMoneyColumns($g['rows']);
+    $deptSumRows = array_values(array_filter($g['rows'], static function ($r) {
+        return empty($r['is_normal_gross_total']);
+    }));
+    $deptSum = registerSumMoneyColumns($deptSumRows);
     registerExcelTotalRow($deptSum, $isActual, 'Department Total', '#f1f5f9');
 }
 

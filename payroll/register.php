@@ -328,7 +328,7 @@ require_once __DIR__ . '/../includes/header.php';
         <?php elseif ($type === 'jobwork_actual'): ?>
             <p class="form-hint">Jobwork <strong>Regular / Actual</strong>: Qty × Rate from <strong>Operations Rate List</strong> only (same sheet totals). Manual Jobwork Entry is used only if no rate-list sheet exists for that employee/month. No attendance day split.</p>
         <?php elseif ($type === 'contractor_main'): ?>
-            <p class="form-hint">Main Contractor: shows each Main + <strong>all under employees</strong> (Normal Salary + Jobwork) linked via employee form. Melting / CNC split mains included. NEFT still uses Register types 1 + 2 only (no double count).</p>
+            <p class="form-hint">Main Contractor: Main + <strong>Normal Salary under</strong> (then <strong>Normal Salary Gross Total</strong>) + Jobwork under. CNC / Melting / Buff split: Main remainder = Pool − Normal Gross. NEFT uses Register types 1 + 2 only (no double count).</p>
         <?php else: ?>
             <p class="form-hint">Normal <strong>Fixed Salary</strong>: Gross = Decided Salary × (Present + Week Off + Holiday + P.L. + S.L. + D.L. + C-Off) ÷ month days — same totals as <strong>Attendance Report</strong> (employee week-off day for this month).</p>
         <?php endif; ?>
@@ -340,6 +340,9 @@ require_once __DIR__ . '/../includes/header.php';
     $grandRows = [];
     foreach ($groups as $g) {
         foreach ($g['rows'] as $gr) {
+            if (!empty($gr['is_normal_gross_total'])) {
+                continue; // subtotal row — do not double-count Gross
+            }
             $grandRows[] = $gr;
         }
     }
@@ -367,7 +370,10 @@ require_once __DIR__ . '/../includes/header.php';
     <?php foreach ($groups as $g): ?>
         <?php
         $rows = $g['rows'];
-        $deptSum = registerSumMoneyColumns($rows);
+        $deptSumRows = array_values(array_filter($rows, static function ($r) {
+            return empty($r['is_normal_gross_total']);
+        }));
+        $deptSum = registerSumMoneyColumns($deptSumRows);
         $groupDeptName = (string) (($rows[0]['department'] ?? '') ?: '');
         $groupDeptId = (int) ($rows[0]['department_id'] ?? 0);
         $showMemo = $groupDeptId > 0
@@ -442,6 +448,20 @@ require_once __DIR__ . '/../includes/header.php';
                     <?php endif; ?>
                     <?php foreach ($rows as $r): ?>
                         <?php
+                        if (!empty($r['is_normal_gross_total'])) {
+                            $colBeforeGross = $isActual ? 7 : 14; // emp cols + earning cols before Gross
+                            ?>
+                            <tr class="sr-normal-gross-total" style="background:#fef3c7;font-weight:700;" data-emp-search="normal salary gross total">
+                                <td class="sr-sticky sr-sticky-1" colspan="2"><strong>Normal Salary Gross Total</strong></td>
+                                <td colspan="<?php echo (int) ($colBeforeGross - 2); ?>"></td>
+                                <td class="num"><strong><?php echo registerNum($r['gross'] ?? 0, 0); ?></strong></td>
+                                <td colspan="<?php echo $showMemo ? 11 : 10; ?>" class="sr-code" style="text-align:left;padding-left:10px;">
+                                    <?php echo htmlspecialchars((string) ($r['remarks'] ?? 'Σ Gross · Normal Salary under Main')); ?>
+                                </td>
+                            </tr>
+                            <?php
+                            continue;
+                        }
                         $srEmpSearch = trim((string) ($r['employee_code'] ?? '') . ' ' . (string) ($r['employee_name'] ?? ''));
                         ?>
                         <tr data-emp-search="<?php echo htmlspecialchars($srEmpSearch, ENT_QUOTES, 'UTF-8'); ?>">
@@ -457,7 +477,7 @@ require_once __DIR__ . '/../includes/header.php';
                                 <?php if (!empty($r['contractor_split_out'])): ?>
                                     <div class="sr-code" style="color:#b45309;">
                                         Pool ₹ <?php echo registerNum($r['contractor_pool'] ?? 0); ?>
-                                        − Normal ₹ <?php echo registerNum($r['contractor_distributed'] ?? 0); ?>
+                                        − Normal Gross ₹ <?php echo registerNum($r['contractor_distributed'] ?? 0); ?>
                                         = <strong>Remainder ₹ <?php echo registerNum($r['contractor_remainder'] ?? $r['net'] ?? 0); ?></strong>
                                     </div>
                                 <?php endif; ?>
