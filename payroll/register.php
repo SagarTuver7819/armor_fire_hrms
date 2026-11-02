@@ -330,7 +330,7 @@ require_once __DIR__ . '/../includes/header.php';
         <?php else: ?>
             <p class="form-hint">Normal <strong>Fixed Salary</strong>: Gross = Decided Salary × (Present + Week Off + Holiday + P.L. + S.L. + D.L. + C-Off) ÷ month days — same totals as <strong>Attendance Report</strong> (employee week-off day for this month).</p>
         <?php endif; ?>
-        <p class="form-hint"><i class="fa-solid fa-pen-to-square" style="color:#d2232a;"></i> <strong>Arrears</strong> badha departments ma enter kari shako — value <strong>Net</strong> ma add thase (Net = Gross − Deduction + Arrears).</p>
+        <p class="form-hint"><i class="fa-solid fa-pen-to-square" style="color:#d2232a;"></i> <strong>Arrears</strong> cell પર click → popup માં amount + remark · OK કરતાં Arrears અને Remarks column માં save · Net = Gross − Deduction + Arrears.</p>
     </div>
 
     <?php
@@ -474,27 +474,32 @@ require_once __DIR__ . '/../includes/header.php';
                             $arrearsVal = (float) ($r['arrears'] ?? 0);
                             $netBase = (float) ($r['gross'] ?? 0) - (float) ($r['total_deduction'] ?? 0);
                             $netShow = (float) ($r['net'] ?? 0);
+                            $remarkShow = trim((string) ($r['remarks'] ?? ''));
+                            if ($remarkShow === '') {
+                                $remarkShow = '-';
+                            }
                             ?>
                             <td class="num sr-arrears-cell">
                                 <?php if ($canEditArrears): ?>
-                                <input type="number"
-                                       class="sr-arrears-input"
-                                       step="1"
-                                       min="0"
-                                       data-employee-id="<?php echo (int) $r['employee_id']; ?>"
-                                       data-net-base="<?php echo htmlspecialchars((string) $netBase); ?>"
-                                       value="<?php echo $arrearsVal != 0.0 ? htmlspecialchars(number_format($arrearsVal, 0, '.', '')) : ''; ?>"
-                                       placeholder="0"
-                                       title="Arrears (added to Net)"
-                                       style="width:88px;text-align:right;font-weight:700;border:1px solid #fca5a5;border-radius:6px;padding:4px 6px;background:#fff;">
+                                <button type="button"
+                                        class="sr-arrears-btn"
+                                        data-employee-id="<?php echo (int) $r['employee_id']; ?>"
+                                        data-employee-name="<?php echo htmlspecialchars((string) ($r['employee_name'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>"
+                                        data-employee-code="<?php echo htmlspecialchars((string) ($r['employee_code'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>"
+                                        data-net-base="<?php echo htmlspecialchars((string) $netBase); ?>"
+                                        data-arrears="<?php echo htmlspecialchars(number_format($arrearsVal, 0, '.', '')); ?>"
+                                        data-remarks="<?php echo htmlspecialchars($remarkShow === '-' ? '' : $remarkShow, ENT_QUOTES, 'UTF-8'); ?>"
+                                        title="Click to edit Arrears + Remark">
+                                    <span class="sr-arrears-value"><?php echo $arrearsVal != 0.0 ? registerNum($arrearsVal, 0) : '0'; ?></span>
+                                </button>
                                 <?php else: ?>
-                                <?php echo registerNum($arrearsVal, 0); ?>
+                                <span class="sr-arrears-value"><?php echo registerNum($arrearsVal, 0); ?></span>
                                 <?php endif; ?>
                             </td>
                             <td class="num sr-net-cell"><strong class="sr-net-value"><?php echo registerNum($netShow, 0); ?></strong></td>
                             <td><?php echo htmlspecialchars($r['account'] ?: '-'); ?></td>
                             <td><?php echo htmlspecialchars($r['ifsc'] ?: '-'); ?></td>
-                            <td><?php echo htmlspecialchars($r['remarks'] ?: '-'); ?></td>
+                            <td class="sr-remarks-cell"><?php echo htmlspecialchars($remarkShow); ?></td>
                         </tr>
                     <?php endforeach; ?>
                     </tbody>
@@ -560,6 +565,27 @@ require_once __DIR__ . '/../includes/header.php';
     <?php endif; ?>
 </main>
 <?php if ($canEditArrears): ?>
+<div id="srArrearsModal" class="sr-arrears-modal" hidden aria-hidden="true">
+    <div class="sr-arrears-modal-backdrop" data-sr-arrears-close></div>
+    <div class="sr-arrears-modal-box" role="dialog" aria-modal="true" aria-labelledby="srArrearsModalTitle">
+        <h3 id="srArrearsModalTitle">Arrears + Remark</h3>
+        <p class="sr-arrears-modal-sub" id="srArrearsModalEmp">—</p>
+        <div class="form-group">
+            <label for="srArrearsAmount">Arrears (₹)</label>
+            <input type="number" id="srArrearsAmount" class="form-control" min="0" step="1" placeholder="0">
+        </div>
+        <div class="form-group">
+            <label for="srArrearsRemark">Remark</label>
+            <textarea id="srArrearsRemark" class="form-control" rows="3" maxlength="255" placeholder="Remark for this arrears…"></textarea>
+        </div>
+        <div class="sr-arrears-modal-actions">
+            <button type="button" class="btn-secondary" data-sr-arrears-close>Cancel</button>
+            <button type="button" class="btn-primary" id="srArrearsSaveBtn">
+                <i class="fa-solid fa-check"></i> OK · Save
+            </button>
+        </div>
+    </div>
+</div>
 <script>
 (function () {
     var saveUrl = <?php echo json_encode(app_url('payroll/register_arrears_save.php')); ?>;
@@ -567,24 +593,37 @@ require_once __DIR__ . '/../includes/header.php';
     var year = <?php echo (int) $year; ?>;
     var deptId = <?php echo (int) $deptId; ?>;
     var regType = <?php echo json_encode($type); ?>;
-    var timers = {};
+    var modal = document.getElementById('srArrearsModal');
+    var amountInput = document.getElementById('srArrearsAmount');
+    var remarkInput = document.getElementById('srArrearsRemark');
+    var empLabel = document.getElementById('srArrearsModalEmp');
+    var saveBtn = document.getElementById('srArrearsSaveBtn');
+    var activeBtn = null;
 
     function fmt(n) {
         n = Math.round(parseFloat(n) || 0);
         return n.toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
     }
 
-    function recalcRow(input) {
-        var base = parseFloat(input.getAttribute('data-net-base')) || 0;
-        var arr = parseFloat(input.value);
-        if (isNaN(arr) || arr < 0) arr = 0;
-        arr = Math.round(arr);
-        var net = Math.round(base + arr);
-        if (net < 0) net = 0;
-        var cell = input.closest('tr').querySelector('.sr-net-value');
-        if (cell) cell.textContent = fmt(net);
-        recalcSheetTotal(input.closest('table'));
-        return arr;
+    function closeModal() {
+        if (!modal) return;
+        modal.hidden = true;
+        modal.setAttribute('aria-hidden', 'true');
+        document.body.classList.remove('sr-arrears-modal-open');
+        activeBtn = null;
+    }
+
+    function openModal(btn) {
+        activeBtn = btn;
+        var code = btn.getAttribute('data-employee-code') || '';
+        var name = btn.getAttribute('data-employee-name') || '';
+        empLabel.textContent = (code ? code + ' — ' : '') + name;
+        amountInput.value = btn.getAttribute('data-arrears') || '';
+        remarkInput.value = btn.getAttribute('data-remarks') || '';
+        modal.hidden = false;
+        modal.setAttribute('aria-hidden', 'false');
+        document.body.classList.add('sr-arrears-modal-open');
+        setTimeout(function () { amountInput.focus(); amountInput.select(); }, 30);
     }
 
     function recalcSheetTotal(table) {
@@ -595,8 +634,8 @@ require_once __DIR__ . '/../includes/header.php';
             var t = (el.textContent || '').replace(/,/g, '');
             total += parseFloat(t) || 0;
         });
-        table.querySelectorAll('.sr-arrears-input').forEach(function (inp) {
-            var a = parseFloat(inp.value);
+        table.querySelectorAll('.sr-arrears-btn').forEach(function (btn) {
+            var a = parseFloat(btn.getAttribute('data-arrears'));
             if (!isNaN(a) && a > 0) arrTotal += a;
         });
         var foot = table.querySelector('.sr-net-total');
@@ -605,10 +644,35 @@ require_once __DIR__ . '/../includes/header.php';
         if (footArr) footArr.textContent = fmt(arrTotal);
     }
 
-    function saveArrears(input) {
-        var empId = parseInt(input.getAttribute('data-employee-id'), 10) || 0;
+    function applyToRow(btn, arr, remarks, netFromServer) {
+        var base = parseFloat(btn.getAttribute('data-net-base')) || 0;
+        arr = Math.round(parseFloat(arr) || 0);
+        if (arr < 0) arr = 0;
+        var net = netFromServer != null ? Math.round(parseFloat(netFromServer) || 0) : Math.round(base + arr);
+        if (net < 0) net = 0;
+        btn.setAttribute('data-arrears', String(arr));
+        btn.setAttribute('data-remarks', remarks === '-' ? '' : (remarks || ''));
+        var valEl = btn.querySelector('.sr-arrears-value');
+        if (valEl) valEl.textContent = fmt(arr);
+        var tr = btn.closest('tr');
+        if (tr) {
+            var netEl = tr.querySelector('.sr-net-value');
+            if (netEl) netEl.textContent = fmt(net);
+            var remEl = tr.querySelector('.sr-remarks-cell');
+            if (remEl) remEl.textContent = remarks && remarks !== '' ? remarks : '-';
+        }
+        recalcSheetTotal(btn.closest('table'));
+    }
+
+    function saveArrears() {
+        if (!activeBtn) return;
+        var empId = parseInt(activeBtn.getAttribute('data-employee-id'), 10) || 0;
         if (!empId) return;
-        var arr = recalcRow(input);
+        var arr = parseFloat(amountInput.value);
+        if (isNaN(arr) || arr < 0) arr = 0;
+        arr = Math.round(arr);
+        var remarks = String(remarkInput.value || '').trim();
+        saveBtn.disabled = true;
         var body = new FormData();
         body.append('employee_id', empId);
         body.append('month', month);
@@ -616,33 +680,38 @@ require_once __DIR__ . '/../includes/header.php';
         body.append('department_id', deptId);
         body.append('type', regType);
         body.append('arrears', arr);
+        body.append('remarks', remarks);
         fetch(saveUrl, { method: 'POST', body: body, credentials: 'same-origin' })
             .then(function (r) { return r.json(); })
             .then(function (res) {
+                saveBtn.disabled = false;
                 if (!res || !res.success) {
                     if (window.toastr) toastr.error((res && res.message) || 'Arrears save failed');
                     else alert((res && res.message) || 'Arrears save failed');
                     return;
                 }
-                if (window.toastr) toastr.success('Arrears saved');
+                applyToRow(activeBtn, res.arrears != null ? res.arrears : arr, res.remarks || remarks || '-', res.net);
+                if (window.toastr) toastr.success('Arrears & remark saved');
+                closeModal();
             })
             .catch(function () {
+                saveBtn.disabled = false;
                 if (window.toastr) toastr.error('Arrears save failed');
             });
     }
 
-    document.querySelectorAll('.sr-arrears-input').forEach(function (input) {
-        input.addEventListener('input', function () {
-            recalcRow(input);
-            var key = input.getAttribute('data-employee-id');
-            if (timers[key]) clearTimeout(timers[key]);
-            timers[key] = setTimeout(function () { saveArrears(input); }, 450);
+    document.querySelectorAll('.sr-arrears-btn').forEach(function (btn) {
+        btn.addEventListener('click', function () { openModal(btn); });
+    });
+    if (modal) {
+        modal.querySelectorAll('[data-sr-arrears-close]').forEach(function (el) {
+            el.addEventListener('click', closeModal);
         });
-        input.addEventListener('change', function () {
-            var key = input.getAttribute('data-employee-id');
-            if (timers[key]) clearTimeout(timers[key]);
-            saveArrears(input);
-        });
+    }
+    if (saveBtn) saveBtn.addEventListener('click', saveArrears);
+    document.addEventListener('keydown', function (ev) {
+        if (!modal || modal.hidden) return;
+        if (ev.key === 'Escape') closeModal();
     });
 })();
 </script>

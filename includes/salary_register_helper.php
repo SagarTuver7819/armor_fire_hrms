@@ -114,7 +114,14 @@ function buildSalaryRegisterRow(array $emp, $month, $year, $mode)
         'bank_name' => (string) ($emp['bank_name'] ?? ''),
         'account' => (string) ($emp['bank_account_number'] ?? '-'),
         'ifsc' => (string) ($emp['ifsc_code'] ?? '-'),
-        'remarks' => (string) ($emp['extra_note'] ?? '-'),
+        'remarks' => (function () use ($att, $emp) {
+            $diaryRem = trim((string) ($att['diary_remarks'] ?? ''));
+            if ($diaryRem !== '') {
+                return $diaryRem;
+            }
+            $note = trim((string) ($emp['extra_note'] ?? ''));
+            return $note !== '' ? $note : '-';
+        })(),
         'week_off_paid' => (float) ($att['week_off_paid'] ?? 0),
         'holiday_paid' => (float) ($att['holiday_paid'] ?? 0),
         'week_off_raw' => (float) ($att['week_off'] ?? 0),

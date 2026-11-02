@@ -1,6 +1,6 @@
 <?php
 /**
- * AJAX: save Salary Register Arrears → salary_diary.arrears_amount
+ * AJAX: save Salary Register Arrears + Remark → salary_diary
  * Net = Gross − Deductions + Arrears.
  * Allowed on every department sheet; also patches locked snapshots / NEFT if present.
  */
@@ -26,6 +26,12 @@ $year = (int) ($_POST['year'] ?? 0);
 $deptId = (int) ($_POST['department_id'] ?? 0);
 $type = (string) ($_POST['type'] ?? 'salary');
 $arrears = (float) ($_POST['arrears'] ?? 0);
+$remarks = trim((string) ($_POST['remarks'] ?? ''));
+if (function_exists('mb_substr')) {
+    $remarks = mb_substr($remarks, 0, 255);
+} else {
+    $remarks = substr($remarks, 0, 255);
+}
 
 if ($employeeId <= 0 || $month < 1 || $month > 12 || $year < 2000) {
     echo json_encode(['success' => false, 'message' => 'Invalid employee / month.']);
@@ -47,16 +53,19 @@ $conn = getDBConnection();
 ensurePayrollTables($conn);
 ensurePayrollReportTables($conn);
 
+$remarksDb = $remarks !== '' ? $remarks : null;
 $stmt = $conn->prepare(
-    "INSERT INTO salary_diary (employee_id, month_no, year_no, arrears_amount)
-     VALUES (?, ?, ?, ?)
-     ON DUPLICATE KEY UPDATE arrears_amount = VALUES(arrears_amount)"
+    "INSERT INTO salary_diary (employee_id, month_no, year_no, arrears_amount, remarks)
+     VALUES (?, ?, ?, ?, ?)
+     ON DUPLICATE KEY UPDATE
+        arrears_amount = VALUES(arrears_amount),
+        remarks = VALUES(remarks)"
 );
 if (!$stmt) {
     echo json_encode(['success' => false, 'message' => 'DB prepare failed.']);
     exit;
 }
-$stmt->bind_param('iiid', $employeeId, $month, $year, $arrears);
+$stmt->bind_param('iiids', $employeeId, $month, $year, $arrears, $remarksDb);
 $ok = $stmt->execute();
 $err = $stmt->error;
 $stmt->close();
@@ -66,6 +75,8 @@ if (!$ok) {
     echo json_encode(['success' => false, 'message' => $err ?: 'Save failed.']);
     exit;
 }
+
+$remarksOut = $remarks !== '' ? $remarks : '-';
 
 // Patch any locked snapshots (this dept + All departments) so Net / NEFT stay in sync
 $netOut = null;
@@ -110,6 +121,7 @@ foreach ($locks as $lockRow) {
                     $net = 0;
                 }
                 $r['arrears'] = $arrears;
+                $r['remarks'] = $remarksOut;
                 $r['net'] = $net;
                 $netOut = $net;
                 $changed = true;
@@ -133,6 +145,7 @@ foreach ($locks as $lockRow) {
                 $net = 0;
             }
             $r['arrears'] = $arrears;
+            $r['remarks'] = $remarksOut;
             $r['net'] = $net;
             $netOut = $net;
             $changed = true;
@@ -153,7 +166,6 @@ foreach ($locks as $lockRow) {
             continue;
         }
         $nr['amount'] = $netOut !== null ? $netOut : (float) ($nr['amount'] ?? 0);
-        // If net became 0, keep row but amount 0; bank sheet can skip later
     }
     unset($nr);
 
@@ -178,5 +190,6 @@ echo json_encode([
     'success' => true,
     'message' => 'Arrears saved.',
     'arrears' => $arrears,
+    'remarks' => $remarksOut,
     'net' => $netOut,
 ]);

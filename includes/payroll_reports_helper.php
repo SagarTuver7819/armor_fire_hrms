@@ -405,9 +405,9 @@ function refreshSalaryRegisterRowFromLiveAttendance(array $lockedRow, $type, $mo
         $net = 0;
     }
     $live['net'] = $net;
-    // Preserve bank / identity display from lock when live blank
-    foreach (['account', 'ifsc', 'bank_name', 'uan', 'doj', 'designation'] as $k) {
-        if ((empty($live[$k]) || $live[$k] === '-') && !empty($lockedRow[$k])) {
+    // Preserve bank / identity / remarks display from lock when live blank
+    foreach (['account', 'ifsc', 'bank_name', 'uan', 'doj', 'designation', 'remarks'] as $k) {
+        if ((empty($live[$k]) || $live[$k] === '-') && !empty($lockedRow[$k]) && $lockedRow[$k] !== '-') {
             $live[$k] = $lockedRow[$k];
         }
     }

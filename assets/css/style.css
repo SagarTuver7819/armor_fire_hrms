@@ -1543,6 +1543,85 @@ textarea.is-synced-addr {
     min-width: 220px;
 }
 
+/* Salary Register — Arrears click popup */
+.sr-arrears-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: flex-end;
+    min-width: 72px;
+    width: 100%;
+    max-width: 96px;
+    margin: 0 auto;
+    padding: 5px 8px;
+    border: 1px solid #fca5a5;
+    border-radius: 6px;
+    background: #fff7f7;
+    color: #9f1239;
+    font-weight: 700;
+    font-size: 13px;
+    cursor: pointer;
+    text-align: right;
+}
+.sr-arrears-btn:hover {
+    background: #ffe4e6;
+    border-color: #d2232a;
+}
+body.sr-arrears-modal-open { overflow: hidden; }
+.sr-arrears-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 120600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+}
+.sr-arrears-modal[hidden] { display: none !important; }
+.sr-arrears-modal-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.55);
+    backdrop-filter: blur(3px);
+}
+.sr-arrears-modal-box {
+    position: relative;
+    width: 100%;
+    max-width: 420px;
+    background: #fff;
+    border-radius: 16px;
+    padding: 22px 20px 18px;
+    box-shadow: 0 24px 48px rgba(0, 0, 0, 0.18);
+    border: 1px solid #eef1f5;
+}
+.sr-arrears-modal-box h3 {
+    margin: 0 0 4px;
+    font-size: 18px;
+    font-weight: 800;
+    color: #1a2332;
+}
+.sr-arrears-modal-sub {
+    margin: 0 0 14px;
+    font-size: 13px;
+    color: #64748b;
+}
+.sr-arrears-modal-box .form-group {
+    margin-bottom: 12px;
+    text-align: left;
+}
+.sr-arrears-modal-actions {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+    margin-top: 8px;
+}
+.sr-remarks-cell {
+    max-width: 180px;
+    white-space: normal;
+    word-break: break-word;
+    font-size: 12px;
+    color: #334155;
+}
+
 /* Attendance Report / Salary Register — filters + employee search */
 .report-filter-bar {
     display: grid;
