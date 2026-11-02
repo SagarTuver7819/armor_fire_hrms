@@ -132,7 +132,7 @@ function buildSalaryRegisterRow(array $emp, $month, $year, $mode)
         'contractor_main_share' => 0.0,
     ];
 
-    // Melting 1 / Melting 2 / CNC / BUFF / ASSEMBLY 2: Normal funded from Main pool; Main Jobwork row = remainder
+    // Melting / CNC / BUFF / ASSEMBLY 2+3: Normal funded from Main pool; Main Jobwork = remainder
     // Remainder only on Jobwork Actual register — never rewrite Normal Salary rows.
     if (function_exists('applyContractorAttendanceShareToRegisterRow')) {
         $row = applyContractorAttendanceShareToRegisterRow($row, $month, $year, $mode);

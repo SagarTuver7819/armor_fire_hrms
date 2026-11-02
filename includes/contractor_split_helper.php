@@ -1,16 +1,19 @@
 <?php
 /**
  * Main Contractor pool → department Normal Salary attendance fund + remainder on Main
- * (Melting 1, Melting 2, CNC, BUFF, ASSEMBLY 2 — same rule):
- * - Dept Normal Salary keep attendance net on register/NEFT (funded from Main pool).
- * - Main Jobwork/NEFT = pool − Σ(Normal nets) → remainder.
- * - Dept Jobwork (not main) stay on Jobwork register with own qty — no pool dump.
+ * (Melting 1, Melting 2, CNC, BUFF, ASSEMBLY 2 / 3 — same money rule):
+ * - Normal Salary keep attendance net (funded from their Main's pool).
+ * - Main Jobwork/NEFT = pool − Σ(that Main's Normal nets) → remainder.
+ * - Jobwork who are not a Main keep own qty — no pool dump.
+ * - multi_main (ASSEMBLY 3): do NOT auto-link whole dept; use employee.main_contractor_id.
  *
  * Melting 1: PURANSINH PUNITBHAI / CO72216
  * Melting 2: auto from department main_contractor links / Jobwork CO
  * CNC: Ravi / CO72141 (department auto-resolve)
  * BUFF: SADDAM NANNE KHAN / CO72302
- * ASSEMBLY 2: AASHISH KUMAR B / CO72103 (same Melting Normal-attendance fund rule)
+ * ASSEMBLY 2: AASHISH KUMAR B / CO72103
+ * ASSEMBLY 3: multi_main — several Contractor Main / Jobwork; employee Edit picks Under;
+ *   each main pool funds only linked Normal Salary (attendance), remainder on that main.
  */
 
 require_once __DIR__ . '/payroll_helper.php';
@@ -87,23 +90,52 @@ function contractorAttendanceSplitRules()
             ],
             'resolve_from_department' => true,
         ],
+        [
+            // Multiple mains (Sagar / Paras / Keval …) — Under set on employee Edit
+            'main_name' => 'ASSEMBLY 3 Multi Contractor',
+            'main_code' => '',
+            'department_name' => 'ASSEMBLY 3 RRL & FLEXIBLE',
+            'name_aliases' => [],
+            'resolve_from_department' => true,
+            'multi_main' => true,
+        ],
     ];
 }
 
 /**
- * Options for Employee form "Contractor Main" when pay type = Jobwork.
- * Includes ContractorMain + configured Melting mains (e.g. PURANSINH CO72216).
+ * Options for Employee form "Main Contractor (Under)".
+ * - Global: ContractorMain + configured single split mains
+ * - multi_main dept (ASSEMBLY 3): ContractorMain + Jobwork in that department
  *
- * @return array<int, array{id:int, employee_code:string, employee_name:string}>
+ * @return array<int, array{id:int, employee_code:string, employee_name:string, department_id?:int}>
  */
-function getMainContractorSelectOptions($excludeId = 0)
+function getMainContractorSelectOptions($excludeId = 0, $forDepartmentId = 0)
 {
     $excludeId = (int) $excludeId;
+    $forDepartmentId = (int) $forDepartmentId;
     $byId = [];
     foreach (getEmployeesByPayType('ContractorMain', $excludeId) as $row) {
         $byId[(int) $row['id']] = $row;
     }
     foreach (contractorAttendanceSplitRules() as $rule) {
+        if (!empty($rule['multi_main'])) {
+            $deptId = resolveDepartmentIdByName((string) ($rule['department_name'] ?? ''));
+            if ($deptId > 0 && ($forDepartmentId <= 0 || $forDepartmentId === $deptId)) {
+                foreach (resolveMultiMainsForDepartment((string) $rule['department_name']) as $main) {
+                    $mid = (int) ($main['id'] ?? 0);
+                    if ($mid <= 0 || $mid === $excludeId) {
+                        continue;
+                    }
+                    $byId[$mid] = [
+                        'id' => $mid,
+                        'employee_code' => (string) ($main['employee_code'] ?? ''),
+                        'employee_name' => (string) ($main['employee_name'] ?? ''),
+                        'department_id' => (int) ($main['department_id'] ?? $deptId),
+                    ];
+                }
+            }
+            continue;
+        }
         $main = resolveContractorAttendanceSplitMain($rule);
         if ($main && (int) $main['id'] !== $excludeId) {
             $byId[(int) $main['id']] = [
@@ -114,11 +146,75 @@ function getMainContractorSelectOptions($excludeId = 0)
             ];
         }
     }
+
+    // Prefer same-department contractors when editing an Ass3 (multi_main) employee
+    if ($forDepartmentId > 0) {
+        $multiDeptIds = [];
+        foreach (contractorAttendanceSplitRules() as $rule) {
+            if (empty($rule['multi_main'])) {
+                continue;
+            }
+            $did = resolveDepartmentIdByName((string) ($rule['department_name'] ?? ''));
+            if ($did > 0) {
+                $multiDeptIds[$did] = true;
+            }
+        }
+        if (isset($multiDeptIds[$forDepartmentId])) {
+            $byId = array_filter($byId, static function ($row) use ($forDepartmentId) {
+                return (int) ($row['department_id'] ?? 0) === $forDepartmentId;
+            });
+        }
+    }
+
     $rows = array_values($byId);
     usort($rows, static function ($a, $b) {
         return strcasecmp((string) ($a['employee_name'] ?? ''), (string) ($b['employee_name'] ?? ''));
     });
     return $rows;
+}
+
+/**
+ * Contractor Main + Jobwork in a multi_main department (potential Under targets / pool holders).
+ *
+ * @return array<int, array<string, mixed>>
+ */
+function resolveMultiMainsForDepartment($departmentName)
+{
+    static $cache = [];
+    $departmentName = trim((string) $departmentName);
+    $key = strtolower($departmentName);
+    if ($key === '') {
+        return [];
+    }
+    if (isset($cache[$key])) {
+        return $cache[$key];
+    }
+    $deptId = resolveDepartmentIdByName($departmentName);
+    if ($deptId <= 0) {
+        $cache[$key] = [];
+        return [];
+    }
+    $conn = getDBConnection();
+    ensureEmployeesTable($conn);
+    $stmt = $conn->prepare(
+        "SELECT e.*, d.department_name
+         FROM employees e
+         LEFT JOIN departments d ON d.id = e.department_id
+         WHERE e.department_id = ?
+           AND e.status = 1
+           AND e.pay_type IN ('ContractorMain', 'Jobwork')
+         ORDER BY
+           CASE WHEN e.pay_type = 'ContractorMain' THEN 0 ELSE 1 END,
+           e.employee_code ASC,
+           e.employee_name ASC"
+    );
+    $stmt->bind_param('i', $deptId);
+    $stmt->execute();
+    $rows = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+    $stmt->close();
+    $conn->close();
+    $cache[$key] = $rows ?: [];
+    return $cache[$key];
 }
 
 /**
@@ -132,6 +228,15 @@ function contractorAttendanceSplitMainIds()
     }
     $ids = [];
     foreach (contractorAttendanceSplitRules() as $rule) {
+        if (!empty($rule['multi_main'])) {
+            foreach (resolveMultiMainsForDepartment((string) ($rule['department_name'] ?? '')) as $main) {
+                $mid = (int) ($main['id'] ?? 0);
+                if ($mid > 0) {
+                    $ids[$mid] = true;
+                }
+            }
+            continue;
+        }
         $main = resolveContractorAttendanceSplitMain($rule);
         if ($main) {
             $ids[(int) $main['id']] = true;
@@ -379,6 +484,10 @@ function contractorAttendanceSplitPoolAmount(array $main, $month, $year)
  */
 function ensureSplitDeptEmployeesUnderMain(array $rule)
 {
+    // multi_main (ASSEMBLY 3): Under is chosen on employee Edit — never force whole dept
+    if (!empty($rule['multi_main'])) {
+        return;
+    }
     static $done = [];
     $deptName = trim((string) ($rule['department_name'] ?? ''));
     $code = strtoupper(trim((string) ($rule['main_code'] ?? '')));
@@ -422,66 +531,92 @@ function ensureMelting1EmployeesUnderMain(array $rule)
  *
  * @return array<string, mixed>|null
  */
-function getContractorAttendanceSplitMonthData($month, $year, array $rule)
+/**
+ * Pool / Normal nets / remainder for one Main inside a split department.
+ * $requireLinkedUnder: multi_main → only Salary with main_contractor_id = this main.
+ *
+ * @return array<string, mixed>|null
+ */
+function buildContractorAttendanceSplitForMain(array $main, $deptId, $deptName, $month, $year, $requireLinkedUnder = false)
 {
-    static $cache = [];
+    $mainId = (int) ($main['id'] ?? 0);
+    $deptId = (int) $deptId;
     $month = (int) $month;
     $year = (int) $year;
-    $deptName = (string) ($rule['department_name'] ?? '');
-    $code = strtoupper(trim((string) ($rule['main_code'] ?? '')));
-    $ck = $month . '-' . $year . '|' . ($code !== '' ? $code : 'auto') . '|' . strtolower($deptName);
+    if ($mainId <= 0 || $deptId <= 0) {
+        return null;
+    }
+    static $cache = [];
+    $ck = $month . '-' . $year . '|main:' . $mainId . '|dept:' . $deptId . '|link:' . ($requireLinkedUnder ? '1' : '0');
     if (array_key_exists($ck, $cache)) {
         return $cache[$ck];
     }
 
-    ensureSplitDeptEmployeesUnderMain($rule);
-
-    $main = resolveContractorAttendanceSplitMain($rule);
-    $deptId = resolveDepartmentIdByName($deptName);
-    if (!$main || $deptId <= 0) {
-        $cache[$ck] = null;
-        return null;
-    }
-
-    $mainId = (int) $main['id'];
     $pool = contractorAttendanceSplitPoolAmount($main, $month, $year);
     $monthEnd = sprintf('%04d-%02d-%02d', $year, $month, (int) date('t', strtotime(sprintf('%04d-%02d-01', $year, $month))));
     $monthStart = sprintf('%04d-%02d-01', $year, $month);
 
-    // Recipients: this department Normal Salary ONLY (Jobwork stay on Jobwork register)
     $conn = getDBConnection();
     ensureEmployeesTable($conn);
-    $stmt = $conn->prepare(
-        "SELECT e.*, d.department_name
-         FROM employees e
-         LEFT JOIN departments d ON d.id = e.department_id
-         WHERE e.department_id = ?
-           AND e.pay_type = 'Salary'
-           AND e.id <> ?
-           AND (
-                e.status = 1
-                OR (
-                    e.date_of_exit IS NOT NULL
-                    AND e.date_of_exit != ''
-                    AND e.date_of_exit != '0000-00-00'
-                    AND e.date_of_exit >= ?
-                )
-           )
-           AND (
-                e.date_of_joining IS NULL
-                OR e.date_of_joining = ''
-                OR e.date_of_joining = '0000-00-00'
-                OR e.date_of_joining <= ?
-           )
-         ORDER BY e.employee_code ASC, e.employee_name ASC"
-    );
-    $stmt->bind_param('iiss', $deptId, $mainId, $monthStart, $monthEnd);
+    if ($requireLinkedUnder) {
+        $stmt = $conn->prepare(
+            "SELECT e.*, d.department_name
+             FROM employees e
+             LEFT JOIN departments d ON d.id = e.department_id
+             WHERE e.department_id = ?
+               AND e.pay_type = 'Salary'
+               AND e.main_contractor_id = ?
+               AND e.id <> ?
+               AND (
+                    e.status = 1
+                    OR (
+                        e.date_of_exit IS NOT NULL
+                        AND e.date_of_exit != ''
+                        AND e.date_of_exit != '0000-00-00'
+                        AND e.date_of_exit >= ?
+                    )
+               )
+               AND (
+                    e.date_of_joining IS NULL
+                    OR e.date_of_joining = ''
+                    OR e.date_of_joining = '0000-00-00'
+                    OR e.date_of_joining <= ?
+               )
+             ORDER BY e.employee_code ASC, e.employee_name ASC"
+        );
+        $stmt->bind_param('iiiss', $deptId, $mainId, $mainId, $monthStart, $monthEnd);
+    } else {
+        $stmt = $conn->prepare(
+            "SELECT e.*, d.department_name
+             FROM employees e
+             LEFT JOIN departments d ON d.id = e.department_id
+             WHERE e.department_id = ?
+               AND e.pay_type = 'Salary'
+               AND e.id <> ?
+               AND (
+                    e.status = 1
+                    OR (
+                        e.date_of_exit IS NOT NULL
+                        AND e.date_of_exit != ''
+                        AND e.date_of_exit != '0000-00-00'
+                        AND e.date_of_exit >= ?
+                    )
+               )
+               AND (
+                    e.date_of_joining IS NULL
+                    OR e.date_of_joining = ''
+                    OR e.date_of_joining = '0000-00-00'
+                    OR e.date_of_joining <= ?
+               )
+             ORDER BY e.employee_code ASC, e.employee_name ASC"
+        );
+        $stmt->bind_param('iiss', $deptId, $mainId, $monthStart, $monthEnd);
+    }
     $stmt->execute();
     $emps = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
     $stmt->close();
     $conn->close();
 
-    // Normal net per employee (attendance) — DO NOT replace with pool dump
     $normalNetByEmp = [];
     $daysByEmp = [];
     $totalDays = 0.0;
@@ -494,7 +629,6 @@ function getContractorAttendanceSplitMonthData($month, $year, array $rule)
         if (normalizePayType($emp['pay_type'] ?? '') !== 'Salary') {
             continue;
         }
-        // Build Normal row without re-entering share apply (avoid recursion)
         $row = buildSalaryRegisterRowWithoutContractorSplit($emp, $month, $year, 'salary');
         $net = round((float) ($row['net'] ?? 0), 2);
         $days = (float) ($row['total_days'] ?? 0);
@@ -508,8 +642,7 @@ function getContractorAttendanceSplitMonthData($month, $year, array $rule)
     }
     $distributed = round($distributed, 2);
 
-    // If Normal salaries exceed pool, scale down by attendance weight so pool covers them
-    $shares = []; // funded amount per emp (for display); usually = normal net
+    $shares = [];
     if ($pool > 0 && $distributed > $pool && $distributed > 0) {
         $assigned = 0.0;
         $ids = array_keys($normalNetByEmp);
@@ -526,18 +659,17 @@ function getContractorAttendanceSplitMonthData($month, $year, array $rule)
         $distributed = round(array_sum($shares), 2);
     } else {
         foreach ($normalNetByEmp as $eid => $net) {
-            $shares[$eid] = $net; // funded = Normal net (attendance)
+            $shares[$eid] = $net;
         }
     }
 
     $remainder = round(max(0, $pool - $distributed), 2);
-
     $cache[$ck] = [
         'main_id' => $mainId,
         'main_name' => (string) ($main['employee_name'] ?? ''),
         'main_code' => (string) ($main['employee_code'] ?? ''),
         'department_id' => $deptId,
-        'department_name' => $deptName,
+        'department_name' => (string) $deptName,
         'pool' => $pool,
         'total_days' => $totalDays,
         'shares' => $shares,
@@ -546,7 +678,39 @@ function getContractorAttendanceSplitMonthData($month, $year, array $rule)
         'distributed' => $distributed,
         'remainder' => $remainder,
         'mode' => 'normal_salary_fund',
+        'multi_main' => $requireLinkedUnder,
     ];
+    return $cache[$ck];
+}
+
+function getContractorAttendanceSplitMonthData($month, $year, array $rule)
+{
+    static $cache = [];
+    $month = (int) $month;
+    $year = (int) $year;
+    $deptName = (string) ($rule['department_name'] ?? '');
+    $code = strtoupper(trim((string) ($rule['main_code'] ?? '')));
+    $ck = $month . '-' . $year . '|' . ($code !== '' ? $code : 'auto') . '|' . strtolower($deptName);
+    if (array_key_exists($ck, $cache)) {
+        return $cache[$ck];
+    }
+
+    // multi_main uses per-main cache via getContractorAttendanceShareForEmployee
+    if (!empty($rule['multi_main'])) {
+        $cache[$ck] = null;
+        return null;
+    }
+
+    ensureSplitDeptEmployeesUnderMain($rule);
+
+    $main = resolveContractorAttendanceSplitMain($rule);
+    $deptId = resolveDepartmentIdByName($deptName);
+    if (!$main || $deptId <= 0) {
+        $cache[$ck] = null;
+        return null;
+    }
+
+    $cache[$ck] = buildContractorAttendanceSplitForMain($main, $deptId, $deptName, $month, $year, false);
     return $cache[$ck];
 }
 
@@ -580,8 +744,71 @@ function getContractorAttendanceShareForEmployee(array $emp, $month, $year)
         return null;
     }
     $pay = normalizePayType($emp['pay_type'] ?? '');
+    $linkedMainId = (int) ($emp['main_contractor_id'] ?? 0);
+    // Live employee may omit main_contractor_id when called from register row — reload
+    if ($linkedMainId <= 0 && $pay === 'Salary' && function_exists('getEmployeeById')) {
+        $full = getEmployeeById($eid);
+        if ($full) {
+            $linkedMainId = (int) ($full['main_contractor_id'] ?? 0);
+            if ($deptId <= 0) {
+                $deptId = (int) ($full['department_id'] ?? 0);
+            }
+        }
+    }
 
     foreach (contractorAttendanceSplitRules() as $rule) {
+        $deptName = (string) ($rule['department_name'] ?? '');
+        $splitDeptId = resolveDepartmentIdByName($deptName);
+
+        // ASSEMBLY 3 etc.: each Main / Jobwork has own pool → own under Normals
+        if (!empty($rule['multi_main'])) {
+            if ($splitDeptId <= 0) {
+                continue;
+            }
+            $mains = resolveMultiMainsForDepartment($deptName);
+            $mainsById = [];
+            foreach ($mains as $m) {
+                $mainsById[(int) ($m['id'] ?? 0)] = $m;
+            }
+            if ($eid > 0 && isset($mainsById[$eid])) {
+                $data = buildContractorAttendanceSplitForMain($mainsById[$eid], $splitDeptId, $deptName, $month, $year, true);
+                if (!$data) {
+                    continue;
+                }
+                return [
+                    'share' => 0.0,
+                    'remainder' => (float) ($data['remainder'] ?? 0),
+                    'main_id' => (int) $data['main_id'],
+                    'main_name' => (string) $data['main_name'],
+                    'main_code' => (string) ($data['main_code'] ?? ''),
+                    'pool' => (float) $data['pool'],
+                    'distributed' => (float) ($data['distributed'] ?? 0),
+                    'is_main' => true,
+                    'split_department_id' => (int) $data['department_id'],
+                    'split_department_name' => (string) ($data['department_name'] ?? ''),
+                ];
+            }
+            if ($pay !== 'Salary' || $deptId !== $splitDeptId || $linkedMainId <= 0 || !isset($mainsById[$linkedMainId])) {
+                continue;
+            }
+            $data = buildContractorAttendanceSplitForMain($mainsById[$linkedMainId], $splitDeptId, $deptName, $month, $year, true);
+            if (!$data || (!isset($data['shares'][$eid]) && !isset($data['normal_nets'][$eid]))) {
+                continue;
+            }
+            return [
+                'share' => 0.0,
+                'funded' => (float) ($data['shares'][$eid] ?? $data['normal_nets'][$eid] ?? 0),
+                'remainder' => 0.0,
+                'main_id' => (int) $data['main_id'],
+                'main_name' => (string) $data['main_name'],
+                'main_code' => (string) ($data['main_code'] ?? ''),
+                'pool' => (float) $data['pool'],
+                'is_main' => false,
+                'split_department_id' => (int) $data['department_id'],
+                'split_department_name' => (string) ($data['department_name'] ?? ''),
+            ];
+        }
+
         $data = getContractorAttendanceSplitMonthData($month, $year, $rule);
         if (!$data) {
             continue;
@@ -642,27 +869,36 @@ function ensureSplitMainInJobworkEmployeeList(array $emps, $deptId, $month, $yea
         if ($deptId > 0 && $splitDeptId > 0 && $deptId !== $splitDeptId) {
             continue;
         }
-        $main = resolveContractorAttendanceSplitMain($rule);
-        if (!$main) {
-            continue;
-        }
-        $mainId = (int) $main['id'];
-        $have = false;
-        foreach ($emps as $e) {
-            if ((int) ($e['id'] ?? 0) === $mainId) {
-                $have = true;
-                break;
+        $toAdd = [];
+        if (!empty($rule['multi_main'])) {
+            $toAdd = resolveMultiMainsForDepartment((string) ($rule['department_name'] ?? ''));
+        } else {
+            $main = resolveContractorAttendanceSplitMain($rule);
+            if ($main) {
+                $toAdd = [$main];
             }
         }
-        if ($have) {
-            continue;
+        foreach ($toAdd as $main) {
+            $mainId = (int) ($main['id'] ?? 0);
+            if ($mainId <= 0) {
+                continue;
+            }
+            $have = false;
+            foreach ($emps as $e) {
+                if ((int) ($e['id'] ?? 0) === $mainId) {
+                    $have = true;
+                    break;
+                }
+            }
+            if ($have) {
+                continue;
+            }
+            if ($splitDeptId > 0) {
+                $main['department_id'] = $splitDeptId;
+                $main['department_name'] = (string) ($rule['department_name'] ?? '');
+            }
+            $emps[] = $main;
         }
-        // Force split-dept label on Jobwork register (Melting 1 / 2 / CNC)
-        if ($splitDeptId > 0) {
-            $main['department_id'] = $splitDeptId;
-            $main['department_name'] = (string) ($rule['department_name'] ?? '');
-        }
-        $emps[] = $main;
     }
     return $emps;
 }

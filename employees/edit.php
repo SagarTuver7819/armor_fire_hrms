@@ -105,7 +105,7 @@ if (is_file(__DIR__ . '/../includes/contractor_split_helper.php')) {
     require_once __DIR__ . '/../includes/contractor_split_helper.php';
 }
 $contractorMains = function_exists('getMainContractorSelectOptions')
-    ? getMainContractorSelectOptions($empId)
+    ? getMainContractorSelectOptions($empId, (int) ($employee['department_id'] ?? $deptId ?? 0))
     : getEmployeesByPayType('ContractorMain', $empId);
 $currentEmpCode     = empField($employee, 'employee_code');
 if ($currentEmpCode === '') {
@@ -396,7 +396,7 @@ $ob = empField($employee, 'overtime_benefits', 'No');
                                 </option>
                             <?php endforeach; ?>
                         </select>
-                        <small class="form-help">Normal Salary / Jobwork — aa contractor na under ma (Melting 1 → PURANSINH / Puran bhai).</small>
+                        <small class="form-help">Normal Salary / Jobwork — select Main Contractor Under. ASSEMBLY 3: multiple contractors (Sagar / Paras / Keval…) — attendance salary funds from that contractor's pool.</small>
                     </div>
                     <div class="form-group"><label>19. Biometric User ID</label>
                         <input type="text" name="biometric_user_id" class="form-control" maxlength="50"
