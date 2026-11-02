@@ -116,7 +116,8 @@ foreach ($locks as $lockRow) {
                 }
                 $gross = (float) ($r['gross'] ?? 0);
                 $ded = (float) ($r['total_deduction'] ?? 0);
-                $net = round($gross - $ded + $arrears, 2);
+                $memo = (float) ($r['memo'] ?? 0);
+                $net = round($gross - $ded - $memo + $arrears, 2);
                 if ($net < 0) {
                     $net = 0;
                 }
@@ -140,7 +141,8 @@ foreach ($locks as $lockRow) {
             }
             $gross = (float) ($r['gross'] ?? 0);
             $ded = (float) ($r['total_deduction'] ?? 0);
-            $net = round($gross - $ded + $arrears, 2);
+            $memo = (float) ($r['memo'] ?? 0);
+            $net = round($gross - $ded - $memo + $arrears, 2);
             if ($net < 0) {
                 $net = 0;
             }

@@ -37,6 +37,8 @@ $lock = $displayBundle['lock'];
 $isLocked = !empty($displayBundle['from_lock']);
 // Arrears always editable on every department — value adds to Net (also patches lock)
 $canEditArrears = true;
+// Memo (Sales On Field): clickable deduction like Arrears
+$canEditMemo = true;
 $approvalStatus = $isLocked ? (string) ($lock['approval_status'] ?? 'approved') : '';
 $approvalLabels = payrollApprovalStatusLabels();
 $myApprovalAction = $isLocked ? payrollApprovalPendingActionFor($lock) : '';
@@ -330,7 +332,8 @@ require_once __DIR__ . '/../includes/header.php';
         <?php else: ?>
             <p class="form-hint">Normal <strong>Fixed Salary</strong>: Gross = Decided Salary × (Present + Week Off + Holiday + P.L. + S.L. + D.L. + C-Off) ÷ month days — same totals as <strong>Attendance Report</strong> (employee week-off day for this month).</p>
         <?php endif; ?>
-        <p class="form-hint"><i class="fa-solid fa-pen-to-square" style="color:#d2232a;"></i> <strong>Arrears</strong> cell પર click → popup માં amount + remark · OK કરતાં Arrears અને Remarks column માં save · Net = Gross − Deduction + Arrears.</p>
+        <p class="form-hint"><i class="fa-solid fa-pen-to-square" style="color:#d2232a;"></i> <strong>Arrears</strong> cell પર click → amount + remark save · Net = Gross − Deduction + Arrears.</p>
+        <p class="form-hint"><i class="fa-solid fa-file-lines" style="color:#d2232a;"></i> Sales On Field: <strong>Memo</strong> cell પર click → amount + remark · save પછી <strong>deduction</strong> · Net = Gross − Deduction − Memo + Arrears.</p>
     </div>
 
     <?php
@@ -365,8 +368,18 @@ require_once __DIR__ . '/../includes/header.php';
         <?php
         $rows = $g['rows'];
         $deptSum = registerSumMoneyColumns($rows);
+        $groupDeptName = (string) (($rows[0]['department'] ?? '') ?: '');
+        $groupDeptId = (int) ($rows[0]['department_id'] ?? 0);
+        $showMemo = $groupDeptId > 0
+            ? isSalesOnFieldDepartmentId($groupDeptId)
+            : isSalesOnFieldDepartment($groupDeptName);
+        if (!$showMemo && $deptId > 0) {
+            $showMemo = isSalesOnFieldDepartmentId($deptId) || isSalesOnFieldDepartment($department['department_name'] ?? '');
+        }
+        // NET group: Tot. Ded. + [Memo] + Arrears + Net
+        $netColspan = $showMemo ? 4 : 3;
         ?>
-        <div class="salary-register-sheet">
+        <div class="salary-register-sheet" <?php echo $showMemo ? 'data-sr-memo="1"' : ''; ?>>
             <div class="salary-register-banner">
                 <strong><?php echo htmlspecialchars($g['title']); ?></strong>
                 <span><?php echo htmlspecialchars($g['subtitle']); ?> · <?php echo htmlspecialchars($monthLabel); ?></span>
@@ -383,7 +396,7 @@ require_once __DIR__ . '/../includes/header.php';
                                 <th colspan="2" class="sr-gross">Gross</th>
                             <?php endif; ?>
                             <th colspan="4" class="sr-ded">Deduction</th>
-                            <th colspan="3" class="sr-net">NET</th>
+                            <th colspan="<?php echo (int) $netColspan; ?>" class="sr-net">NET</th>
                             <th colspan="3"></th>
                         </tr>
                         <tr>
@@ -413,6 +426,9 @@ require_once __DIR__ . '/../includes/header.php';
                             <th>Loan</th>
                             <th>Adv.</th>
                             <th>Tot. Ded.</th>
+                            <?php if ($showMemo): ?>
+                                <th>Memo</th>
+                            <?php endif; ?>
                             <th>Arrears</th>
                             <th>Net</th>
                             <th>A/C No.</th>
@@ -422,7 +438,7 @@ require_once __DIR__ . '/../includes/header.php';
                     </thead>
                     <tbody>
                     <?php if (!$rows): ?>
-                        <tr><td colspan="26" class="empty-cell">No employees for this register.</td></tr>
+                        <tr><td colspan="<?php echo $showMemo ? 27 : 26; ?>" class="empty-cell">No employees for this register.</td></tr>
                     <?php endif; ?>
                     <?php foreach ($rows as $r): ?>
                         <?php
@@ -471,14 +487,41 @@ require_once __DIR__ . '/../includes/header.php';
                             <td class="num"><?php echo registerNum($r['advance'], 0); ?></td>
                             <td class="num"><?php echo registerNum($r['total_deduction'], 0); ?></td>
                             <?php
+                            $memoVal = (float) ($r['memo'] ?? 0);
+                            $memoRemarkShow = trim((string) ($r['memo_remark'] ?? ''));
+                            if ($memoRemarkShow === '' || $memoRemarkShow === '-') {
+                                $memoRemarkShow = '';
+                            }
                             $arrearsVal = (float) ($r['arrears'] ?? 0);
-                            $netBase = (float) ($r['gross'] ?? 0) - (float) ($r['total_deduction'] ?? 0);
+                            // Arrears edit: Net = (Gross − Ded − Memo) + Arrears
+                            $netBaseArrears = (float) ($r['gross'] ?? 0) - (float) ($r['total_deduction'] ?? 0) - $memoVal;
+                            // Memo edit: Net = (Gross − Ded + Arrears) − Memo
+                            $netBaseMemo = (float) ($r['gross'] ?? 0) - (float) ($r['total_deduction'] ?? 0) + $arrearsVal;
                             $netShow = (float) ($r['net'] ?? 0);
                             $remarkShow = trim((string) ($r['remarks'] ?? ''));
                             if ($remarkShow === '') {
                                 $remarkShow = '-';
                             }
                             ?>
+                            <?php if ($showMemo): ?>
+                            <td class="num sr-memo-cell">
+                                <?php if ($canEditMemo): ?>
+                                <button type="button"
+                                        class="sr-arrears-btn sr-memo-btn"
+                                        data-employee-id="<?php echo (int) $r['employee_id']; ?>"
+                                        data-employee-name="<?php echo htmlspecialchars((string) ($r['employee_name'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>"
+                                        data-employee-code="<?php echo htmlspecialchars((string) ($r['employee_code'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>"
+                                        data-net-base="<?php echo htmlspecialchars((string) $netBaseMemo); ?>"
+                                        data-memo="<?php echo htmlspecialchars(number_format($memoVal, 0, '.', '')); ?>"
+                                        data-memo-remark="<?php echo htmlspecialchars($memoRemarkShow, ENT_QUOTES, 'UTF-8'); ?>"
+                                        title="Click to edit Memo + Remark (deduction)">
+                                    <span class="sr-memo-value"><?php echo $memoVal != 0.0 ? registerNum($memoVal, 0) : '0'; ?></span>
+                                </button>
+                                <?php else: ?>
+                                <span class="sr-memo-value"><?php echo registerNum($memoVal, 0); ?></span>
+                                <?php endif; ?>
+                            </td>
+                            <?php endif; ?>
                             <td class="num sr-arrears-cell">
                                 <?php if ($canEditArrears): ?>
                                 <button type="button"
@@ -486,7 +529,8 @@ require_once __DIR__ . '/../includes/header.php';
                                         data-employee-id="<?php echo (int) $r['employee_id']; ?>"
                                         data-employee-name="<?php echo htmlspecialchars((string) ($r['employee_name'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>"
                                         data-employee-code="<?php echo htmlspecialchars((string) ($r['employee_code'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>"
-                                        data-net-base="<?php echo htmlspecialchars((string) $netBase); ?>"
+                                        data-net-base="<?php echo htmlspecialchars((string) $netBaseArrears); ?>"
+                                        data-memo="<?php echo htmlspecialchars(number_format($memoVal, 0, '.', '')); ?>"
                                         data-arrears="<?php echo htmlspecialchars(number_format($arrearsVal, 0, '.', '')); ?>"
                                         data-remarks="<?php echo htmlspecialchars($remarkShow === '-' ? '' : $remarkShow, ENT_QUOTES, 'UTF-8'); ?>"
                                         title="Click to edit Arrears + Remark">
@@ -521,6 +565,9 @@ require_once __DIR__ . '/../includes/header.php';
                             <td class="num"><strong><?php echo registerNum($deptSum['loan'], 0); ?></strong></td>
                             <td class="num"><strong><?php echo registerNum($deptSum['advance'], 0); ?></strong></td>
                             <td class="num"><strong><?php echo registerNum($deptSum['total_deduction'], 0); ?></strong></td>
+                            <?php if ($showMemo): ?>
+                            <td class="num"><strong class="sr-memo-total"><?php echo registerNum($deptSum['memo'] ?? 0, 0); ?></strong></td>
+                            <?php endif; ?>
                             <td class="num"><strong class="sr-arrears-total"><?php echo registerNum($deptSum['arrears'], 0); ?></strong></td>
                             <td class="num"><strong class="sr-net-total"><?php echo registerNum($deptSum['net'], 0); ?></strong></td>
                             <td colspan="3"></td>
@@ -532,6 +579,22 @@ require_once __DIR__ . '/../includes/header.php';
         </div>
     <?php endforeach; ?>
 
+    <?php
+    $pageShowMemo = false;
+    if ($deptId > 0) {
+        $pageShowMemo = isSalesOnFieldDepartmentId($deptId)
+            || isSalesOnFieldDepartment($department['department_name'] ?? '');
+    }
+    if (!$pageShowMemo) {
+        foreach ($grandRows as $gr) {
+            if (isSalesOnFieldDepartmentId((int) ($gr['department_id'] ?? 0))
+                || isSalesOnFieldDepartment((string) ($gr['department'] ?? ''))) {
+                $pageShowMemo = true;
+                break;
+            }
+        }
+    }
+    ?>
     <?php if ($grandRows): ?>
     <div class="form-page-card" style="margin-top:12px;">
         <div class="table-wrap">
@@ -553,6 +616,9 @@ require_once __DIR__ . '/../includes/header.php';
                         <td class="num"><strong><?php echo registerNum($grandSum['loan'], 0); ?></strong></td>
                         <td class="num"><strong><?php echo registerNum($grandSum['advance'], 0); ?></strong></td>
                         <td class="num"><strong><?php echo registerNum($grandSum['total_deduction'], 0); ?></strong></td>
+                        <?php if ($pageShowMemo): ?>
+                        <td class="num"><strong><?php echo registerNum($grandSum['memo'] ?? 0, 0); ?></strong></td>
+                        <?php endif; ?>
                         <td class="num"><strong><?php echo registerNum($grandSum['arrears'], 0); ?></strong></td>
                         <td class="num"><strong><?php echo registerNum($grandSum['net'], 0); ?></strong></td>
                         <td colspan="3"></td>
@@ -634,7 +700,7 @@ require_once __DIR__ . '/../includes/header.php';
             var t = (el.textContent || '').replace(/,/g, '');
             total += parseFloat(t) || 0;
         });
-        table.querySelectorAll('.sr-arrears-btn').forEach(function (btn) {
+        table.querySelectorAll('.sr-arrears-btn:not(.sr-memo-btn)').forEach(function (btn) {
             var a = parseFloat(btn.getAttribute('data-arrears'));
             if (!isNaN(a) && a > 0) arrTotal += a;
         });
@@ -660,6 +726,12 @@ require_once __DIR__ . '/../includes/header.php';
             if (netEl) netEl.textContent = fmt(net);
             var remEl = tr.querySelector('.sr-remarks-cell');
             if (remEl) remEl.textContent = remarks && remarks !== '' ? remarks : '-';
+            // Keep Memo button's net-base in sync: Gross−Ded+Arrears
+            var memoBtn = tr.querySelector('.sr-memo-btn');
+            if (memoBtn) {
+                var memoAmt = parseFloat(memoBtn.getAttribute('data-memo')) || 0;
+                memoBtn.setAttribute('data-net-base', String(base + arr + memoAmt));
+            }
         }
         recalcSheetTotal(btn.closest('table'));
     }
@@ -700,7 +772,7 @@ require_once __DIR__ . '/../includes/header.php';
             });
     }
 
-    document.querySelectorAll('.sr-arrears-btn').forEach(function (btn) {
+    document.querySelectorAll('.sr-arrears-btn:not(.sr-memo-btn)').forEach(function (btn) {
         btn.addEventListener('click', function () { openModal(btn); });
     });
     if (modal) {
@@ -709,6 +781,163 @@ require_once __DIR__ . '/../includes/header.php';
         });
     }
     if (saveBtn) saveBtn.addEventListener('click', saveArrears);
+    document.addEventListener('keydown', function (ev) {
+        if (!modal || modal.hidden) return;
+        if (ev.key === 'Escape') closeModal();
+    });
+})();
+</script>
+<?php endif; ?>
+<?php if ($canEditMemo && !empty($pageShowMemo)): ?>
+<div id="srMemoModal" class="sr-arrears-modal" hidden aria-hidden="true">
+    <div class="sr-arrears-modal-backdrop" data-sr-memo-close></div>
+    <div class="sr-arrears-modal-box" role="dialog" aria-modal="true" aria-labelledby="srMemoModalTitle">
+        <h3 id="srMemoModalTitle">Memo + Remark</h3>
+        <p class="sr-arrears-modal-sub" id="srMemoModalEmp">—</p>
+        <div class="form-group">
+            <label for="srMemoAmount">Memo (₹) — deduction</label>
+            <input type="number" id="srMemoAmount" class="form-control" min="0" step="1" placeholder="0">
+        </div>
+        <div class="form-group">
+            <label for="srMemoRemark">Remark</label>
+            <textarea id="srMemoRemark" class="form-control" rows="3" maxlength="255" placeholder="Remark for this memo…"></textarea>
+        </div>
+        <div class="sr-arrears-modal-actions">
+            <button type="button" class="btn-secondary" data-sr-memo-close>Cancel</button>
+            <button type="button" class="btn-primary" id="srMemoSaveBtn">
+                <i class="fa-solid fa-check"></i> OK · Save
+            </button>
+        </div>
+    </div>
+</div>
+<script>
+(function () {
+    var saveUrl = <?php echo json_encode(app_url('payroll/register_memo_save.php')); ?>;
+    var month = <?php echo (int) $month; ?>;
+    var year = <?php echo (int) $year; ?>;
+    var deptId = <?php echo (int) $deptId; ?>;
+    var regType = <?php echo json_encode($type); ?>;
+    var modal = document.getElementById('srMemoModal');
+    var amountInput = document.getElementById('srMemoAmount');
+    var remarkInput = document.getElementById('srMemoRemark');
+    var empLabel = document.getElementById('srMemoModalEmp');
+    var saveBtn = document.getElementById('srMemoSaveBtn');
+    var activeBtn = null;
+
+    function fmt(n) {
+        n = Math.round(parseFloat(n) || 0);
+        return n.toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+    }
+
+    function closeModal() {
+        if (!modal) return;
+        modal.hidden = true;
+        modal.setAttribute('aria-hidden', 'true');
+        document.body.classList.remove('sr-arrears-modal-open');
+        activeBtn = null;
+    }
+
+    function openModal(btn) {
+        activeBtn = btn;
+        var code = btn.getAttribute('data-employee-code') || '';
+        var name = btn.getAttribute('data-employee-name') || '';
+        empLabel.textContent = (code ? code + ' — ' : '') + name;
+        amountInput.value = btn.getAttribute('data-memo') || '';
+        remarkInput.value = btn.getAttribute('data-memo-remark') || '';
+        modal.hidden = false;
+        modal.setAttribute('aria-hidden', 'false');
+        document.body.classList.add('sr-arrears-modal-open');
+        setTimeout(function () { amountInput.focus(); amountInput.select(); }, 30);
+    }
+
+    function recalcSheetTotal(table) {
+        if (!table) return;
+        var total = 0;
+        var memoTotal = 0;
+        table.querySelectorAll('.sr-net-value').forEach(function (el) {
+            var t = (el.textContent || '').replace(/,/g, '');
+            total += parseFloat(t) || 0;
+        });
+        table.querySelectorAll('.sr-memo-btn').forEach(function (btn) {
+            var a = parseFloat(btn.getAttribute('data-memo'));
+            if (!isNaN(a) && a > 0) memoTotal += a;
+        });
+        var foot = table.querySelector('.sr-net-total');
+        if (foot) foot.textContent = fmt(total);
+        var footMemo = table.querySelector('.sr-memo-total');
+        if (footMemo) footMemo.textContent = fmt(memoTotal);
+    }
+
+    function applyToRow(btn, memo, memoRemark, netFromServer) {
+        var base = parseFloat(btn.getAttribute('data-net-base')) || 0;
+        memo = Math.round(parseFloat(memo) || 0);
+        if (memo < 0) memo = 0;
+        var net = netFromServer != null ? Math.round(parseFloat(netFromServer) || 0) : Math.round(base - memo);
+        if (net < 0) net = 0;
+        btn.setAttribute('data-memo', String(memo));
+        btn.setAttribute('data-memo-remark', memoRemark === '-' ? '' : (memoRemark || ''));
+        var valEl = btn.querySelector('.sr-memo-value');
+        if (valEl) valEl.textContent = fmt(memo);
+        var tr = btn.closest('tr');
+        if (tr) {
+            var netEl = tr.querySelector('.sr-net-value');
+            if (netEl) netEl.textContent = fmt(net);
+            // Keep Arrears button's net-base in sync: Gross−Ded−Memo
+            var arrBtn = tr.querySelector('.sr-arrears-btn:not(.sr-memo-btn)');
+            if (arrBtn) {
+                var arr = parseFloat(arrBtn.getAttribute('data-arrears')) || 0;
+                arrBtn.setAttribute('data-memo', String(memo));
+                arrBtn.setAttribute('data-net-base', String(base - arr - memo));
+            }
+        }
+        recalcSheetTotal(btn.closest('table'));
+    }
+
+    function saveMemo() {
+        if (!activeBtn) return;
+        var empId = parseInt(activeBtn.getAttribute('data-employee-id'), 10) || 0;
+        if (!empId) return;
+        var memo = parseFloat(amountInput.value);
+        if (isNaN(memo) || memo < 0) memo = 0;
+        memo = Math.round(memo);
+        var memoRemark = String(remarkInput.value || '').trim();
+        saveBtn.disabled = true;
+        var body = new FormData();
+        body.append('employee_id', empId);
+        body.append('month', month);
+        body.append('year', year);
+        body.append('department_id', deptId);
+        body.append('type', regType);
+        body.append('memo', memo);
+        body.append('memo_remark', memoRemark);
+        fetch(saveUrl, { method: 'POST', body: body, credentials: 'same-origin' })
+            .then(function (r) { return r.json(); })
+            .then(function (res) {
+                saveBtn.disabled = false;
+                if (!res || !res.success) {
+                    if (window.toastr) toastr.error((res && res.message) || 'Memo save failed');
+                    else alert((res && res.message) || 'Memo save failed');
+                    return;
+                }
+                applyToRow(activeBtn, res.memo != null ? res.memo : memo, res.memo_remark || memoRemark || '', res.net);
+                if (window.toastr) toastr.success('Memo saved · deducted from Net');
+                closeModal();
+            })
+            .catch(function () {
+                saveBtn.disabled = false;
+                if (window.toastr) toastr.error('Memo save failed');
+            });
+    }
+
+    document.querySelectorAll('.sr-memo-btn').forEach(function (btn) {
+        btn.addEventListener('click', function () { openModal(btn); });
+    });
+    if (modal) {
+        modal.querySelectorAll('[data-sr-memo-close]').forEach(function (el) {
+            el.addEventListener('click', closeModal);
+        });
+    }
+    if (saveBtn) saveBtn.addEventListener('click', saveMemo);
     document.addEventListener('keydown', function (ev) {
         if (!modal || modal.hidden) return;
         if (ev.key === 'Escape') closeModal();

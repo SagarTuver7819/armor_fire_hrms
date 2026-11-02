@@ -62,7 +62,8 @@ function buildSalaryRegisterRow(array $emp, $month, $year, $mode)
     $loan = $att['loan'];
     $advance = $att['advance'];
     $totalDed = round($pf + $pt + $loan + $advance, 2);
-    $net = round($gross - $totalDed + $att['arrears'], 2);
+    $memo = (float) ($att['memo'] ?? 0);
+    $net = round($gross - $totalDed - $memo + $att['arrears'], 2);
     if ($net < 0) {
         $net = 0;
     }
@@ -109,6 +110,8 @@ function buildSalaryRegisterRow(array $emp, $month, $year, $mode)
         'loan' => $loan,
         'advance' => $advance,
         'total_deduction' => $totalDed,
+        'memo' => $memo,
+        'memo_remark' => (string) ($att['memo_remark'] ?? ''),
         'arrears' => $att['arrears'],
         'net' => $net,
         'bank_name' => (string) ($emp['bank_name'] ?? ''),
@@ -631,16 +634,17 @@ function registerRoundMoney($n)
  */
 function registerApplyMoneyRoundOff(array $row)
 {
-    foreach (['salary', 'gross', 'actual', 'pf', 'pt', 'loan', 'advance', 'total_deduction', 'arrears', 'net'] as $key) {
+    foreach (['salary', 'gross', 'actual', 'pf', 'pt', 'loan', 'advance', 'total_deduction', 'memo', 'arrears', 'net'] as $key) {
         if (array_key_exists($key, $row) && $row[$key] !== null && $row[$key] !== '') {
             $row[$key] = registerRoundMoney($row[$key]);
         }
     }
-    // Keep Net consistent after round of gross/ded/arrears
+    // Keep Net consistent after round: Gross − Ded − Memo + Arrears
     $gross = (float) ($row['gross'] ?? 0);
     $ded = (float) ($row['total_deduction'] ?? 0);
+    $memo = (float) ($row['memo'] ?? 0);
     $arr = (float) ($row['arrears'] ?? 0);
-    $net = registerRoundMoney($gross - $ded + $arr);
+    $net = registerRoundMoney($gross - $ded - $memo + $arr);
     if ($net < 0) {
         $net = 0.0;
     }
@@ -664,6 +668,7 @@ function registerSumMoneyColumns(array $rows)
         'loan' => 0.0,
         'advance' => 0.0,
         'total_deduction' => 0.0,
+        'memo' => 0.0,
         'arrears' => 0.0,
         'net' => 0.0,
     ];

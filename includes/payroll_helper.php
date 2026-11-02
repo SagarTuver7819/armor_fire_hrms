@@ -73,6 +73,8 @@ function ensurePayrollTables($conn = null)
     ensurePayrollColumn($conn, 'salary_diary', 'loan_amount', 'loan_amount DECIMAL(12,2) NOT NULL DEFAULT 0 AFTER overtime_hours');
     ensurePayrollColumn($conn, 'salary_diary', 'advance_amount', 'advance_amount DECIMAL(12,2) NOT NULL DEFAULT 0 AFTER loan_amount');
     ensurePayrollColumn($conn, 'salary_diary', 'arrears_amount', 'arrears_amount DECIMAL(12,2) NOT NULL DEFAULT 0 AFTER advance_amount');
+    ensurePayrollColumn($conn, 'salary_diary', 'memo_amount', 'memo_amount DECIMAL(12,2) NOT NULL DEFAULT 0 AFTER arrears_amount');
+    ensurePayrollColumn($conn, 'salary_diary', 'memo_remark', 'memo_remark VARCHAR(255) DEFAULT NULL AFTER memo_amount');
 
     $conn->query("CREATE TABLE IF NOT EXISTS jobwork_entries (
         id INT AUTO_INCREMENT PRIMARY KEY,
@@ -952,6 +954,8 @@ function getPayrollAttendanceBundle(array $emp, $month, $year, $actualAmount)
             'loan' => $diary ? (float) ($diary['loan_amount'] ?? 0) : 0.0,
             'advance' => $diary ? (float) ($diary['advance_amount'] ?? 0) : 0.0,
             'arrears' => $diary ? (float) ($diary['arrears_amount'] ?? 0) : 0.0,
+            'memo' => $diary ? (float) ($diary['memo_amount'] ?? 0) : 0.0,
+            'memo_remark' => $diary ? trim((string) ($diary['memo_remark'] ?? '')) : '',
             'diary_remarks' => $diary ? trim((string) ($diary['remarks'] ?? '')) : '',
             'salary' => round((float) ($emp['decided_salary'] ?? 0), 2),
             'govt_gross' => 0.0,
@@ -972,6 +976,8 @@ function getPayrollAttendanceBundle(array $emp, $month, $year, $actualAmount)
     $loan = $diary ? (float) ($diary['loan_amount'] ?? 0) : 0;
     $advance = $diary ? (float) ($diary['advance_amount'] ?? 0) : 0;
     $arrears = $diary ? (float) ($diary['arrears_amount'] ?? 0) : 0;
+    $memo = $diary ? (float) ($diary['memo_amount'] ?? 0) : 0;
+    $memoRemark = $diary ? trim((string) ($diary['memo_remark'] ?? '')) : '';
     if (!function_exists('advanceLoanMonthDue') && is_file(__DIR__ . '/advance_loan_helper.php')) {
         require_once __DIR__ . '/advance_loan_helper.php';
     }
@@ -1176,6 +1182,8 @@ function getPayrollAttendanceBundle(array $emp, $month, $year, $actualAmount)
         'loan' => $loan,
         'advance' => $advance,
         'arrears' => $arrears,
+        'memo' => $memo,
+        'memo_remark' => $memoRemark,
         'diary_remarks' => $diary ? trim((string) ($diary['remarks'] ?? '')) : '',
         'salary' => round($salary, 2),
         'govt_gross' => $govtGross,

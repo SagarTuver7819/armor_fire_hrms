@@ -445,10 +445,14 @@ function refreshSalaryRegisterRowFromLiveAttendance(array $lockedRow, $type, $mo
     }
     $live = buildSalaryRegisterRow($emp, $month, $year, $mode);
     $arrears = (float) ($lockedRow['arrears'] ?? $live['arrears'] ?? 0);
+    $memo = (float) ($lockedRow['memo'] ?? $live['memo'] ?? 0);
+    $memoRemark = trim((string) ($lockedRow['memo_remark'] ?? $live['memo_remark'] ?? ''));
     $live['arrears'] = $arrears;
+    $live['memo'] = $memo;
+    $live['memo_remark'] = $memoRemark;
     $gross = (float) ($live['gross'] ?? 0);
     $ded = (float) ($live['total_deduction'] ?? 0);
-    $net = $gross - $ded + $arrears;
+    $net = $gross - $ded - $memo + $arrears;
     if ($net < 0) {
         $net = 0;
     }
