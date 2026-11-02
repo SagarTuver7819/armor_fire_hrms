@@ -57,7 +57,7 @@ $otJson = json_encode(contractorOtRepairOps());
         <div class="form-page-header">
             <div>
                 <h1><?php echo $sheet ? 'Edit' : 'Add'; ?> Operations Rate List</h1>
-                <p>Select employee &amp; product, then type daily qty. Totals calculate automatically.</p>
+                <p>Select employee &amp; product, then type daily qty. <strong>Rate</strong> editable on this sheet only (does not change Product Master for other employees). Amount = Qty × Rate → Salary Register.</p>
             </div>
         </div>
 
@@ -188,7 +188,7 @@ $otJson = json_encode(contractorOtRepairOps());
                                 <input type="hidden" class="row-grade-id" value="<?php echo $itemGradeId; ?>">
                             </td>
                             <td class="sticky-col sticky-rate">
-                                <input type="number" step="0.01" name="items[<?php echo $i; ?>][rate]" class="form-control grid-input rate" readonly value="<?php echo htmlspecialchars((string) ($item['rate'] ?? 0)); ?>">
+                                <input type="number" step="0.0001" min="0" name="items[<?php echo $i; ?>][rate]" class="form-control grid-input rate" value="<?php echo htmlspecialchars((string) ($item['rate'] ?? 0)); ?>" title="Sheet rate for this employee/month (does not change Product Master)">
                             </td>
                             <?php for ($d = 1; $d <= 31; $d++):
                                 $cell = $days[(string) $d];
