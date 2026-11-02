@@ -133,8 +133,9 @@ function buildSalaryRegisterRow(array $emp, $month, $year, $mode)
     ];
 
     // Melting 1 / Melting 2 / CNC: Normal funded from Main pool; Main Jobwork row = remainder
+    // Remainder only on Jobwork Actual register — never rewrite Normal Salary rows.
     if (function_exists('applyContractorAttendanceShareToRegisterRow')) {
-        $row = applyContractorAttendanceShareToRegisterRow($row, $month, $year);
+        $row = applyContractorAttendanceShareToRegisterRow($row, $month, $year, $mode);
     }
 
     return registerApplyMoneyRoundOff($row);
@@ -543,11 +544,19 @@ function getSalaryRegisterData($type, $month, $year, $deptId = 0, $employeeId = 
     }
 
     if ($type === 'salary') {
-        // Normal = Salary pay_type + AS… codes (exclude CO/JW which belong on Jobwork)
+        // Normal = Salary pay_type (exclude Melting/CNC Main — remainder is Jobwork only)
         $emps = fetchNormalRegisterEmployees($deptId, $employeeId, $month, $year);
+        if (function_exists('contractorAttendanceSplitMainIds')) {
+            $mains = contractorAttendanceSplitMainIds();
+            if ($mains) {
+                $emps = array_values(array_filter($emps, static function ($e) use ($mains) {
+                    return !isset($mains[(int) ($e['id'] ?? 0)]);
+                }));
+            }
+        }
         $mode = 'salary';
         $title = 'Salaried Person (Fixed)';
-        $subtitle = 'Attendance-wise fixed salary · AS codes';
+        $subtitle = 'Attendance-wise fixed salary';
         $payFilter = 'Salary';
     } else {
         // Jobwork = pay_type Jobwork only (+ force-include Melting/CNC mains after split)

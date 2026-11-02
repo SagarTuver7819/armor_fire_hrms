@@ -343,6 +343,7 @@ function resolveSalaryRegisterLock($month, $year, $type, $deptId = 0)
 
 /**
  * Keep only one department's rows from a locked snapshot (All-departments lock).
+ * Matches department_id and/or department name (live refresh can change labels).
  */
 function filterSalaryRegisterGroupsByDepartment(array $groups, $deptId)
 {
@@ -350,13 +351,60 @@ function filterSalaryRegisterGroupsByDepartment(array $groups, $deptId)
     if ($deptId <= 0) {
         return $groups;
     }
+    $deptName = '';
+    if (function_exists('getDepartmentById')) {
+        $d = getDepartmentById($deptId);
+        $deptName = trim((string) ($d['department_name'] ?? ''));
+    }
     $out = [];
     foreach ($groups as $g) {
         $rows = [];
         foreach ($g['rows'] ?? [] as $r) {
-            if ((int) ($r['department_id'] ?? 0) === $deptId) {
+            $rid = (int) ($r['department_id'] ?? 0);
+            $rname = trim((string) ($r['department'] ?? $r['department_name'] ?? ''));
+            $ok = ($rid > 0 && $rid === $deptId)
+                || ($deptName !== '' && $rname !== '' && strcasecmp($rname, $deptName) === 0);
+            if ($ok) {
                 $rows[] = $r;
             }
+        }
+        if ($rows) {
+            $g['rows'] = $rows;
+            // Normalize group title to selected department (avoid PRODUCTION under CNC view)
+            if ($deptName !== '' && isset($g['title']) && is_string($g['title'])) {
+                $g['title'] = preg_replace('/·\s*.*$/u', '· ' . $deptName, $g['title'], 1) ?: $g['title'];
+            }
+            $out[] = $g;
+        }
+    }
+    return $out;
+}
+
+/**
+ * Drop Melting/CNC split Main contractors from Normal (Salary) register —
+ * their pool remainder belongs only on Jobwork Actual.
+ *
+ * @param array<int, array<string, mixed>> $groups
+ * @return array<int, array<string, mixed>>
+ */
+function filterSalaryRegisterGroupsExcludeSplitMains(array $groups)
+{
+    if (!function_exists('contractorAttendanceSplitMainIds')) {
+        return $groups;
+    }
+    $mains = contractorAttendanceSplitMainIds();
+    if (!$mains) {
+        return $groups;
+    }
+    $out = [];
+    foreach ($groups as $g) {
+        $rows = [];
+        foreach ($g['rows'] ?? [] as $r) {
+            $eid = (int) ($r['employee_id'] ?? 0);
+            if ($eid > 0 && isset($mains[$eid])) {
+                continue;
+            }
+            $rows[] = $r;
         }
         if ($rows) {
             $g['rows'] = $rows;
@@ -465,6 +513,10 @@ function getSalaryRegisterDisplayBundle($type, $month, $year, $deptId = 0, $empl
         if ($deptId > 0 && $fromAll) {
             $groups = filterSalaryRegisterGroupsByDepartment($groups, $deptId);
         }
+        // Normal Salary register must never show Melting/CNC Main remainder rows
+        if ($type === 'salary') {
+            $groups = filterSalaryRegisterGroupsExcludeSplitMains($groups);
+        }
         if ($employeeId > 0) {
             foreach ($groups as &$g) {
                 $g['rows'] = array_values(array_filter($g['rows'] ?? [], static function ($r) use ($employeeId) {
@@ -509,9 +561,19 @@ function getSalaryRegisterDisplayBundle($type, $month, $year, $deptId = 0, $empl
                 ];
             }
 
+            // Live refresh can move people to another dept name (e.g. PRODUCTION under CNC
+            // all-dept lock). Re-scope to the selected department before append.
+            if ($deptId > 0) {
+                $groups = filterSalaryRegisterGroupsByDepartment($groups, $deptId);
+            }
+            if ($type === 'salary') {
+                $groups = filterSalaryRegisterGroupsExcludeSplitMains($groups);
+            }
+
             // Append live employees missing from old lock
             $liveGroups = getSalaryRegisterData($type, $month, $year, $deptId, $employeeId);
             $haveIds = [];
+            $rows = flattenSalaryRegisterGroups($groups);
             foreach ($rows as $r) {
                 $eid = (int) ($r['employee_id'] ?? 0);
                 if ($eid > 0) {
@@ -523,6 +585,15 @@ function getSalaryRegisterDisplayBundle($type, $month, $year, $deptId = 0, $empl
                     $eid = (int) ($lr['employee_id'] ?? 0);
                     if ($eid <= 0 || isset($haveIds[$eid])) {
                         continue;
+                    }
+                    if ($deptId > 0 && (int) ($lr['department_id'] ?? 0) !== $deptId) {
+                        continue;
+                    }
+                    if ($type === 'salary' && function_exists('contractorAttendanceSplitMainIds')) {
+                        $mains = contractorAttendanceSplitMainIds();
+                        if (isset($mains[$eid])) {
+                            continue;
+                        }
                     }
                     $haveIds[$eid] = true;
                     $lr['register_mode'] = $type;
@@ -549,6 +620,12 @@ function getSalaryRegisterDisplayBundle($type, $month, $year, $deptId = 0, $empl
                     }
                     $rows[] = $lr;
                 }
+            }
+            if ($deptId > 0) {
+                $groups = filterSalaryRegisterGroupsByDepartment($groups, $deptId);
+            }
+            if ($type === 'salary') {
+                $groups = filterSalaryRegisterGroupsExcludeSplitMains($groups);
             }
             $rows = flattenSalaryRegisterGroups($groups);
         } else {

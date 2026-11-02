@@ -632,7 +632,7 @@ function ensureSplitMainInJobworkEmployeeList(array $emps, $deptId, $month, $yea
     return $emps;
 }
 
-function applyContractorAttendanceShareToRegisterRow(array $row, $month, $year)
+function applyContractorAttendanceShareToRegisterRow(array $row, $month, $year, $mode = '')
 {
     if (!empty($GLOBALS['__skip_contractor_split'])) {
         return $row;
@@ -642,9 +642,17 @@ function applyContractorAttendanceShareToRegisterRow(array $row, $month, $year)
     $deptId = (int) ($row['department_id'] ?? 0);
     $pay = normalizePayType($row['pay_type'] ?? '');
     $skip = contractorAttendanceSplitMainIds();
+    $mode = (string) $mode;
+    if ($mode === '') {
+        $mode = (string) ($row['mode'] ?? $row['register_mode'] ?? '');
+    }
 
     // Split Main: Jobwork register = remainder after Normal salaries (Melting / CNC)
     if ($eid > 0 && isset($skip[$eid])) {
+        // Keep Main off Normal Fixed Salary register (attendance-only list)
+        if ($mode === 'salary') {
+            return $row;
+        }
         $info = getContractorAttendanceShareForEmployee([
             'id' => $eid,
             'department_id' => $deptId,
