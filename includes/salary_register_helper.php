@@ -550,15 +550,21 @@ function getSalaryRegisterData($type, $month, $year, $deptId = 0, $employeeId = 
             }
             $fundBasis = (string) ($mainRow['contractor_fund_basis'] ?? 'gross');
             $useNetPt = ($fundBasis === 'net_plus_pt');
+            $normalArrearsTotal = 0.0;
+            foreach ($salaryUnder as $sr) {
+                $normalArrearsTotal += max(0.0, (float) ($sr['arrears'] ?? 0));
+            }
+            // Net on sheet includes Arrears — fund uses Net without arrears + PT
+            $normalNetExArrears = round(max(0.0, $normalNetTotal - $normalArrearsTotal), 2);
             // Prefer split engine distributed (exact fund used for Main remainder)
             $fundTotal = !empty($mainRow['contractor_split_out'])
                 ? (float) ($mainRow['contractor_distributed'] ?? 0)
                 : ($useNetPt
-                    ? round($normalNetTotal + $normalPtTotal, 2)
+                    ? round($normalNetExArrears + $normalPtTotal, 2)
                     : round($normalGrossTotal, 2));
-            $fundTitle = $useNetPt ? 'Normal Salary Net + PT Total' : 'Normal Salary Gross Total';
+            $fundTitle = $useNetPt ? 'Normal Salary (Net−Arrears)+PT Total' : 'Normal Salary Gross Total';
             $fundRemark = $useNetPt
-                ? ('Σ Net ₹ ' . registerNum($normalNetTotal, 0) . ' + Σ PT ₹ ' . registerNum($normalPtTotal, 0) . ' · under Main')
+                ? ('Σ (Net−Arrears) ₹ ' . registerNum($normalNetExArrears, 0) . ' + Σ PT ₹ ' . registerNum($normalPtTotal, 0) . ' · under Main')
                 : 'Σ Gross · Normal Salary under Main';
             // Normal Salary under first → fund total after them → then Jobwork under
             foreach ($salaryUnder as $row) {
@@ -594,7 +600,7 @@ function getSalaryRegisterData($type, $month, $year, $deptId = 0, $employeeId = 
                     'total_deduction' => round($normalPtTotal, 2),
                     'memo' => 0,
                     'arrears' => 0,
-                    'net' => round($normalNetTotal, 2),
+                    'net' => $useNetPt ? $normalNetExArrears : round($normalNetTotal, 2),
                     'account' => '',
                     'ifsc' => '',
                     'remarks' => $fundRemark,

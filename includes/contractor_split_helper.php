@@ -637,15 +637,22 @@ function buildContractorAttendanceSplitForMain(array $main, $deptId, $deptName, 
         $gross = round((float) ($row['gross'] ?? 0), 2);
         $net = round((float) ($row['net'] ?? 0), 2);
         $pt = round((float) ($row['pt'] ?? 0), 2);
+        $arrears = round((float) ($row['arrears'] ?? 0), 2);
         if ($net < 0) {
             $net = 0.0;
         }
         if ($pt < 0) {
             $pt = 0.0;
         }
-        // Melting 1: fund from Main = employee Net + PT; else Gross
+        if ($arrears < 0) {
+            $arrears = 0.0;
+        }
+        // Melting 1: Main pool funds Normal take-home + PT only.
+        // Net on register includes Arrears — do NOT subtract arrears from Main (that inflated the deduct).
+        // fund = (Net − Arrears) + PT  ≈ Gross − PF − Loan − Advance
+        $netBeforeArrears = round(max(0.0, $net - $arrears), 2);
         $fundAmt = ($fundBasis === 'net_plus_pt')
-            ? round($net + $pt, 2)
+            ? round($netBeforeArrears + $pt, 2)
             : max(0.0, $gross);
         $days = (float) ($row['total_days'] ?? 0);
         if ($days < 0) {
@@ -656,7 +663,7 @@ function buildContractorAttendanceSplitForMain(array $main, $deptId, $deptName, 
         $daysByEmp[$eid] = $days;
         $totalDays += $days;
         $distributed += max(0.0, $fundAmt);
-        $sumNet += $net;
+        $sumNet += $netBeforeArrears;
         $sumPt += $pt;
     }
     $distributed = round($distributed, 2);
@@ -701,7 +708,7 @@ function buildContractorAttendanceSplitForMain(array $main, $deptId, $deptName, 
         'distributed' => $distributed,
         'remainder' => $remainder,
         'fund_basis' => $fundBasis,
-        'fund_label' => $fundBasis === 'net_plus_pt' ? 'Normal Net+PT' : 'Normal Gross',
+        'fund_label' => $fundBasis === 'net_plus_pt' ? 'Normal (Net−Arrears)+PT' : 'Normal Gross',
         'mode' => $fundBasis === 'net_plus_pt' ? 'normal_salary_net_plus_pt_fund' : 'normal_salary_gross_fund',
         'multi_main' => $requireLinkedUnder,
     ];
