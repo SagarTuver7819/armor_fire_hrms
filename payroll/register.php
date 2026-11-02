@@ -342,18 +342,24 @@ require_once __DIR__ . '/../includes/header.php';
     }
     $grandSum = registerSumMoneyColumns($grandRows);
     ?>
-    <div class="report-emp-search">
-        <label class="report-emp-search-box" for="srEmpSearch">
-            <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
-            <input type="search" id="srEmpSearch" placeholder="Search employee code or name…"
-                   data-report-emp-search=".salary-register-table tbody tr"
-                   data-report-emp-count="#srEmpSearchCount"
-                   autocomplete="off">
-            <button type="button" class="report-emp-search-clear" data-report-emp-clear title="Clear">
-                <i class="fa-solid fa-xmark"></i>
-            </button>
-        </label>
-        <span class="report-emp-search-count" id="srEmpSearchCount"></span>
+    <div class="report-toolbar-row">
+        <div class="ops-live-summary">
+            <span class="ops-chip"><?php echo htmlspecialchars($monthLabel); ?></span>
+            <span class="ops-chip"><?php echo count($grandRows); ?> employees</span>
+        </div>
+        <div class="report-emp-search">
+            <label class="report-emp-search-box" for="srEmpSearch">
+                <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
+                <input type="search" id="srEmpSearch" placeholder="Search employee code or name…"
+                       data-report-emp-search=".salary-register-table tbody tr"
+                       data-report-emp-count="#srEmpSearchCount"
+                       autocomplete="off">
+                <button type="button" class="report-emp-search-clear" data-report-emp-clear title="Clear">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </label>
+            <span class="report-emp-search-count" id="srEmpSearchCount"></span>
+        </div>
     </div>
     <?php foreach ($groups as $g): ?>
         <?php

@@ -1543,25 +1543,63 @@ textarea.is-synced-addr {
     min-width: 220px;
 }
 
-/* Attendance Report / Salary Register — employee live search */
+/* Attendance Report / Salary Register — filters + employee search */
+.report-filter-bar {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr)) auto;
+    gap: 12px;
+    align-items: end;
+    margin-bottom: 14px;
+}
+.report-filter-bar .form-group {
+    margin: 0;
+}
+.report-filter-bar .report-filter-actions {
+    display: flex;
+    align-items: flex-end;
+    min-width: 140px;
+}
+.report-filter-bar .report-filter-actions .btn-primary {
+    width: 100%;
+    white-space: nowrap;
+}
+.report-toolbar-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin: 0 0 12px;
+}
+.report-toolbar-row .ops-live-summary {
+    margin: 0;
+    flex: 1 1 auto;
+}
 .report-emp-search {
     display: flex;
     align-items: center;
-    gap: 10px;
-    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 8px;
     margin: 0 0 12px;
-    padding: 10px 12px;
-    background: #f8fafc;
-    border: 1px solid #e2e8f0;
-    border-radius: 10px;
+    margin-left: auto;
+    flex: 0 1 320px;
+    min-width: 220px;
+    max-width: 360px;
+    padding: 0;
+    background: transparent;
+    border: 0;
+}
+.report-toolbar-row .report-emp-search {
+    margin: 0;
 }
 .report-emp-search-box {
     display: flex;
     align-items: center;
     gap: 8px;
-    flex: 1 1 260px;
-    min-width: 200px;
-    max-width: 420px;
+    flex: 1 1 auto;
+    width: 100%;
+    min-width: 0;
+    max-width: none;
     background: #fff;
     border: 1px solid #cbd5e1;
     border-radius: 8px;
@@ -1602,7 +1640,29 @@ textarea.is-synced-addr {
     font-size: 12px;
     color: #64748b;
     font-weight: 600;
-    min-height: 1em;
+    white-space: nowrap;
+}
+@media (max-width: 1100px) {
+    .report-filter-bar {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    .report-filter-bar .report-filter-actions {
+        grid-column: 1 / -1;
+    }
+}
+@media (max-width: 640px) {
+    .report-filter-bar {
+        grid-template-columns: 1fr;
+    }
+    .report-toolbar-row {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    .report-emp-search {
+        max-width: none;
+        flex-basis: auto;
+        width: 100%;
+    }
 }
 
 .data-card {

@@ -107,13 +107,12 @@ require_once __DIR__ . '/../includes/header.php';
     <div class="form-page-card">
         <div class="form-page-header">
             <h1>Attendance Report</h1>
-            <p>Same Excel format · Present / Week Off (paid) / PL / SL / DL / C-Off / Holiday (paid) · Total Days = Total Pay Days (= Salary Register). Week-off Benefits = Yes → WO only if attendance on day before or after; Leave both sides → WO not counted. Benefits = No → WO/Holiday 0 in summary (all departments). · Export</p>
-            <p style="margin:6px 0 0;font-size:12px;opacity:.65;">Build <?php echo htmlspecialchars(HRMS_BUILD_ID); ?></p>
+            <p>Total Days = Total Pay Days (= Salary Register) · Present / Week Off / PL / SL / DL / C-Off / Holiday</p>
         </div>
 
-        <form method="GET" class="employee-form" style="margin-bottom:16px;">
+        <form method="GET" class="employee-form">
             <input type="hidden" name="show" value="1">
-            <div class="form-grid form-grid-4">
+            <div class="report-filter-bar">
                 <div class="form-group">
                     <label>Department</label>
                     <select name="department_id" class="form-control" onchange="this.form.employee_id.value='0'; this.form.submit();">
@@ -154,8 +153,8 @@ require_once __DIR__ . '/../includes/header.php';
                         <?php endfor; ?>
                     </select>
                 </div>
-                <div class="form-group" style="display:flex;align-items:flex-end;">
-                    <button type="submit" class="btn-primary" style="width:100%;">
+                <div class="report-filter-actions">
+                    <button type="submit" class="btn-primary">
                         <i class="fa-solid fa-filter"></i> Show Report
                     </button>
                 </div>
@@ -163,26 +162,28 @@ require_once __DIR__ . '/../includes/header.php';
         </form>
 
         <?php if ($show && $grid): ?>
-            <div class="ops-live-summary" style="margin-bottom:12px;">
-                <span class="ops-chip"><?php echo $deptId > 0 ? 'Department filter' : 'All Employees'; ?></span>
-                <span class="ops-chip"><?php echo htmlspecialchars(date('F Y', mktime(0, 0, 0, $month, 1, $year))); ?></span>
-                <span class="ops-chip"><?php echo count($grid['employees']); ?> employees</span>
-                <?php if ($employeeId > 0): ?>
-                    <span class="ops-chip">1 employee selected</span>
-                <?php endif; ?>
-            </div>
-            <div class="report-emp-search">
-                <label class="report-emp-search-box" for="attReportEmpSearch">
-                    <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
-                    <input type="search" id="attReportEmpSearch" placeholder="Search employee code or name…"
-                           data-report-emp-search=".excel-att-table tbody tr"
-                           data-report-emp-count="#attReportEmpSearchCount"
-                           autocomplete="off">
-                    <button type="button" class="report-emp-search-clear" data-report-emp-clear title="Clear">
-                        <i class="fa-solid fa-xmark"></i>
-                    </button>
-                </label>
-                <span class="report-emp-search-count" id="attReportEmpSearchCount"></span>
+            <div class="report-toolbar-row">
+                <div class="ops-live-summary">
+                    <span class="ops-chip"><?php echo $deptId > 0 ? 'Department filter' : 'All Employees'; ?></span>
+                    <span class="ops-chip"><?php echo htmlspecialchars(date('F Y', mktime(0, 0, 0, $month, 1, $year))); ?></span>
+                    <span class="ops-chip"><?php echo count($grid['employees']); ?> employees</span>
+                    <?php if ($employeeId > 0): ?>
+                        <span class="ops-chip">1 employee selected</span>
+                    <?php endif; ?>
+                </div>
+                <div class="report-emp-search">
+                    <label class="report-emp-search-box" for="attReportEmpSearch">
+                        <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
+                        <input type="search" id="attReportEmpSearch" placeholder="Search employee code or name…"
+                               data-report-emp-search=".excel-att-table tbody tr"
+                               data-report-emp-count="#attReportEmpSearchCount"
+                               autocomplete="off">
+                        <button type="button" class="report-emp-search-clear" data-report-emp-clear title="Clear">
+                            <i class="fa-solid fa-xmark"></i>
+                        </button>
+                    </label>
+                    <span class="report-emp-search-count" id="attReportEmpSearchCount"></span>
+                </div>
             </div>
             <div class="table-wrap excel-att-wrap">
                 <?php echo attendanceRenderExcelMonthTableHtml($grid, ['tableClass' => 'data-table excel-att-table']); ?>
