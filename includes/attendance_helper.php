@@ -1515,15 +1515,57 @@ function attendanceAddDayToLeaveTotals(array &$totals, $status, $leaveType = '',
 }
 
 /**
- * Leave-like day for Week Off sandwich rule (manual PL/SL/DL/LWP/Absent).
- * Auto-LWP fill / Present / worked Half Day / blank = not leave.
+ * True LWP day for Week Off sandwich (leave NOT applied).
+ * System auto-LWP fill is ignored (would otherwise cancel every WO).
+ * PL / SL / DL / C-Off are paid leave — do NOT sandwich-cut WO.
+ */
+function attendanceDayIsLwpForSandwich($cell)
+{
+    if (!is_array($cell)) {
+        return false;
+    }
+    if (!empty($cell['_auto_lwp'])) {
+        return false;
+    }
+    $source = strtolower(trim((string) ($cell['source'] ?? '')));
+    if ($source === 'auto_lwp') {
+        return false;
+    }
+    $status = trim((string) ($cell['day_status'] ?? ''));
+    $remarks = (string) ($cell['remarks'] ?? '');
+    $parsed = attendanceParseLeaveRemark($remarks);
+    $type = strtoupper(trim((string) ($parsed['leave_type'] ?? '')));
+
+    if ($status === 'Absent') {
+        return true;
+    }
+    if ($status === 'Leave') {
+        if ($type === 'LWP' || stripos($remarks, 'LWP') !== false) {
+            return true;
+        }
+        // Blank leave type often means unpaid / no leave applied
+        if ($type === '') {
+            return true;
+        }
+        return false; // PL / SL / DL / C-Off etc.
+    }
+    if ($status === 'Half Day') {
+        if (!empty($cell['punch_in']) || !empty($cell['punch_out'])) {
+            return false;
+        }
+        return $type === 'LWP' || stripos($remarks, 'LWP') !== false;
+    }
+    return false;
+}
+
+/**
+ * Leave-like day (any leave) — kept for callers; sandwich cut uses LWP only.
  */
 function attendanceDayIsLeaveForSandwich($cell)
 {
     if (!is_array($cell)) {
         return false;
     }
-    // System auto-LWP must not cancel Week Off (would sandwich every WO in the month)
     if (!empty($cell['_auto_lwp'])) {
         return false;
     }
@@ -1536,7 +1578,6 @@ function attendanceDayIsLeaveForSandwich($cell)
         return true;
     }
     if ($status === 'Half Day') {
-        // Worked half (has punch) → not a leave sandwich side
         if (!empty($cell['punch_in']) || !empty($cell['punch_out'])) {
             return false;
         }
@@ -1549,7 +1590,7 @@ function attendanceDayIsLeaveForSandwich($cell)
 /**
  * Nearest non-WO / non-Holiday day status for sandwich check.
  * @param int $dir -1 = before, +1 = after
- * @return string leave|work|none
+ * @return string lwp|leave|work|none
  */
 function attendanceNearestSandwichSide(
     array $dayMapByDate,
@@ -1591,15 +1632,17 @@ function attendanceNearestSandwichSide(
         if ($status === 'Week Off' || $status === 'Holiday' || $calWo || $calHol) {
             continue;
         }
-        // Immediate previous/next working day (ek divas agal / pachhad)
         if ($status === '' || $cell === null) {
-            return 'none'; // no attendance beside
+            return 'none';
         }
         if (!empty($cell['_auto_lwp']) || strtolower(trim((string) ($cell['source'] ?? ''))) === 'auto_lwp') {
             return 'none';
         }
+        if (attendanceDayIsLwpForSandwich($cell)) {
+            return 'lwp';
+        }
         if (attendanceDayIsLeaveForSandwich($cell)) {
-            return 'leave';
+            return 'leave'; // PL/SL/DL — paid leave, does not cut WO
         }
         if (in_array($status, ['Present', 'Half Day'], true)) {
             return 'work';
@@ -1610,11 +1653,10 @@ function attendanceNearestSandwichSide(
 }
 
 /**
- * Week Off count rule (all departments) when employee Week-off Benefits = Yes:
- * - Count WO only if nearest working day BEFORE or AFTER has attendance (Present).
- * - If BOTH sides are Leave → do not count that WO.
- * - Week Off Working (punches) is always kept.
- * When Benefits = No, WO is already unpaid in finalize; raw WO column unchanged here.
+ * Week Off cut rule when Week-off Benefits = Yes:
+ * Cut WO only if nearest working day BEFORE and AFTER are both LWP
+ * (leave not applied). PL/SL/DL / Present / blank → WO still counted.
+ * Week Off Working (punches) is always kept.
  *
  * @return int number of week-off days removed
  */
@@ -1630,7 +1672,6 @@ function attendanceApplyWeekOffSandwichRule(
     callable $isWeekOffDate,
     $weekOffBenefits = 'No'
 ) {
-    // Only apply "attendance beside WO" rule when benefits are Yes
     if (strtoupper(trim((string) $weekOffBenefits)) !== 'YES') {
         $totals['sandwich_wo_removed'] = 0.0;
         return 0;
@@ -1680,17 +1721,13 @@ function attendanceApplyWeekOffSandwichRule(
             $isWeekOffDate
         );
 
-        // Keep only if at least one side has attendance (Present / worked half)
-        // Both Leave → remove; neither side attendance → remove
-        $hasAttendanceBeside = ($before === 'work' || $after === 'work');
-        if ($hasAttendanceBeside) {
+        // Cut only when BOTH sides are LWP (leave not applied)
+        if (!($before === 'lwp' && $after === 'lwp')) {
             continue;
         }
 
         $dayMapByDate[$woDate]['_sandwich_unpaid'] = 1;
-        $reason = ($before === 'leave' && $after === 'leave')
-            ? 'WO unpaid (Leave both sides)'
-            : 'WO unpaid (no attendance beside)';
+        $reason = 'WO unpaid (LWP both sides)';
         $remark = trim((string) ($dayMapByDate[$woDate]['remarks'] ?? ''));
         if (stripos($remark, 'WO unpaid') === false) {
             $dayMapByDate[$woDate]['remarks'] = trim($remark . ($remark !== '' ? ' · ' : '') . $reason);

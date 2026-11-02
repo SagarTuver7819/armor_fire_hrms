@@ -107,7 +107,7 @@ require_once __DIR__ . '/../includes/header.php';
     <div class="form-page-card">
         <div class="form-page-header">
             <h1>Attendance Report</h1>
-            <p>Total Days = Total Pay Days (= Salary Register) · Present / Week Off / PL / SL / DL / C-Off / Holiday</p>
+            <p>Total Days = Total Pay Days (= Salary Register) · WO cut only if LWP both sides (leave not applied) · PL/SL/DL beside → WO counted</p>
         </div>
 
         <form method="GET" class="employee-form">

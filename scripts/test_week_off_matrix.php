@@ -73,22 +73,30 @@ $map = buildDayMap('Present');
 $t = attendanceBuildEmployeeMonthTotals(makeEmp('Yes'), $map, $month, $year, $holidaySet);
 $cases[] = ['Benefits Yes + Present beside → WO=4', (float) $t['week_off_paid'] === 4.0 && (float) $t['week_off'] === 4.0, $t];
 
-// 3) Benefits Yes + Leave both sides of one Sunday (Oct 11: Fri 9 + Sat 10 leave, Mon 12 leave)
+// 3) PL both sides → WO still counted (only LWP both sides cuts)
 $map = buildDayMap('Present', [
     '2026-10-10' => day('Leave', ['remarks' => 'PL']),
     '2026-10-12' => day('Leave', ['remarks' => 'PL']),
 ]);
 $t = attendanceBuildEmployeeMonthTotals(makeEmp('Yes'), $map, $month, $year, $holidaySet);
-$cases[] = ['Leave both sides of Oct11 → WO=3', (float) $t['week_off_paid'] === 3.0, $t];
+$cases[] = ['PL both sides of Oct11 → WO=4 kept', (float) $t['week_off_paid'] === 4.0, $t];
 
-// 4) Benefits Yes + only one side Present (before leave, after present) → keep WO
+// 3b) LWP both sides → that WO cut
 $map = buildDayMap('Present', [
-    '2026-10-10' => day('Leave', ['remarks' => 'PL']),
+    '2026-10-10' => day('Leave', ['remarks' => 'LWP']),
+    '2026-10-12' => day('Leave', ['remarks' => 'LWP']),
 ]);
 $t = attendanceBuildEmployeeMonthTotals(makeEmp('Yes'), $map, $month, $year, $holidaySet);
-$cases[] = ['One side Present → keep WO=4', (float) $t['week_off_paid'] === 4.0, $t];
+$cases[] = ['LWP both sides of Oct11 → WO=3 cut', (float) $t['week_off_paid'] === 3.0, $t];
 
-// 5) No attendance beside (blank working days) → WO unpaid
+// 4) Benefits Yes + only one side LWP (other Present) → keep WO
+$map = buildDayMap('Present', [
+    '2026-10-10' => day('Leave', ['remarks' => 'LWP']),
+]);
+$t = attendanceBuildEmployeeMonthTotals(makeEmp('Yes'), $map, $month, $year, $holidaySet);
+$cases[] = ['One side LWP → keep WO=4', (float) $t['week_off_paid'] === 4.0, $t];
+
+// 5) No attendance beside (blank working days) → WO still counted
 $map = [];
 $start = strtotime('2026-10-01');
 $end = strtotime('2026-10-31');
@@ -99,7 +107,7 @@ for ($ts = $start; $ts <= $end; $ts = strtotime('+1 day', $ts)) {
     }
 }
 $t = attendanceBuildEmployeeMonthTotals(makeEmp('Yes'), $map, $month, $year, $holidaySet);
-$cases[] = ['No att beside → WOpay=0', (float) $t['week_off_paid'] === 0.0, $t];
+$cases[] = ['No att beside → WOpay=4 kept', (float) $t['week_off_paid'] === 4.0, $t];
 
 // 6) total_days === total_pay_days always
 $map = buildDayMap('Present');
