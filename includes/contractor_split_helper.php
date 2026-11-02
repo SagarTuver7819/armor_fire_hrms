@@ -1,14 +1,15 @@
 <?php
 /**
  * Main Contractor pool → department Normal Salary attendance fund + remainder on Main
- * (Melting 1, Melting 2, CNC — same rule):
+ * (Melting 1, Melting 2, CNC, BUFF — same rule):
  * - Dept Normal Salary keep attendance net on register/NEFT (funded from Main pool).
  * - Main Jobwork/NEFT = pool − Σ(Normal nets) → remainder.
  * - Dept Jobwork (not main) stay on Jobwork register with own qty — no pool dump.
  *
  * Melting 1: PURANSINH PUNITBHAI / CO72216
  * Melting 2: auto from department main_contractor links / Jobwork CO
- * CNC: Ravi (name match + department auto-resolve)
+ * CNC: Ravi / CO72141 (department auto-resolve)
+ * BUFF: SADDAM NANNE KHAN / CO72302 (same Melting Normal-attendance fund rule)
  */
 
 require_once __DIR__ . '/payroll_helper.php';
@@ -41,14 +42,31 @@ function contractorAttendanceSplitRules()
         ],
         [
             // Same as Melting 1 / Puran — Ravi CNC Main Contractor
-            'main_name' => 'RAVI',
-            'main_code' => '',
+            'main_name' => 'SOLANKI RAVI KANABHAI',
+            'main_code' => 'CO72141',
             'department_name' => 'CNC',
             'name_aliases' => [
                 'RAVI',
                 'Ravi',
                 'RAVI BHAI',
                 'Ravi Bhai',
+                'SOLANKI RAVI',
+                'SOLANKI RAVI KANABHAI',
+            ],
+            'resolve_from_department' => true,
+        ],
+        [
+            // Same as Melting 1 — Saddam BUFF Main Contractor
+            'main_name' => 'SADDAM NANNE KHAN',
+            'main_code' => 'CO72302',
+            'department_name' => 'BUFF',
+            'name_aliases' => [
+                'SADDAM',
+                'Saddam',
+                'SADDAM KHAN',
+                'Saddam Khan',
+                'SADDAM NANNE KHAN',
+                'NANNE KHAN',
             ],
             'resolve_from_department' => true,
         ],
@@ -647,7 +665,7 @@ function applyContractorAttendanceShareToRegisterRow(array $row, $month, $year, 
         $mode = (string) ($row['mode'] ?? $row['register_mode'] ?? '');
     }
 
-    // Split Main: Jobwork register = remainder after Normal salaries (Melting / CNC)
+    // Split Main: Jobwork register = remainder after Normal salaries (Melting / CNC / BUFF)
     if ($eid > 0 && isset($skip[$eid])) {
         // Keep Main off Normal Fixed Salary register (attendance-only list)
         if ($mode === 'salary') {

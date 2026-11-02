@@ -132,7 +132,7 @@ function buildSalaryRegisterRow(array $emp, $month, $year, $mode)
         'contractor_main_share' => 0.0,
     ];
 
-    // Melting 1 / Melting 2 / CNC: Normal funded from Main pool; Main Jobwork row = remainder
+    // Melting 1 / Melting 2 / CNC / BUFF: Normal funded from Main pool; Main Jobwork row = remainder
     // Remainder only on Jobwork Actual register — never rewrite Normal Salary rows.
     if (function_exists('applyContractorAttendanceShareToRegisterRow')) {
         $row = applyContractorAttendanceShareToRegisterRow($row, $month, $year, $mode);
@@ -465,7 +465,7 @@ function getSalaryRegisterData($type, $month, $year, $deptId = 0, $employeeId = 
     $groups = [];
 
     if ($type === 'contractor_main') {
-        // All Main Contractors (pay_type) + configured Melting/CNC split mains
+        // All Main Contractors (pay_type) + configured Melting/CNC/BUFF split mains
         $mains = fetchSalaryRegisterEmployees($deptId, $employeeId, ['ContractorMain'], $month, $year);
         $byId = [];
         foreach ($mains as $main) {

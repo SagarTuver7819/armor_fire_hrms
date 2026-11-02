@@ -381,7 +381,7 @@ function filterSalaryRegisterGroupsByDepartment(array $groups, $deptId)
 }
 
 /**
- * Drop Melting/CNC split Main contractors from Normal (Salary) register —
+ * Drop Melting/CNC/BUFF split Main contractors from Normal (Salary) register —
  * their pool remainder belongs only on Jobwork Actual.
  *
  * @param array<int, array<string, mixed>> $groups

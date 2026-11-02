@@ -4,5 +4,5 @@
  * Attendance Report shows this so we can confirm deploy reflected.
  */
 if (!defined('HRMS_BUILD_ID')) {
-    define('HRMS_BUILD_ID', '2026-11-02-r7-cnc-dept-scope');
+    define('HRMS_BUILD_ID', '2026-11-02-r8-buff-saddam-split');
 }
