@@ -9,6 +9,7 @@ require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/employee_helper.php';
 require_once __DIR__ . '/../includes/salary_register_helper.php';
+require_once __DIR__ . '/../includes/payroll_reports_helper.php';
 require_once __DIR__ . '/../includes/settings.php';
 
 requireLogin();
@@ -25,7 +26,9 @@ if (!isset(salaryRegisterTypes()[$type])) {
     $type = 'salary';
 }
 
-$groups = getSalaryRegisterData($type, $month, $year, $deptId, $employeeId);
+// Same rows as on-screen register (locked + live sync, drop stale lock-only staff)
+$displayBundle = getSalaryRegisterDisplayBundle($type, $month, $year, $deptId, $employeeId);
+$groups = $displayBundle['groups'];
 $isActual = ($type === 'jobwork_actual');
 $monthLabel = date('F_Y', mktime(0, 0, 0, $month, 1, $year));
 $monthDays = (int) date('t', strtotime(sprintf('%04d-%02d-01', $year, $month)));

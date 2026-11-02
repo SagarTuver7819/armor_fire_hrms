@@ -536,18 +536,38 @@ function getSalaryRegisterDisplayBundle($type, $month, $year, $deptId = 0, $empl
 
         // Locked snapshot often lags Manual Attendance (Gopal: DL/Present mismatch).
         // Recompute every row from live Attendance Report; keep Arrears from lock.
+        // IMPORTANT: drop lock-only people who are no longer on the live register
+        // (Excel uses live — Melting 1 Net was 7,68,182 on screen vs 7,52,059 Excel
+        // because lock still had CO72320 etc.).
         if ($type !== 'contractor_main') {
+            $titleBase = ($type === 'jobwork_actual')
+                ? 'Jobwork — Regular / Actual'
+                : 'Salaried Person (Fixed)';
+
+            $liveGroups = getSalaryRegisterData($type, $month, $year, $deptId, $employeeId);
+            $liveById = [];
+            foreach ($liveGroups as $lg) {
+                foreach ($lg['rows'] ?? [] as $lr) {
+                    $eid = (int) ($lr['employee_id'] ?? 0);
+                    if ($eid > 0) {
+                        $liveById[$eid] = $lr;
+                    }
+                }
+            }
+
             $refreshed = [];
             foreach ($rows as $r) {
+                $eid = (int) ($r['employee_id'] ?? 0);
+                // Not on live Salary/Jobwork list for this dept → exclude (match Excel)
+                if ($eid <= 0 || !isset($liveById[$eid])) {
+                    continue;
+                }
                 $refreshed[] = refreshSalaryRegisterRowFromLiveAttendance($r, $type, $month, $year);
             }
             $rows = $refreshed;
 
             // Rebuild groups by department from refreshed rows
             $byDept = [];
-            $titleBase = ($type === 'jobwork_actual')
-                ? 'Jobwork — Regular / Actual'
-                : 'Salaried Person (Fixed)';
             foreach ($rows as $r) {
                 $dn = (string) ($r['department'] ?? 'Department');
                 if (!isset($byDept[$dn])) {
@@ -575,7 +595,6 @@ function getSalaryRegisterDisplayBundle($type, $month, $year, $deptId = 0, $empl
             }
 
             // Append live employees missing from old lock
-            $liveGroups = getSalaryRegisterData($type, $month, $year, $deptId, $employeeId);
             $haveIds = [];
             $rows = flattenSalaryRegisterGroups($groups);
             foreach ($rows as $r) {
@@ -584,46 +603,43 @@ function getSalaryRegisterDisplayBundle($type, $month, $year, $deptId = 0, $empl
                     $haveIds[$eid] = true;
                 }
             }
-            foreach ($liveGroups as $lg) {
-                foreach ($lg['rows'] ?? [] as $lr) {
-                    $eid = (int) ($lr['employee_id'] ?? 0);
-                    if ($eid <= 0 || isset($haveIds[$eid])) {
-                        continue;
-                    }
-                    if ($deptId > 0 && (int) ($lr['department_id'] ?? 0) !== $deptId) {
-                        continue;
-                    }
-                    if ($type === 'salary' && function_exists('contractorAttendanceSplitMainIds')) {
-                        $mains = contractorAttendanceSplitMainIds();
-                        if (isset($mains[$eid])) {
-                            continue;
-                        }
-                    }
-                    $haveIds[$eid] = true;
-                    $lr['register_mode'] = $type;
-                    if (empty($lr['mode'])) {
-                        $lr['mode'] = $type;
-                    }
-                    $deptName = (string) ($lr['department'] ?? 'Department');
-                    $placed = false;
-                    foreach ($groups as &$g) {
-                        if (stripos((string) ($g['title'] ?? ''), $deptName) !== false) {
-                            $g['rows'][] = $lr;
-                            $placed = true;
-                            break;
-                        }
-                    }
-                    unset($g);
-                    if (!$placed) {
-                        $groups[] = [
-                            'title' => $titleBase . ' · ' . $deptName,
-                            'subtitle' => 'Added from live (missing in lock)',
-                            'mode' => $type,
-                            'rows' => [$lr],
-                        ];
-                    }
-                    $rows[] = $lr;
+            foreach ($liveById as $eid => $lr) {
+                if (isset($haveIds[$eid])) {
+                    continue;
                 }
+                if ($deptId > 0 && (int) ($lr['department_id'] ?? 0) !== $deptId) {
+                    continue;
+                }
+                if ($type === 'salary' && function_exists('contractorAttendanceSplitMainIds')) {
+                    $mains = contractorAttendanceSplitMainIds();
+                    if (isset($mains[$eid])) {
+                        continue;
+                    }
+                }
+                $haveIds[$eid] = true;
+                $lr['register_mode'] = $type;
+                if (empty($lr['mode'])) {
+                    $lr['mode'] = $type;
+                }
+                $deptName = (string) ($lr['department'] ?? 'Department');
+                $placed = false;
+                foreach ($groups as &$g) {
+                    if (stripos((string) ($g['title'] ?? ''), $deptName) !== false) {
+                        $g['rows'][] = $lr;
+                        $placed = true;
+                        break;
+                    }
+                }
+                unset($g);
+                if (!$placed) {
+                    $groups[] = [
+                        'title' => $titleBase . ' · ' . $deptName,
+                        'subtitle' => 'Added from live (missing in lock)',
+                        'mode' => $type,
+                        'rows' => [$lr],
+                    ];
+                }
+                $rows[] = $lr;
             }
             if ($deptId > 0) {
                 $groups = filterSalaryRegisterGroupsByDepartment($groups, $deptId);
