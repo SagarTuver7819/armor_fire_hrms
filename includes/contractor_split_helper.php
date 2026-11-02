@@ -1,7 +1,7 @@
 <?php
 /**
  * Main Contractor pool → department Normal Salary attendance fund + remainder on Main
- * (Melting 1, Melting 2, CNC, BUFF — same rule):
+ * (Melting 1, Melting 2, CNC, BUFF, ASSEMBLY 2 — same rule):
  * - Dept Normal Salary keep attendance net on register/NEFT (funded from Main pool).
  * - Main Jobwork/NEFT = pool − Σ(Normal nets) → remainder.
  * - Dept Jobwork (not main) stay on Jobwork register with own qty — no pool dump.
@@ -9,7 +9,8 @@
  * Melting 1: PURANSINH PUNITBHAI / CO72216
  * Melting 2: auto from department main_contractor links / Jobwork CO
  * CNC: Ravi / CO72141 (department auto-resolve)
- * BUFF: SADDAM NANNE KHAN / CO72302 (same Melting Normal-attendance fund rule)
+ * BUFF: SADDAM NANNE KHAN / CO72302
+ * ASSEMBLY 2: AASHISH KUMAR B / CO72103 (same Melting Normal-attendance fund rule)
  */
 
 require_once __DIR__ . '/payroll_helper.php';
@@ -67,6 +68,22 @@ function contractorAttendanceSplitRules()
                 'Saddam Khan',
                 'SADDAM NANNE KHAN',
                 'NANNE KHAN',
+            ],
+            'resolve_from_department' => true,
+        ],
+        [
+            // Same as Melting 1 — Aashish ASSEMBLY 2 Main Contractor
+            'main_name' => 'AASHISH KUMAR B',
+            'main_code' => 'CO72103',
+            'department_name' => 'ASSEMBLY 2',
+            'name_aliases' => [
+                'AASHISH',
+                'Aashish',
+                'ASHISH',
+                'Ashish',
+                'AASHISH KUMAR',
+                'Aashish Kumar',
+                'AASHISH KUMAR B',
             ],
             'resolve_from_department' => true,
         ],
@@ -665,7 +682,7 @@ function applyContractorAttendanceShareToRegisterRow(array $row, $month, $year, 
         $mode = (string) ($row['mode'] ?? $row['register_mode'] ?? '');
     }
 
-    // Split Main: Jobwork register = remainder after Normal salaries (Melting / CNC / BUFF)
+    // Split Main: Jobwork register = remainder after Normal salaries (Melting / CNC / BUFF / ASSEMBLY 2)
     if ($eid > 0 && isset($skip[$eid])) {
         // Keep Main off Normal Fixed Salary register (attendance-only list)
         if ($mode === 'salary') {
