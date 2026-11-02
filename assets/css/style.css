@@ -1543,6 +1543,68 @@ textarea.is-synced-addr {
     min-width: 220px;
 }
 
+/* Attendance Report / Salary Register — employee live search */
+.report-emp-search {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin: 0 0 12px;
+    padding: 10px 12px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+}
+.report-emp-search-box {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 1 1 260px;
+    min-width: 200px;
+    max-width: 420px;
+    background: #fff;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    padding: 0 10px;
+}
+.report-emp-search-box:focus-within {
+    border-color: #d2232a;
+    box-shadow: 0 0 0 3px rgba(210, 35, 42, 0.12);
+}
+.report-emp-search-box > i {
+    color: #94a3b8;
+    font-size: 14px;
+}
+.report-emp-search-box input {
+    flex: 1;
+    border: 0;
+    outline: 0;
+    background: transparent;
+    padding: 9px 0;
+    font-size: 14px;
+    min-width: 0;
+}
+.report-emp-search-box input::placeholder {
+    color: #94a3b8;
+}
+.report-emp-search-clear {
+    border: 0;
+    background: transparent;
+    color: #94a3b8;
+    cursor: pointer;
+    padding: 4px;
+    line-height: 1;
+}
+.report-emp-search-clear:hover {
+    color: #d2232a;
+}
+.report-emp-search-count {
+    font-size: 12px;
+    color: #64748b;
+    font-weight: 600;
+    min-height: 1em;
+}
+
 .data-card {
     background: #fff;
     border-radius: 14px;

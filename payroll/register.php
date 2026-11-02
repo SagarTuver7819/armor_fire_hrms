@@ -81,6 +81,7 @@ $sidebarActive = 'salary_register';
 $companyName = function_exists('getCompanyName') ? getCompanyName() : 'Company';
 $monthLabel = date('F Y', mktime(0, 0, 0, $month, 1, $year));
 $isActual = ($type === 'jobwork_actual');
+$extraJs = ['assets/js/report_emp_search.js'];
 
 $excelQs = http_build_query([
     'type' => $type,
@@ -341,6 +342,19 @@ require_once __DIR__ . '/../includes/header.php';
     }
     $grandSum = registerSumMoneyColumns($grandRows);
     ?>
+    <div class="report-emp-search">
+        <label class="report-emp-search-box" for="srEmpSearch">
+            <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
+            <input type="search" id="srEmpSearch" placeholder="Search employee code or name…"
+                   data-report-emp-search=".salary-register-table tbody tr"
+                   data-report-emp-count="#srEmpSearchCount"
+                   autocomplete="off">
+            <button type="button" class="report-emp-search-clear" data-report-emp-clear title="Clear">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </label>
+        <span class="report-emp-search-count" id="srEmpSearchCount"></span>
+    </div>
     <?php foreach ($groups as $g): ?>
         <?php
         $rows = $g['rows'];
@@ -405,7 +419,10 @@ require_once __DIR__ . '/../includes/header.php';
                         <tr><td colspan="26" class="empty-cell">No employees for this register.</td></tr>
                     <?php endif; ?>
                     <?php foreach ($rows as $r): ?>
-                        <tr>
+                        <?php
+                        $srEmpSearch = trim((string) ($r['employee_code'] ?? '') . ' ' . (string) ($r['employee_name'] ?? ''));
+                        ?>
+                        <tr data-emp-search="<?php echo htmlspecialchars($srEmpSearch, ENT_QUOTES, 'UTF-8'); ?>">
                             <td class="sr-sticky sr-sticky-1"><?php echo htmlspecialchars($r['employee_code'] ?: '-'); ?></td>
                             <td class="sr-sticky sr-sticky-2">
                                 <strong><?php echo htmlspecialchars($r['employee_name']); ?></strong>

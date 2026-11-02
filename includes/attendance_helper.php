@@ -2363,7 +2363,8 @@ function attendanceRenderExcelMonthTableHtml(array $grid, array $opts = [])
     foreach ($employees as $emp) {
         $eid = (int) $emp['id'];
         $totals = $leaveTotals[$eid] ?? attendanceEmptyLeaveTotals();
-        $html .= '<tr>';
+        $empSearch = trim((string) ($emp['employee_code'] ?? '') . ' ' . (string) ($emp['employee_name'] ?? ''));
+        $html .= '<tr data-emp-search="' . htmlspecialchars($empSearch, ENT_QUOTES, 'UTF-8') . '">';
         $html .= '<td class="sticky-col" style="' . $metaTd . '">' . htmlspecialchars((string) ($emp['employee_code'] ?? '')) . '</td>';
         $html .= '<td class="sticky-col-2" style="' . $metaTd . '">' . htmlspecialchars((string) ($emp['employee_name'] ?? '')) . '</td>';
         $html .= '<td style="' . $metaTd . '">' . htmlspecialchars((string) ($emp['designation'] ?? '')) . '</td>';

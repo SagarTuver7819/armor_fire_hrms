@@ -35,6 +35,22 @@ if ($dres) {
         $departments[] = $r;
     }
 }
+$empOptions = [];
+$empSql = "SELECT id, employee_code, employee_name
+           FROM employees
+           WHERE status = 1
+             AND (date_of_exit IS NULL OR date_of_exit = '' OR date_of_exit = '0000-00-00'
+                  OR date_of_exit >= '" . $conn->real_escape_string(sprintf('%04d-%02d-01', $year, $month)) . "')";
+if ($deptId > 0) {
+    $empSql .= ' AND department_id = ' . (int) $deptId;
+}
+$empSql .= ' ORDER BY employee_code ASC, employee_name ASC LIMIT 2000';
+$eres = $conn->query($empSql);
+if ($eres) {
+    while ($r = $eres->fetch_assoc()) {
+        $empOptions[] = $r;
+    }
+}
 $grid = $show ? getAttendanceExcelMonthGrid($month, $year, $deptId, $employeeId, $conn) : null;
 $conn->close();
 
@@ -43,6 +59,7 @@ $useSidebar = true;
 $sidebarMode = 'attendance';
 $sidebarActive = 'attendance_report';
 $sidebarDeptId = $deptId;
+$extraJs = ['assets/js/report_emp_search.js'];
 
 $qs = [
     'department_id' => $deptId,
@@ -99,11 +116,22 @@ require_once __DIR__ . '/../includes/header.php';
             <div class="form-grid form-grid-4">
                 <div class="form-group">
                     <label>Department</label>
-                    <select name="department_id" class="form-control">
+                    <select name="department_id" class="form-control" onchange="this.form.employee_id.value='0'; this.form.submit();">
                         <option value="0">All Departments / All Employees</option>
                         <?php foreach ($departments as $d): ?>
                             <option value="<?php echo (int) $d['id']; ?>" <?php echo $deptId === (int) $d['id'] ? 'selected' : ''; ?>>
                                 <?php echo htmlspecialchars($d['department_name']); ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Employee</label>
+                    <select name="employee_id" class="form-control">
+                        <option value="0">All employees</option>
+                        <?php foreach ($empOptions as $eo): ?>
+                            <option value="<?php echo (int) $eo['id']; ?>" <?php echo $employeeId === (int) $eo['id'] ? 'selected' : ''; ?>>
+                                <?php echo htmlspecialchars(($eo['employee_code'] ?? '') . ' — ' . ($eo['employee_name'] ?? '')); ?>
                             </option>
                         <?php endforeach; ?>
                     </select>
@@ -139,6 +167,22 @@ require_once __DIR__ . '/../includes/header.php';
                 <span class="ops-chip"><?php echo $deptId > 0 ? 'Department filter' : 'All Employees'; ?></span>
                 <span class="ops-chip"><?php echo htmlspecialchars(date('F Y', mktime(0, 0, 0, $month, 1, $year))); ?></span>
                 <span class="ops-chip"><?php echo count($grid['employees']); ?> employees</span>
+                <?php if ($employeeId > 0): ?>
+                    <span class="ops-chip">1 employee selected</span>
+                <?php endif; ?>
+            </div>
+            <div class="report-emp-search">
+                <label class="report-emp-search-box" for="attReportEmpSearch">
+                    <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
+                    <input type="search" id="attReportEmpSearch" placeholder="Search employee code or name…"
+                           data-report-emp-search=".excel-att-table tbody tr"
+                           data-report-emp-count="#attReportEmpSearchCount"
+                           autocomplete="off">
+                    <button type="button" class="report-emp-search-clear" data-report-emp-clear title="Clear">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </label>
+                <span class="report-emp-search-count" id="attReportEmpSearchCount"></span>
             </div>
             <div class="table-wrap excel-att-wrap">
                 <?php echo attendanceRenderExcelMonthTableHtml($grid, ['tableClass' => 'data-table excel-att-table']); ?>
