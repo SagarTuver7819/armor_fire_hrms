@@ -18,11 +18,15 @@ $repo = 'SagarTuver7819/armor_fire_hrms';
 $branch = 'main';
 $files = [
     'includes/contractor_split_helper.php',
+    'includes/contractor_helper.php',
     'includes/salary_register_helper.php',
     'includes/payroll_reports_helper.php',
     'includes/payroll_helper.php',
     'includes/build_meta.php',
     'contractor/operations/edit.php',
+    'contractor/operations/products_json.php',
+    'assets/js/contractor_ops.js',
+    'assets/css/style.css',
     'payroll/register.php',
     'tools/live_update.php',
     'tools/live_github_sync.php',

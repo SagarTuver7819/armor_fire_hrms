@@ -834,7 +834,13 @@ function getContractorProductsByOperation($operation, $conn = null)
         $closeAfter = true;
     }
     $rows = [];
-    $stmt = $conn->prepare('SELECT * FROM contractor_products WHERE status = 1 AND operation = ? ORDER BY process ASC, product_name ASC');
+    $operation = trim((string) $operation);
+    // Case-insensitive match so Product Master "Flexible" still feeds sheet "FLEXIBLE"
+    $stmt = $conn->prepare(
+        'SELECT * FROM contractor_products
+         WHERE status = 1 AND LOWER(TRIM(operation)) = LOWER(?)
+         ORDER BY product_name ASC, process ASC'
+    );
     $stmt->bind_param('s', $operation);
     $stmt->execute();
     $res = $stmt->get_result();

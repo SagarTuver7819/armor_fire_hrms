@@ -44,7 +44,14 @@ foreach ($products as $r) {
     $id = (int) $r['id'];
     $process = trim(html_entity_decode((string) ($r['process'] ?? '')));
     $name = trim(html_entity_decode((string) ($r['product_name'] ?? '')));
-    $label = $process !== '' && $process !== '-' ? $process : $name;
+    // Prefer Product Name (what users add in Product Master). Include process when different.
+    if ($name !== '' && $process !== '' && $process !== '-' && strcasecmp($name, $process) !== 0) {
+        $label = $name . ' · ' . $process;
+    } elseif ($name !== '') {
+        $label = $name;
+    } else {
+        $label = $process;
+    }
     if ($label === '') {
         continue;
     }

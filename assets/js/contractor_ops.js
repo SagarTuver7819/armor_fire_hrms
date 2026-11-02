@@ -150,7 +150,10 @@
             if ($(e.target).closest('#opsComboPanel, .ops-combo-trigger').length) return;
             closeOpsCombo();
         });
-        $(window).on('resize.opsCombo', function () {
+        $(window).on('resize.opsCombo scroll.opsCombo', function () {
+            if (opsComboActiveSel) positionOpsComboPanel();
+        });
+        $('.ops-grid-wrap').off('scroll.opsCombo').on('scroll.opsCombo', function () {
             if (opsComboActiveSel) positionOpsComboPanel();
         });
         return $opsComboPanel;
@@ -175,30 +178,56 @@
         }
     }
 
+    var opsComboLoadingProducts = false;
+
     function positionOpsComboPanel() {
         if (!opsComboActiveSel || !$opsComboPanel) return;
         var $td = opsComboActiveSel.closest('td');
         var $trig = $td.find('.ops-combo-trigger');
         if (!$trig.length) return;
-        // Inline under trigger inside sticky cell — cannot drift to Action/Sr
-        if ($opsComboPanel.parent()[0] !== $td[0]) {
-            $td.append($opsComboPanel);
+        // Fixed on body — escapes .ops-grid-wrap overflow (list was clipped / looked empty)
+        if ($opsComboPanel.parent()[0] !== document.body) {
+            $(document.body).append($opsComboPanel);
         }
         $td.addClass('ops-combo-open-cell');
-        $opsComboPanel.addClass('ops-combo-inline').css({
-            position: 'absolute',
-            left: '4px',
-            right: '4px',
-            top: '100%',
-            width: 'auto',
-            zIndex: 60
+        var rect = $trig[0].getBoundingClientRect();
+        var width = Math.max(rect.width, 280);
+        var left = rect.left;
+        if (left + width > window.innerWidth - 8) {
+            left = Math.max(8, window.innerWidth - width - 8);
+        }
+        var top = rect.bottom + 4;
+        var maxH = Math.min(320, Math.max(160, window.innerHeight - top - 16));
+        if (top + 140 > window.innerHeight && rect.top > 200) {
+            maxH = Math.min(320, Math.max(160, rect.top - 16));
+            top = Math.max(8, rect.top - maxH - 4);
+        }
+        $opsComboPanel.removeClass('ops-combo-inline').css({
+            position: 'fixed',
+            left: left + 'px',
+            top: top + 'px',
+            right: 'auto',
+            width: width + 'px',
+            zIndex: 200000
         }).removeAttr('hidden');
-        $opsComboPanel.find('.ops-combo-list').css('max-height', '260px');
+        $opsComboPanel.find('.ops-combo-list').css('max-height', Math.max(120, maxH - 52) + 'px');
     }
 
     function openOpsCombo($sel) {
         ensureOpsComboPanel();
         closeOpsCombo();
+        if ((!products || !products.length) && !opsComboLoadingProducts) {
+            opsComboLoadingProducts = true;
+            loadProducts(function () {
+                opsComboLoadingProducts = false;
+                var sid = nonzeroId($sel.closest('tr').find('.row-product-id').val())
+                    || nonzeroId($sel.val())
+                    || '';
+                fillProductSelect($sel, sid);
+                openOpsCombo($sel);
+            });
+            return;
+        }
         opsComboActiveSel = $sel;
         var html = '';
         $sel.find('option').each(function () {
@@ -207,11 +236,14 @@
             if (val === '' || val === undefined) {
                 html += '<li class="ops-combo-item ops-combo-clear" data-value="">' + $('<div/>').text(text || '— Clear —').html() + '</li>';
             } else {
-                var sel = String($sel.val()) === String(val) ? ' is-selected' : '';
+                var sel = String($sel.val()) === String(val) ? ' is-selected is-active' : '';
                 html += '<li class="ops-combo-item' + sel + '" data-value="' + String(val).replace(/"/g, '&quot;') + '">'
                     + $('<div/>').text(text).html() + '</li>';
             }
         });
+        if (!html) {
+            html = '<li class="ops-combo-empty">No products for this operation — add in Product Master</li>';
+        }
         $opsComboPanel.find('.ops-combo-list').html(html);
         $opsComboPanel.find('.ops-combo-search').val('');
         filterOpsComboList('');
