@@ -532,6 +532,8 @@ function getSalaryRegisterData($type, $month, $year, $deptId = 0, $employeeId = 
             $salaryUnder = [];
             $jwUnder = [];
             $normalGrossTotal = 0.0;
+            $normalNetTotal = 0.0;
+            $normalPtTotal = 0.0;
             foreach ($under as $u) {
                 $uPay = normalizePayType($u['pay_type'] ?? '');
                 $uMode = $uPay === 'Salary' ? 'salary' : 'jobwork_actual';
@@ -539,12 +541,26 @@ function getSalaryRegisterData($type, $month, $year, $deptId = 0, $employeeId = 
                 $row['mode'] = $uMode;
                 if ($uMode === 'salary') {
                     $normalGrossTotal += (float) ($row['gross'] ?? 0);
+                    $normalNetTotal += (float) ($row['net'] ?? 0);
+                    $normalPtTotal += (float) ($row['pt'] ?? 0);
                     $salaryUnder[] = $row;
                 } else {
                     $jwUnder[] = $row;
                 }
             }
-            // Normal Salary under first → Gross total after them → then Jobwork under
+            $fundBasis = (string) ($mainRow['contractor_fund_basis'] ?? 'gross');
+            $useNetPt = ($fundBasis === 'net_plus_pt');
+            // Prefer split engine distributed (exact fund used for Main remainder)
+            $fundTotal = !empty($mainRow['contractor_split_out'])
+                ? (float) ($mainRow['contractor_distributed'] ?? 0)
+                : ($useNetPt
+                    ? round($normalNetTotal + $normalPtTotal, 2)
+                    : round($normalGrossTotal, 2));
+            $fundTitle = $useNetPt ? 'Normal Salary Net + PT Total' : 'Normal Salary Gross Total';
+            $fundRemark = $useNetPt
+                ? ('Σ Net ₹ ' . registerNum($normalNetTotal, 0) . ' + Σ PT ₹ ' . registerNum($normalPtTotal, 0) . ' · under Main')
+                : 'Σ Gross · Normal Salary under Main';
+            // Normal Salary under first → fund total after them → then Jobwork under
             foreach ($salaryUnder as $row) {
                 $rows[] = $row;
             }
@@ -552,7 +568,7 @@ function getSalaryRegisterData($type, $month, $year, $deptId = 0, $employeeId = 
                 $rows[] = [
                     'employee_id' => 0,
                     'employee_code' => '',
-                    'employee_name' => 'Normal Salary Gross Total',
+                    'employee_name' => $fundTitle,
                     'is_normal_gross_total' => true,
                     'pay_type' => 'Salary',
                     'mode' => 'salary',
@@ -570,18 +586,18 @@ function getSalaryRegisterData($type, $month, $year, $deptId = 0, $employeeId = 
                     'total_days' => 0,
                     'qty' => 0,
                     'actual' => 0,
-                    'gross' => round($normalGrossTotal, 2),
+                    'gross' => round($fundTotal, 2),
                     'pf' => 0,
-                    'pt' => 0,
+                    'pt' => round($normalPtTotal, 2),
                     'loan' => 0,
                     'advance' => 0,
-                    'total_deduction' => 0,
+                    'total_deduction' => round($normalPtTotal, 2),
                     'memo' => 0,
                     'arrears' => 0,
-                    'net' => 0,
+                    'net' => round($normalNetTotal, 2),
                     'account' => '',
                     'ifsc' => '',
-                    'remarks' => 'Σ Gross · Normal Salary under Main',
+                    'remarks' => $fundRemark,
                     'main_contractor' => '',
                     'department' => (string) ($mainRow['department'] ?? ''),
                     'department_id' => (int) ($mainRow['department_id'] ?? 0),
@@ -592,9 +608,12 @@ function getSalaryRegisterData($type, $month, $year, $deptId = 0, $employeeId = 
             }
             $groups[] = [
                 'title' => 'Main Contractor: ' . ($main['employee_code'] ?? '') . ' — ' . ($main['employee_name'] ?? ''),
-                'subtitle' => 'Main + Normal Salary under (Gross total) + Jobwork under',
+                'subtitle' => $useNetPt
+                    ? 'Main + Normal Salary under (Net + PT total) + Jobwork under'
+                    : 'Main + Normal Salary under (Gross total) + Jobwork under',
                 'mode' => 'contractor_main',
                 'normal_salary_gross' => round($normalGrossTotal, 2),
+                'normal_salary_fund' => round($fundTotal, 2),
                 'rows' => $rows,
             ];
         }

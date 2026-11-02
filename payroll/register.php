@@ -328,7 +328,7 @@ require_once __DIR__ . '/../includes/header.php';
         <?php elseif ($type === 'jobwork_actual'): ?>
             <p class="form-hint">Jobwork <strong>Regular / Actual</strong>: Qty × Rate from <strong>Operations Rate List</strong> only (same sheet totals). Manual Jobwork Entry is used only if no rate-list sheet exists for that employee/month. No attendance day split.</p>
         <?php elseif ($type === 'contractor_main'): ?>
-            <p class="form-hint">Main Contractor: Main + <strong>Normal Salary under</strong> (then <strong>Normal Salary Gross Total</strong>) + Jobwork under. CNC / Melting / Buff split: Main remainder = Pool − Normal Gross. NEFT uses Register types 1 + 2 only (no double count).</p>
+            <p class="form-hint">Main Contractor: Main + <strong>Normal Salary under</strong> + total row + Jobwork under. Melting 1 (Puran): Pool − (Normal <strong>Net + PT</strong>). CNC / Buff / Ass2: Pool − Normal Gross. NEFT = Register types 1 + 2 only.</p>
         <?php else: ?>
             <p class="form-hint">Normal <strong>Fixed Salary</strong>: Gross = Decided Salary × (Present + Week Off + Holiday + P.L. + S.L. + D.L. + C-Off) ÷ month days — same totals as <strong>Attendance Report</strong> (employee week-off day for this month).</p>
         <?php endif; ?>
@@ -450,13 +450,25 @@ require_once __DIR__ . '/../includes/header.php';
                         <?php
                         if (!empty($r['is_normal_gross_total'])) {
                             $colBeforeGross = $isActual ? 7 : 14; // emp cols + earning cols before Gross
+                            $ngtTitle = trim((string) ($r['employee_name'] ?? 'Normal Salary Gross Total'));
+                            if ($ngtTitle === '') {
+                                $ngtTitle = 'Normal Salary Gross Total';
+                            }
                             ?>
-                            <tr class="sr-normal-gross-total" style="background:#fef3c7;font-weight:700;" data-emp-search="normal salary gross total">
-                                <td class="sr-sticky sr-sticky-1" colspan="2"><strong>Normal Salary Gross Total</strong></td>
+                            <tr class="sr-normal-gross-total" style="background:#fef3c7;font-weight:700;" data-emp-search="normal salary fund total">
+                                <td class="sr-sticky sr-sticky-1" colspan="2"><strong><?php echo htmlspecialchars($ngtTitle); ?></strong></td>
                                 <td colspan="<?php echo (int) ($colBeforeGross - 2); ?>"></td>
                                 <td class="num"><strong><?php echo registerNum($r['gross'] ?? 0, 0); ?></strong></td>
-                                <td colspan="<?php echo $showMemo ? 11 : 10; ?>" class="sr-code" style="text-align:left;padding-left:10px;">
-                                    <?php echo htmlspecialchars((string) ($r['remarks'] ?? 'Σ Gross · Normal Salary under Main')); ?>
+                                <td class="num">0</td>
+                                <td class="num"><strong><?php echo registerNum($r['pt'] ?? 0, 0); ?></strong></td>
+                                <td class="num">0</td>
+                                <td class="num">0</td>
+                                <td class="num"><strong><?php echo registerNum($r['total_deduction'] ?? ($r['pt'] ?? 0), 0); ?></strong></td>
+                                <?php if ($showMemo): ?><td class="num">0</td><?php endif; ?>
+                                <td class="num">0</td>
+                                <td class="num"><strong><?php echo registerNum($r['net'] ?? 0, 0); ?></strong></td>
+                                <td colspan="3" class="sr-code" style="text-align:left;padding-left:10px;">
+                                    <?php echo htmlspecialchars((string) ($r['remarks'] ?? 'Σ under Main')); ?>
                                 </td>
                             </tr>
                             <?php
@@ -475,9 +487,10 @@ require_once __DIR__ . '/../includes/header.php';
                                     <div class="sr-code" style="color:#047857;">+ Contractor share ₹ <?php echo registerNum($r['contractor_main_share']); ?></div>
                                 <?php endif; ?>
                                 <?php if (!empty($r['contractor_split_out'])): ?>
+                                    <?php $fundLbl = trim((string) ($r['contractor_fund_label'] ?? 'Normal Gross')); if ($fundLbl === '') { $fundLbl = 'Normal Gross'; } ?>
                                     <div class="sr-code" style="color:#b45309;">
                                         Pool ₹ <?php echo registerNum($r['contractor_pool'] ?? 0); ?>
-                                        − Normal Gross ₹ <?php echo registerNum($r['contractor_distributed'] ?? 0); ?>
+                                        − <?php echo htmlspecialchars($fundLbl); ?> ₹ <?php echo registerNum($r['contractor_distributed'] ?? 0); ?>
                                         = <strong>Remainder ₹ <?php echo registerNum($r['contractor_remainder'] ?? $r['net'] ?? 0); ?></strong>
                                     </div>
                                 <?php endif; ?>
@@ -577,7 +590,8 @@ require_once __DIR__ . '/../includes/header.php';
                                 <td class="num"><strong><?php echo registerNum($deptSum['gross'], 0); ?></strong></td>
                             <?php else: ?>
                                 <td class="num"><strong><?php echo registerNum($deptSum['salary'], 0); ?></strong></td>
-                                <td colspan="7"></td>
+                                <?php /* P.Days..C-Off (7) + Total Days (1) = 8 before Gross — was 7 and shifted all totals */ ?>
+                                <td colspan="8"></td>
                                 <td class="num"><strong><?php echo registerNum($deptSum['gross'], 0); ?></strong></td>
                             <?php endif; ?>
                             <td class="num"><strong><?php echo registerNum($deptSum['pf'], 0); ?></strong></td>
@@ -628,7 +642,7 @@ require_once __DIR__ . '/../includes/header.php';
                             <td class="num"><strong><?php echo registerNum($grandSum['gross'], 0); ?></strong></td>
                         <?php else: ?>
                             <td class="num"><strong><?php echo registerNum($grandSum['salary'], 0); ?></strong></td>
-                            <td colspan="7"></td>
+                            <td colspan="8"></td>
                             <td class="num"><strong><?php echo registerNum($grandSum['gross'], 0); ?></strong></td>
                         <?php endif; ?>
                         <td class="num"><strong><?php echo registerNum($grandSum['pf'], 0); ?></strong></td>
