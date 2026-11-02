@@ -7,9 +7,7 @@ require_once __DIR__ . '/../config/app.php';
 require_once __DIR__ . '/../includes/auth.php';
 requireLogin();
 
-$user = $_SESSION['user'] ?? [];
-$role = strtolower((string) ($user['role'] ?? ''));
-if ($role !== 'admin') {
+if (!function_exists('isAdmin') || !isAdmin()) {
     http_response_code(403);
     echo 'Admin only.';
     exit;
