@@ -938,6 +938,18 @@ function getPayrollAttendanceBundle(array $emp, $month, $year, $actualAmount)
     );
 
     if ($range === null) {
+        $loanOut = $diary ? (float) ($diary['loan_amount'] ?? 0) : 0.0;
+        $advOut = $diary ? (float) ($diary['advance_amount'] ?? 0) : 0.0;
+        if (!function_exists('advanceLoanMonthDue') && is_file(__DIR__ . '/advance_loan_helper.php')) {
+            require_once __DIR__ . '/advance_loan_helper.php';
+        }
+        if (function_exists('advanceLoanMonthDue') && $employeeId > 0) {
+            $dueConn = getDBConnection();
+            $due = advanceLoanMonthDue($dueConn, $employeeId, (int) $month, (int) $year);
+            $dueConn->close();
+            $loanOut = (float) $due['loan'];
+            $advOut = (float) $due['advance'];
+        }
         return [
             'month_days' => $monthDays,
             'present' => 0.0,
@@ -951,8 +963,8 @@ function getPayrollAttendanceBundle(array $emp, $month, $year, $actualAmount)
             'coff' => 0.0,
             'lwp' => 0.0,
             'total_days' => 0.0,
-            'loan' => $diary ? (float) ($diary['loan_amount'] ?? 0) : 0.0,
-            'advance' => $diary ? (float) ($diary['advance_amount'] ?? 0) : 0.0,
+            'loan' => $loanOut,
+            'advance' => $advOut,
             'arrears' => $diary ? (float) ($diary['arrears_amount'] ?? 0) : 0.0,
             'memo' => $diary ? (float) ($diary['memo_amount'] ?? 0) : 0.0,
             'memo_remark' => $diary ? trim((string) ($diary['memo_remark'] ?? '')) : '',
@@ -981,14 +993,14 @@ function getPayrollAttendanceBundle(array $emp, $month, $year, $actualAmount)
     if (!function_exists('advanceLoanMonthDue') && is_file(__DIR__ . '/advance_loan_helper.php')) {
         require_once __DIR__ . '/advance_loan_helper.php';
     }
+    // Advance / Loan Master is the source of truth (not stale salary_diary).
+    // After delete or employee change, diary can keep old amounts — ignore them.
     if (function_exists('advanceLoanMonthDue') && $employeeId > 0) {
         $dueConn = getDBConnection();
         $due = advanceLoanMonthDue($dueConn, $employeeId, (int) $month, (int) $year);
         $dueConn->close();
-        if (!empty($due['has_records'])) {
-            $loan = (float) $due['loan'];
-            $advance = (float) $due['advance'];
-        }
+        $loan = (float) $due['loan'];
+        $advance = (float) $due['advance'];
     }
 
     // Prefer Attendance Report totals (same engine + Total Pay Days / benefits)

@@ -16,11 +16,22 @@ $conn = getDBConnection();
 $row = $id > 0 ? advanceLoanGet($conn, $id) : null;
 if ($row && (int) $row['department_id'] === $deptId && $row['kind'] === $kind) {
     $employeeId = (int) $row['employee_id'];
+    $startMonth = (int) ($row['start_month'] ?? 0);
+    $startYear = (int) ($row['start_year'] ?? 0);
+    $txnTs = strtotime((string) ($row['txn_date'] ?? ''));
+    $txnMonth = $txnTs ? (int) date('n', $txnTs) : 0;
+    $txnYear = $txnTs ? (int) date('Y', $txnTs) : 0;
     $st = $conn->prepare('DELETE FROM employee_recoveries WHERE id = ? AND department_id = ? AND kind = ?');
     $st->bind_param('iis', $id, $deptId, $kind);
     $st->execute();
     $st->close();
-    advanceLoanPushDiary($conn, $employeeId, (int) $row['start_month'], (int) $row['start_year'], true);
+    // Force diary clear for salary month (start + txn) so register does not keep stale Adv.
+    if ($startMonth > 0 && $startYear > 0) {
+        advanceLoanPushDiary($conn, $employeeId, $startMonth, $startYear, true);
+    }
+    if ($txnMonth > 0 && $txnYear > 0 && ($txnMonth !== $startMonth || $txnYear !== $startYear)) {
+        advanceLoanPushDiary($conn, $employeeId, $txnMonth, $txnYear, true);
+    }
     advanceLoanPushDiary($conn, $employeeId, 0, 0, true);
 }
 $conn->close();

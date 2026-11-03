@@ -54,6 +54,9 @@ if ($installment < 0 || ($installment > 0 && $installment > $amount)) {
 
 $conn = getDBConnection();
 ensureAdvanceLoanTables($conn);
+$prevEmployeeId = 0;
+$prevStartMonth = 0;
+$prevStartYear = 0;
 if ($id > 0) {
     $existing = advanceLoanGet($conn, $id);
     if (!$existing || (int) $existing['department_id'] !== $deptId || $existing['kind'] !== $kind) {
@@ -61,6 +64,9 @@ if ($id > 0) {
         header('Location: ' . app_url('payroll/money_master.php?type=' . strtolower($kind) . '&department_id=' . $deptId));
         exit;
     }
+    $prevEmployeeId = (int) ($existing['employee_id'] ?? 0);
+    $prevStartMonth = (int) ($existing['start_month'] ?? 0);
+    $prevStartYear = (int) ($existing['start_year'] ?? 0);
     $st = $conn->prepare(
         'UPDATE employee_recoveries
          SET employee_id=?, department_id=?, txn_date=?, amount=?, installment_amount=?,
@@ -81,6 +87,10 @@ if ($id > 0) {
     $st->close();
 }
 
+// Clear old employee / old salary month if the advance/loan was moved.
+if ($prevEmployeeId > 0 && ($prevEmployeeId !== $employeeId || $prevStartMonth !== $startMonth || $prevStartYear !== $startYear)) {
+    advanceLoanPushDiary($conn, $prevEmployeeId, $prevStartMonth, $prevStartYear, true);
+}
 advanceLoanPushDiary($conn, $employeeId, $startMonth, $startYear, true);
 advanceLoanPushDiary($conn, $employeeId, 0, 0, true);
 $conn->close();
