@@ -11,10 +11,19 @@ require_once __DIR__ . '/contractor_split_helper.php';
 
 function salaryRegisterTypes()
 {
+    // Main contractors (Puran / Ravi / Aashish…) stay on Jobwork register — same as NEFT.
+    // No separate "Main Contractor" type (would double-count / confuse totals).
     return [
         'salary' => '1 · Normal Fixed Salary (Attendance)',
         'jobwork_actual' => '2 · Jobwork Regular / Actual (Qty × Rate)',
-        'contractor_main' => '3 · Main Contractor (Under Employees)',
+    ];
+}
+
+/** @deprecated kept for old bookmarks / locks — redirects to Jobwork */
+function salaryRegisterTypesLegacy()
+{
+    return salaryRegisterTypes() + [
+        'contractor_main' => '2 · Jobwork (Main contractors included)',
     ];
 }
 

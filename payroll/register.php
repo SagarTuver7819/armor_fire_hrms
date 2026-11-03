@@ -27,6 +27,10 @@ $view = (($_GET['view'] ?? 'department') === 'employee') ? 'employee' : 'departm
 if ($month < 1 || $month > 12) {
     $month = (int) date('n');
 }
+// Main Contractor is not a separate sheet — same as NEFT (Normal + Jobwork only)
+if ($type === 'contractor_main' || $type === 'jobwork_govt') {
+    $type = 'jobwork_actual';
+}
 if (!isset(salaryRegisterTypes()[$type])) {
     $type = 'salary';
 }
@@ -166,18 +170,61 @@ require_once __DIR__ . '/../includes/header.php';
             </div>
         </div>
 
+        <?php
+        // Live sheet counts (match table) — not stale lock snapshot metadata
+        $liveSheetRows = [];
+        foreach ($groups as $gChip) {
+            foreach ($gChip['rows'] ?? [] as $rChip) {
+                if (!empty($rChip['is_normal_gross_total'])) {
+                    continue;
+                }
+                $liveSheetRows[] = $rChip;
+            }
+        }
+        $liveSheetSum = registerSumMoneyColumns($liveSheetRows);
+        $liveSheetNeft = 0;
+        foreach ($liveSheetRows as $rChip) {
+            if ((float) ($rChip['net'] ?? 0) > 0) {
+                $liveSheetNeft++;
+            }
+        }
+        // Same combined totals as NEFT Sheet (Normal + Jobwork)
+        $neftCombo = getCombinedNeftSheetData($month, $year, $deptId);
+        $neftComboNormalCnt = (int) ($neftCombo['normal_count'] ?? 0);
+        $neftComboJwCnt = (int) ($neftCombo['jobwork_count'] ?? 0);
+        $neftComboNormalTot = (float) ($neftCombo['normal_total'] ?? 0);
+        $neftComboJwTot = (float) ($neftCombo['jobwork_total'] ?? 0);
+        $neftComboFinal = (float) ($neftCombo['final_total'] ?? $neftCombo['neft_total'] ?? 0);
+        ?>
         <?php if ($isLocked): ?>
             <div class="ops-live-summary" style="margin-bottom:12px;">
                 <span class="ops-chip"><i class="fa-solid fa-lock"></i> Finalized <?php echo htmlspecialchars((string) ($lock['locked_at'] ?? '')); ?></span>
-                <span class="ops-chip"><?php echo (int) ($lock['employee_count'] ?? 0); ?> employees</span>
-                <span class="ops-chip">Net ₹ <?php echo formatIndianNumber((float) ($lock['total_net'] ?? 0), 2); ?></span>
-                <span class="ops-chip"><?php echo (int) ($lock['neft_count'] ?? 0); ?> NEFT rows</span>
+                <span class="ops-chip"><strong><?php echo count($liveSheetRows); ?></strong> on this sheet</span>
+                <span class="ops-chip">Sheet Net ₹ <?php echo formatIndianNumber((float) ($liveSheetSum['net'] ?? 0), 2); ?></span>
+                <span class="ops-chip"><?php echo (int) $liveSheetNeft; ?> with Net &gt; 0</span>
                 <span class="ops-chip" style="font-weight:700;color:<?php echo $approvalStatus === 'approved' ? '#047857' : '#b45309'; ?>;">
                     <i class="fa-solid <?php echo $approvalStatus === 'approved' ? 'fa-circle-check' : 'fa-hourglass-half'; ?>"></i>
                     <?php echo htmlspecialchars($approvalLabels[$approvalStatus] ?? $approvalStatus); ?>
                 </span>
                 <span class="ops-chip" style="color:#047857;"><i class="fa-solid fa-calendar-check"></i> Days/Gross = live Attendance Report</span>
             </div>
+            <div class="ops-live-summary" style="margin-bottom:12px;">
+                <span class="ops-chip" style="background:#ecfdf5;"><strong>NEFT Normal</strong> <?php echo $neftComboNormalCnt; ?> · ₹ <?php echo formatIndianNumber($neftComboNormalTot, 2); ?></span>
+                <span class="ops-chip" style="background:#eff6ff;"><strong>NEFT Jobwork</strong> <?php echo $neftComboJwCnt; ?> · ₹ <?php echo formatIndianNumber($neftComboJwTot, 2); ?></span>
+                <span class="ops-chip" style="background:#fef3c7;"><strong>NEFT Final</strong> <?php echo $neftComboNormalCnt + $neftComboJwCnt; ?> · ₹ <?php echo formatIndianNumber($neftComboFinal, 2); ?></span>
+                <span class="ops-chip" style="color:#16a085;"><i class="fa-solid fa-equals"></i> same as NEFT Sheet</span>
+            </div>
+        <?php else: ?>
+            <div class="ops-live-summary" style="margin-bottom:12px;">
+                <span class="ops-chip"><strong><?php echo count($liveSheetRows); ?></strong> on this sheet</span>
+                <span class="ops-chip">Sheet Net ₹ <?php echo formatIndianNumber((float) ($liveSheetSum['net'] ?? 0), 2); ?></span>
+                <span class="ops-chip"><?php echo (int) $liveSheetNeft; ?> with Net &gt; 0</span>
+                <span class="ops-chip" style="background:#ecfdf5;"><strong>NEFT Normal</strong> <?php echo $neftComboNormalCnt; ?> · ₹ <?php echo formatIndianNumber($neftComboNormalTot, 2); ?></span>
+                <span class="ops-chip" style="background:#eff6ff;"><strong>NEFT Jobwork</strong> <?php echo $neftComboJwCnt; ?> · ₹ <?php echo formatIndianNumber($neftComboJwTot, 2); ?></span>
+                <span class="ops-chip" style="background:#fef3c7;"><strong>NEFT Final</strong> <?php echo $neftComboNormalCnt + $neftComboJwCnt; ?> · ₹ <?php echo formatIndianNumber($neftComboFinal, 2); ?></span>
+            </div>
+        <?php endif; ?>
+        <?php if ($isLocked): ?>
             <?php if ($myApprovalAction !== ''): ?>
             <div class="form-page-card" style="margin-bottom:12px;border-left:4px solid #d2232a;background:#fff7f7;">
                 <p style="margin:0 0 8px;">
@@ -323,15 +370,6 @@ require_once __DIR__ . '/../includes/header.php';
             </div>
         </form>
 
-        <?php if ($type === 'jobwork_govt'): ?>
-            <p class="form-hint">Jobwork <strong>Government</strong>: Actual (Ops Qty × Rate) ÷ <?php echo $monthDays; ?> month days × paid days from <strong>Attendance Report</strong> (Present + Week Off + Holiday + P.L. + S.L. + D.L. + C-Off). Enter Manual Attendance first, then open this register / Generate Salary.</p>
-        <?php elseif ($type === 'jobwork_actual'): ?>
-            <p class="form-hint">Jobwork <strong>Regular / Actual</strong>: Qty × Rate from <strong>Operations Rate List</strong> only (same sheet totals). Manual Jobwork Entry is used only if no rate-list sheet exists for that employee/month. No attendance day split.</p>
-        <?php elseif ($type === 'contractor_main'): ?>
-            <p class="form-hint">Main Contractor: Main + <strong>Normal Salary under</strong> + total row + Jobwork under. Melting 1 (Puran): Pool − (Normal <strong>Net + PT</strong>). CNC / Buff / Ass2: Pool − Normal Gross. NEFT = Register types 1 + 2 only.</p>
-        <?php else: ?>
-            <p class="form-hint">Normal <strong>Fixed Salary</strong>: Gross = Decided Salary × (Present + Week Off + Holiday + P.L. + S.L. + D.L. + C-Off) ÷ month days — same totals as <strong>Attendance Report</strong> (employee week-off day for this month).</p>
-        <?php endif; ?>
         <p class="form-hint"><i class="fa-solid fa-pen-to-square" style="color:#d2232a;"></i> <strong>Arrears</strong> cell પર click → amount + remark save · Net = Gross − Deduction + Arrears.</p>
         <p class="form-hint"><i class="fa-solid fa-file-lines" style="color:#d2232a;"></i> Sales On Field: <strong>Memo</strong> cell પર click → amount + remark · save પછી <strong>deduction</strong> · Net = Gross − Deduction − Memo + Arrears.</p>
     </div>

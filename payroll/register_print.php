@@ -23,6 +23,9 @@ $view = (($_GET['view'] ?? 'department') === 'employee') ? 'employee' : 'departm
 if ($month < 1 || $month > 12) {
     $month = (int) date('n');
 }
+if ($type === 'contractor_main' || $type === 'jobwork_govt') {
+    $type = 'jobwork_actual';
+}
 if (!isset(salaryRegisterTypes()[$type])) {
     $type = 'salary';
 }
