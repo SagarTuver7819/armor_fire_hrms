@@ -1193,19 +1193,7 @@ function getCombinedNeftSheetData($month, $year, $deptId = 0)
 
     $registerRows = enrichRegisterRowsWithBankDetails($registerRows);
     $neft = buildNeftRowsFromRegister($registerRows);
-    $missingBank = 0;
-    $normalCount = 0;
-    $jobworkCount = 0;
-    foreach ($neft as $r) {
-        if (!empty($r['missing_bank'])) {
-            $missingBank++;
-        }
-        if (($r['register_kind'] ?? '') === 'Jobwork') {
-            $jobworkCount++;
-        } else {
-            $normalCount++;
-        }
-    }
+    $sections = summarizeNeftRows($neft);
 
     if (!$neft && !$locks) {
         return null;
@@ -1222,9 +1210,7 @@ function getCombinedNeftSheetData($month, $year, $deptId = 0)
         ? 'approved'
         : (!$locks ? 'draft_live' : (string) ($primary['approval_status'] ?? 'pending_check'));
 
-    $total = round(array_sum(array_map(static function ($r) {
-        return (float) ($r['amount'] ?? 0);
-    }, $neft)), 2);
+    $total = (float) ($sections['final_total'] ?? 0);
 
     return [
         'lock' => array_merge($primary, [
@@ -1239,12 +1225,64 @@ function getCombinedNeftSheetData($month, $year, $deptId = 0)
         'total_amount' => $total,
         'combined' => true,
         'locks' => $locks,
-        'missing_bank_count' => $missingBank,
-        'normal_count' => $normalCount,
-        'jobwork_count' => $jobworkCount,
+        'missing_bank_count' => (int) ($sections['missing_bank'] ?? 0),
+        'normal_count' => (int) ($sections['normal_count'] ?? 0),
+        'jobwork_count' => (int) ($sections['jobwork_count'] ?? 0),
+        'normal_total' => (float) ($sections['normal_total'] ?? 0),
+        'jobwork_total' => (float) ($sections['jobwork_total'] ?? 0),
+        'final_total' => $total,
         'register_row_count' => count($registerRows),
         'from_live' => !$anyFromLock,
         'from_snapshot' => $anyFromLock,
+    ];
+}
+
+/**
+ * Shared NEFT totals — same figures for screen / print / Excel.
+ *
+ * @return array{normal_count:int,jobwork_count:int,normal_total:float,jobwork_total:float,final_total:float,missing_bank:int}
+ */
+function summarizeNeftRows(array $neftRows)
+{
+    $normalCount = 0;
+    $jobworkCount = 0;
+    $normalTotal = 0.0;
+    $jobworkTotal = 0.0;
+    $missingBank = 0;
+    foreach ($neftRows as $r) {
+        $amt = (float) ($r['amount'] ?? 0);
+        if (function_exists('registerRoundMoney')) {
+            $amt = (float) registerRoundMoney($amt);
+        } else {
+            $amt = round($amt, 2);
+        }
+        if (!empty($r['missing_bank'])) {
+            $missingBank++;
+        }
+        if (($r['register_kind'] ?? '') === 'Jobwork') {
+            $jobworkCount++;
+            $jobworkTotal += $amt;
+        } else {
+            $normalCount++;
+            $normalTotal += $amt;
+        }
+    }
+    if (function_exists('registerRoundMoney')) {
+        $normalTotal = (float) registerRoundMoney($normalTotal);
+        $jobworkTotal = (float) registerRoundMoney($jobworkTotal);
+        $final = (float) registerRoundMoney($normalTotal + $jobworkTotal);
+    } else {
+        $normalTotal = round($normalTotal, 2);
+        $jobworkTotal = round($jobworkTotal, 2);
+        $final = round($normalTotal + $jobworkTotal, 2);
+    }
+    return [
+        'normal_count' => $normalCount,
+        'jobwork_count' => $jobworkCount,
+        'normal_total' => $normalTotal,
+        'jobwork_total' => $jobworkTotal,
+        'final_total' => $final,
+        'missing_bank' => $missingBank,
     ];
 }
 

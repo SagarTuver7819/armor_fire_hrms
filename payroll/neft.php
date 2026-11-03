@@ -176,28 +176,25 @@ require_once __DIR__ . '/../includes/header.php';
                     </p>
                 </div>
             <?php endif; ?>
+            <?php
+            $neftNormalSum = (float) ($data['normal_total'] ?? 0);
+            $neftJobworkSum = (float) ($data['jobwork_total'] ?? 0);
+            $neftFinalSum = (float) ($data['final_total'] ?? $neftTotal);
+            if ($neftNormalSum <= 0 && $neftJobworkSum <= 0 && $rows) {
+                $sec = summarizeNeftRows($rows);
+                $neftNormalSum = (float) $sec['normal_total'];
+                $neftJobworkSum = (float) $sec['jobwork_total'];
+                $neftFinalSum = (float) $sec['final_total'];
+                $normalCount = (int) $sec['normal_count'];
+                $jobworkCount = (int) $sec['jobwork_count'];
+            }
+            ?>
             <div class="ops-live-summary" style="margin-top:12px;">
                 <span class="ops-chip"><i class="fa-solid fa-lock"></i>
                     <?php echo $neftStatus === 'draft_live'
                         ? 'Live register (not locked)'
                         : ('Locked ' . htmlspecialchars(formatDateDisplay(substr((string) ($lock['locked_at'] ?? ''), 0, 10)) . ' ' . substr((string) ($lock['locked_at'] ?? ''), 11, 5))); ?>
                 </span>
-                <?php
-                $neftNormalSum = 0.0;
-                $neftJobworkSum = 0.0;
-                foreach ($rows as $nrSum) {
-                    $amtSum = (float) ($nrSum['amount'] ?? 0);
-                    if (($nrSum['register_kind'] ?? '') === 'Jobwork') {
-                        $neftJobworkSum += $amtSum;
-                    } else {
-                        $neftNormalSum += $amtSum;
-                    }
-                }
-                if (function_exists('registerRoundMoney')) {
-                    $neftNormalSum = registerRoundMoney($neftNormalSum);
-                    $neftJobworkSum = registerRoundMoney($neftJobworkSum);
-                }
-                ?>
                 <span class="ops-chip"><strong><?php echo count($rows); ?> total</strong></span>
                 <span class="ops-chip">Normal <?php echo (int) $normalCount; ?> · ₹ <?php echo formatIndianNumber($neftNormalSum, 2); ?></span>
                 <span class="ops-chip">Jobwork <?php echo (int) $jobworkCount; ?> · ₹ <?php echo formatIndianNumber($neftJobworkSum, 2); ?></span>
@@ -205,8 +202,8 @@ require_once __DIR__ . '/../includes/header.php';
                 <?php if ($missingBankCount > 0): ?>
                     <span class="ops-chip" style="color:#b45309;"><i class="fa-solid fa-triangle-exclamation"></i> <?php echo (int) $missingBankCount; ?> missing bank A/C</span>
                 <?php endif; ?>
-                <span class="ops-chip"><strong>Total ₹ <?php echo formatIndianNumber($neftTotal, 2); ?></strong></span>
-                <span class="ops-chip" style="color:#16a085;"><i class="fa-solid fa-equals"></i> = Normal + Jobwork register nets</span>
+                <span class="ops-chip"><strong>Final ₹ <?php echo formatIndianNumber($neftFinalSum, 2); ?></strong></span>
+                <span class="ops-chip" style="color:#16a085;"><i class="fa-solid fa-equals"></i> = All dept Normal + Jobwork nets</span>
             </div>
 
             <div class="table-wrap" style="margin-top:14px;">
@@ -258,9 +255,19 @@ require_once __DIR__ . '/../includes/header.php';
                     </tbody>
                     <?php if ($rows): ?>
                     <tfoot>
-                        <tr>
-                            <td colspan="6"><strong>Final NEFT Total (Normal + Jobwork)</strong></td>
-                            <td class="num"><strong><?php echo formatIndianNumber($neftTotal, 2); ?></strong></td>
+                        <tr style="background:#ecfdf5;">
+                            <td colspan="6"><strong>Normal Salary Total (<?php echo (int) $normalCount; ?>)</strong></td>
+                            <td class="num"><strong><?php echo formatIndianNumber($neftNormalSum, 2); ?></strong></td>
+                            <td colspan="3"></td>
+                        </tr>
+                        <tr style="background:#eff6ff;">
+                            <td colspan="6"><strong>Jobwork Total (<?php echo (int) $jobworkCount; ?>)</strong></td>
+                            <td class="num"><strong><?php echo formatIndianNumber($neftJobworkSum, 2); ?></strong></td>
+                            <td colspan="3"></td>
+                        </tr>
+                        <tr style="background:#fef3c7;">
+                            <td colspan="6"><strong>Final NEFT Total (Normal + Jobwork · All listed)</strong></td>
+                            <td class="num"><strong><?php echo formatIndianNumber($neftFinalSum, 2); ?></strong></td>
                             <td colspan="3"></td>
                         </tr>
                     </tfoot>

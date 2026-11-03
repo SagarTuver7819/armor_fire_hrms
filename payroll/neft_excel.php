@@ -47,6 +47,12 @@ if (!$data || empty($data['rows'])) {
 $neftRows = enrichNeftRowsWithEmployeeContact($data['rows'] ?? []);
 $payRaw = (string) ($data['lock']['approved_at'] ?? $data['lock']['locked_at'] ?? '');
 $export = buildNfpsNeftExport($neftRows, $month, $year, $payRaw);
+$sections = summarizeNeftRows($neftRows);
+$normalTotal = (float) ($data['normal_total'] ?? $sections['normal_total']);
+$jobworkTotal = (float) ($data['jobwork_total'] ?? $sections['jobwork_total']);
+$finalTotal = (float) ($data['final_total'] ?? $export['total']);
+$normalCount = (int) ($data['normal_count'] ?? $sections['normal_count']);
+$jobworkCount = (int) ($data['jobwork_count'] ?? $sections['jobwork_count']);
 
 $monthLabel = date('F_Y', mktime(0, 0, 0, $month, 1, $year));
 $filename = 'NFPS_FMT_SALARY_' . strtoupper($monthLabel) . '.xls';
@@ -81,11 +87,23 @@ foreach ($export['rows'] as $row) {
     echo '</tr>';
 }
 
-// Final figure row
+// Same footer figures as NEFT screen / print
+echo '<tr style="font-weight:700;background:#ecfdf5;">';
+echo '<td></td><td></td><td></td>';
+echo '<td>NORMAL TOTAL (' . (int) $normalCount . ')</td><td></td><td></td>';
+echo '<td style="mso-number-format:0.00;">' . htmlspecialchars(number_format($normalTotal, 2, '.', '')) . '</td>';
+echo '<td colspan="6"></td>';
+echo '</tr>';
+echo '<tr style="font-weight:700;background:#eff6ff;">';
+echo '<td></td><td></td><td></td>';
+echo '<td>JOBWORK TOTAL (' . (int) $jobworkCount . ')</td><td></td><td></td>';
+echo '<td style="mso-number-format:0.00;">' . htmlspecialchars(number_format($jobworkTotal, 2, '.', '')) . '</td>';
+echo '<td colspan="6"></td>';
+echo '</tr>';
 echo '<tr style="font-weight:700;background:#fff2cc;">';
 echo '<td></td><td></td><td></td>';
-echo '<td>TOTAL</td><td></td><td></td>';
-echo '<td style="mso-number-format:0.00;">' . htmlspecialchars(number_format($export['total'], 2, '.', '')) . '</td>';
+echo '<td>FINAL TOTAL (NORMAL + JOBWORK)</td><td></td><td></td>';
+echo '<td style="mso-number-format:0.00;">' . htmlspecialchars(number_format($finalTotal, 2, '.', '')) . '</td>';
 echo '<td colspan="6"></td>';
 echo '</tr>';
 
