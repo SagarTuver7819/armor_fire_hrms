@@ -9,6 +9,7 @@ require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/employee_helper.php';
 require_once __DIR__ . '/../includes/master_helper.php';
 require_once __DIR__ . '/../includes/salary_register_helper.php';
+require_once __DIR__ . '/../includes/payroll_reports_helper.php';
 require_once __DIR__ . '/../includes/settings.php';
 require_once __DIR__ . '/../includes/auth.php';
 
@@ -32,11 +33,16 @@ if (!isset(salaryRegisterTypes()[$type])) {
 
 $department = $deptId > 0 ? getDepartmentById($deptId) : null;
 $monthDays = (int) date('t', strtotime(sprintf('%04d-%02d-01', $year, $month)));
-$groups = getSalaryRegisterData($type, $month, $year, $deptId, $employeeId);
-if ($view === 'employee' && $type !== 'contractor_main') {
+// Same source as on-screen register / NEFT
+$displayBundle = getSalaryRegisterDisplayBundle($type, $month, $year, $deptId, $employeeId);
+$groups = $displayBundle['groups'];
+if ($view === 'employee') {
     $flat = [];
     foreach ($groups as $g) {
         foreach ($g['rows'] as $row) {
+            if (!empty($row['is_normal_gross_total'])) {
+                continue;
+            }
             $flat[] = $row;
         }
     }
@@ -67,10 +73,18 @@ $backQs = http_build_query([
     'view' => $view,
 ]);
 
-$totalRows = 0;
+$grandRows = [];
 foreach ($groups as $g) {
-    $totalRows += count($g['rows']);
+    foreach ($g['rows'] as $r) {
+        if (!empty($r['is_normal_gross_total'])) {
+            continue;
+        }
+        $grandRows[] = $r;
+    }
 }
+$totalRows = count($grandRows);
+$grandSum = registerSumMoneyColumns($grandRows);
+$colSpanLead = $isActual ? 7 : 14;
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -153,6 +167,8 @@ foreach ($groups as $g) {
         .sr-code::before { content: "("; }
         .sr-code::after { content: ")"; }
         tfoot td { font-weight: 700; background: #f8fafc; text-align: center; white-space: nowrap; }
+        tfoot tr.final-total td { background: #fef3c7 !important; font-size: 8.5px; border-color: #ca8a04; }
+        .final-wrap { margin-top: 8px; }
         .meta {
             color: #555;
             margin: 10px 0 0;
@@ -201,14 +217,10 @@ foreach ($groups as $g) {
 
     <?php foreach ($groups as $g): ?>
         <?php
-        $rows = $g['rows'];
-        $sumGross = 0;
-        $sumNet = 0;
-        foreach ($rows as $r) {
-            $sumGross += (float) $r['gross'];
-            $sumNet += (float) $r['net'];
-        }
-        $colSpanLead = $isActual ? 7 : 14;
+        $rows = array_values(array_filter($g['rows'] ?? [], static function ($r) {
+            return empty($r['is_normal_gross_total']);
+        }));
+        $deptSum = registerSumMoneyColumns($rows);
         ?>
         <div class="sheet">
             <div class="sheet-banner">
@@ -323,12 +335,15 @@ foreach ($groups as $g) {
                 <?php if ($rows): ?>
                 <tfoot>
                     <tr>
-                        <td colspan="<?php echo $colSpanLead; ?>"><strong>Total</strong></td>
-                        <td class="num"><strong><?php echo registerNum($sumGross); ?></strong></td>
-                        <td colspan="4"></td>
-                        <td></td>
-                        <td></td>
-                        <td class="num"><strong><?php echo registerNum($sumNet); ?></strong></td>
+                        <td colspan="<?php echo (int) $colSpanLead; ?>"><strong>Department Total</strong></td>
+                        <td class="num"><strong><?php echo registerNum($deptSum['gross'] ?? 0); ?></strong></td>
+                        <td class="num"><strong><?php echo registerNum($deptSum['pf'] ?? 0); ?></strong></td>
+                        <td class="num"><strong><?php echo registerNum($deptSum['pt'] ?? 0); ?></strong></td>
+                        <td class="num"><strong><?php echo registerNum($deptSum['loan'] ?? 0); ?></strong></td>
+                        <td class="num"><strong><?php echo registerNum($deptSum['advance'] ?? 0); ?></strong></td>
+                        <td class="num"><strong><?php echo registerNum($deptSum['total_deduction'] ?? 0); ?></strong></td>
+                        <td class="num"><strong><?php echo registerNum($deptSum['arrears'] ?? 0); ?></strong></td>
+                        <td class="num"><strong><?php echo registerNum($deptSum['net'] ?? 0); ?></strong></td>
                         <td colspan="3"></td>
                     </tr>
                 </tfoot>
@@ -336,6 +351,45 @@ foreach ($groups as $g) {
             </table>
         </div>
     <?php endforeach; ?>
+
+    <?php if ($grandRows): ?>
+    <div class="sheet final-wrap">
+        <div class="sheet-banner" style="background:#fde68a;border-color:#ca8a04;">
+            <strong>Final Total — <?php echo htmlspecialchars($typeLabel); ?></strong>
+            <span><?php echo htmlspecialchars($deptLabel); ?> · <?php echo htmlspecialchars($monthLabel); ?> · <?php echo (int) $totalRows; ?> employees</span>
+        </div>
+        <table>
+            <thead>
+                <tr>
+                    <th colspan="<?php echo (int) $colSpanLead; ?>">Summary</th>
+                    <th class="num">Gross</th>
+                    <th class="num">Emp PF</th>
+                    <th class="num">P.T.</th>
+                    <th class="num">Loan</th>
+                    <th class="num">Adv.</th>
+                    <th class="num">Tot. Ded.</th>
+                    <th class="num">Arrears</th>
+                    <th class="num">Net</th>
+                    <th colspan="3"></th>
+                </tr>
+            </thead>
+            <tfoot>
+                <tr class="final-total">
+                    <td colspan="<?php echo (int) $colSpanLead; ?>"><strong>FINAL TOTAL</strong></td>
+                    <td class="num"><strong><?php echo registerNum($grandSum['gross'] ?? 0); ?></strong></td>
+                    <td class="num"><strong><?php echo registerNum($grandSum['pf'] ?? 0); ?></strong></td>
+                    <td class="num"><strong><?php echo registerNum($grandSum['pt'] ?? 0); ?></strong></td>
+                    <td class="num"><strong><?php echo registerNum($grandSum['loan'] ?? 0); ?></strong></td>
+                    <td class="num"><strong><?php echo registerNum($grandSum['advance'] ?? 0); ?></strong></td>
+                    <td class="num"><strong><?php echo registerNum($grandSum['total_deduction'] ?? 0); ?></strong></td>
+                    <td class="num"><strong><?php echo registerNum($grandSum['arrears'] ?? 0); ?></strong></td>
+                    <td class="num"><strong><?php echo registerNum($grandSum['net'] ?? 0); ?></strong></td>
+                    <td colspan="3"></td>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+    <?php endif; ?>
 
     <div class="meta">Printed <?php echo htmlspecialchars(formatDateTimeDisplay(date('Y-m-d H:i:s'))); ?> · Employee rows: <?php echo $totalRows; ?></div>
 </body>
