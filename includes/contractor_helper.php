@@ -27,6 +27,76 @@ function contractorOperations()
     ];
 }
 
+/**
+ * Gujarati label under operation name (clone daily print).
+ */
+function contractorOperationGujaratiName($operation)
+{
+    $map = [
+        'CLEANING' => 'ક્લિનિંગ',
+        'Lathe Employee wise' => 'લેથ (કર્મચારી પ્રમાણે)',
+        'GRINDING' => 'ગ્રાઇન્ડિંગ',
+        'CNC' => 'સી.એન.સી.',
+        'CUTTING' => 'કટિંગ',
+        'ARGON WELDING' => 'આર્ગન વેલ્ડિંગ',
+        'BUFF' => 'બફ',
+        'COATING' => 'કોટિંગ',
+        'CORE' => 'કોર',
+        'ASS-1' => 'એસેમ્બલી-૧',
+        'ASS-2' => 'એસેમ્બલી-૨',
+        'RRL' => 'આર.આર.એલ.',
+        'BUTTERFLY' => 'બટરફ્લાય',
+        'FLEXIBLE' => 'ફ્લેક્સિબલ',
+        'FOUNDRY' => 'ફાઉન્ડ્રી',
+    ];
+    $op = trim((string) $operation);
+    return $map[$op] ?? $op;
+}
+
+/**
+ * Gujarati under Contract Process / product name (clone daily print).
+ */
+function contractorProcessGujaratiName($process)
+{
+    $process = trim((string) $process);
+    if ($process === '') {
+        return '';
+    }
+    $map = [
+        'HEAVY ADAPTOR' => 'હેવી એડેપ્ટર',
+        'LITE ADAPTOR' => 'લાઇટ એડેપ્ટર',
+        'LIGHT ADAPTOR' => 'લાઇટ એડેપ્ટર',
+        'ARMOR BODY' => 'આરમર બોડી',
+        'HEAVY NOZZLE' => 'હેવી નોઝલ',
+        'LITE NOZZLE' => 'લાઇટ નોઝલ',
+        'LIGHT NOZZLE' => 'લાઇટ નોઝલ',
+        'HEAVY NRV' => 'હેવી એન.આર.વી.',
+        'LITE NRV' => 'લાઇટ એન.આર.વી.',
+        'HEAVY MALE' => 'હેવી મેલ',
+        'HEAVY FEMALE' => 'હેવી ફિમેલ',
+        'LITE MALE' => 'લાઇટ મેલ',
+        'LITE FEMALE' => 'લાઇટ ફિમેલ',
+        'BONNET' => 'બોનેટ',
+        'STEM' => 'સ્ટેમ',
+        'SPINDLE' => 'સ્પિન્ડલ',
+        'FLANGE' => 'ફ્લેન્જ',
+        'BODY' => 'બોડી',
+        'COVER' => 'કવર',
+        'HANDLE' => 'હેન્ડલ',
+        'VALVE' => 'વાલ્વ',
+    ];
+    $key = strtoupper($process);
+    if (isset($map[$key])) {
+        return $map[$key];
+    }
+    foreach ($map as $en => $gu) {
+        if (strcasecmp($en, $process) === 0) {
+            return $gu;
+        }
+    }
+    return $process;
+}
+
 function contractorHideGradeOps()
 {
     return ['ASS-2', 'BUTTERFLY', 'FOUNDRY', 'CORE'];

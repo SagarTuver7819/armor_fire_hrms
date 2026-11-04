@@ -47,7 +47,6 @@ $conn->close();
 $showGrade = contractorOperationShowsGrade($curOp);
 $showStaff = in_array($curOp, opsCloneStaffSalaryOperations(), true);
 $monthDays = (int) date('t', mktime(0, 0, 0, $curMonth, 1, $curYear));
-$monthLabel = date('F Y', mktime(0, 0, 0, $curMonth, 1, $curYear));
 $items = $sheet['items'] ?? [];
 if (!$items) {
     $items = [[
@@ -79,15 +78,32 @@ $extraCss = ['https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min
 require_once __DIR__ . '/../../includes/header.php';
 $repairJson = json_encode(contractorRepairOps());
 $otJson = json_encode(contractorOtRepairOps());
-$mainLabel = '';
-if (!empty($staffBundle['main'])) {
-    $mainLabel = trim((string) ($staffBundle['main']['employee_code'] ?? '')) . ' — '
-        . trim((string) ($staffBundle['main']['employee_name'] ?? ''));
-}
 ?>
 <main class="dashboard-main">
-    <div class="page-toolbar">
+    <div class="page-toolbar flex-between">
         <a href="<?php echo app_url('contractor/operations_clone/index.php'); ?>" class="back-link"><i class="fa-solid fa-arrow-left"></i> Back to Clone Rate List</a>
+        <?php if ($id > 0 && $showStaff): ?>
+            <div class="toolbar-actions" style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;">
+                <label for="dailyPrintDay" style="font-size:13px;margin:0;">Daily Print Day</label>
+                <select id="dailyPrintDay" class="form-control" style="width:auto;min-width:70px;">
+                    <?php
+                    $todayDay = (int) date('j');
+                    $defaultDay = ($curMonth === (int) date('n') && $curYear === (int) date('Y'))
+                        ? min($todayDay, $monthDays)
+                        : 1;
+                    for ($d = 1; $d <= $monthDays; $d++):
+                        ?>
+                        <option value="<?php echo $d; ?>" <?php echo $d === $defaultDay ? 'selected' : ''; ?>><?php echo $d; ?></option>
+                    <?php endfor; ?>
+                </select>
+                <a href="#" id="btnDailyPortrait" class="btn-secondary" title="Letter pad · Portrait">
+                    <i class="fa-solid fa-print"></i> Daily Portrait
+                </a>
+                <a href="#" id="btnDailyLandscape" class="btn-secondary" title="Letter pad · Landscape">
+                    <i class="fa-solid fa-print"></i> Daily Landscape
+                </a>
+            </div>
+        <?php endif; ?>
     </div>
 
     <!-- ========== BOX 1: Product qty grid ========== -->
@@ -286,16 +302,6 @@ if (!empty($staffBundle['main'])) {
     <div class="form-page-card ops-page-card ops-clone-box ops-clone-staff-card">
         <div class="ops-clone-staff-head">
             <h2><i class="fa-solid fa-users"></i> CNC Department — Normal Salary Employees</h2>
-            <p>
-                Box 2 · Main Contractor
-                <?php echo $mainLabel !== '' ? '<strong>' . htmlspecialchars($mainLabel) . '</strong>' : '(auto)'; ?>
-                excluded · Emp Code · Name · Salary · Attendance for
-                <strong><?php echo htmlspecialchars($monthLabel); ?></strong>
-                (days 1–<?php echo (int) $monthDays; ?>) · Own Save
-            </p>
-            <p class="ops-clone-att-hint">
-                Attendance codes: <b>P</b> Present · <b>WO</b> Week Off · <b>A</b> Absent · <b>H</b> Holiday · <b>PL / SL / DL</b> Leave · clear = remove
-            </p>
         </div>
 
         <form method="POST" action="<?php echo app_url('contractor/operations_clone/save_staff.php'); ?>" id="opsStaffForm" class="employee-form" autocomplete="off">
@@ -408,8 +414,22 @@ if (!empty($staffBundle['main'])) {
         }
         echo json_encode(array_values(array_unique($keepPids)));
     ?>;
+    window.OPS_CLONE_DAILY_PRINT = <?php echo json_encode(app_url('contractor/operations_clone/print_daily.php?id=' . (int) $id)); ?>;
 
     (function () {
+        function openDailyPrint(orient) {
+            var dayEl = document.getElementById('dailyPrintDay');
+            var day = dayEl ? dayEl.value : '1';
+            var url = window.OPS_CLONE_DAILY_PRINT
+                + '&day=' + encodeURIComponent(day)
+                + '&orient=' + encodeURIComponent(orient || 'portrait');
+            window.open(url, '_blank');
+        }
+        var bp = document.getElementById('btnDailyPortrait');
+        var bl = document.getElementById('btnDailyLandscape');
+        if (bp) bp.addEventListener('click', function (e) { e.preventDefault(); openDailyPrint('portrait'); });
+        if (bl) bl.addEventListener('click', function (e) { e.preventDefault(); openDailyPrint('landscape'); });
+
         function reloadWithMeta() {
             var params = new URLSearchParams();
             if (<?php echo (int) $id; ?> > 0) {
