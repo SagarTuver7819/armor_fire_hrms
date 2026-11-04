@@ -934,3 +934,100 @@ function mergeDayMap($saved, $month, $year)
     }
     return $base;
 }
+
+/**
+ * Clone Ops Rate List — which operations show Normal Salary staff grid (not Main Contractor).
+ */
+function opsCloneStaffSalaryOperations()
+{
+    return ['CNC'];
+}
+
+/**
+ * Department name for clone staff grid under an operation.
+ */
+function opsCloneStaffDepartmentName($operation)
+{
+    $operation = trim((string) $operation);
+    $map = [
+        'CNC' => 'CNC',
+        'BUFF' => 'BUFF',
+        'ASS-2' => 'ASSEMBLY 2',
+    ];
+    return $map[$operation] ?? $operation;
+}
+
+/**
+ * Normal Salary employees in the operation's department, excluding Main Contractor.
+ * Used only by Clone Operation Rate List (not the live Ops Rate List).
+ *
+ * @return array{department_name:string,main:array|null,rows:array<int,array>}
+ */
+function getOpsCloneDepartmentStaff($operation, $excludeEmployeeId = 0, $conn = null)
+{
+    $operation = trim((string) $operation);
+    $excludeEmployeeId = (int) $excludeEmployeeId;
+    $out = ['department_name' => '', 'main' => null, 'rows' => []];
+    if ($operation === '' || !in_array($operation, opsCloneStaffSalaryOperations(), true)) {
+        return $out;
+    }
+
+    if (!function_exists('resolveDepartmentIdByName')) {
+        require_once __DIR__ . '/contractor_split_helper.php';
+    }
+
+    $deptName = opsCloneStaffDepartmentName($operation);
+    $out['department_name'] = $deptName;
+    $deptId = resolveDepartmentIdByName($deptName);
+    if ($deptId <= 0) {
+        return $out;
+    }
+
+    $main = null;
+    foreach (contractorAttendanceSplitRules() as $rule) {
+        if (strcasecmp(trim((string) ($rule['department_name'] ?? '')), $deptName) !== 0) {
+            continue;
+        }
+        $main = resolveContractorAttendanceSplitMain($rule);
+        if ($main) {
+            ensureSplitDeptEmployeesUnderMain($rule);
+        }
+        break;
+    }
+    if (!$main) {
+        $main = resolveMainContractorForDepartment($deptName);
+    }
+    $out['main'] = $main;
+    $mainId = (int) ($main['id'] ?? 0);
+
+    $closeAfter = false;
+    if ($conn === null) {
+        $conn = getDBConnection();
+        $closeAfter = true;
+    }
+    ensureEmployeesTable($conn);
+
+    $sql = "SELECT e.id, e.employee_code, e.employee_name, e.decided_salary, e.pay_type, e.designation
+            FROM employees e
+            WHERE e.department_id = ?
+              AND e.status = 1
+              AND e.pay_type = 'Salary'
+              AND e.id <> ?
+              AND e.id <> ?
+            ORDER BY e.employee_code ASC, e.employee_name ASC";
+    $st = $conn->prepare($sql);
+    $zero = 0;
+    $exMain = $mainId > 0 ? $mainId : $zero;
+    $exSheet = $excludeEmployeeId > 0 ? $excludeEmployeeId : $zero;
+    $st->bind_param('iii', $deptId, $exMain, $exSheet);
+    $st->execute();
+    $res = $st->get_result();
+    while ($row = $res->fetch_assoc()) {
+        $out['rows'][] = $row;
+    }
+    $st->close();
+    if ($closeAfter) {
+        $conn->close();
+    }
+    return $out;
+}

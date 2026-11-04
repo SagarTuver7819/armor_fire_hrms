@@ -18,6 +18,7 @@ $modules = [
     ['key' => 'products', 'title' => 'Product Master', 'icon' => 'fa-box', 'color' => '#C0392B', 'url' => 'contractor/products/index.php', 'meta' => 'Operation · Rate · OT / R'],
     ['key' => 'grades', 'title' => 'Grade Master', 'icon' => 'fa-layer-group', 'color' => '#0F766E', 'url' => 'contractor/grades/index.php', 'meta' => 'Grade list'],
     ['key' => 'operations', 'title' => 'Operations Rate List', 'icon' => 'fa-table', 'color' => '#8E44AD', 'url' => 'contractor/operations/index.php', 'meta' => 'Daily qty × rate'],
+    ['key' => 'operations_clone', 'title' => 'Clone Operation Rate List', 'icon' => 'fa-clone', 'color' => '#64748b', 'url' => 'contractor/operations_clone/index.php', 'meta' => 'CNC · staff salary'],
     ['key' => 'register_actual', 'title' => 'Jobwork Register (Actual)', 'icon' => 'fa-scale-balanced', 'color' => '#0F766E', 'url' => 'payroll/register.php?type=jobwork_actual', 'meta' => 'Qty × rate as earned'],
 ];
 ?>

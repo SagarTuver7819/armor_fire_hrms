@@ -6225,6 +6225,33 @@ body > .select2-container .select2-dropdown {
     padding: 16px 16px 10px;
 }
 
+.ops-clone-staff-block {
+    margin: 22px 0 8px;
+    padding: 14px 14px 8px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+}
+
+.ops-clone-staff-head h2 {
+    margin: 0 0 4px;
+    font-size: 15px;
+    font-weight: 700;
+    color: #0f172a;
+}
+
+.ops-clone-staff-head p {
+    margin: 0 0 12px;
+    font-size: 12.5px;
+    color: #64748b;
+}
+
+.ops-clone-staff-table input.grid-input {
+    max-width: 160px;
+    margin-left: auto;
+    text-align: right;
+}
+
 .ops-page-card .form-page-header {
     display: flex;
     align-items: flex-start;
