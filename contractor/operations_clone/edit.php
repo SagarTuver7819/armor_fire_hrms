@@ -44,7 +44,8 @@ if (!empty($staffBundle['rows'])) {
 }
 
 $items = $sheet['items'] ?? [];
-$kraAsOf = sprintf('%04d-%02d-02', $curYear, $curMonth);
+// Live as-of = today so ERP KRA "Add item" appears immediately (not frozen to day 02)
+$kraAsOf = date('Y-m-d');
 $kraPrefill = [];
 $erpDayQtyByPart = [];
 if (strcasecmp($curOp, 'CNC') === 0) {

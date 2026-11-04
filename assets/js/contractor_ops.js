@@ -575,12 +575,31 @@
         bindOpsCombo($sel, 'Select Grade');
         $sel.closest('tr').find('.row-grade-id').val($sel.val() || '0');
     }
-    function loadProducts(cb) {
+    var kraProductsSig = '';
+    var kraPollTimer = null;
+    var kraPollInFlight = false;
+
+    function kraProductSignature(list) {
+        return (list || []).map(function (p) {
+            return String(p.id) + ':' + String(p.name || p.product_name || '').toLowerCase();
+        }).sort().join('|');
+    }
+
+    function kraLiveAsOf() {
+        var d = new Date();
+        var mm = String(d.getMonth() + 1).padStart(2, '0');
+        var dd = String(d.getDate()).padStart(2, '0');
+        return d.getFullYear() + '-' + mm + '-' + dd;
+    }
+
+    function loadProducts(cb, opts) {
+        opts = opts || {};
+        var quiet = !!opts.quiet;
         var op = encodeURIComponent(opVal());
         var keep = (window.OPS_KEEP_PRODUCT_IDS || []).join(',');
         var url = window.OPS_PRODUCTS_URL + '?operation=' + op;
         if (keep) url += '&keep_ids=' + encodeURIComponent(keep);
-        // Clone CNC: Contract Process = ERP Production Planning KRA part names (as-of sheet month)
+        // Clone CNC: Contract Process = live ERP Production Planning KRA part names
         if (window.OPS_KRA_PARTS) {
             url += '&kra=1';
             var m = parseInt($('#monthSelect').val(), 10) || 0;
@@ -588,18 +607,34 @@
             if (m && y) {
                 url += '&month=' + encodeURIComponent(m) + '&year=' + encodeURIComponent(y);
             }
-            if (window.OPS_KRA_AS_OF) {
-                url += '&as_of=' + encodeURIComponent(window.OPS_KRA_AS_OF);
-            }
+            // Always today so ERP Add item appears within the next poll (~1s)
+            url += '&as_of=' + encodeURIComponent(kraLiveAsOf());
         }
+
+        if (quiet && kraPollInFlight) {
+            if (typeof cb === 'function') cb();
+            return;
+        }
+        if (quiet) kraPollInFlight = true;
 
         $.getJSON(url)
             .done(function (data) {
-                products = (data && data.products) ? data.products : (Array.isArray(data) ? data : []);
+                var next = (data && data.products) ? data.products : (Array.isArray(data) ? data : []);
+                var nextSig = kraProductSignature(next);
+                var changed = nextSig !== kraProductsSig;
+                products = next;
                 grades = (data && data.grades) ? data.grades : [];
                 applyOpMode();
                 if (isKraFixedMode()) {
-                    syncFixedKraRows();
+                    if (!quiet || changed) {
+                        // #region agent log
+                        if (quiet && changed) {
+                            fetch('http://127.0.0.1:7773/ingest/9028e09d-4f59-4918-ae60-c09c1f78ce7e',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'219c73'},body:JSON.stringify({sessionId:'219c73',runId:'live-sync',hypothesisId:'H-poll',location:'contractor_ops.js:loadProducts',message:'KRA poll detected new/changed parts',data:{count:products.length,added:(data&&data.erp_sync&&data.erp_sync.added)||0,msg:(data&&data.erp_sync&&data.erp_sync.message)||''},timestamp:Date.now()})}).catch(function(){});
+                        }
+                        // #endregion
+                        syncFixedKraRows();
+                    }
+                    kraProductsSig = nextSig;
                 } else {
                     $('#opsRows .ops-row').each(function () {
                         var $row = $(this);
@@ -623,9 +658,10 @@
                     });
                 }
                 if (typeof cb === 'function') cb();
-                recalcAll();
+                if (!quiet || changed) recalcAll();
             })
             .fail(function () {
+                if (quiet) return;
                 // Keep server-rendered selected options — do not wipe rows
                 products = [];
                 grades = [];
@@ -643,8 +679,20 @@
                         fillGradeSelect($row.find('.grade-select'), nonzeroId($row.find('.row-grade-id').val()) || '');
                     }
                 });
+            })
+            .always(function () {
+                if (quiet) kraPollInFlight = false;
             });
     }
+
+    function startKraLivePoll() {
+        if (!window.OPS_KRA_FIXED || kraPollTimer) return;
+        kraPollTimer = setInterval(function () {
+            if (document.hidden || !isKraFixedMode()) return;
+            loadProducts(null, { quiet: true });
+        }, 1200);
+    }
+
     function syncRowIdsBeforeSubmit() {
         $('#opsRows .ops-row').each(function () {
             var $row = $(this);
@@ -1117,6 +1165,7 @@
     syncOpsEmployeeSelect();
     loadProducts(function () {
         syncOpsEmployeeSelect();
+        startKraLivePoll();
     });
     // Select2 init runs after this file — re-apply saved Name once it wraps the control
     setTimeout(syncOpsEmployeeSelect, 0);

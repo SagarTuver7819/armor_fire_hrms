@@ -226,6 +226,32 @@ foreach ($grades as $g) {
     ];
 }
 
+// #region agent log
+if ($kraOnly && is_array($erpSync)) {
+    @file_put_contents(
+        dirname(__DIR__, 2) . '/debug-219c73.log',
+        json_encode([
+            'sessionId' => '219c73',
+            'runId' => 'live-sync',
+            'hypothesisId' => 'H-poll',
+            'location' => 'products_json.php',
+            'message' => 'KRA products_json sync result',
+            'data' => [
+                'as_of' => $asOf,
+                'product_count' => count($outProducts),
+                'added' => (int) ($erpSync['added'] ?? 0),
+                'total' => (int) ($erpSync['total'] ?? 0),
+                'ok' => !empty($erpSync['ok']),
+                'msg' => (string) ($erpSync['message'] ?? ''),
+                'names_tail' => array_slice(array_map('strval', $erpSync['names'] ?? []), -3),
+            ],
+            'timestamp' => (int) round(microtime(true) * 1000),
+        ]) . "\n",
+        FILE_APPEND
+    );
+}
+// #endregion
+
 echo json_encode([
     'products' => $outProducts,
     'grades' => $outGrades,

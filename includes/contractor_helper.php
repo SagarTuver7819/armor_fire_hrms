@@ -850,52 +850,66 @@ function syncErpKraPartsToContractorProducts($operation, $hrmsConn = null, $asOf
                 if ($docId <= 0) {
                     $erpNote = 'ERP Production Planning KRA document not found.';
                 } else {
-                    // As-of snapshot (same rule as Armor ERP Production Planning KRA)
-                    $eff = '';
+                    // Live + as-of: pull latest snapshot AND as-of snapshot so ERP "Add item"
+                    // shows in HRMS immediately (even when sheet as_of is frozen to day 02).
+                    $effAsOf = '';
+                    $effLatest = '';
                     $asOfUse = $asOf !== '' ? $asOf : date('Y-m-d');
-                    $st = $erp->prepare(
-                        'SELECT effective_date FROM dept_report_planning_snapshots
-                         WHERE department_id = ? AND document_id = ? AND effective_date <= ?
-                         ORDER BY effective_date DESC LIMIT 1'
-                    );
-                    if ($st) {
-                        $st->bind_param('iis', $deptId, $docId, $asOfUse);
-                        $st->execute();
-                        $row = $st->get_result()->fetch_assoc();
-                        $st->close();
-                        $eff = substr((string) ($row['effective_date'] ?? ''), 0, 10);
-                    }
-                    if ($eff === '') {
-                        $st = $erp->prepare(
-                            'SELECT effective_date FROM dept_report_planning
-                             WHERE department_id = ? AND document_id = ? AND effective_date <= ?
-                             ORDER BY effective_date DESC LIMIT 1'
-                        );
-                        if ($st) {
-                            $st->bind_param('iis', $deptId, $docId, $asOfUse);
-                            $st->execute();
-                            $row = $st->get_result()->fetch_assoc();
-                            $st->close();
-                            $eff = substr((string) ($row['effective_date'] ?? ''), 0, 10);
+                    $pickEff = static function ($erpConn, $deptId, $docId, $asOfLimit) {
+                        $eff = '';
+                        if ($asOfLimit !== '') {
+                            $st = $erpConn->prepare(
+                                'SELECT effective_date FROM dept_report_planning_snapshots
+                                 WHERE department_id = ? AND document_id = ? AND effective_date <= ?
+                                 ORDER BY effective_date DESC LIMIT 1'
+                            );
+                            if ($st) {
+                                $st->bind_param('iis', $deptId, $docId, $asOfLimit);
+                                $st->execute();
+                                $row = $st->get_result()->fetch_assoc();
+                                $st->close();
+                                $eff = substr((string) ($row['effective_date'] ?? ''), 0, 10);
+                            }
+                            if ($eff === '') {
+                                $st = $erpConn->prepare(
+                                    'SELECT effective_date FROM dept_report_planning
+                                     WHERE department_id = ? AND document_id = ? AND effective_date <= ?
+                                     ORDER BY effective_date DESC LIMIT 1'
+                                );
+                                if ($st) {
+                                    $st->bind_param('iis', $deptId, $docId, $asOfLimit);
+                                    $st->execute();
+                                    $row = $st->get_result()->fetch_assoc();
+                                    $st->close();
+                                    $eff = substr((string) ($row['effective_date'] ?? ''), 0, 10);
+                                }
+                            }
                         }
-                    }
-                    if ($eff === '') {
-                        $st = $erp->prepare(
-                            'SELECT MAX(effective_date) AS mx FROM dept_report_planning
-                             WHERE department_id = ? AND document_id = ?'
-                        );
-                        if ($st) {
-                            $st->bind_param('ii', $deptId, $docId);
-                            $st->execute();
-                            $row = $st->get_result()->fetch_assoc();
-                            $st->close();
-                            $eff = substr((string) ($row['mx'] ?? ''), 0, 10);
+                        if ($eff === '') {
+                            $st = $erpConn->prepare(
+                                'SELECT MAX(effective_date) AS mx FROM dept_report_planning
+                                 WHERE department_id = ? AND document_id = ?'
+                            );
+                            if ($st) {
+                                $st->bind_param('ii', $deptId, $docId);
+                                $st->execute();
+                                $row = $st->get_result()->fetch_assoc();
+                                $st->close();
+                                $eff = substr((string) ($row['mx'] ?? ''), 0, 10);
+                            }
                         }
-                    }
-                    $out['as_of'] = $eff !== '' ? $eff : $asOfUse;
+                        return $eff;
+                    };
+                    $effAsOf = $pickEff($erp, $deptId, $docId, $asOfUse);
+                    $effLatest = $pickEff($erp, $deptId, $docId, '');
+                    $out['as_of'] = $effLatest !== '' ? $effLatest : ($effAsOf !== '' ? $effAsOf : $asOfUse);
 
-                    if ($eff !== '' && preg_match('/^\d{4}-\d{2}-\d{2}$/', $eff)) {
-                        $st = $erp->prepare(
+                    $loadSnapNames = static function ($erpConn, $deptId, $docId, $eff, array &$bucket, $appendName) {
+                        if ($eff === '' || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $eff)) {
+                            return 0;
+                        }
+                        $n = 0;
+                        $st = $erpConn->prepare(
                             'SELECT TRIM(product_name) AS product_name
                              FROM dept_report_planning
                              WHERE department_id = ? AND document_id = ? AND effective_date = ?
@@ -906,44 +920,41 @@ function syncErpKraPartsToContractorProducts($operation, $hrmsConn = null, $asOf
                             $st->execute();
                             $res = $st->get_result();
                             while ($row = $res->fetch_assoc()) {
-                                $appendName($erpSnapNames, $row['product_name'] ?? '');
+                                $before = count($bucket);
+                                $appendName($bucket, $row['product_name'] ?? '');
+                                if (count($bucket) > $before) {
+                                    $n++;
+                                }
                             }
                             $st->close();
                         }
+                        return $n;
+                    };
+                    $nLatest = $loadSnapNames($erp, $deptId, $docId, $effLatest, $erpSnapNames, $appendName);
+                    if ($effAsOf !== '' && $effAsOf !== $effLatest) {
+                        $loadSnapNames($erp, $deptId, $docId, $effAsOf, $erpSnapNames, $appendName);
                     }
 
-                    // If as-of snapshot is thin, also merge DISTINCT history + master products
-                    if (count($erpSnapNames) < 3) {
-                        $st = $erp->prepare(
-                            'SELECT TRIM(product_name) AS product_name
-                             FROM dept_report_planning
-                             WHERE department_id = ? AND document_id = ?
-                             ORDER BY effective_date DESC, id ASC'
-                        );
-                        if ($st) {
-                            $st->bind_param('ii', $deptId, $docId);
-                            $st->execute();
-                            $res = $st->get_result();
-                            while ($row = $res->fetch_assoc()) {
-                                $appendName($erpSnapNames, $row['product_name'] ?? '');
+                    // Always merge product master — ERP "Add item" often lands here first
+                    $masterCount = 0;
+                    $st = $erp->prepare(
+                        'SELECT TRIM(product_name) AS product_name
+                         FROM dept_report_products
+                         WHERE department_id = ? AND document_id = ?
+                         ORDER BY id ASC'
+                    );
+                    if ($st) {
+                        $st->bind_param('ii', $deptId, $docId);
+                        $st->execute();
+                        $res = $st->get_result();
+                        while ($row = $res->fetch_assoc()) {
+                            $before = count($erpSnapNames);
+                            $appendName($erpSnapNames, $row['product_name'] ?? '');
+                            if (count($erpSnapNames) > $before) {
+                                $masterCount++;
                             }
-                            $st->close();
                         }
-                        $st = $erp->prepare(
-                            'SELECT TRIM(product_name) AS product_name
-                             FROM dept_report_products
-                             WHERE department_id = ? AND document_id = ?
-                             ORDER BY id ASC'
-                        );
-                        if ($st) {
-                            $st->bind_param('ii', $deptId, $docId);
-                            $st->execute();
-                            $res = $st->get_result();
-                            while ($row = $res->fetch_assoc()) {
-                                $appendName($erpSnapNames, $row['product_name'] ?? '');
-                            }
-                            $st->close();
-                        }
+                        $st->close();
                     }
 
                     $chk = $erp->query("SHOW TABLES LIKE 'dept_master_rates'");
@@ -964,8 +975,34 @@ function syncErpKraPartsToContractorProducts($operation, $hrmsConn = null, $asOf
                             $st->close();
                         }
                     }
-                    $erpNote = 'ERP OK snap=' . ($eff !== '' ? $eff : 'none')
-                        . ' parts=' . count(array_unique(array_map('strtolower', $erpSnapNames)));
+                    $uniqSnap = count(array_unique(array_map('strtolower', $erpSnapNames)));
+                    $erpNote = 'ERP OK latest=' . ($effLatest !== '' ? $effLatest : 'none')
+                        . ' asof=' . ($effAsOf !== '' ? $effAsOf : 'none')
+                        . ' snap=' . $nLatest
+                        . ' master+=' . $masterCount
+                        . ' parts=' . $uniqSnap;
+                    // #region agent log
+                    @file_put_contents(
+                        dirname(__DIR__) . '/debug-219c73.log',
+                        json_encode([
+                            'sessionId' => '219c73',
+                            'runId' => 'live-sync',
+                            'hypothesisId' => 'H-asof',
+                            'location' => 'contractor_helper.php:syncErpKraParts:names',
+                            'message' => 'ERP KRA name sync sources',
+                            'data' => [
+                                'asOfUse' => $asOfUse,
+                                'effLatest' => $effLatest,
+                                'effAsOf' => $effAsOf,
+                                'nLatest' => $nLatest,
+                                'masterCount' => $masterCount,
+                                'parts' => $uniqSnap,
+                            ],
+                            'timestamp' => (int) round(microtime(true) * 1000),
+                        ]) . "\n",
+                        FILE_APPEND
+                    );
+                    // #endregion
                 }
             }
         } catch (Throwable $e) {
