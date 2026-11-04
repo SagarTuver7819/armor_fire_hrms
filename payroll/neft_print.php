@@ -60,10 +60,12 @@ $finalTotal = (float) ($data['final_total'] ?? $data['neft_total'] ?? 0);
         th { background: #1e3a5f; color: #fff; }
         .num { text-align: right; white-space: nowrap; }
         .sub { font-size: 10px; color: #555; }
-        tfoot td { font-weight: 700; }
-        tfoot .sec-n { background: #ecfdf5; }
-        tfoot .sec-j { background: #eff6ff; }
-        tfoot .sec-f { background: #fef3c7; font-size: 12px; }
+        /* Totals after </table> (not tfoot) — browsers repeat <tfoot> on every print page */
+        .neft-totals { width: 100%; border-collapse: collapse; margin-top: 0; page-break-inside: avoid; break-inside: avoid; }
+        .neft-totals td { border: 1px solid #333; padding: 5px 6px; font-weight: 700; }
+        .neft-totals .sec-n { background: #ecfdf5; }
+        .neft-totals .sec-j { background: #eff6ff; }
+        .neft-totals .sec-f { background: #fef3c7; font-size: 12px; }
         .actions { margin-bottom: 12px; }
         .actions button { padding: 8px 14px; cursor: pointer; }
         @media print { .actions { display: none; } }
@@ -126,23 +128,23 @@ $finalTotal = (float) ($data['final_total'] ?? $data['neft_total'] ?? 0);
             </tr>
         <?php endforeach; ?>
         </tbody>
-        <tfoot>
-            <tr class="sec-n">
-                <td colspan="6">Normal Salary Total (<?php echo $normalCount; ?>)</td>
-                <td class="num"><?php echo formatIndianNumber($normalTotal, 2); ?></td>
-                <td colspan="3"></td>
-            </tr>
-            <tr class="sec-j">
-                <td colspan="6">Jobwork Total (<?php echo $jobworkCount; ?>)</td>
-                <td class="num"><?php echo formatIndianNumber($jobworkTotal, 2); ?></td>
-                <td colspan="3"></td>
-            </tr>
-            <tr class="sec-f">
-                <td colspan="6">Final NEFT Total (Normal + Jobwork · All departments)</td>
-                <td class="num"><?php echo formatIndianNumber($finalTotal, 2); ?></td>
-                <td colspan="3"></td>
-            </tr>
-        </tfoot>
+    </table>
+    <table class="neft-totals" aria-label="NEFT totals">
+        <tr class="sec-n">
+            <td colspan="6">Normal Salary Total (<?php echo $normalCount; ?>)</td>
+            <td class="num"><?php echo formatIndianNumber($normalTotal, 2); ?></td>
+            <td colspan="3"></td>
+        </tr>
+        <tr class="sec-j">
+            <td colspan="6">Jobwork Total (<?php echo $jobworkCount; ?>)</td>
+            <td class="num"><?php echo formatIndianNumber($jobworkTotal, 2); ?></td>
+            <td colspan="3"></td>
+        </tr>
+        <tr class="sec-f">
+            <td colspan="6">Final NEFT Total (Normal + Jobwork · All departments)</td>
+            <td class="num"><?php echo formatIndianNumber($finalTotal, 2); ?></td>
+            <td colspan="3"></td>
+        </tr>
     </table>
 </body>
 </html>
