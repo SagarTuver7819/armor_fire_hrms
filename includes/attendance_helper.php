@@ -2018,7 +2018,7 @@ function attendanceBuildEmployeeMonthTotals(array $emp, array &$dayMapByDate, $m
             $half = '';
         }
 
-        // History week-off weekday
+        // History / current week-off weekday
         if ($isCalWeekOff && !$isCalHoliday) {
             if (in_array($status, ['Present', 'Half Day'], true)) {
                 if ($isCurrentWeekOff) {
@@ -2032,9 +2032,29 @@ function attendanceBuildEmployeeMonthTotals(array $emp, array &$dayMapByDate, $m
                 }
                 continue;
             }
-            if ($status === 'Week Off' || $status === 'Absent' || $status === 'Leave') {
+
+            // Manual / leave-module Leave (incl. LWP) on WO day must stick after Save.
+            // Only auto/virtual LWP (and Absent) collapse back to Week Off.
+            $isAutoOrVirtualLwp = (
+                $status === 'Leave'
+                && (
+                    $cellSource === 'auto_lwp'
+                    || !empty($cell['_auto_lwp'])
+                    || !empty($cell['_virtual'])
+                )
+            );
+            if ($status === 'Leave' && !$isAutoOrVirtualLwp) {
+                attendanceAddDayToLeaveTotals($totals, $status, $type, $half);
+                continue;
+            }
+            if ($status === 'Half Day' && ($cellSource === 'manual' || $cellSource === 'leave')) {
+                attendanceAddDayToLeaveTotals($totals, $status, $type, $half);
+                continue;
+            }
+
+            if ($status === 'Week Off' || $status === 'Absent' || $isAutoOrVirtualLwp) {
                 $dayMapByDate[$date]['day_status'] = 'Week Off';
-                if ($status === 'Leave' || stripos((string) ($cell['remarks'] ?? ''), 'LWP') !== false) {
+                if ($isAutoOrVirtualLwp || stripos((string) ($cell['remarks'] ?? ''), 'LWP') !== false) {
                     $dayMapByDate[$date]['remarks'] = '';
                 }
                 unset($dayMapByDate[$date]['_auto_lwp']);
