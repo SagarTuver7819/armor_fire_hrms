@@ -48,3 +48,50 @@ function getDBConnection()
     $conn->set_charset('utf8mb4');
     return $conn;
 }
+
+/**
+ * Armor ERP MySQL (Production Planning KRA / Master part names).
+ * .env: ERP_DB_HOST, ERP_DB_PORT, ERP_DB_NAME, ERP_DB_USER, ERP_DB_PASS
+ * Falls back to common local/live DB names on the same MySQL host.
+ *
+ * @return mysqli|null
+ */
+function getErpDBConnection()
+{
+    static $failed = false;
+    if ($failed) {
+        return null;
+    }
+
+    $host = (string) env('ERP_DB_HOST', env('DB_HOST', 'localhost'));
+    $user = (string) env('ERP_DB_USER', env('DB_USER', 'root'));
+    $pass = (string) env('ERP_DB_PASS', env('DB_PASS', ''));
+    $port = (int) env('ERP_DB_PORT', env('DB_PORT', '3306'));
+    if ($port <= 0) {
+        $port = 3306;
+    }
+    $configured = trim((string) env('ERP_DB_NAME', ''));
+    $candidates = [];
+    if ($configured !== '') {
+        $candidates[] = $configured;
+    }
+    foreach (['armor_erp', 'jrosvllq_armor_fire_erp', 'armor_fire_erp'] as $try) {
+        if (!in_array($try, $candidates, true)) {
+            $candidates[] = $try;
+        }
+    }
+
+    foreach ($candidates as $dbName) {
+        $conn = @new mysqli($host, $user, $pass, $dbName, $port);
+        if ($conn instanceof mysqli && !$conn->connect_error) {
+            $conn->set_charset('utf8mb4');
+            return $conn;
+        }
+        if ($conn instanceof mysqli) {
+            @$conn->close();
+        }
+    }
+
+    $failed = true;
+    return null;
+}

@@ -15,6 +15,11 @@ if (!empty($_GET['keep_ids'])) {
 
 $conn = getDBConnection();
 ensureContractorTables($conn);
+// CNC (and mapped ops): pull latest Production Planning KRA part names from Armor ERP
+$erpSync = null;
+if ($operation !== '' && contractorOperationErpDepartmentName($operation) !== '') {
+    $erpSync = syncErpKraPartsToContractorProducts($operation, $conn);
+}
 $products = getContractorProductsByOperation($operation, $conn);
 
 // Also pull keep_ids even if operation label drifted / duplicate was filtered
@@ -90,4 +95,5 @@ echo json_encode([
     'products' => $outProducts,
     'grades' => $outGrades,
     'show_grade' => contractorOperationShowsGrade($operation),
+    'erp_sync' => $erpSync,
 ]);
