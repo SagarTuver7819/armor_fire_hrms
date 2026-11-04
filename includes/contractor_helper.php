@@ -796,20 +796,6 @@ function syncErpKraPartsToContractorProducts($operation, $hrmsConn = null, $asOf
         require_once __DIR__ . '/../config/database.php';
     }
     $erp = getErpDBConnection();
-    // #region agent log
-    @file_put_contents(
-        dirname(__DIR__) . '/debug-219c73.log',
-        json_encode([
-            'sessionId' => '219c73',
-            'hypothesisId' => 'A',
-            'location' => 'contractor_helper.php:syncErpKraParts:entry',
-            'message' => 'sync got ERP connection',
-            'data' => ['hasErp' => (bool) $erp, 'willCloseAtEnd' => false],
-            'timestamp' => (int) round(microtime(true) * 1000),
-        ]) . "\n",
-        FILE_APPEND
-    );
-    // #endregion
     if (!$erp) {
         $erpNote = 'ERP database not reachable';
     } else {
@@ -981,48 +967,12 @@ function syncErpKraPartsToContractorProducts($operation, $hrmsConn = null, $asOf
                         . ' snap=' . $nLatest
                         . ' master+=' . $masterCount
                         . ' parts=' . $uniqSnap;
-                    // #region agent log
-                    @file_put_contents(
-                        dirname(__DIR__) . '/debug-219c73.log',
-                        json_encode([
-                            'sessionId' => '219c73',
-                            'runId' => 'live-sync',
-                            'hypothesisId' => 'H-asof',
-                            'location' => 'contractor_helper.php:syncErpKraParts:names',
-                            'message' => 'ERP KRA name sync sources',
-                            'data' => [
-                                'asOfUse' => $asOfUse,
-                                'effLatest' => $effLatest,
-                                'effAsOf' => $effAsOf,
-                                'nLatest' => $nLatest,
-                                'masterCount' => $masterCount,
-                                'parts' => $uniqSnap,
-                            ],
-                            'timestamp' => (int) round(microtime(true) * 1000),
-                        ]) . "\n",
-                        FILE_APPEND
-                    );
-                    // #endregion
                 }
             }
         } catch (Throwable $e) {
             $erpNote = 'ERP error: ' . $e->getMessage();
         }
         // Do NOT close shared getErpDBConnection() handle — other callers reuse the static cache.
-        // #region agent log
-        @file_put_contents(
-            dirname(__DIR__) . '/debug-219c73.log',
-            json_encode([
-                'sessionId' => '219c73',
-                'hypothesisId' => 'A',
-                'location' => 'contractor_helper.php:syncErpKraParts:no-close',
-                'message' => 'sync leaving ERP connection open for reuse',
-                'data' => ['erpNote' => $erpNote],
-                'timestamp' => (int) round(microtime(true) * 1000),
-            ]) . "\n",
-            FILE_APPEND
-        );
-        // #endregion
     }
 
     // Prefer ERP snapshot order; then CNC baseline (covers thin local ERP / missing live pull)
@@ -1116,24 +1066,6 @@ function syncErpKraPartsToContractorProducts($operation, $hrmsConn = null, $asOf
 }
 
 /**
- * Last ERP KRA day-qty fetch status (for on-page debug / support).
- *
- * @return array{ok:bool,message:string,dept_id:int,doc_id:int,rows:int,parts:int,db:string}
- */
-function erpKraDayQtyDebug()
-{
-    return $GLOBALS['_erp_kra_qty_debug'] ?? [
-        'ok' => false,
-        'message' => 'not run',
-        'dept_id' => 0,
-        'doc_id' => 0,
-        'rows' => 0,
-        'parts' => 0,
-        'db' => '',
-    ];
-}
-
-/**
  * ERP Production Planning KRA — date-wise Total qty (sum of grade cells / actual_qty).
  * Returns map: lowercase part-name => [ '1' => qty, '2' => qty, ... ] for the month.
  *
@@ -1145,67 +1077,23 @@ function fetchErpKraDateWiseQtys($operation, $year, $month)
     $year = (int) $year;
     $month = (int) $month;
     $out = [];
-    $debug = [
-        'ok' => false,
-        'message' => '',
-        'dept_id' => 0,
-        'doc_id' => 0,
-        'rows' => 0,
-        'parts' => 0,
-        'db' => '',
-    ];
-    $GLOBALS['_erp_kra_qty_debug'] = &$debug;
 
     if ($operation === '' || $year < 2000 || $month < 1 || $month > 12) {
-        $debug['message'] = 'Invalid operation/month';
         return $out;
     }
     $deptName = contractorOperationErpDepartmentName($operation);
     if ($deptName === '') {
-        $debug['message'] = 'No ERP department mapping';
         return $out;
     }
     if (!function_exists('getErpDBConnection')) {
         require_once __DIR__ . '/../config/database.php';
     }
     $erp = getErpDBConnection();
-    // #region agent log
-    @file_put_contents(
-        dirname(__DIR__) . '/debug-219c73.log',
-        json_encode([
-            'sessionId' => '219c73',
-            'hypothesisId' => 'A',
-            'location' => 'contractor_helper.php:fetchErpKraDateWiseQtys:entry',
-            'message' => 'fetch qty got ERP connection',
-            'data' => ['hasErp' => (bool) $erp],
-            'timestamp' => (int) round(microtime(true) * 1000),
-        ]) . "\n",
-        FILE_APPEND
-    );
-    // #endregion
     if (!$erp) {
-        $debug['message'] = 'ERP DB not reachable (check config/erp_database.php)';
         return $out;
     }
 
     try {
-        $dbRow = @$erp->query('SELECT DATABASE() AS d');
-        $debug['db'] = $dbRow ? (string) ($dbRow->fetch_assoc()['d'] ?? '') : '';
-        // #region agent log
-        @file_put_contents(
-            dirname(__DIR__) . '/debug-219c73.log',
-            json_encode([
-                'sessionId' => '219c73',
-                'hypothesisId' => 'D',
-                'location' => 'contractor_helper.php:fetchErpKraDateWiseQtys:after-query',
-                'message' => 'DATABASE() query after getErpDBConnection',
-                'data' => ['db' => $debug['db'], 'dbRowOk' => (bool) $dbRow],
-                'timestamp' => (int) round(microtime(true) * 1000),
-            ]) . "\n",
-            FILE_APPEND
-        );
-        // #endregion
-
         $deptId = 0;
         $docId = 0;
         $st = $erp->prepare(
@@ -1218,9 +1106,7 @@ function fetchErpKraDateWiseQtys($operation, $year, $month)
             $st->close();
             $deptId = (int) ($row['id'] ?? 0);
         }
-        $debug['dept_id'] = $deptId;
         if ($deptId <= 0) {
-            $debug['message'] = 'ERP department not found: ' . $deptName;
             return $out;
         }
         $st = $erp->prepare(
@@ -1240,9 +1126,7 @@ function fetchErpKraDateWiseQtys($operation, $year, $month)
             $st->close();
             $docId = (int) ($row['id'] ?? 0);
         }
-        $debug['doc_id'] = $docId;
         if ($docId <= 0) {
-            $debug['message'] = 'ERP Production Planning KRA document not found';
             return $out;
         }
 
@@ -1265,12 +1149,10 @@ function fetchErpKraDateWiseQtys($operation, $year, $month)
                   AND CAST(IFNULL(pe.actual_qty, 0) AS DECIMAL(18,2)) <> 0";
         $st = $erp->prepare($sql);
         if (!$st) {
-            $debug['message'] = 'Prepare failed: ' . $erp->error;
             return $out;
         }
         $st->bind_param('iiss', $deptId, $docId, $from, $toExcl);
         if (!$st->execute()) {
-            $debug['message'] = 'Execute failed: ' . $st->error;
             $st->close();
             return $out;
         }
@@ -1333,57 +1215,10 @@ function fetchErpKraDateWiseQtys($operation, $year, $month)
                     }
                 }
                 $st2->close();
-                if ($rawRows > 0) {
-                    $debug['message'] = 'OK via dept-only fallback';
-                }
             }
         }
-
-        $debug['rows'] = $rawRows;
-        $debug['parts'] = count($out);
-        $debug['ok'] = true;
-        if ($debug['message'] === '' || strpos($debug['message'], 'OK') !== 0) {
-            $debug['message'] = $rawRows > 0
-                ? ('OK ' . $rawRows . ' ERP rows → ' . count($out) . ' parts')
-                : ('No production_entries qty for ' . $from . ' (dept=' . $deptId . ' doc=' . $docId . ')');
-        }
-        // #region agent log
-        $d2 = [];
-        foreach (['lite male', 'heavy female', 'heavy male', 'heavy nozzle', 'heavy nozzel', 'lite female'] as $pk) {
-            if (isset($out[$pk]['2'])) {
-                $d2[$pk] = $out[$pk]['2'];
-            }
-        }
-        @file_put_contents(
-            dirname(__DIR__) . '/debug-219c73.log',
-            json_encode([
-                'sessionId' => '219c73',
-                'runId' => 'post-fix',
-                'hypothesisId' => 'H5',
-                'location' => 'contractor_helper.php:fetchErpKraDateWiseQtys:ok',
-                'message' => 'Raw ERP day-2 qty by product key (single-key accumulate)',
-                'data' => ['rows' => $rawRows, 'parts' => count($out), 'day2' => $d2, 'msg' => $debug['message']],
-                'timestamp' => (int) round(microtime(true) * 1000),
-            ]) . "\n",
-            FILE_APPEND
-        );
-        // #endregion
     } catch (Throwable $e) {
-        $debug['message'] = 'ERP qty error: ' . $e->getMessage();
-        // #region agent log
-        @file_put_contents(
-            dirname(__DIR__) . '/debug-219c73.log',
-            json_encode([
-                'sessionId' => '219c73',
-                'hypothesisId' => 'A',
-                'location' => 'contractor_helper.php:fetchErpKraDateWiseQtys:catch',
-                'message' => 'fetch qty threw',
-                'data' => ['error' => $e->getMessage()],
-                'timestamp' => (int) round(microtime(true) * 1000),
-            ]) . "\n",
-            FILE_APPEND
-        );
-        // #endregion
+        // Keep shared ERP connection open; return whatever was accumulated.
     }
     // Keep shared ERP connection open (static cache in getErpDBConnection).
     return $out;

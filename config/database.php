@@ -62,43 +62,14 @@ function getErpDBConnection()
     static $cached = false;
     static $conn = null;
     if ($cached) {
-        // #region agent log
         $alive = false;
         if ($conn instanceof mysqli) {
             try {
                 $alive = @$conn->ping() ? true : false;
             } catch (Throwable $e) {
                 $alive = false;
-                // #region agent log
-                @file_put_contents(
-                    dirname(__DIR__) . '/debug-219c73.log',
-                    json_encode([
-                        'sessionId' => '219c73',
-                        'hypothesisId' => 'C',
-                        'location' => 'database.php:getErpDBConnection:cache',
-                        'message' => 'cached ERP conn ping failed',
-                        'data' => ['error' => $e->getMessage(), 'alive' => false],
-                        'timestamp' => (int) round(microtime(true) * 1000),
-                    ]) . "\n",
-                    FILE_APPEND
-                );
-                // #endregion
             }
         }
-        // #region agent log
-        @file_put_contents(
-            dirname(__DIR__) . '/debug-219c73.log',
-            json_encode([
-                'sessionId' => '219c73',
-                'hypothesisId' => 'A',
-                'location' => 'database.php:getErpDBConnection:cache-hit',
-                'message' => 'returning cached ERP connection',
-                'data' => ['alive' => $alive, 'isMysqli' => ($conn instanceof mysqli)],
-                'timestamp' => (int) round(microtime(true) * 1000),
-            ]) . "\n",
-            FILE_APPEND
-        );
-        // #endregion
         if ($alive) {
             return $conn;
         }

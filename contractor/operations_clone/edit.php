@@ -176,38 +176,6 @@ if (strcasecmp($curOp, 'CNC') === 0) {
         $erpCanonMap[$ck] = contractorErpDaysForPartName($canon, $erpDayQtyByPart);
     }
     $erpDayQtyByPart = $erpCanonMap;
-    // #region agent log
-    $day2Snap = [];
-    foreach ($kraPrefill as $row) {
-        $lbl = (string) ($row['product_label'] ?? '');
-        $q2 = $row['days']['2']['q'] ?? ($row['days'][2]['q'] ?? null);
-        $day2Snap[$lbl] = $q2;
-    }
-    @file_put_contents(
-        dirname(__DIR__, 2) . '/debug-219c73.log',
-        json_encode([
-            'sessionId' => '219c73',
-            'runId' => 'post-fix',
-            'hypothesisId' => 'H1',
-            'location' => 'operations_clone/edit.php:kraPrefill',
-            'message' => 'Day-2 qty after alias-safe ERP merge',
-            'data' => [
-                'day2' => $day2Snap,
-                'erpLiteMale' => $erpDayQtyByPart['lite male']['2'] ?? null,
-                'erpHeavyFemale' => $erpDayQtyByPart['heavy female']['2'] ?? null,
-                'erpHeavyNozzle' => $erpDayQtyByPart['heavy nozzle']['2'] ?? null,
-                'expected' => [
-                    'Lite male' => 114,
-                    'Heavy Female' => 496,
-                    'Heavy Male' => 371,
-                    'Heavy Nozzle' => 308,
-                ],
-            ],
-            'timestamp' => (int) round(microtime(true) * 1000),
-        ]) . "\n",
-        FILE_APPEND
-    );
-    // #endregion
 }
 if (!$items) {
     $items = [[
@@ -332,14 +300,6 @@ $otJson = json_encode(contractorOtRepairOps());
                 <?php else: ?>
                 <div class="ops-kra-hint" style="font-size:13px;color:#64748b;">
                     <i class="fa-solid fa-link"></i> Contract Process = ERP CNC Production Planning KRA (fixed). Rate edit કરો; નવું ERP partname આપમેળે આવશે.
-                    <?php
-                    $qtyDbg = function_exists('erpKraDayQtyDebug') ? erpKraDayQtyDebug() : [];
-                    $qtyParts = (int) ($qtyDbg['parts'] ?? 0);
-                    $qtyMsg = (string) ($qtyDbg['message'] ?? '');
-                    ?>
-                    <span style="margin-left:8px;<?php echo $qtyParts > 0 ? 'color:#15803d;' : 'color:#b45309;'; ?>">
-                        · ERP qty: <?php echo $qtyParts > 0 ? ($qtyParts . ' parts loaded') : htmlspecialchars($qtyMsg !== '' ? $qtyMsg : 'none'); ?>
-                    </span>
                 </div>
                 <?php endif; ?>
                 <div class="ops-live-summary">

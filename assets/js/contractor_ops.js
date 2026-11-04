@@ -627,11 +627,6 @@
                 applyOpMode();
                 if (isKraFixedMode()) {
                     if (!quiet || changed) {
-                        // #region agent log
-                        if (quiet && changed) {
-                            fetch('http://127.0.0.1:7773/ingest/9028e09d-4f59-4918-ae60-c09c1f78ce7e',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'219c73'},body:JSON.stringify({sessionId:'219c73',runId:'live-sync',hypothesisId:'H-poll',location:'contractor_ops.js:loadProducts',message:'KRA poll detected new/changed parts',data:{count:products.length,added:(data&&data.erp_sync&&data.erp_sync.added)||0,msg:(data&&data.erp_sync&&data.erp_sync.message)||''},timestamp:Date.now()})}).catch(function(){});
-                        }
-                        // #endregion
                         syncFixedKraRows();
                     }
                     kraProductsSig = nextSig;
