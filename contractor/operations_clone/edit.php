@@ -168,7 +168,8 @@ if (!$items) {
 }
 $conn->close();
 
-$showGrade = contractorOperationShowsGrade($curOp);
+// CNC clone: no GRADE column (ERP KRA part rows only — qty × rate)
+$showGrade = strcasecmp($curOp, 'CNC') === 0 ? false : contractorOperationShowsGrade($curOp);
 $showStaff = in_array($curOp, opsCloneStaffSalaryOperations(), true);
 $monthDays = (int) date('t', mktime(0, 0, 0, $curMonth, 1, $curYear));
 
@@ -543,7 +544,15 @@ $otJson = json_encode(contractorOtRepairOps());
     window.OPS_KRA_AS_OF = <?php echo json_encode($kraAsOf); ?>;
     window.OPS_REPAIR = <?php echo $repairJson; ?>;
     window.OPS_OT_REPAIR = <?php echo $otJson; ?>;
-    window.OPS_GRADE_OPS = <?php echo json_encode(array_values(contractorShowGradeOps())); ?>;
+    window.OPS_GRADE_OPS = <?php
+        $gradeOpsJs = array_values(contractorShowGradeOps());
+        if (strcasecmp($curOp, 'CNC') === 0) {
+            $gradeOpsJs = array_values(array_filter($gradeOpsJs, static function ($op) {
+                return strcasecmp((string) $op, 'CNC') !== 0;
+            }));
+        }
+        echo json_encode($gradeOpsJs);
+    ?>;
     window.OPS_KEEP_PRODUCT_IDS = <?php
         $keepPids = [];
         foreach ($items as $itRow) {
