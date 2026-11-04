@@ -53,45 +53,96 @@ function getDBConnection()
  * Armor ERP MySQL (Production Planning KRA / Master part names).
  * .env: ERP_DB_HOST, ERP_DB_PORT, ERP_DB_NAME, ERP_DB_USER, ERP_DB_PASS
  * Falls back to common local/live DB names on the same MySQL host.
+ * Never throws — failed candidates are skipped (PHP 8+ mysqli exceptions caught).
  *
  * @return mysqli|null
  */
 function getErpDBConnection()
 {
-    static $failed = false;
-    if ($failed) {
-        return null;
+    static $cached = false;
+    static $conn = null;
+    if ($cached) {
+        return $conn;
     }
+    $cached = true;
 
     $host = (string) env('ERP_DB_HOST', env('DB_HOST', 'localhost'));
-    $user = (string) env('ERP_DB_USER', env('DB_USER', 'root'));
-    $pass = (string) env('ERP_DB_PASS', env('DB_PASS', ''));
     $port = (int) env('ERP_DB_PORT', env('DB_PORT', '3306'));
     if ($port <= 0) {
         $port = 3306;
     }
+
+    // Credential sets: explicit ERP_* first, then HRMS DB_* (local often shares root)
+    $credSets = [];
+    $erpUser = trim((string) env('ERP_DB_USER', ''));
+    $erpPass = (string) env('ERP_DB_PASS', '');
+    if ($erpUser !== '') {
+        $credSets[] = ['user' => $erpUser, 'pass' => $erpPass];
+    }
+    $hrmsUser = (string) env('DB_USER', 'root');
+    $hrmsPass = (string) env('DB_PASS', '');
+    $dup = false;
+    foreach ($credSets as $c) {
+        if ($c['user'] === $hrmsUser && $c['pass'] === $hrmsPass) {
+            $dup = true;
+            break;
+        }
+    }
+    if (!$dup) {
+        $credSets[] = ['user' => $hrmsUser, 'pass' => $hrmsPass];
+    }
+
     $configured = trim((string) env('ERP_DB_NAME', ''));
+    // Live hosting DB first, then local armor_erp — avoids HRMS user fatal on denied armor_erp
     $candidates = [];
     if ($configured !== '') {
         $candidates[] = $configured;
     }
-    foreach (['armor_erp', 'jrosvllq_armor_fire_erp', 'armor_fire_erp'] as $try) {
+    foreach (['jrosvllq_armor_fire_erp', 'armor_erp', 'armor_fire_erp'] as $try) {
         if (!in_array($try, $candidates, true)) {
             $candidates[] = $try;
         }
     }
 
-    foreach ($candidates as $dbName) {
-        $conn = @new mysqli($host, $user, $pass, $dbName, $port);
-        if ($conn instanceof mysqli && !$conn->connect_error) {
-            $conn->set_charset('utf8mb4');
-            return $conn;
-        }
-        if ($conn instanceof mysqli) {
-            @$conn->close();
+    $prevReport = null;
+    if (function_exists('mysqli_report')) {
+        $prevReport = MYSQLI_REPORT_OFF;
+        try {
+            // PHP 8+: failed connect throws mysqli_sql_exception unless report mode is off
+            mysqli_report(MYSQLI_REPORT_OFF);
+        } catch (Throwable $e) {
+            $prevReport = null;
         }
     }
 
-    $failed = true;
+    try {
+        foreach ($credSets as $cred) {
+            foreach ($candidates as $dbName) {
+                try {
+                    $try = @new mysqli($host, $cred['user'], $cred['pass'], $dbName, $port);
+                } catch (Throwable $e) {
+                    $try = null;
+                }
+                if ($try instanceof mysqli && empty($try->connect_errno) && empty($try->connect_error)) {
+                    $try->set_charset('utf8mb4');
+                    $conn = $try;
+                    return $conn;
+                }
+                if ($try instanceof mysqli) {
+                    @$try->close();
+                }
+            }
+        }
+    } finally {
+        if ($prevReport !== null && function_exists('mysqli_report')) {
+            try {
+                mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
+            } catch (Throwable $e) {
+                // ignore restore failures
+            }
+        }
+    }
+
+    $conn = null;
     return null;
 }

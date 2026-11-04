@@ -48,7 +48,22 @@ $kraAsOf = sprintf('%04d-%02d-02', $curYear, $curMonth);
 $kraPrefill = [];
 if (strcasecmp($curOp, 'CNC') === 0) {
     // Auto rows = ERP CNC Production Planning KRA part names (fixed — no dropdown)
-    $kraSync = syncErpKraPartsToContractorProducts('CNC', $conn, $kraAsOf);
+    try {
+        $kraSync = syncErpKraPartsToContractorProducts('CNC', $conn, $kraAsOf);
+    } catch (Throwable $e) {
+        $kraSync = [
+            'ok' => false,
+            'added' => 0,
+            'updated' => 0,
+            'total' => 0,
+            'message' => $e->getMessage(),
+            'names' => contractorCncKraBaselinePartNames(),
+            'as_of' => $kraAsOf,
+        ];
+        foreach (contractorCncKraBaselinePartNames() as $pn) {
+            contractorEnsureProduct($conn, 'CNC', $pn, 0.0);
+        }
+    }
     $kraNameSet = [];
     foreach (($kraSync['names'] ?? []) as $pn) {
         $kraNameSet[strtolower(trim((string) $pn))] = true;
