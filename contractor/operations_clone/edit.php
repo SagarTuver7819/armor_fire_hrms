@@ -46,6 +46,7 @@ if (!empty($staffBundle['rows'])) {
 $items = $sheet['items'] ?? [];
 $kraAsOf = sprintf('%04d-%02d-02', $curYear, $curMonth);
 $kraPrefill = [];
+$erpDayQtyByPart = [];
 if (strcasecmp($curOp, 'CNC') === 0) {
     // Auto rows = ERP CNC Production Planning KRA part names (fixed — no dropdown)
     try {
@@ -97,6 +98,13 @@ if (strcasecmp($curOp, 'CNC') === 0) {
             $best[$nk]['_canon'] = $matchedCanon;
         }
     }
+    // ERP KRA Total qty → day boxes (e.g. 02/11/2026 → column day 2)
+    try {
+        $erpDayQtyByPart = fetchErpKraDateWiseQtys('CNC', $curYear, $curMonth);
+    } catch (Throwable $e) {
+        $erpDayQtyByPart = [];
+    }
+
     foreach (($kraSync['names'] ?? []) as $canon) {
         $ck = strtolower(trim((string) $canon));
         if (!isset($best[$ck])) {
@@ -111,6 +119,17 @@ if (strcasecmp($curOp, 'CNC') === 0) {
                 break;
             }
         }
+        $days = $saved['days'] ?? [];
+        $erpDays = $erpDayQtyByPart[$ck] ?? [];
+        foreach (contractorKraPartNameAliases($canon) as $al) {
+            $ak = strtolower(trim((string) $al));
+            if (!empty($erpDayQtyByPart[$ak])) {
+                foreach ($erpDayQtyByPart[$ak] as $dd => $qq) {
+                    $erpDays[$dd] = ($erpDays[$dd] ?? 0) + (float) $qq;
+                }
+            }
+        }
+        $days = mergeErpKraDaysIntoMap(is_array($days) ? $days : [], $erpDays);
         $kraPrefill[] = [
             'product_id' => $pid,
             'product_label' => (string) $canon,
@@ -119,7 +138,7 @@ if (strcasecmp($curOp, 'CNC') === 0) {
             'rate' => $saved !== null ? ($saved['rate'] ?? $pr['rate']) : ($pr['rate'] ?? 0),
             'ot_rate' => $saved !== null ? ($saved['ot_rate'] ?? 0) : parseOtRate($pr['ot_text'] ?? ''),
             'rejection_rate' => $saved !== null ? ($saved['rejection_rate'] ?? 0) : ($pr['rejection_rate'] ?? 0),
-            'days' => $saved['days'] ?? [],
+            'days' => $days,
             'total_qty' => $saved['total_qty'] ?? 0,
             'total_r' => $saved['total_r'] ?? 0,
             'total_amount' => $saved['total_amount'] ?? 0,
@@ -135,15 +154,20 @@ if (strcasecmp($curOp, 'CNC') === 0) {
                 break;
             }
         }
+        $label = (string) ($pr['_canon'] ?? $pr['product_name'] ?? $pr['process'] ?? '');
+        $lk = strtolower(trim($label));
+        $days = $saved['days'] ?? [];
+        $erpDays = $erpDayQtyByPart[$lk] ?? [];
+        $days = mergeErpKraDaysIntoMap(is_array($days) ? $days : [], $erpDays);
         $kraPrefill[] = [
             'product_id' => $pid,
-            'product_label' => (string) ($pr['_canon'] ?? $pr['product_name'] ?? $pr['process'] ?? ''),
+            'product_label' => $label,
             'grade_id' => (int) ($saved['grade_id'] ?? 0),
             'grade_name' => (string) ($saved['grade_name'] ?? ''),
             'rate' => $saved !== null ? ($saved['rate'] ?? $pr['rate']) : ($pr['rate'] ?? 0),
             'ot_rate' => $saved !== null ? ($saved['ot_rate'] ?? 0) : parseOtRate($pr['ot_text'] ?? ''),
             'rejection_rate' => $saved !== null ? ($saved['rejection_rate'] ?? 0) : ($pr['rejection_rate'] ?? 0),
-            'days' => $saved['days'] ?? [],
+            'days' => $days,
             'total_qty' => $saved['total_qty'] ?? 0,
             'total_r' => $saved['total_r'] ?? 0,
             'total_amount' => $saved['total_amount'] ?? 0,
@@ -292,7 +316,9 @@ $otJson = json_encode(contractorOtRepairOps());
                             <th class="sticky-col sticky-action">Action</th>
                             <th class="sticky-col sticky-sr">Sr</th>
                             <th class="sticky-col sticky-name" id="col_header_name">Contract Process</th>
+                            <?php if ($showGrade): ?>
                             <th class="sticky-col sticky-grade" id="col_header_grade">GRADE</th>
+                            <?php endif; ?>
                             <th class="sticky-col sticky-rate">Rate</th>
                             <?php for ($d = 1; $d <= 31; $d++):
                                 $wd = checkdate($curMonth, $d, $curYear) ? date('D', strtotime(sprintf('%04d-%02d-%02d', $curYear, $curMonth, $d))) : '';
@@ -363,7 +389,11 @@ $otJson = json_encode(contractorOtRepairOps());
                                 </select>
                                 <?php endif; ?>
                                 <input type="hidden" class="row-product-id" value="<?php echo $itemProductId; ?>">
+                                <?php if (!$showGrade): ?>
+                                <input type="hidden" name="items[<?php echo $i; ?>][grade_id]" class="row-grade-id" value="0">
+                                <?php endif; ?>
                             </td>
+                            <?php if ($showGrade): ?>
                             <td class="sticky-col sticky-grade td-grade">
                                 <select name="items[<?php echo $i; ?>][grade_id]" class="form-control grade-select no-select2"
                                         data-saved-label="<?php echo htmlspecialchars($itemGradeName); ?>">
@@ -376,6 +406,7 @@ $otJson = json_encode(contractorOtRepairOps());
                                 </select>
                                 <input type="hidden" class="row-grade-id" value="<?php echo $itemGradeId; ?>">
                             </td>
+                            <?php endif; ?>
                             <td class="sticky-col sticky-rate">
                                 <input type="number" step="0.0001" min="0" name="items[<?php echo $i; ?>][rate]" class="form-control grid-input rate" value="<?php echo htmlspecialchars((string) ($item['rate'] ?? 0)); ?>">
                             </td>
@@ -542,6 +573,7 @@ $otJson = json_encode(contractorOtRepairOps());
     window.OPS_KRA_PARTS = <?php echo strcasecmp($curOp, 'CNC') === 0 ? 'true' : 'false'; ?>;
     window.OPS_KRA_FIXED = <?php echo strcasecmp($curOp, 'CNC') === 0 ? 'true' : 'false'; ?>; // fixed rows, no process dropdown
     window.OPS_KRA_AS_OF = <?php echo json_encode($kraAsOf); ?>;
+    window.OPS_KRA_DAY_QTY = <?php echo json_encode($erpDayQtyByPart ?? [], JSON_UNESCAPED_UNICODE); ?>;
     window.OPS_REPAIR = <?php echo $repairJson; ?>;
     window.OPS_OT_REPAIR = <?php echo $otJson; ?>;
     window.OPS_GRADE_OPS = <?php

@@ -6460,8 +6460,8 @@ body > .select2-container .select2-dropdown {
 
 .ops-grid .sticky-name {
     left: 86px;
-    min-width: 260px;
-    width: 260px;
+    min-width: 220px;
+    width: 220px;
     position: sticky;
     overflow: visible;
 }
@@ -6667,11 +6667,24 @@ select.product-select.ops-kra-hidden-select {
     list-style: none;
 }
 
+/* Default = no GRADE column: Action(46)+Sr(40)+Name(220)=306 */
 .ops-grid .sticky-rate {
-    left: 346px;
+    left: 306px;
     min-width: 80px;
     width: 80px;
     text-align: center;
+}
+
+.ops-grid:not(.show-grade) .sticky-name,
+.ops-grid.hide-grade .sticky-name {
+    left: 86px;
+    min-width: 220px;
+    width: 220px;
+}
+
+.ops-grid:not(.show-grade) .sticky-rate,
+.ops-grid.hide-grade .sticky-rate {
+    left: 306px;
 }
 
 .ops-grid .sticky-rate .rate {

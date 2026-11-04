@@ -1053,6 +1053,168 @@ function syncErpKraPartsToContractorProducts($operation, $hrmsConn = null, $asOf
 }
 
 /**
+ * ERP Production Planning KRA — date-wise Total qty (sum of grade cells / actual_qty).
+ * Returns map: lowercase part-name => [ '1' => qty, '2' => qty, ... ] for the month.
+ *
+ * @return array<string, array<string, float>>
+ */
+function fetchErpKraDateWiseQtys($operation, $year, $month)
+{
+    $operation = trim((string) $operation);
+    $year = (int) $year;
+    $month = (int) $month;
+    $out = [];
+    if ($operation === '' || $year < 2000 || $month < 1 || $month > 12) {
+        return $out;
+    }
+    $deptName = contractorOperationErpDepartmentName($operation);
+    if ($deptName === '') {
+        return $out;
+    }
+    if (!function_exists('getErpDBConnection')) {
+        require_once __DIR__ . '/../config/database.php';
+    }
+    $erp = getErpDBConnection();
+    if (!$erp) {
+        return $out;
+    }
+
+    try {
+        $deptId = 0;
+        $docId = 0;
+        $st = $erp->prepare(
+            'SELECT id FROM departments WHERE LOWER(TRIM(department_name)) = LOWER(?) LIMIT 1'
+        );
+        if ($st) {
+            $st->bind_param('s', $deptName);
+            $st->execute();
+            $row = $st->get_result()->fetch_assoc();
+            $st->close();
+            $deptId = (int) ($row['id'] ?? 0);
+        }
+        if ($deptId <= 0) {
+            $erp->close();
+            return $out;
+        }
+        $st = $erp->prepare(
+            "SELECT id FROM document_master
+             WHERE department_id = ?
+               AND (
+                    LOWER(document_name) LIKE '%production planning kra%'
+                    OR LOWER(document_name) LIKE '%planning kra%'
+                    OR UPPER(TRIM(document_number)) = 'PRO F 31'
+               )
+             ORDER BY id ASC LIMIT 1"
+        );
+        if ($st) {
+            $st->bind_param('i', $deptId);
+            $st->execute();
+            $row = $st->get_result()->fetch_assoc();
+            $st->close();
+            $docId = (int) ($row['id'] ?? 0);
+        }
+        if ($docId <= 0) {
+            $erp->close();
+            return $out;
+        }
+
+        $from = sprintf('%04d-%02d-01', $year, $month);
+        $toExcl = date('Y-m-d', strtotime($from . ' +1 month'));
+
+        $sql = "SELECT DAY(pe.entry_date) AS d,
+                       TRIM(IFNULL(s.product_name, '')) AS product_name,
+                       TRIM(IFNULL(ob.brand_name, '')) AS brand_name,
+                       SUM(CAST(IFNULL(pe.actual_qty, 0) AS DECIMAL(18,2))) AS qty
+                FROM production_entries pe
+                LEFT JOIN sub_items s ON s.id = pe.sub_item_id
+                LEFT JOIN other_brands_master ob
+                       ON ob.id = IFNULL(NULLIF(pe.other_brand_id, 0), IFNULL(s.other_brand_id, 0))
+                WHERE pe.department_id = ?
+                  AND pe.document_id = ?
+                  AND pe.entry_date >= ?
+                  AND pe.entry_date < ?
+                GROUP BY DAY(pe.entry_date),
+                         LOWER(TRIM(IFNULL(s.product_name, ''))),
+                         LOWER(TRIM(IFNULL(ob.brand_name, '')))
+                HAVING qty <> 0
+                ORDER BY d ASC";
+        $st = $erp->prepare($sql);
+        if ($st) {
+            $st->bind_param('iiss', $deptId, $docId, $from, $toExcl);
+            $st->execute();
+            $res = $st->get_result();
+            while ($row = $res->fetch_assoc()) {
+                $d = (int) ($row['d'] ?? 0);
+                if ($d < 1 || $d > 31) {
+                    continue;
+                }
+                $qty = (float) ($row['qty'] ?? 0);
+                if ($qty == 0.0) {
+                    continue;
+                }
+                $pn = trim((string) ($row['product_name'] ?? ''));
+                $brand = trim((string) ($row['brand_name'] ?? ''));
+                $keys = [];
+                if ($pn !== '' && preg_match('/^other\s*brand/i', $pn) && $brand !== '') {
+                    $keys[] = strtolower($brand);
+                }
+                if ($pn !== '' && !preg_match('/^other\s*brand/i', $pn)) {
+                    $keys[] = strtolower($pn);
+                    foreach (contractorKraPartNameAliases($pn) as $al) {
+                        $keys[] = strtolower(trim((string) $al));
+                    }
+                }
+                if ($brand !== '' && !in_array(strtolower($brand), $keys, true)) {
+                    // brand-linked finish goods sometimes stored under brand only
+                    $keys[] = strtolower($brand);
+                }
+                $keys = array_values(array_unique(array_filter($keys)));
+                foreach ($keys as $k) {
+                    if (!isset($out[$k])) {
+                        $out[$k] = [];
+                    }
+                    $dk = (string) $d;
+                    $out[$k][$dk] = ($out[$k][$dk] ?? 0) + $qty;
+                }
+            }
+            $st->close();
+        }
+    } catch (Throwable $e) {
+        // ignore — page still loads with empty day boxes
+    }
+    if ($erp instanceof mysqli) {
+        @$erp->close();
+    }
+    return $out;
+}
+
+/**
+ * Merge ERP date-wise qty into a days map (does not overwrite non-empty saved q).
+ *
+ * @param array<string,array> $days
+ * @param array<string,float> $erpDayQty day => qty
+ * @return array<string,array>
+ */
+function mergeErpKraDaysIntoMap(array $days, array $erpDayQty)
+{
+    foreach ($erpDayQty as $d => $qty) {
+        $d = (string) ((int) $d);
+        $qty = (float) $qty;
+        if ($qty == 0.0) {
+            continue;
+        }
+        if (!isset($days[$d]) || !is_array($days[$d])) {
+            $days[$d] = ['q' => '', 'r' => '', 'ot' => ''];
+        }
+        $cur = $days[$d]['q'] ?? '';
+        if ($cur === '' || $cur === null || (is_numeric($cur) && (float) $cur == 0.0)) {
+            $days[$d]['q'] = $qty;
+        }
+    }
+    return $days;
+}
+
+/**
  * Match a contractor_products row against a KRA part-name list (case/alias aware).
  */
 function contractorProductMatchesKraNames(array $productRow, array $kraNamesLower)
