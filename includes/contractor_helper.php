@@ -1053,6 +1053,24 @@ function syncErpKraPartsToContractorProducts($operation, $hrmsConn = null, $asOf
 }
 
 /**
+ * Last ERP KRA day-qty fetch status (for on-page debug / support).
+ *
+ * @return array{ok:bool,message:string,dept_id:int,doc_id:int,rows:int,parts:int,db:string}
+ */
+function erpKraDayQtyDebug()
+{
+    return $GLOBALS['_erp_kra_qty_debug'] ?? [
+        'ok' => false,
+        'message' => 'not run',
+        'dept_id' => 0,
+        'doc_id' => 0,
+        'rows' => 0,
+        'parts' => 0,
+        'db' => '',
+    ];
+}
+
+/**
  * ERP Production Planning KRA — date-wise Total qty (sum of grade cells / actual_qty).
  * Returns map: lowercase part-name => [ '1' => qty, '2' => qty, ... ] for the month.
  *
@@ -1064,11 +1082,24 @@ function fetchErpKraDateWiseQtys($operation, $year, $month)
     $year = (int) $year;
     $month = (int) $month;
     $out = [];
+    $debug = [
+        'ok' => false,
+        'message' => '',
+        'dept_id' => 0,
+        'doc_id' => 0,
+        'rows' => 0,
+        'parts' => 0,
+        'db' => '',
+    ];
+    $GLOBALS['_erp_kra_qty_debug'] = &$debug;
+
     if ($operation === '' || $year < 2000 || $month < 1 || $month > 12) {
+        $debug['message'] = 'Invalid operation/month';
         return $out;
     }
     $deptName = contractorOperationErpDepartmentName($operation);
     if ($deptName === '') {
+        $debug['message'] = 'No ERP department mapping';
         return $out;
     }
     if (!function_exists('getErpDBConnection')) {
@@ -1076,10 +1107,14 @@ function fetchErpKraDateWiseQtys($operation, $year, $month)
     }
     $erp = getErpDBConnection();
     if (!$erp) {
+        $debug['message'] = 'ERP DB not reachable (check config/erp_database.php)';
         return $out;
     }
 
     try {
+        $dbRow = @$erp->query('SELECT DATABASE() AS d');
+        $debug['db'] = $dbRow ? (string) ($dbRow->fetch_assoc()['d'] ?? '') : '';
+
         $deptId = 0;
         $docId = 0;
         $st = $erp->prepare(
@@ -1092,7 +1127,9 @@ function fetchErpKraDateWiseQtys($operation, $year, $month)
             $st->close();
             $deptId = (int) ($row['id'] ?? 0);
         }
+        $debug['dept_id'] = $deptId;
         if ($deptId <= 0) {
+            $debug['message'] = 'ERP department not found: ' . $deptName;
             $erp->close();
             return $out;
         }
@@ -1113,7 +1150,9 @@ function fetchErpKraDateWiseQtys($operation, $year, $month)
             $st->close();
             $docId = (int) ($row['id'] ?? 0);
         }
+        $debug['doc_id'] = $docId;
         if ($docId <= 0) {
+            $debug['message'] = 'ERP Production Planning KRA document not found';
             $erp->close();
             return $out;
         }
@@ -1121,66 +1160,112 @@ function fetchErpKraDateWiseQtys($operation, $year, $month)
         $from = sprintf('%04d-%02d-01', $year, $month);
         $toExcl = date('Y-m-d', strtotime($from . ' +1 month'));
 
-        $sql = "SELECT DAY(pe.entry_date) AS d,
+        // Row-level fetch (avoid ONLY_FULL_GROUP_BY issues) then aggregate in PHP
+        $sql = "SELECT pe.entry_date,
                        TRIM(IFNULL(s.product_name, '')) AS product_name,
                        TRIM(IFNULL(ob.brand_name, '')) AS brand_name,
-                       SUM(CAST(IFNULL(pe.actual_qty, 0) AS DECIMAL(18,2))) AS qty
+                       CAST(IFNULL(pe.actual_qty, 0) AS DECIMAL(18,2)) AS qty
                 FROM production_entries pe
                 LEFT JOIN sub_items s ON s.id = pe.sub_item_id
                 LEFT JOIN other_brands_master ob
-                       ON ob.id = IFNULL(NULLIF(pe.other_brand_id, 0), IFNULL(s.other_brand_id, 0))
+                       ON ob.id = COALESCE(NULLIF(pe.other_brand_id, 0), NULLIF(s.other_brand_id, 0))
                 WHERE pe.department_id = ?
                   AND pe.document_id = ?
                   AND pe.entry_date >= ?
                   AND pe.entry_date < ?
-                GROUP BY DAY(pe.entry_date),
-                         LOWER(TRIM(IFNULL(s.product_name, ''))),
-                         LOWER(TRIM(IFNULL(ob.brand_name, '')))
-                HAVING qty <> 0
-                ORDER BY d ASC";
+                  AND CAST(IFNULL(pe.actual_qty, 0) AS DECIMAL(18,2)) <> 0";
         $st = $erp->prepare($sql);
-        if ($st) {
-            $st->bind_param('iiss', $deptId, $docId, $from, $toExcl);
-            $st->execute();
-            $res = $st->get_result();
-            while ($row = $res->fetch_assoc()) {
-                $d = (int) ($row['d'] ?? 0);
-                if ($d < 1 || $d > 31) {
-                    continue;
-                }
-                $qty = (float) ($row['qty'] ?? 0);
-                if ($qty == 0.0) {
-                    continue;
-                }
-                $pn = trim((string) ($row['product_name'] ?? ''));
-                $brand = trim((string) ($row['brand_name'] ?? ''));
-                $keys = [];
-                if ($pn !== '' && preg_match('/^other\s*brand/i', $pn) && $brand !== '') {
+        if (!$st) {
+            $debug['message'] = 'Prepare failed: ' . $erp->error;
+            $erp->close();
+            return $out;
+        }
+        $st->bind_param('iiss', $deptId, $docId, $from, $toExcl);
+        if (!$st->execute()) {
+            $debug['message'] = 'Execute failed: ' . $st->error;
+            $st->close();
+            $erp->close();
+            return $out;
+        }
+        $res = $st->get_result();
+        $rawRows = 0;
+        $accumulate = static function (array &$bucket, array $row) {
+            $d = (int) date('j', strtotime((string) ($row['entry_date'] ?? '')));
+            if ($d < 1 || $d > 31) {
+                return 0;
+            }
+            $qty = (float) ($row['qty'] ?? 0);
+            if ($qty == 0.0) {
+                return 0;
+            }
+            $pn = trim((string) ($row['product_name'] ?? ''));
+            $brand = trim((string) ($row['brand_name'] ?? ''));
+            $keys = [];
+            if ($pn !== '' && preg_match('/^other\s*brand/i', $pn)) {
+                if ($brand !== '') {
                     $keys[] = strtolower($brand);
                 }
-                if ($pn !== '' && !preg_match('/^other\s*brand/i', $pn)) {
-                    $keys[] = strtolower($pn);
-                    foreach (contractorKraPartNameAliases($pn) as $al) {
-                        $keys[] = strtolower(trim((string) $al));
-                    }
-                }
-                if ($brand !== '' && !in_array(strtolower($brand), $keys, true)) {
-                    // brand-linked finish goods sometimes stored under brand only
-                    $keys[] = strtolower($brand);
-                }
-                $keys = array_values(array_unique(array_filter($keys)));
-                foreach ($keys as $k) {
-                    if (!isset($out[$k])) {
-                        $out[$k] = [];
-                    }
-                    $dk = (string) $d;
-                    $out[$k][$dk] = ($out[$k][$dk] ?? 0) + $qty;
+            } elseif ($pn !== '') {
+                $keys[] = strtolower($pn);
+                foreach (contractorKraPartNameAliases($pn) as $al) {
+                    $keys[] = strtolower(trim((string) $al));
                 }
             }
-            $st->close();
+            $keys = array_values(array_unique(array_filter($keys)));
+            foreach ($keys as $k) {
+                if (!isset($bucket[$k])) {
+                    $bucket[$k] = [];
+                }
+                $dk = (string) $d;
+                $bucket[$k][$dk] = ($bucket[$k][$dk] ?? 0) + $qty;
+            }
+            return 1;
+        };
+        while ($row = $res->fetch_assoc()) {
+            $rawRows += $accumulate($out, $row);
+        }
+        $st->close();
+
+        // Fallback: same dept + month without document_id (if KRA doc id drifted)
+        if ($rawRows === 0) {
+            $sql2 = "SELECT pe.entry_date,
+                            TRIM(IFNULL(s.product_name, '')) AS product_name,
+                            TRIM(IFNULL(ob.brand_name, '')) AS brand_name,
+                            CAST(IFNULL(pe.actual_qty, 0) AS DECIMAL(18,2)) AS qty
+                     FROM production_entries pe
+                     LEFT JOIN sub_items s ON s.id = pe.sub_item_id
+                     LEFT JOIN other_brands_master ob
+                            ON ob.id = COALESCE(NULLIF(pe.other_brand_id, 0), NULLIF(s.other_brand_id, 0))
+                     WHERE pe.department_id = ?
+                       AND pe.entry_date >= ?
+                       AND pe.entry_date < ?
+                       AND CAST(IFNULL(pe.actual_qty, 0) AS DECIMAL(18,2)) <> 0";
+            $st2 = $erp->prepare($sql2);
+            if ($st2) {
+                $st2->bind_param('iss', $deptId, $from, $toExcl);
+                if ($st2->execute()) {
+                    $res2 = $st2->get_result();
+                    while ($row = $res2->fetch_assoc()) {
+                        $rawRows += $accumulate($out, $row);
+                    }
+                }
+                $st2->close();
+                if ($rawRows > 0) {
+                    $debug['message'] = 'OK via dept-only fallback';
+                }
+            }
+        }
+
+        $debug['rows'] = $rawRows;
+        $debug['parts'] = count($out);
+        $debug['ok'] = true;
+        if ($debug['message'] === '' || strpos($debug['message'], 'OK') !== 0) {
+            $debug['message'] = $rawRows > 0
+                ? ('OK ' . $rawRows . ' ERP rows → ' . count($out) . ' parts')
+                : ('No production_entries qty for ' . $from . ' (dept=' . $deptId . ' doc=' . $docId . ')');
         }
     } catch (Throwable $e) {
-        // ignore — page still loads with empty day boxes
+        $debug['message'] = 'ERP qty error: ' . $e->getMessage();
     }
     if ($erp instanceof mysqli) {
         @$erp->close();

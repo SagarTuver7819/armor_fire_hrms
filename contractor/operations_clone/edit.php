@@ -300,6 +300,14 @@ $otJson = json_encode(contractorOtRepairOps());
                 <?php else: ?>
                 <div class="ops-kra-hint" style="font-size:13px;color:#64748b;">
                     <i class="fa-solid fa-link"></i> Contract Process = ERP CNC Production Planning KRA (fixed). Rate edit કરો; નવું ERP partname આપમેળે આવશે.
+                    <?php
+                    $qtyDbg = function_exists('erpKraDayQtyDebug') ? erpKraDayQtyDebug() : [];
+                    $qtyParts = (int) ($qtyDbg['parts'] ?? 0);
+                    $qtyMsg = (string) ($qtyDbg['message'] ?? '');
+                    ?>
+                    <span style="margin-left:8px;<?php echo $qtyParts > 0 ? 'color:#15803d;' : 'color:#b45309;'; ?>">
+                        · ERP qty: <?php echo $qtyParts > 0 ? ($qtyParts . ' parts loaded') : htmlspecialchars($qtyMsg !== '' ? $qtyMsg : 'none'); ?>
+                    </span>
                 </div>
                 <?php endif; ?>
                 <div class="ops-live-summary">
