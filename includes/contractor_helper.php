@@ -963,6 +963,147 @@ function opsCloneStaffDepartmentName($operation)
  *
  * @return array{department_name:string,main:array|null,rows:array<int,array>}
  */
+/**
+ * Short code shown in Clone staff attendance day box.
+ */
+function opsCloneAttCodeFromDay(array $day = null)
+{
+    if (!$day || empty($day['day_status'])) {
+        return '';
+    }
+    $status = (string) $day['day_status'];
+    if ($status === 'Present') {
+        return 'P';
+    }
+    if ($status === 'Week Off') {
+        return 'WO';
+    }
+    if ($status === 'Holiday') {
+        return 'H';
+    }
+    if ($status === 'Absent') {
+        return 'A';
+    }
+    if ($status === 'Leave' || $status === 'Half Day') {
+        if (!function_exists('attendanceParseLeaveRemark') && is_file(__DIR__ . '/attendance_helper.php')) {
+            require_once __DIR__ . '/attendance_helper.php';
+        }
+        $parsed = function_exists('attendanceParseLeaveRemark')
+            ? attendanceParseLeaveRemark($day['remarks'] ?? '')
+            : ['leave_type' => '', 'leave_half' => ''];
+        $type = strtoupper(trim((string) ($parsed['leave_type'] ?? '')));
+        $half = strtoupper(trim((string) ($parsed['leave_half'] ?? '')));
+        if ($type === '') {
+            $type = $status === 'Half Day' ? 'HL' : 'L';
+        }
+        if (in_array($half, ['FHL', 'SHL'], true)) {
+            return $type . ' ' . $half;
+        }
+        return $type;
+    }
+    return '';
+}
+
+/**
+ * Parse day-box code → attendanceSaveManualDay args.
+ * @return array{clear:bool,status:string,leave_type:string,leave_half:string}|null
+ */
+function opsCloneAttParseCode($code)
+{
+    $code = strtoupper(trim(preg_replace('/\s+/', ' ', (string) $code)));
+    if ($code === '') {
+        return ['clear' => true, 'status' => '', 'leave_type' => '', 'leave_half' => ''];
+    }
+    if (in_array($code, ['P', 'PR', 'PRESENT'], true)) {
+        return ['clear' => false, 'status' => 'Present', 'leave_type' => '', 'leave_half' => ''];
+    }
+    if (in_array($code, ['WO', 'W/O', 'WEEKOFF', 'WEEK OFF'], true)) {
+        return ['clear' => false, 'status' => 'Week Off', 'leave_type' => '', 'leave_half' => ''];
+    }
+    if (in_array($code, ['H', 'HO', 'HOLIDAY'], true)) {
+        return ['clear' => false, 'status' => 'Holiday', 'leave_type' => '', 'leave_half' => ''];
+    }
+    if (in_array($code, ['A', 'AB', 'ABSENT', 'LWP'], true)) {
+        return ['clear' => false, 'status' => 'Absent', 'leave_type' => '', 'leave_half' => ''];
+    }
+    $leaveType = '';
+    $leaveHalf = '';
+    if (preg_match('/^(PL|SL|DL|CL|EL|C-?OFF|COFF)(?:\s+(FHL|SHL|FHF|SHF|FULL))?$/', $code, $m)) {
+        $leaveType = strtoupper($m[1]);
+        if ($leaveType === 'COFF') {
+            $leaveType = 'C-OFF';
+        }
+        $leaveHalf = strtoupper($m[2] ?? 'FULL');
+        if ($leaveHalf === 'FHF') {
+            $leaveHalf = 'FHL';
+        }
+        if ($leaveHalf === 'SHF') {
+            $leaveHalf = 'SHL';
+        }
+        if ($leaveHalf === '') {
+            $leaveHalf = 'FULL';
+        }
+        $status = in_array($leaveHalf, ['FHL', 'SHL'], true) ? 'Half Day' : 'Leave';
+        return ['clear' => false, 'status' => $status, 'leave_type' => $leaveType, 'leave_half' => $leaveHalf];
+    }
+    if ($code === 'L' || $code === 'LEAVE') {
+        return ['clear' => false, 'status' => 'Leave', 'leave_type' => 'PL', 'leave_half' => 'FULL'];
+    }
+    // Unknown → treat as Present mark so user entry is not silently dropped
+    return ['clear' => false, 'status' => 'Present', 'leave_type' => '', 'leave_half' => ''];
+}
+
+/**
+ * Attendance day map for clone staff employees (month of the ops sheet).
+ *
+ * @param array<int,array> $staffRows
+ * @return array<int,array<string,array>>
+ */
+function getOpsCloneStaffAttendanceMap(array $staffRows, $month, $year, $conn = null)
+{
+    $month = (int) $month;
+    $year = (int) $year;
+    $ids = [];
+    foreach ($staffRows as $r) {
+        $eid = (int) ($r['id'] ?? 0);
+        if ($eid > 0) {
+            $ids[$eid] = true;
+        }
+    }
+    if (!$ids || $month < 1 || $month > 12 || $year < 2000) {
+        return [];
+    }
+    if (!function_exists('ensureAttendanceTables')) {
+        require_once __DIR__ . '/attendance_helper.php';
+    }
+    $closeAfter = false;
+    if ($conn === null) {
+        $conn = getDBConnection();
+        $closeAfter = true;
+    }
+    ensureAttendanceTables($conn);
+    $monthDays = (int) date('t', mktime(0, 0, 0, $month, 1, $year));
+    $from = sprintf('%04d-%02d-01', $year, $month);
+    $to = sprintf('%04d-%02d-%02d', $year, $month, $monthDays);
+    $idList = implode(',', array_map('intval', array_keys($ids)));
+    $map = [];
+    $res = $conn->query(
+        "SELECT employee_id, attendance_date, day_status, punch_in, punch_out, remarks, working_minutes
+         FROM attendance_day_status
+         WHERE attendance_date BETWEEN '{$conn->real_escape_string($from)}' AND '{$conn->real_escape_string($to)}'
+           AND employee_id IN ({$idList})"
+    );
+    if ($res) {
+        while ($r = $res->fetch_assoc()) {
+            $map[(int) $r['employee_id']][substr((string) $r['attendance_date'], 0, 10)] = $r;
+        }
+    }
+    if ($closeAfter) {
+        $conn->close();
+    }
+    return $map;
+}
+
 function getOpsCloneDepartmentStaff($operation, $excludeEmployeeId = 0, $conn = null)
 {
     $operation = trim((string) $operation);

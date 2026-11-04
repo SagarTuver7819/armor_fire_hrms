@@ -178,33 +178,15 @@ foreach ($built as $b) {
     $ins->execute();
 }
 $ins->close();
-
-// CNC (clone only): update Normal Salary decided_salary for dept staff excl. Main Contractor
-if (in_array($operation, opsCloneStaffSalaryOperations(), true) && isset($_POST['staff_salary']) && is_array($_POST['staff_salary'])) {
-    $staffBundle = getOpsCloneDepartmentStaff($operation, $employeeId, $conn);
-    $allowed = [];
-    foreach ($staffBundle['rows'] as $r) {
-        $allowed[(int) $r['id']] = true;
-    }
-    $deptId = resolveDepartmentIdByName($staffBundle['department_name'] ?: opsCloneStaffDepartmentName($operation));
-    $up = $conn->prepare(
-        "UPDATE employees
-         SET decided_salary = ?
-         WHERE id = ? AND department_id = ? AND pay_type = 'Salary' AND status = 1"
-    );
-    foreach ($_POST['staff_salary'] as $empKey => $amtRaw) {
-        $eid = (int) $empKey;
-        if ($eid <= 0 || empty($allowed[$eid]) || $deptId <= 0) {
-            continue;
-        }
-        $amt = round(max(0, (float) $amtRaw), 2);
-        $up->bind_param('dii', $amt, $eid, $deptId);
-        $up->execute();
-    }
-    $up->close();
-}
-
 $conn->close();
 
-header('Location: ' . app_url('contractor/operations_clone/index.php?msg=' . ((int) ($_POST['id'] ?? 0) > 0 ? 'updated' : 'added')));
+// Stay on clone edit so Box 2 (staff) remains visible after product save
+$wasUpdate = (int) ($_POST['id'] ?? 0) > 0;
+header('Location: ' . app_url(
+    'contractor/operations_clone/edit.php?id=' . (int) $id
+    . '&operation=' . rawurlencode($operation)
+    . '&month=' . (int) $month
+    . '&year=' . (int) $year
+    . '&msg=products_saved'
+));
 exit;

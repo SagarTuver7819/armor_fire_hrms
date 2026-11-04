@@ -6225,12 +6225,13 @@ body > .select2-container .select2-dropdown {
     padding: 16px 16px 10px;
 }
 
-.ops-clone-staff-block {
-    margin: 22px 0 8px;
-    padding: 14px 14px 8px;
+.ops-clone-box {
+    margin-bottom: 18px;
+}
+
+.ops-clone-staff-card {
     background: #f8fafc;
-    border: 1px solid #e2e8f0;
-    border-radius: 12px;
+    border: 1px solid #cbd5e1;
 }
 
 .ops-clone-staff-head h2 {
@@ -6241,16 +6242,100 @@ body > .select2-container .select2-dropdown {
 }
 
 .ops-clone-staff-head p {
-    margin: 0 0 12px;
+    margin: 0 0 8px;
     font-size: 12.5px;
     color: #64748b;
 }
 
-.ops-clone-staff-table input.grid-input {
-    max-width: 160px;
-    margin-left: auto;
-    text-align: right;
+.ops-clone-att-hint {
+    margin: 0 0 12px !important;
+    font-size: 12px !important;
+    color: #475569 !important;
 }
+
+.ops-clone-att-hint b {
+    color: #0f172a;
+}
+
+.ops-clone-staff-wrap {
+    overflow: auto;
+    max-width: 100%;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    background: #fff;
+    margin-bottom: 10px;
+}
+
+.ops-clone-staff-att-table {
+    border-collapse: separate;
+    border-spacing: 0;
+    min-width: 100%;
+    font-size: 12px;
+}
+
+.ops-clone-staff-att-table th,
+.ops-clone-staff-att-table td {
+    border-bottom: 1px solid #e2e8f0;
+    border-right: 1px solid #f1f5f9;
+    padding: 4px 5px;
+    white-space: nowrap;
+    vertical-align: middle;
+}
+
+.ops-clone-staff-att-table thead th {
+    background: #fce7f3;
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    font-size: 11px;
+    text-align: center;
+}
+
+.ops-clone-staff-att-table .sticky-staff {
+    position: sticky;
+    background: #fff;
+    z-index: 3;
+}
+
+.ops-clone-staff-att-table thead .sticky-staff {
+    background: #fce7f3;
+    z-index: 4;
+}
+
+.ops-clone-staff-att-table .sticky-sr { left: 0; min-width: 40px; text-align: center; }
+.ops-clone-staff-att-table .sticky-code { left: 40px; min-width: 90px; }
+.ops-clone-staff-att-table .sticky-name { left: 130px; min-width: 180px; text-align: left; }
+.ops-clone-staff-att-table .sticky-desig { left: 310px; min-width: 110px; text-align: left; }
+.ops-clone-staff-att-table .sticky-sal { left: 420px; min-width: 100px; box-shadow: 2px 0 4px rgba(15, 23, 42, 0.06); }
+
+.ops-clone-staff-att-table .att-day-head .day-no { display: block; font-weight: 700; }
+.ops-clone-staff-att-table .att-day-head .day-wd { display: block; font-size: 10px; color: #64748b; }
+.ops-clone-staff-att-table .att-day-head.is-weekend,
+.ops-clone-staff-att-table .att-day-cell.is-weekend { background: #fff7ed; }
+
+.ops-clone-staff-att-table .staff-sal-input {
+    width: 88px;
+    text-align: right;
+    padding: 4px 6px;
+    font-size: 12px;
+}
+
+.ops-clone-staff-att-table .staff-att-input {
+    width: 42px;
+    text-align: center;
+    padding: 3px 2px;
+    font-size: 11px;
+    font-weight: 600;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    text-transform: uppercase;
+}
+
+.ops-clone-staff-att-table .staff-att-input.is-present { background: #dcfce7; border-color: #86efac; }
+.ops-clone-staff-att-table .staff-att-input.is-weekoff { background: #e0e7ff; border-color: #a5b4fc; }
+.ops-clone-staff-att-table .staff-att-input.is-absent { background: #fee2e2; border-color: #fca5a5; }
+.ops-clone-staff-att-table .staff-att-input.is-holiday { background: #fef3c7; border-color: #fcd34d; }
+.ops-clone-staff-att-table .staff-att-input.is-leave { background: #fce7f3; border-color: #f9a8d4; }
 
 .ops-page-card .form-page-header {
     display: flex;
