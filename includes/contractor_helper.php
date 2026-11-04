@@ -752,17 +752,32 @@ function contractorKraPartNameAliases($productName)
  * Pull Production Planning KRA part names from Armor ERP into contractor_products.
  * New ERP part names appear in Contract Process; existing rates are kept.
  *
- * @return array{ok:bool,added:int,updated:int,total:int,message:string}
+ * @param string|null $asOfDate Y-m-d — use ERP snapshot on/before this date (e.g. 2026-11-02)
+ * @return array{ok:bool,added:int,updated:int,total:int,message:string,names?:list<string>,as_of?:string}
  */
-function syncErpKraPartsToContractorProducts($operation, $hrmsConn = null)
+function syncErpKraPartsToContractorProducts($operation, $hrmsConn = null, $asOfDate = null)
 {
     $operation = trim((string) $operation);
-    $out = ['ok' => false, 'added' => 0, 'updated' => 0, 'total' => 0, 'message' => ''];
+    $out = [
+        'ok' => false,
+        'added' => 0,
+        'updated' => 0,
+        'total' => 0,
+        'message' => '',
+        'names' => [],
+        'as_of' => '',
+    ];
     $deptName = contractorOperationErpDepartmentName($operation);
     if ($operation === '' || $deptName === '') {
         $out['message'] = 'Operation has no ERP department mapping.';
         return $out;
     }
+
+    $asOf = '';
+    if (is_string($asOfDate) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $asOfDate)) {
+        $asOf = $asOfDate;
+    }
+    $out['as_of'] = $asOf;
 
     $appendName = static function (array &$bucket, $pn) {
         $pn = trim((string) $pn);
@@ -775,13 +790,7 @@ function syncErpKraPartsToContractorProducts($operation, $hrmsConn = null)
     $names = [];
     $rateMap = [];
     $erpNote = '';
-
-    // CNC baseline first (exact live KRA list); ERP rows merge on top / extend
-    if (strcasecmp($operation, 'CNC') === 0) {
-        foreach (contractorCncKraBaselinePartNames() as $pn) {
-            $appendName($names, $pn);
-        }
-    }
+    $erpSnapNames = [];
 
     if (!function_exists('getErpDBConnection')) {
         require_once __DIR__ . '/../config/database.php';
@@ -790,147 +799,176 @@ function syncErpKraPartsToContractorProducts($operation, $hrmsConn = null)
     if (!$erp) {
         $erpNote = 'ERP database not reachable';
     } else {
-        $deptId = 0;
-        $docId = 0;
-        $st = $erp->prepare(
-            'SELECT id FROM departments WHERE LOWER(TRIM(department_name)) = LOWER(?) LIMIT 1'
-        );
-        if ($st) {
-            $st->bind_param('s', $deptName);
-            $st->execute();
-            $row = $st->get_result()->fetch_assoc();
-            $st->close();
-            $deptId = (int) ($row['id'] ?? 0);
-        }
-        if ($deptId <= 0) {
-            $erpNote = 'ERP department not found: ' . $deptName;
-            $erp->close();
-        } else {
+        try {
+            $deptId = 0;
+            $docId = 0;
             $st = $erp->prepare(
-                "SELECT id FROM document_master
-                 WHERE department_id = ?
-                   AND (
-                        LOWER(document_name) LIKE '%production planning kra%'
-                        OR LOWER(document_name) LIKE '%planning kra%'
-                        OR UPPER(TRIM(document_number)) = 'PRO F 31'
-                   )
-                 ORDER BY id ASC
-                 LIMIT 1"
+                'SELECT id FROM departments WHERE LOWER(TRIM(department_name)) = LOWER(?) LIMIT 1'
             );
             if ($st) {
-                $st->bind_param('i', $deptId);
+                $st->bind_param('s', $deptName);
                 $st->execute();
                 $row = $st->get_result()->fetch_assoc();
                 $st->close();
-                $docId = (int) ($row['id'] ?? 0);
+                $deptId = (int) ($row['id'] ?? 0);
             }
-            if ($docId <= 0) {
-                $erpNote = 'ERP Production Planning KRA document not found.';
-                $erp->close();
+            if ($deptId <= 0) {
+                $erpNote = 'ERP department not found: ' . $deptName;
             } else {
-                $eff = '';
                 $st = $erp->prepare(
-                    'SELECT MAX(effective_date) AS mx FROM dept_report_planning WHERE department_id = ? AND document_id = ?'
+                    "SELECT id FROM document_master
+                     WHERE department_id = ?
+                       AND (
+                            LOWER(document_name) LIKE '%production planning kra%'
+                            OR LOWER(document_name) LIKE '%planning kra%'
+                            OR UPPER(TRIM(document_number)) = 'PRO F 31'
+                       )
+                     ORDER BY id ASC
+                     LIMIT 1"
                 );
                 if ($st) {
-                    $st->bind_param('ii', $deptId, $docId);
+                    $st->bind_param('i', $deptId);
                     $st->execute();
                     $row = $st->get_result()->fetch_assoc();
                     $st->close();
-                    $eff = substr((string) ($row['mx'] ?? ''), 0, 10);
+                    $docId = (int) ($row['id'] ?? 0);
                 }
-
-                // Latest snapshot + DISTINCT across all dates
-                if ($eff !== '' && preg_match('/^\d{4}-\d{2}-\d{2}$/', $eff)) {
+                if ($docId <= 0) {
+                    $erpNote = 'ERP Production Planning KRA document not found.';
+                } else {
+                    // As-of snapshot (same rule as Armor ERP Production Planning KRA)
+                    $eff = '';
+                    $asOfUse = $asOf !== '' ? $asOf : date('Y-m-d');
                     $st = $erp->prepare(
-                        'SELECT TRIM(product_name) AS product_name
-                         FROM dept_report_planning
-                         WHERE department_id = ? AND document_id = ? AND effective_date = ?
-                         ORDER BY id ASC'
+                        'SELECT effective_date FROM dept_report_planning_snapshots
+                         WHERE department_id = ? AND document_id = ? AND effective_date <= ?
+                         ORDER BY effective_date DESC LIMIT 1'
                     );
                     if ($st) {
-                        $st->bind_param('iis', $deptId, $docId, $eff);
+                        $st->bind_param('iis', $deptId, $docId, $asOfUse);
                         $st->execute();
-                        $res = $st->get_result();
-                        while ($row = $res->fetch_assoc()) {
-                            $appendName($names, $row['product_name'] ?? '');
-                        }
+                        $row = $st->get_result()->fetch_assoc();
                         $st->close();
+                        $eff = substr((string) ($row['effective_date'] ?? ''), 0, 10);
                     }
-                }
-                $st = $erp->prepare(
-                    'SELECT TRIM(product_name) AS product_name
-                     FROM dept_report_planning
-                     WHERE department_id = ? AND document_id = ?
-                     ORDER BY effective_date DESC, id ASC'
-                );
-                if ($st) {
-                    $st->bind_param('ii', $deptId, $docId);
-                    $st->execute();
-                    $res = $st->get_result();
-                    while ($row = $res->fetch_assoc()) {
-                        $appendName($names, $row['product_name'] ?? '');
-                    }
-                    $st->close();
-                }
-
-                $st = $erp->prepare(
-                    'SELECT TRIM(product_name) AS product_name
-                     FROM dept_report_products
-                     WHERE department_id = ? AND document_id = ?
-                     ORDER BY id ASC'
-                );
-                if ($st) {
-                    $st->bind_param('ii', $deptId, $docId);
-                    $st->execute();
-                    $res = $st->get_result();
-                    while ($row = $res->fetch_assoc()) {
-                        $appendName($names, $row['product_name'] ?? '');
-                    }
-                    $st->close();
-                }
-
-                // Other Brand dropdown values (Safex, etc.)
-                $chkOb = $erp->query("SHOW TABLES LIKE 'other_brands_master'");
-                if ($chkOb && $chkOb->num_rows > 0) {
-                    $obr = $erp->query(
-                        "SELECT TRIM(brand_name) AS brand_name
-                         FROM other_brands_master
-                         WHERE brand_name IS NOT NULL AND TRIM(brand_name) <> ''
-                         ORDER BY id ASC"
-                    );
-                    if ($obr) {
-                        while ($row = $obr->fetch_assoc()) {
-                            $bn = trim((string) ($row['brand_name'] ?? ''));
-                            if ($bn === '' || preg_match('/^test\b/i', $bn)) {
-                                continue;
-                            }
-                            $appendName($names, $bn);
+                    if ($eff === '') {
+                        $st = $erp->prepare(
+                            'SELECT effective_date FROM dept_report_planning
+                             WHERE department_id = ? AND document_id = ? AND effective_date <= ?
+                             ORDER BY effective_date DESC LIMIT 1'
+                        );
+                        if ($st) {
+                            $st->bind_param('iis', $deptId, $docId, $asOfUse);
+                            $st->execute();
+                            $row = $st->get_result()->fetch_assoc();
+                            $st->close();
+                            $eff = substr((string) ($row['effective_date'] ?? ''), 0, 10);
                         }
                     }
-                }
-
-                $chk = $erp->query("SHOW TABLES LIKE 'dept_master_rates'");
-                if ($chk && $chk->num_rows > 0) {
-                    $st = $erp->prepare(
-                        'SELECT product_key, product_name, rate FROM dept_master_rates WHERE department_id = ?'
-                    );
-                    if ($st) {
-                        $st->bind_param('i', $deptId);
-                        $st->execute();
-                        $res = $st->get_result();
-                        while ($row = $res->fetch_assoc()) {
-                            $key = strtolower(trim((string) ($row['product_key'] ?? $row['product_name'] ?? '')));
-                            if ($key !== '') {
-                                $rateMap[$key] = (float) ($row['rate'] ?? 0);
-                            }
+                    if ($eff === '') {
+                        $st = $erp->prepare(
+                            'SELECT MAX(effective_date) AS mx FROM dept_report_planning
+                             WHERE department_id = ? AND document_id = ?'
+                        );
+                        if ($st) {
+                            $st->bind_param('ii', $deptId, $docId);
+                            $st->execute();
+                            $row = $st->get_result()->fetch_assoc();
+                            $st->close();
+                            $eff = substr((string) ($row['mx'] ?? ''), 0, 10);
                         }
-                        $st->close();
                     }
+                    $out['as_of'] = $eff !== '' ? $eff : $asOfUse;
+
+                    if ($eff !== '' && preg_match('/^\d{4}-\d{2}-\d{2}$/', $eff)) {
+                        $st = $erp->prepare(
+                            'SELECT TRIM(product_name) AS product_name
+                             FROM dept_report_planning
+                             WHERE department_id = ? AND document_id = ? AND effective_date = ?
+                             ORDER BY id ASC'
+                        );
+                        if ($st) {
+                            $st->bind_param('iis', $deptId, $docId, $eff);
+                            $st->execute();
+                            $res = $st->get_result();
+                            while ($row = $res->fetch_assoc()) {
+                                $appendName($erpSnapNames, $row['product_name'] ?? '');
+                            }
+                            $st->close();
+                        }
+                    }
+
+                    // If as-of snapshot is thin, also merge DISTINCT history + master products
+                    if (count($erpSnapNames) < 3) {
+                        $st = $erp->prepare(
+                            'SELECT TRIM(product_name) AS product_name
+                             FROM dept_report_planning
+                             WHERE department_id = ? AND document_id = ?
+                             ORDER BY effective_date DESC, id ASC'
+                        );
+                        if ($st) {
+                            $st->bind_param('ii', $deptId, $docId);
+                            $st->execute();
+                            $res = $st->get_result();
+                            while ($row = $res->fetch_assoc()) {
+                                $appendName($erpSnapNames, $row['product_name'] ?? '');
+                            }
+                            $st->close();
+                        }
+                        $st = $erp->prepare(
+                            'SELECT TRIM(product_name) AS product_name
+                             FROM dept_report_products
+                             WHERE department_id = ? AND document_id = ?
+                             ORDER BY id ASC'
+                        );
+                        if ($st) {
+                            $st->bind_param('ii', $deptId, $docId);
+                            $st->execute();
+                            $res = $st->get_result();
+                            while ($row = $res->fetch_assoc()) {
+                                $appendName($erpSnapNames, $row['product_name'] ?? '');
+                            }
+                            $st->close();
+                        }
+                    }
+
+                    $chk = $erp->query("SHOW TABLES LIKE 'dept_master_rates'");
+                    if ($chk && $chk->num_rows > 0) {
+                        $st = $erp->prepare(
+                            'SELECT product_key, product_name, rate FROM dept_master_rates WHERE department_id = ?'
+                        );
+                        if ($st) {
+                            $st->bind_param('i', $deptId);
+                            $st->execute();
+                            $res = $st->get_result();
+                            while ($row = $res->fetch_assoc()) {
+                                $key = strtolower(trim((string) ($row['product_key'] ?? $row['product_name'] ?? '')));
+                                if ($key !== '') {
+                                    $rateMap[$key] = (float) ($row['rate'] ?? 0);
+                                }
+                            }
+                            $st->close();
+                        }
+                    }
+                    $erpNote = 'ERP OK snap=' . ($eff !== '' ? $eff : 'none')
+                        . ' parts=' . count(array_unique(array_map('strtolower', $erpSnapNames)));
                 }
-                $erp->close();
-                $erpNote = 'ERP OK';
             }
+        } catch (Throwable $e) {
+            $erpNote = 'ERP error: ' . $e->getMessage();
+        }
+        if ($erp instanceof mysqli) {
+            @$erp->close();
+        }
+    }
+
+    // Prefer ERP snapshot order; then CNC baseline (covers thin local ERP / missing live pull)
+    foreach ($erpSnapNames as $pn) {
+        $appendName($names, $pn);
+    }
+    if (strcasecmp($operation, 'CNC') === 0) {
+        foreach (contractorCncKraBaselinePartNames() as $pn) {
+            $appendName($names, $pn);
         }
     }
 
@@ -943,6 +981,7 @@ function syncErpKraPartsToContractorProducts($operation, $hrmsConn = null)
         }
     }
     $names = array_values($uniq);
+    $out['names'] = $names;
     $out['total'] = count($names);
     if (!$names) {
         $out['ok'] = true;
@@ -1011,6 +1050,29 @@ function syncErpKraPartsToContractorProducts($operation, $hrmsConn = null)
         . ($out['updated'] ? (', ' . $out['updated'] . ' rates') : '')
         . ($erpNote ? (' [' . $erpNote . ']') : '') . '.';
     return $out;
+}
+
+/**
+ * Match a contractor_products row against a KRA part-name list (case/alias aware).
+ */
+function contractorProductMatchesKraNames(array $productRow, array $kraNamesLower)
+{
+    $candidates = [];
+    foreach (['product_name', 'process'] as $col) {
+        $v = trim((string) ($productRow[$col] ?? ''));
+        if ($v !== '') {
+            $candidates[] = strtolower($v);
+            foreach (contractorKraPartNameAliases($v) as $al) {
+                $candidates[] = strtolower($al);
+            }
+        }
+    }
+    foreach ($candidates as $c) {
+        if (isset($kraNamesLower[$c])) {
+            return true;
+        }
+    }
+    return false;
 }
 
 /**

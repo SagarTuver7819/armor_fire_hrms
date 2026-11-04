@@ -418,6 +418,18 @@
         var keep = (window.OPS_KEEP_PRODUCT_IDS || []).join(',');
         var url = window.OPS_PRODUCTS_URL + '?operation=' + op;
         if (keep) url += '&keep_ids=' + encodeURIComponent(keep);
+        // Clone CNC: Contract Process = ERP Production Planning KRA part names (as-of sheet month)
+        if (window.OPS_KRA_PARTS) {
+            url += '&kra=1';
+            var m = parseInt($('#monthSelect').val(), 10) || 0;
+            var y = parseInt($('#yearSelect').val(), 10) || 0;
+            if (m && y) {
+                url += '&month=' + encodeURIComponent(m) + '&year=' + encodeURIComponent(y);
+            }
+            if (window.OPS_KRA_AS_OF) {
+                url += '&as_of=' + encodeURIComponent(window.OPS_KRA_AS_OF);
+            }
+        }
 
         $.getJSON(url)
             .done(function (data) {
@@ -846,6 +858,9 @@
     $('#monthSelect, #yearSelect').on('change', function () {
         applyDayEnable();
         recalcAll();
+        if (window.OPS_KRA_PARTS) {
+            loadProducts();
+        }
     });
     function recalcAll() {
         applyDayEnable();

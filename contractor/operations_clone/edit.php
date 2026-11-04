@@ -401,6 +401,11 @@ $otJson = json_encode(contractorOtRepairOps());
 <script>
     window.C_TOAST_MSG = <?php echo json_encode($toastMsg); ?>;
     window.OPS_PRODUCTS_URL = <?php echo json_encode(app_url('contractor/operations/products_json.php')); ?>;
+    window.OPS_KRA_PARTS = true; // Contract Process from ERP CNC Production Planning KRA
+    window.OPS_KRA_AS_OF = <?php
+        // Match ERP CNC Production Planning KRA date (e.g. 02/11/2026)
+        echo json_encode(sprintf('%04d-%02d-02', $curYear, $curMonth));
+    ?>;
     window.OPS_REPAIR = <?php echo $repairJson; ?>;
     window.OPS_OT_REPAIR = <?php echo $otJson; ?>;
     window.OPS_GRADE_OPS = <?php echo json_encode(array_values(contractorShowGradeOps())); ?>;

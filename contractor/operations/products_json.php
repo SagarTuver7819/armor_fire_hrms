@@ -3,6 +3,22 @@ require_once __DIR__ . '/../_bootstrap.php';
 header('Content-Type: application/json; charset=utf-8');
 
 $operation = (string) ($_GET['operation'] ?? '');
+$kraOnly = !empty($_GET['kra']) && (string) $_GET['kra'] !== '0';
+$asOf = trim((string) ($_GET['as_of'] ?? ''));
+if ($asOf === '' || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $asOf)) {
+    $y = (int) ($_GET['year'] ?? 0);
+    $m = (int) ($_GET['month'] ?? 0);
+    if ($y >= 2000 && $m >= 1 && $m <= 12) {
+        // Prefer mid-month day used on ERP screens (02), else last day of month
+        $asOf = sprintf('%04d-%02d-02', $y, $m);
+        if (!checkdate($m, 2, $y)) {
+            $asOf = date('Y-m-t', mktime(0, 0, 0, $m, 1, $y));
+        }
+    } else {
+        $asOf = date('Y-m-d');
+    }
+}
+
 $keepIds = [];
 if (!empty($_GET['keep_ids'])) {
     foreach (explode(',', (string) $_GET['keep_ids']) as $kid) {
@@ -15,12 +31,79 @@ if (!empty($_GET['keep_ids'])) {
 
 $conn = getDBConnection();
 ensureContractorTables($conn);
-// CNC (and mapped ops): pull latest Production Planning KRA part names from Armor ERP
+
+// CNC (and mapped ops): pull Production Planning KRA part names from Armor ERP (as-of date)
 $erpSync = null;
+$kraNameSet = [];
 if ($operation !== '' && contractorOperationErpDepartmentName($operation) !== '') {
-    $erpSync = syncErpKraPartsToContractorProducts($operation, $conn);
+    try {
+        $erpSync = syncErpKraPartsToContractorProducts($operation, $conn, $asOf);
+        foreach (($erpSync['names'] ?? []) as $pn) {
+            $kraNameSet[strtolower(trim((string) $pn))] = true;
+            foreach (contractorKraPartNameAliases($pn) as $al) {
+                $kraNameSet[strtolower(trim((string) $al))] = true;
+            }
+        }
+    } catch (Throwable $e) {
+        $erpSync = [
+            'ok' => false,
+            'added' => 0,
+            'updated' => 0,
+            'total' => 0,
+            'message' => $e->getMessage(),
+            'names' => [],
+            'as_of' => $asOf,
+        ];
+        if (strcasecmp($operation, 'CNC') === 0) {
+            foreach (contractorCncKraBaselinePartNames() as $pn) {
+                $kraNameSet[strtolower($pn)] = true;
+                foreach (contractorKraPartNameAliases($pn) as $al) {
+                    $kraNameSet[strtolower($al)] = true;
+                }
+                contractorEnsureProduct($conn, $operation, $pn, 0.0);
+            }
+        }
+    }
 }
+
 $products = getContractorProductsByOperation($operation, $conn);
+
+// CNC Contract Process: show only ERP KRA part names (same list as Production Planning KRA)
+if ($kraOnly && $kraNameSet) {
+    $filtered = [];
+    $bestByKey = [];
+    foreach ($products as $r) {
+        $id = (int) ($r['id'] ?? 0);
+        if (isset($keepIds[$id])) {
+            $filtered[] = $r;
+            continue;
+        }
+        if (!contractorProductMatchesKraNames($r, $kraNameSet)) {
+            continue;
+        }
+        $nk = strtolower(trim((string) ($r['product_name'] ?? '')));
+        if ($nk === '') {
+            $nk = strtolower(trim((string) ($r['process'] ?? '')));
+        }
+        // Map aliases to canonical KRA key so ARMOR BODY / Armor Hydrant Body collapse
+        foreach (($erpSync['names'] ?? []) as $canon) {
+            $ck = strtolower(trim((string) $canon));
+            $aliases = array_map('strtolower', contractorKraPartNameAliases($canon));
+            if ($nk === $ck || in_array($nk, $aliases, true)) {
+                $nk = $ck;
+                break;
+            }
+        }
+        $rate = (float) ($r['rate'] ?? 0);
+        if (!isset($bestByKey[$nk]) || $rate > (float) ($bestByKey[$nk]['rate'] ?? 0)) {
+            $bestByKey[$nk] = $r;
+        }
+    }
+    foreach ($bestByKey as $r) {
+        $filtered[] = $r;
+    }
+    $products = $filtered;
+}
 
 // Also pull keep_ids even if operation label drifted / duplicate was filtered
 if ($keepIds) {
@@ -40,11 +123,56 @@ if ($keepIds) {
     }
 }
 
+// Sort CNC KRA rows in ERP part-name order
+if ($kraOnly && !empty($erpSync['names']) && strcasecmp($operation, 'CNC') === 0) {
+    $order = [];
+    foreach ($erpSync['names'] as $i => $pn) {
+        $order[strtolower(trim((string) $pn))] = $i;
+        foreach (contractorKraPartNameAliases($pn) as $al) {
+            $k = strtolower(trim((string) $al));
+            if (!isset($order[$k])) {
+                $order[$k] = $i;
+            }
+        }
+    }
+    $resolveOrder = static function ($row) use ($order) {
+        $candidates = [
+            strtolower(trim((string) ($row['product_name'] ?? ''))),
+            strtolower(trim((string) ($row['process'] ?? ''))),
+        ];
+        foreach ($candidates as $c) {
+            if ($c !== '' && isset($order[$c])) {
+                return $order[$c];
+            }
+        }
+        return 9999;
+    };
+    usort($products, static function ($a, $b) use ($resolveOrder) {
+        $oa = $resolveOrder($a);
+        $ob = $resolveOrder($b);
+        if ($oa !== $ob) {
+            return $oa <=> $ob;
+        }
+        return strcasecmp(
+            (string) ($a['product_name'] ?? ''),
+            (string) ($b['product_name'] ?? '')
+        );
+    });
+}
+
 $grades = contractorOperationShowsGrade($operation) ? getContractorGrades($conn) : [];
 $conn->close();
 
 $outProducts = [];
 $seenLabels = [];
+$canonByKey = [];
+foreach (($erpSync['names'] ?? []) as $canon) {
+    $ck = strtolower(trim((string) $canon));
+    $canonByKey[$ck] = $canon;
+    foreach (contractorKraPartNameAliases($canon) as $al) {
+        $canonByKey[strtolower(trim((string) $al))] = $canon;
+    }
+}
 foreach ($products as $r) {
     $id = (int) $r['id'];
     $process = trim(html_entity_decode((string) ($r['process'] ?? '')));
@@ -57,6 +185,14 @@ foreach ($products as $r) {
     } else {
         $label = $process;
     }
+    // Clone KRA mode: show ERP part name casing (Lite Female, Armor Hydrant Body, …)
+    if ($kraOnly && $label !== '') {
+        $lk = strtolower($name !== '' ? $name : $process);
+        if (isset($canonByKey[$lk])) {
+            $label = $canonByKey[$lk];
+            $name = $label;
+        }
+    }
     if ($label === '') {
         continue;
     }
@@ -65,7 +201,6 @@ foreach ($products as $r) {
         : strtolower($label);
 
     // Duplicate Contract Process labels: keep ALL ids (append #id for clarity).
-    // Previously we dropped duplicates → edit of CNC/BUFF/etc. lost selected product_id.
     if (isset($seenLabels[$key])) {
         $label = $label . ' #' . $id;
     } else {
@@ -96,4 +231,6 @@ echo json_encode([
     'grades' => $outGrades,
     'show_grade' => contractorOperationShowsGrade($operation),
     'erp_sync' => $erpSync,
+    'as_of' => $asOf,
+    'kra_only' => $kraOnly,
 ]);
