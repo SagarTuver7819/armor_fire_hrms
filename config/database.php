@@ -5,6 +5,7 @@
  */
 
 require_once __DIR__ . '/env.php';
+require_once __DIR__ . '/erp_database.php';
 
 if (!defined('DB_HOST')) {
     define('DB_HOST', env('DB_HOST', 'localhost'));
@@ -51,8 +52,7 @@ function getDBConnection()
 
 /**
  * Armor ERP MySQL (Production Planning KRA / Master part names).
- * .env: ERP_DB_HOST, ERP_DB_PORT, ERP_DB_NAME, ERP_DB_USER, ERP_DB_PASS
- * Falls back to common local/live DB names on the same MySQL host.
+ * Credentials: config/erp_database.php (not .env).
  * Never throws — failed candidates are skipped (PHP 8+ mysqli exceptions caught).
  *
  * @return mysqli|null
@@ -66,37 +66,30 @@ function getErpDBConnection()
     }
     $cached = true;
 
-    $host = (string) env('ERP_DB_HOST', env('DB_HOST', 'localhost'));
-    $port = (int) env('ERP_DB_PORT', env('DB_PORT', '3306'));
+    if (!defined('ERP_DB_HOST')) {
+        require_once __DIR__ . '/erp_database.php';
+    }
+
+    $host = (string) ERP_DB_HOST;
+    $port = (int) ERP_DB_PORT;
     if ($port <= 0) {
         $port = 3306;
     }
 
-    // Credential sets: explicit ERP_* first, then HRMS DB_* (local often shares root)
-    $credSets = [];
-    $erpUser = trim((string) env('ERP_DB_USER', ''));
-    $erpPass = (string) env('ERP_DB_PASS', '');
-    if ($erpUser !== '') {
-        $credSets[] = ['user' => $erpUser, 'pass' => $erpPass];
-    }
-    $hrmsUser = (string) env('DB_USER', 'root');
-    $hrmsPass = (string) env('DB_PASS', '');
-    $dup = false;
-    foreach ($credSets as $c) {
-        if ($c['user'] === $hrmsUser && $c['pass'] === $hrmsPass) {
-            $dup = true;
-            break;
-        }
-    }
-    if (!$dup) {
+    // Primary: config/erp_database.php; fallback: HRMS DB user (local shared root)
+    $credSets = [
+        ['user' => (string) ERP_DB_USER, 'pass' => (string) ERP_DB_PASS],
+    ];
+    $hrmsUser = defined('DB_USER') ? (string) DB_USER : (string) env('DB_USER', 'root');
+    $hrmsPass = defined('DB_PASS') ? (string) DB_PASS : (string) env('DB_PASS', '');
+    if ($hrmsUser !== $credSets[0]['user'] || $hrmsPass !== $credSets[0]['pass']) {
         $credSets[] = ['user' => $hrmsUser, 'pass' => $hrmsPass];
     }
 
-    $configured = trim((string) env('ERP_DB_NAME', ''));
-    // Live hosting DB first, then local armor_erp — avoids HRMS user fatal on denied armor_erp
     $candidates = [];
-    if ($configured !== '') {
-        $candidates[] = $configured;
+    $primary = trim((string) ERP_DB_NAME);
+    if ($primary !== '') {
+        $candidates[] = $primary;
     }
     foreach (['jrosvllq_armor_fire_erp', 'armor_erp', 'armor_fire_erp'] as $try) {
         if (!in_array($try, $candidates, true)) {
