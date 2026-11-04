@@ -314,12 +314,136 @@ function ensureContractorTables($conn = null)
         INDEX idx_csal_emp (employee_id, year_no, month_no)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
 
+    $conn->query("CREATE TABLE IF NOT EXISTS contractor_product_rate_history (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        product_id INT NOT NULL,
+        sheet_id INT NOT NULL DEFAULT 0,
+        operation VARCHAR(80) NOT NULL DEFAULT '',
+        month_no TINYINT NOT NULL DEFAULT 0,
+        year_no SMALLINT NOT NULL DEFAULT 0,
+        old_rate DECIMAL(12, 4) NOT NULL DEFAULT 0,
+        new_rate DECIMAL(12, 4) NOT NULL DEFAULT 0,
+        remark TEXT NOT NULL,
+        changed_by INT NOT NULL DEFAULT 0,
+        changed_by_name VARCHAR(120) DEFAULT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        INDEX idx_cprh_product (product_id, created_at),
+        INDEX idx_cprh_sheet (sheet_id),
+        INDEX idx_cprh_op (operation, year_no, month_no)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+
     contractorEnsureColumn($conn, 'contractor_operation_items', 'grade_id', 'grade_id INT DEFAULT NULL AFTER product_id');
     contractorEnsureColumn($conn, 'contractor_employment', 'sub_department_id', 'sub_department_id INT DEFAULT NULL AFTER department_id');
 
     if ($closeAfter) {
         $conn->close();
     }
+}
+
+/**
+ * Log a Contract Process / product rate change with remark (history).
+ *
+ * @return array{ok:bool,id:int,message:string}
+ */
+function contractorSaveProductRateHistory($conn, array $data)
+{
+    ensureContractorTables($conn);
+    $productId = (int) ($data['product_id'] ?? 0);
+    $remark = trim((string) ($data['remark'] ?? ''));
+    $oldRate = (float) ($data['old_rate'] ?? 0);
+    $newRate = (float) ($data['new_rate'] ?? 0);
+    if ($productId <= 0) {
+        return ['ok' => false, 'id' => 0, 'message' => 'Product required.'];
+    }
+    if ($remark === '') {
+        return ['ok' => false, 'id' => 0, 'message' => 'Remark required.'];
+    }
+    if (abs($oldRate - $newRate) < 0.0000001) {
+        return ['ok' => false, 'id' => 0, 'message' => 'Rate unchanged.'];
+    }
+
+    $sheetId = (int) ($data['sheet_id'] ?? 0);
+    $operation = trim((string) ($data['operation'] ?? ''));
+    $monthNo = (int) ($data['month_no'] ?? 0);
+    $yearNo = (int) ($data['year_no'] ?? 0);
+    $changedBy = (int) ($data['changed_by'] ?? ($_SESSION['user_id'] ?? 0));
+    $changedByName = trim((string) ($data['changed_by_name'] ?? ''));
+    if ($changedByName === '') {
+        $changedByName = trim((string) ($_SESSION['full_name'] ?? $_SESSION['username'] ?? 'User'));
+    }
+
+    // product_id i, sheet_id i, operation s, month_no i, year_no i, old_rate d, new_rate d, remark s, changed_by i, changed_by_name s
+    $st = $conn->prepare(
+        'INSERT INTO contractor_product_rate_history
+            (product_id, sheet_id, operation, month_no, year_no, old_rate, new_rate, remark, changed_by, changed_by_name)
+         VALUES (?,?,?,?,?,?,?,?,?,?)'
+    );
+    if (!$st) {
+        return ['ok' => false, 'id' => 0, 'message' => 'Prepare failed.'];
+    }
+    $st->bind_param(
+        'iisiiddsis',
+        $productId,
+        $sheetId,
+        $operation,
+        $monthNo,
+        $yearNo,
+        $oldRate,
+        $newRate,
+        $remark,
+        $changedBy,
+        $changedByName
+    );
+    $ok = $st->execute();
+    $err = $st->error;
+    $id = (int) $conn->insert_id;
+    $st->close();
+    if (!$ok) {
+        return ['ok' => false, 'id' => 0, 'message' => $err !== '' ? $err : 'Insert failed.'];
+    }
+
+    if (!empty($data['update_master'])) {
+        $up = $conn->prepare('UPDATE contractor_products SET rate = ? WHERE id = ? AND status = 1');
+        if ($up) {
+            $up->bind_param('di', $newRate, $productId);
+            $up->execute();
+            $up->close();
+        }
+    }
+
+    return ['ok' => true, 'id' => $id, 'message' => 'Rate remark saved.'];
+}
+
+/**
+ * @return list<array<string,mixed>>
+ */
+function contractorProductRateHistoryList($conn, $productId, $limit = 20)
+{
+    ensureContractorTables($conn);
+    $productId = (int) $productId;
+    $limit = max(1, min(100, (int) $limit));
+    if ($productId <= 0) {
+        return [];
+    }
+    $sql = 'SELECT id, product_id, sheet_id, operation, month_no, year_no, old_rate, new_rate,
+                   remark, changed_by, changed_by_name, created_at
+            FROM contractor_product_rate_history
+            WHERE product_id = ?
+            ORDER BY id DESC
+            LIMIT ' . $limit;
+    $st = $conn->prepare($sql);
+    if (!$st) {
+        return [];
+    }
+    $st->bind_param('i', $productId);
+    $st->execute();
+    $res = $st->get_result();
+    $out = [];
+    while ($row = $res->fetch_assoc()) {
+        $out[] = $row;
+    }
+    $st->close();
+    return $out;
 }
 
 function generateContractorCode($conn)

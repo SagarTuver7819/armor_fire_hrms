@@ -248,6 +248,8 @@ $otJson = json_encode(contractorOtRepairOps());
 </main>
 <script>
     window.OPS_PRODUCTS_URL = <?php echo json_encode(app_url('contractor/operations/products_json.php')); ?>;
+    window.OPS_RATE_HISTORY_URL = <?php echo json_encode(app_url('contractor/operations/rate_history.php')); ?>;
+    window.OPS_SHEET_ID = <?php echo (int) $id; ?>;
     window.OPS_REPAIR = <?php echo $repairJson; ?>;
     window.OPS_OT_REPAIR = <?php echo $otJson; ?>;
     window.OPS_GRADE_OPS = <?php echo json_encode(array_values(contractorShowGradeOps())); ?>;

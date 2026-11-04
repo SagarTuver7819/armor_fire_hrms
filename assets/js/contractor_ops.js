@@ -420,7 +420,7 @@
             if (snap && snap.rate !== undefined && snap.rate !== '' && parseFloat(snap.rate) > 0) {
                 rateVal = snap.rate;
             }
-            $clone.find('.rate').val(rateVal);
+            $clone.find('.rate').val(rateVal).attr('data-rate-baseline', String(rateVal));
             $clone.find('.row-ot-rate').val(snap && snap.ot !== undefined && snap.ot !== '' ? snap.ot : (p.ot_rate || 0));
             $clone.find('.row-rejection-rate').val(snap && snap.rej !== undefined && snap.rej !== '' ? snap.rej : (p.rejection_rate || 0));
 
@@ -917,6 +917,219 @@
     $('#opsRows').on('input', '.rate', function () {
         $(this).closest('tr').data('rate-touched', 1);
     });
+
+    // ——— Rate edit → Remark popup + history ———
+    var $rateRemarkModal = null;
+    var rateRemarkCtx = null; // { $input, oldRate, newRate, productId, label }
+
+    function ensureRateRemarkModal() {
+        if ($rateRemarkModal && $rateRemarkModal.length) return $rateRemarkModal;
+        var html =
+            '<div id="opsRateRemarkModal" class="ops-rate-remark-modal" hidden>' +
+            '  <div class="ops-rate-remark-backdrop" data-rate-remark-cancel></div>' +
+            '  <div class="ops-rate-remark-box" role="dialog" aria-modal="true" aria-labelledby="opsRateRemarkTitle">' +
+            '    <div class="ops-rate-remark-head">' +
+            '      <h3 id="opsRateRemarkTitle"><i class="fa-solid fa-pen-to-square"></i> Rate Remark</h3>' +
+            '      <button type="button" class="ops-rate-remark-x" data-rate-remark-cancel aria-label="Close">&times;</button>' +
+            '    </div>' +
+            '    <p class="ops-rate-remark-sub" id="opsRateRemarkProcess">—</p>' +
+            '    <div class="ops-rate-remark-delta">' +
+            '      <span><em>Old</em> <b id="opsRateRemarkOld">0</b></span>' +
+            '      <i class="fa-solid fa-arrow-right"></i>' +
+            '      <span><em>New</em> <b id="opsRateRemarkNew">0</b></span>' +
+            '    </div>' +
+            '    <label class="ops-rate-remark-label" for="opsRateRemarkText">Remark <span class="req">*</span></label>' +
+            '    <textarea id="opsRateRemarkText" class="form-control" rows="3" maxlength="500" placeholder="Why is the rate changing?"></textarea>' +
+            '    <div class="ops-rate-remark-err" id="opsRateRemarkErr" hidden></div>' +
+            '    <div class="ops-rate-remark-hist-wrap">' +
+            '      <div class="ops-rate-remark-hist-title"><i class="fa-solid fa-clock-rotate-left"></i> History</div>' +
+            '      <ul class="ops-rate-remark-hist" id="opsRateRemarkHist"><li class="muted">No history yet.</li></ul>' +
+            '    </div>' +
+            '    <div class="ops-rate-remark-actions">' +
+            '      <button type="button" class="btn-secondary" data-rate-remark-cancel>Cancel</button>' +
+            '      <button type="button" class="btn-primary" id="opsRateRemarkSave"><i class="fa-solid fa-check"></i> Save Remark</button>' +
+            '    </div>' +
+            '  </div>' +
+            '</div>';
+        $('body').append(html);
+        $rateRemarkModal = $('#opsRateRemarkModal');
+        $rateRemarkModal.on('click', '[data-rate-remark-cancel]', function () {
+            cancelRateRemarkModal();
+        });
+        $rateRemarkModal.on('click', '#opsRateRemarkSave', function () {
+            saveRateRemarkModal();
+        });
+        return $rateRemarkModal;
+    }
+
+    function formatRateHistRows(rows) {
+        if (!rows || !rows.length) {
+            return '<li class="muted">No history yet.</li>';
+        }
+        return rows.map(function (r) {
+            var when = String(r.created_at || '').replace('T', ' ').substr(0, 16);
+            var who = r.changed_by_name || 'User';
+            var rem = $('<div/>').text(r.remark || '').html();
+            return '<li><div class="ops-rh-meta">' + $('<div/>').text(when + ' · ' + who).html() + '</div>'
+                + '<div class="ops-rh-rates">' + Number(r.old_rate).toFixed(2) + ' → <b>' + Number(r.new_rate).toFixed(2) + '</b></div>'
+                + '<div class="ops-rh-rem">' + rem + '</div></li>';
+        }).join('');
+    }
+
+    function loadRateHistory(productId) {
+        var url = window.OPS_RATE_HISTORY_URL;
+        if (!url || !productId) {
+            $('#opsRateRemarkHist').html('<li class="muted">No history yet.</li>');
+            return;
+        }
+        $.getJSON(url, { product_id: productId })
+            .done(function (data) {
+                $('#opsRateRemarkHist').html(formatRateHistRows(data && data.rows));
+            })
+            .fail(function () {
+                $('#opsRateRemarkHist').html('<li class="muted">Could not load history.</li>');
+            });
+    }
+
+    function openRateRemarkModal(ctx) {
+        ensureRateRemarkModal();
+        rateRemarkCtx = ctx;
+        $('#opsRateRemarkProcess').text(ctx.label || ('Product #' + ctx.productId));
+        $('#opsRateRemarkOld').text(Number(ctx.oldRate).toFixed(4).replace(/\.?0+$/, '') || '0');
+        $('#opsRateRemarkNew').text(Number(ctx.newRate).toFixed(4).replace(/\.?0+$/, '') || '0');
+        $('#opsRateRemarkText').val('');
+        $('#opsRateRemarkErr').prop('hidden', true).text('');
+        loadRateHistory(ctx.productId);
+        $rateRemarkModal.removeAttr('hidden');
+        setTimeout(function () { $('#opsRateRemarkText').trigger('focus'); }, 30);
+    }
+
+    function cancelRateRemarkModal() {
+        if (rateRemarkCtx && rateRemarkCtx.$input && rateRemarkCtx.$input.length) {
+            rateRemarkCtx.$input.val(rateRemarkCtx.oldRate);
+            rateRemarkCtx.$input.attr('data-rate-baseline', String(rateRemarkCtx.oldRate));
+            calculateRowTotals(rateRemarkCtx.$input.closest('tr'));
+            updateGrandTotals();
+        }
+        rateRemarkCtx = null;
+        if ($rateRemarkModal) $rateRemarkModal.attr('hidden', 'hidden');
+    }
+
+    function saveRateRemarkModal() {
+        if (!rateRemarkCtx) return;
+        var remark = String($('#opsRateRemarkText').val() || '').trim();
+        if (!remark) {
+            $('#opsRateRemarkErr').prop('hidden', false).text('Please enter a remark for this rate change.');
+            $('#opsRateRemarkText').trigger('focus');
+            return;
+        }
+        var url = window.OPS_RATE_HISTORY_URL;
+        if (!url) {
+            $('#opsRateRemarkErr').prop('hidden', false).text('Rate history URL missing.');
+            return;
+        }
+        var $btn = $('#opsRateRemarkSave').prop('disabled', true);
+        $.ajax({
+            url: url,
+            method: 'POST',
+            contentType: 'application/json; charset=utf-8',
+            dataType: 'json',
+            data: JSON.stringify({
+                product_id: rateRemarkCtx.productId,
+                sheet_id: parseInt(window.OPS_SHEET_ID || 0, 10) || 0,
+                operation: opVal() || '',
+                month_no: parseInt($('#monthSelect').val(), 10) || 0,
+                year_no: parseInt($('#yearSelect').val(), 10) || 0,
+                old_rate: rateRemarkCtx.oldRate,
+                new_rate: rateRemarkCtx.newRate,
+                remark: remark
+            })
+        }).done(function (data) {
+            if (!data || !data.ok) {
+                $('#opsRateRemarkErr').prop('hidden', false).text((data && data.message) || 'Save failed.');
+                $btn.prop('disabled', false);
+                return;
+            }
+            if (rateRemarkCtx.$input && rateRemarkCtx.$input.length) {
+                rateRemarkCtx.$input.attr('data-rate-baseline', String(rateRemarkCtx.newRate));
+                rateRemarkCtx.$input.closest('tr').data('rate-touched', 1);
+            }
+            if (typeof toastr !== 'undefined') {
+                toastr.success('Rate remark saved to history.');
+            }
+            rateRemarkCtx = null;
+            $rateRemarkModal.attr('hidden', 'hidden');
+            $btn.prop('disabled', false);
+        }).fail(function (xhr) {
+            var msg = 'Save failed.';
+            try {
+                var j = JSON.parse(xhr.responseText || '{}');
+                if (j.message) msg = j.message;
+            } catch (e) { /* ignore */ }
+            $('#opsRateRemarkErr').prop('hidden', false).text(msg);
+            $btn.prop('disabled', false);
+        });
+    }
+
+    function maybePromptRateRemark($input) {
+        if (!$input || !$input.length) return;
+        if (rateRemarkCtx) return; // modal already open
+        var $row = $input.closest('tr');
+        var pid = nonzeroId($row.find('.row-product-id').val())
+            || nonzeroId($row.find('.product-select').val())
+            || nonzeroId($row.attr('data-saved-product-id'));
+        if (!pid) return;
+        var baseline = $input.attr('data-rate-baseline');
+        if (baseline === undefined || baseline === null || baseline === '') {
+            baseline = $input.attr('data-rate-initial');
+        }
+        if (baseline === undefined || baseline === null || baseline === '') {
+            baseline = $input.val();
+            $input.attr('data-rate-baseline', String(baseline));
+            return;
+        }
+        var oldRate = parseFloat(baseline);
+        if (isNaN(oldRate)) oldRate = 0;
+        var newRate = parseFloat($input.val());
+        if (isNaN(newRate)) newRate = 0;
+        if (Math.abs(oldRate - newRate) < 0.0000001) {
+            $input.attr('data-rate-baseline', String(newRate));
+            return;
+        }
+        var label = ($row.find('.ops-fixed-process').text() || '').trim();
+        if (!label) {
+            label = ($row.find('.product-select option:selected').text() || '').trim();
+        }
+        if (!label || label === 'Select Process') {
+            label = 'Product #' + pid;
+        }
+        // Keep new value visible; Cancel will revert
+        openRateRemarkModal({
+            $input: $input,
+            oldRate: oldRate,
+            newRate: newRate,
+            productId: pid,
+            label: label
+        });
+    }
+
+    $('#opsRows').on('focus', '.rate', function () {
+        var $inp = $(this);
+        if (!$inp.attr('data-rate-baseline')) {
+            $inp.attr('data-rate-baseline', String($inp.val() || '0'));
+        }
+    });
+    $('#opsRows').on('change', '.rate', function () {
+        maybePromptRateRemark($(this));
+    });
+    $('#opsRows').on('blur', '.rate', function () {
+        // change may not fire if value typed then tabbed without change event in some browsers
+        var self = this;
+        setTimeout(function () {
+            maybePromptRateRemark($(self));
+        }, 0);
+    });
+
     $('#opsRows').on('click', '.btn-remove-row', function () {
         if (isKraFixedMode() || $(this).closest('tr').hasClass('ops-kra-fixed-row')) {
             return;
@@ -1160,9 +1373,22 @@
     applyDayEnable();
     applyOpMode();
     syncOpsEmployeeSelect();
+    // Baseline for rate-remark popup (every edit prompts when value changes)
+    $('#opsRows .rate').each(function () {
+        var $r = $(this);
+        if (!$r.attr('data-rate-baseline')) {
+            $r.attr('data-rate-baseline', String($r.val() || '0'));
+        }
+    });
     loadProducts(function () {
         syncOpsEmployeeSelect();
         startKraLivePoll();
+        $('#opsRows .rate').each(function () {
+            var $r = $(this);
+            if (!$r.attr('data-rate-baseline')) {
+                $r.attr('data-rate-baseline', String($r.val() || '0'));
+            }
+        });
     });
     // Select2 init runs after this file — re-apply saved Name once it wraps the control
     setTimeout(syncOpsEmployeeSelect, 0);

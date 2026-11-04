@@ -564,6 +564,8 @@ $otJson = json_encode(contractorOtRepairOps());
 <script>
     window.C_TOAST_MSG = <?php echo json_encode($toastMsg); ?>;
     window.OPS_PRODUCTS_URL = <?php echo json_encode(app_url('contractor/operations/products_json.php')); ?>;
+    window.OPS_RATE_HISTORY_URL = <?php echo json_encode(app_url('contractor/operations/rate_history.php')); ?>;
+    window.OPS_SHEET_ID = <?php echo (int) $id; ?>;
     window.OPS_KRA_PARTS = <?php echo strcasecmp($curOp, 'CNC') === 0 ? 'true' : 'false'; ?>;
     window.OPS_KRA_FIXED = <?php echo strcasecmp($curOp, 'CNC') === 0 ? 'true' : 'false'; ?>; // fixed rows, no process dropdown
     window.OPS_KRA_AS_OF = <?php echo json_encode($kraAsOf); ?>;
