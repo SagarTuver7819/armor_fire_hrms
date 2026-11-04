@@ -1250,25 +1250,21 @@ function fetchErpKraDateWiseQtys($operation, $year, $month)
             }
             $pn = trim((string) ($row['product_name'] ?? ''));
             $brand = trim((string) ($row['brand_name'] ?? ''));
-            $keys = [];
+            // One key only — alias fan-out here + again in edit.php caused 3×/4× qty
+            $k = '';
             if ($pn !== '' && preg_match('/^other\s*brand/i', $pn)) {
-                if ($brand !== '') {
-                    $keys[] = strtolower($brand);
-                }
+                $k = $brand !== '' ? strtolower($brand) : '';
             } elseif ($pn !== '') {
-                $keys[] = strtolower($pn);
-                foreach (contractorKraPartNameAliases($pn) as $al) {
-                    $keys[] = strtolower(trim((string) $al));
-                }
+                $k = strtolower($pn);
             }
-            $keys = array_values(array_unique(array_filter($keys)));
-            foreach ($keys as $k) {
-                if (!isset($bucket[$k])) {
-                    $bucket[$k] = [];
-                }
-                $dk = (string) $d;
-                $bucket[$k][$dk] = ($bucket[$k][$dk] ?? 0) + $qty;
+            if ($k === '') {
+                return 0;
             }
+            if (!isset($bucket[$k])) {
+                $bucket[$k] = [];
+            }
+            $dk = (string) $d;
+            $bucket[$k][$dk] = ($bucket[$k][$dk] ?? 0) + $qty;
             return 1;
         };
         while ($row = $res->fetch_assoc()) {
@@ -1314,6 +1310,27 @@ function fetchErpKraDateWiseQtys($operation, $year, $month)
                 ? ('OK ' . $rawRows . ' ERP rows → ' . count($out) . ' parts')
                 : ('No production_entries qty for ' . $from . ' (dept=' . $deptId . ' doc=' . $docId . ')');
         }
+        // #region agent log
+        $d2 = [];
+        foreach (['lite male', 'heavy female', 'heavy male', 'heavy nozzle', 'heavy nozzel', 'lite female'] as $pk) {
+            if (isset($out[$pk]['2'])) {
+                $d2[$pk] = $out[$pk]['2'];
+            }
+        }
+        @file_put_contents(
+            dirname(__DIR__) . '/debug-219c73.log',
+            json_encode([
+                'sessionId' => '219c73',
+                'runId' => 'post-fix',
+                'hypothesisId' => 'H5',
+                'location' => 'contractor_helper.php:fetchErpKraDateWiseQtys:ok',
+                'message' => 'Raw ERP day-2 qty by product key (single-key accumulate)',
+                'data' => ['rows' => $rawRows, 'parts' => count($out), 'day2' => $d2, 'msg' => $debug['message']],
+                'timestamp' => (int) round(microtime(true) * 1000),
+            ]) . "\n",
+            FILE_APPEND
+        );
+        // #endregion
     } catch (Throwable $e) {
         $debug['message'] = 'ERP qty error: ' . $e->getMessage();
         // #region agent log
@@ -1342,7 +1359,7 @@ function fetchErpKraDateWiseQtys($operation, $year, $month)
  * @param array<string,float> $erpDayQty day => qty
  * @return array<string,array>
  */
-function mergeErpKraDaysIntoMap(array $days, array $erpDayQty)
+function mergeErpKraDaysIntoMap(array $days, array $erpDayQty, $overwriteErpDays = false)
 {
     foreach ($erpDayQty as $d => $qty) {
         $d = (string) ((int) $d);
@@ -1354,11 +1371,38 @@ function mergeErpKraDaysIntoMap(array $days, array $erpDayQty)
             $days[$d] = ['q' => '', 'r' => '', 'ot' => ''];
         }
         $cur = $days[$d]['q'] ?? '';
-        if ($cur === '' || $cur === null || (is_numeric($cur) && (float) $cur == 0.0)) {
+        $empty = ($cur === '' || $cur === null || (is_numeric($cur) && (float) $cur == 0.0));
+        // overwriteErpDays=true: always use ERP KRA Total for that day (fixes alias-tripled bad saves)
+        if ($overwriteErpDays || $empty) {
             $days[$d]['q'] = $qty;
         }
     }
     return $days;
+}
+
+/**
+ * Resolve ERP day-qty for a KRA part: try canon then unique aliases; first hit wins (no sum).
+ *
+ * @param array<string, array<string, float>> $erpDayQtyByPart
+ * @return array<string, float>
+ */
+function contractorErpDaysForPartName($canonName, array $erpDayQtyByPart)
+{
+    $seen = [];
+    $keys = [strtolower(trim((string) $canonName))];
+    foreach (contractorKraPartNameAliases($canonName) as $al) {
+        $keys[] = strtolower(trim((string) $al));
+    }
+    foreach ($keys as $ak) {
+        if ($ak === '' || isset($seen[$ak])) {
+            continue;
+        }
+        $seen[$ak] = true;
+        if (!empty($erpDayQtyByPart[$ak]) && is_array($erpDayQtyByPart[$ak])) {
+            return $erpDayQtyByPart[$ak];
+        }
+    }
+    return [];
 }
 
 /**

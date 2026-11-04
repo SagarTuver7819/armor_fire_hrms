@@ -120,16 +120,9 @@ if (strcasecmp($curOp, 'CNC') === 0) {
             }
         }
         $days = $saved['days'] ?? [];
-        $erpDays = $erpDayQtyByPart[$ck] ?? [];
-        foreach (contractorKraPartNameAliases($canon) as $al) {
-            $ak = strtolower(trim((string) $al));
-            if (!empty($erpDayQtyByPart[$ak])) {
-                foreach ($erpDayQtyByPart[$ak] as $dd => $qq) {
-                    $erpDays[$dd] = ($erpDays[$dd] ?? 0) + (float) $qq;
-                }
-            }
-        }
-        $days = mergeErpKraDaysIntoMap(is_array($days) ? $days : [], $erpDays);
+        $erpDays = contractorErpDaysForPartName($canon, $erpDayQtyByPart);
+        // Always prefer live ERP KRA Total over previously saved (alias-tripled) day qty
+        $days = mergeErpKraDaysIntoMap(is_array($days) ? $days : [], $erpDays, true);
         $kraPrefill[] = [
             'product_id' => $pid,
             'product_label' => (string) $canon,
@@ -155,10 +148,9 @@ if (strcasecmp($curOp, 'CNC') === 0) {
             }
         }
         $label = (string) ($pr['_canon'] ?? $pr['product_name'] ?? $pr['process'] ?? '');
-        $lk = strtolower(trim($label));
         $days = $saved['days'] ?? [];
-        $erpDays = $erpDayQtyByPart[$lk] ?? [];
-        $days = mergeErpKraDaysIntoMap(is_array($days) ? $days : [], $erpDays);
+        $erpDays = contractorErpDaysForPartName($label, $erpDayQtyByPart);
+        $days = mergeErpKraDaysIntoMap(is_array($days) ? $days : [], $erpDays, true);
         $kraPrefill[] = [
             'product_id' => $pid,
             'product_label' => $label,
@@ -176,6 +168,45 @@ if (strcasecmp($curOp, 'CNC') === 0) {
     if ($kraPrefill) {
         $items = $kraPrefill;
     }
+    // Remap ERP day qty under canonical KRA names for JS (single key, no alias fan-out)
+    $erpCanonMap = [];
+    foreach (($kraSync['names'] ?? []) as $canon) {
+        $ck = strtolower(trim((string) $canon));
+        $erpCanonMap[$ck] = contractorErpDaysForPartName($canon, $erpDayQtyByPart);
+    }
+    $erpDayQtyByPart = $erpCanonMap;
+    // #region agent log
+    $day2Snap = [];
+    foreach ($kraPrefill as $row) {
+        $lbl = (string) ($row['product_label'] ?? '');
+        $q2 = $row['days']['2']['q'] ?? ($row['days'][2]['q'] ?? null);
+        $day2Snap[$lbl] = $q2;
+    }
+    @file_put_contents(
+        dirname(__DIR__, 2) . '/debug-219c73.log',
+        json_encode([
+            'sessionId' => '219c73',
+            'runId' => 'post-fix',
+            'hypothesisId' => 'H1',
+            'location' => 'operations_clone/edit.php:kraPrefill',
+            'message' => 'Day-2 qty after alias-safe ERP merge',
+            'data' => [
+                'day2' => $day2Snap,
+                'erpLiteMale' => $erpDayQtyByPart['lite male']['2'] ?? null,
+                'erpHeavyFemale' => $erpDayQtyByPart['heavy female']['2'] ?? null,
+                'erpHeavyNozzle' => $erpDayQtyByPart['heavy nozzle']['2'] ?? null,
+                'expected' => [
+                    'Lite male' => 114,
+                    'Heavy Female' => 496,
+                    'Heavy Male' => 371,
+                    'Heavy Nozzle' => 308,
+                ],
+            ],
+            'timestamp' => (int) round(microtime(true) * 1000),
+        ]) . "\n",
+        FILE_APPEND
+    );
+    // #endregion
 }
 if (!$items) {
     $items = [[

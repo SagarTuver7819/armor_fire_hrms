@@ -431,19 +431,16 @@
                     $day.find('.day-qty-ot').val(cell.ot || '');
                 });
             }
-            // ERP KRA date-wise Total → empty day boxes (e.g. 02/11 → day 2)
+            // ERP KRA date-wise Total → day boxes (overwrite so alias-tripled saves get corrected)
             var kraMap = window.OPS_KRA_DAY_QTY || {};
             var pkey = String(p.name || p.product_name || '').toLowerCase().trim();
             var erpDays = kraMap[pkey] || {};
             Object.keys(erpDays).forEach(function (d) {
                 var $inp = $clone.find('.day-cell[data-day="' + d + '"] .day-qty');
                 if (!$inp.length || $inp.prop('disabled')) return;
-                var cur = String($inp.val() || '').trim();
-                if (cur === '' || parseFloat(cur) === 0) {
-                    var qv = erpDays[d];
-                    if (qv !== undefined && qv !== null && parseFloat(qv) !== 0) {
-                        $inp.val(qv);
-                    }
+                var qv = erpDays[d];
+                if (qv !== undefined && qv !== null && parseFloat(qv) !== 0) {
+                    $inp.val(qv);
                 }
             });
 
