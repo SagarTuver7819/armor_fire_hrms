@@ -17,6 +17,8 @@
         return $('#operationSelect').val() || '';
     }
     function showsGrade(op) {
+        // CNC clone KRA grid has no GRADE column — never reserve grade sticky space
+        if (window.OPS_KRA_FIXED) return false;
         op = (op || opVal() || '').toString();
         if (gradeOps.indexOf(op) !== -1) return true;
         return op.toUpperCase().indexOf('ARGON') === 0;

@@ -6556,8 +6556,11 @@ select.product-select.ops-kra-hidden-select {
     pointer-events: none !important;
     left: -9999px !important;
 }
+/* Keep sticky — position:relative here left a blank gap between Sr and Contract Process */
 .ops-kra-fixed-row td.sticky-name {
-    position: relative;
+    position: sticky;
+    left: 86px;
+    z-index: 6;
 }
 .ops-kra-hint {
     display: flex;
@@ -6676,15 +6679,16 @@ select.product-select.ops-kra-hidden-select {
 }
 
 .ops-grid:not(.show-grade) .sticky-name,
-.ops-grid.hide-grade .sticky-name {
-    left: 86px;
+.ops-grid.hide-grade .sticky-name,
+.ops-grid.hide-grade .ops-kra-fixed-row td.sticky-name {
+    left: 86px !important;
     min-width: 220px;
     width: 220px;
 }
 
 .ops-grid:not(.show-grade) .sticky-rate,
 .ops-grid.hide-grade .sticky-rate {
-    left: 306px;
+    left: 306px !important;
 }
 
 .ops-grid .sticky-rate .rate {
