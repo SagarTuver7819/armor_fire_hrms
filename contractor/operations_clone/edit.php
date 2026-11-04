@@ -293,7 +293,7 @@ $otJson = json_encode(contractorOtRepairOps());
                 <button type="button" class="btn-primary" id="btnAddProduct"><i class="fa-solid fa-plus"></i> Add Product Row</button>
                 <?php else: ?>
                 <div class="ops-kra-hint" style="font-size:13px;color:#64748b;">
-                    <i class="fa-solid fa-link"></i> Contract Process = ERP CNC Production Planning KRA (fixed). Rate edit કરો; નવું ERP partname આપમેળે આવશે.
+                    <i class="fa-solid fa-link"></i> Contract Process = ERP CNC Production Planning KRA (fixed). Only <b>Rate</b> editable · day Qty ERP thi auto · નવું partname આપમેળે.
                 </div>
                 <?php endif; ?>
                 <div class="ops-live-summary">
@@ -304,7 +304,7 @@ $otJson = json_encode(contractorOtRepairOps());
             </div>
 
             <div class="ops-grid-wrap">
-                <table class="ops-grid <?php echo $showGrade ? 'show-grade' : 'hide-grade'; ?>" id="opsGrid">
+                <table class="ops-grid <?php echo $showGrade ? 'show-grade' : 'hide-grade'; ?><?php echo strcasecmp($curOp, 'CNC') === 0 ? ' ops-kra-qty-locked' : ''; ?>" id="opsGrid">
                     <thead>
                         <tr>
                             <th class="sticky-col sticky-action">Action</th>
@@ -409,12 +409,13 @@ $otJson = json_encode(contractorOtRepairOps());
                                 $dis = !empty($cell['disabled']) ? 'disabled' : '';
                                 ?>
                                 <td class="day-cell" data-day="<?php echo $d; ?>">
+                                    <?php $kraRo = strcasecmp($curOp, 'CNC') === 0 ? ' readonly tabindex="-1"' : ''; ?>
                                     <div class="ops-day-triple">
-                                        <input type="text" inputmode="decimal" class="grid-input day-qty" <?php echo $dis; ?>
+                                        <input type="text" inputmode="decimal" class="grid-input day-qty" <?php echo $dis . $kraRo; ?>
                                                name="items[<?php echo $i; ?>][days][<?php echo $d; ?>][q]" value="<?php echo htmlspecialchars((string) $cell['q']); ?>" autocomplete="off">
-                                        <input type="text" inputmode="decimal" class="grid-input day-qty-r r-field" <?php echo $dis; ?>
+                                        <input type="text" inputmode="decimal" class="grid-input day-qty-r r-field" <?php echo $dis . $kraRo; ?>
                                                name="items[<?php echo $i; ?>][days][<?php echo $d; ?>][r]" value="<?php echo htmlspecialchars((string) $cell['r']); ?>" autocomplete="off">
-                                        <input type="text" inputmode="decimal" class="grid-input day-qty-ot ot-field" <?php echo $dis; ?>
+                                        <input type="text" inputmode="decimal" class="grid-input day-qty-ot ot-field" <?php echo $dis . $kraRo; ?>
                                                name="items[<?php echo $i; ?>][days][<?php echo $d; ?>][ot]" value="<?php echo htmlspecialchars((string) $cell['ot']); ?>" autocomplete="off">
                                     </div>
                                 </td>

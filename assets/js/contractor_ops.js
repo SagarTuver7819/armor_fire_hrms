@@ -45,6 +45,23 @@
                 }
             }
         });
+        applyKraQtyReadonly();
+    }
+
+    /** CNC KRA fixed: only Rate is editable — day qty / R / OT locked (ERP fills qty). */
+    function applyKraQtyReadonly() {
+        var lock = isKraFixedMode();
+        $('#opsGrid').toggleClass('ops-kra-qty-locked', lock);
+        $('#opsRows .day-qty, #opsRows .day-qty-r, #opsRows .day-qty-ot').each(function () {
+            var $inp = $(this);
+            if ($inp.prop('disabled')) return;
+            $inp.prop('readonly', lock);
+            if (lock) {
+                $inp.attr('tabindex', '-1');
+            } else {
+                $inp.removeAttr('tabindex');
+            }
+        });
     }
     function applyOpMode() {
         var op = opVal();
@@ -57,8 +74,9 @@
         $('#opsGrid').toggleClass('show-foundry', isFoundry);
         $('#opsGrid').toggleClass('show-grade', showG);
         $('#opsGrid').toggleClass('hide-grade', !showG);
-        $('.r-field').prop('readonly', !showR);
-        $('.ot-field').prop('readonly', !showOt);
+        $('.r-field').prop('readonly', !showR || isKraFixedMode());
+        $('.ot-field').prop('readonly', !showOt || isKraFixedMode());
+        applyKraQtyReadonly();
         // Do NOT wipe existing day qty when toggling mode (Add Product Row / load).
         // Values stay; hidden columns just won't display.
 
