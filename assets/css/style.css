@@ -6561,6 +6561,7 @@ select.product-select.ops-kra-hidden-select {
     position: sticky;
     left: 86px;
     z-index: 6;
+    background: #fff;
 }
 .ops-kra-hint {
     display: flex;

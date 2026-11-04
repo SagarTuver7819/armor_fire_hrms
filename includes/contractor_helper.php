@@ -721,19 +721,19 @@ function contractorCncKraBaselinePartNames()
 }
 
 /**
- * Alternate spellings already used in HRMS Contract Process / Product Master.
+ * Canonical key => alternate spellings (ERP typos / HRMS Product Master variants).
  *
- * @return list<string>
+ * @return array<string, list<string>>
  */
-function contractorKraPartNameAliases($productName)
+function contractorKraPartNameAliasMap()
 {
-    $map = [
-        'armor hydrant body' => ['ARMOR BODY', 'Armor Body', 'ARMOR HYDRANT BODY'],
-        'heavy nozzle' => ['HEAVY NOZZEL', 'Heavy Nozzel', 'HEAVY NOZZLE'],
-        'lite nozzle' => ['LITE NOZZEL', 'Lite Nozzel', 'LITE NOZZLE'],
+    return [
+        'armor hydrant body' => ['ARMOR BODY', 'Armor Body', 'ARMOR HYDRANT BODY', 'Armor Hydrant Body'],
+        'heavy nozzle' => ['HEAVY NOZZEL', 'Heavy Nozzel', 'HEAVY NOZZLE', 'Heavy Nozzle'],
+        'lite nozzle' => ['LITE NOZZEL', 'Lite Nozzel', 'LITE NOZZLE', 'Lite Nozzle'],
         'nrv' => ['HEAVY NRV', 'Heavy NRV', 'NRV'],
-        'turning bush' => ['Lurning Bush', 'TURNING BUSH', 'Turning Bush'],
-        'lite male' => ['LITE MALE', 'Lite Male'],
+        'turning bush' => ['Lurning Bush', 'LURNING BUSH', 'TURNING BUSH', 'Turning Bush'],
+        'lite male' => ['LITE MALE', 'Lite Male', 'Lite male'],
         'heavy male' => ['HEAVY MALE', 'Heavy Male'],
         'lite female' => ['LITE FEMALE', 'Lite Female'],
         'heavy female' => ['HEAVY FEMALE', 'Heavy Female'],
@@ -744,8 +744,75 @@ function contractorKraPartNameAliases($productName)
         'safex' => ['SAFEX', 'Safex'],
         'standard bonnet' => ['STANDARD BONNET', 'Standard Bonnet'],
     ];
+}
+
+/**
+ * Normalize any ERP/HRMS part spelling to one lowercase canonical key.
+ */
+function contractorKraCanonicalKey($productName)
+{
     $key = strtolower(trim((string) $productName));
-    return $map[$key] ?? [];
+    if ($key === '') {
+        return '';
+    }
+    static $rev = null;
+    if ($rev === null) {
+        $rev = [];
+        foreach (contractorKraPartNameAliasMap() as $canon => $aliases) {
+            $rev[$canon] = $canon;
+            foreach ($aliases as $al) {
+                $rev[strtolower(trim((string) $al))] = $canon;
+            }
+        }
+    }
+    return $rev[$key] ?? $key;
+}
+
+/**
+ * Alternate spellings for DB lookup (bidirectional — works for "Lurning Bush" and "Turning Bush").
+ *
+ * @return list<string>
+ */
+function contractorKraPartNameAliases($productName)
+{
+    $map = contractorKraPartNameAliasMap();
+    $ck = contractorKraCanonicalKey($productName);
+    return isset($map[$ck]) ? array_values($map[$ck]) : [];
+}
+
+/**
+ * All strings to try when matching contractor_products for a KRA part name.
+ *
+ * @return list<string>
+ */
+function contractorKraPartNameLookupCandidates($productName)
+{
+    $pn = trim((string) $productName);
+    $ck = contractorKraCanonicalKey($pn);
+    $cands = [];
+    if ($pn !== '') {
+        $cands[] = $pn;
+    }
+    if ($ck !== '') {
+        $cands[] = $ck;
+    }
+    foreach (contractorKraPartNameAliases($pn) as $al) {
+        $al = trim((string) $al);
+        if ($al !== '') {
+            $cands[] = $al;
+        }
+    }
+    $out = [];
+    $seen = [];
+    foreach ($cands as $c) {
+        $k = strtolower($c);
+        if (isset($seen[$k])) {
+            continue;
+        }
+        $seen[$k] = true;
+        $out[] = $c;
+    }
+    return $out;
 }
 
 /**
@@ -985,10 +1052,13 @@ function syncErpKraPartsToContractorProducts($operation, $hrmsConn = null, $asOf
         }
     }
 
-    // Deduplicate (case-insensitive), keep first casing
+    // Deduplicate by canonical key (Lurning Bush ≡ Turning Bush); keep first casing (ERP snap first)
     $uniq = [];
     foreach ($names as $pn) {
-        $key = strtolower($pn);
+        $key = contractorKraCanonicalKey($pn);
+        if ($key === '') {
+            continue;
+        }
         if (!isset($uniq[$key])) {
             $uniq[$key] = $pn;
         }
@@ -1010,9 +1080,9 @@ function syncErpKraPartsToContractorProducts($operation, $hrmsConn = null, $asOf
     ensureContractorTables($hrmsConn);
 
     foreach ($names as $pn) {
-        $key = strtolower($pn);
-        $erpRate = (float) ($rateMap[$key] ?? 0);
-        $candidates = array_values(array_unique(array_merge([$pn], contractorKraPartNameAliases($pn))));
+        $key = contractorKraCanonicalKey($pn);
+        $erpRate = (float) ($rateMap[$key] ?? $rateMap[strtolower($pn)] ?? 0);
+        $candidates = contractorKraPartNameLookupCandidates($pn);
         $exist = null;
         foreach ($candidates as $cand) {
             $st = $hrmsConn->prepare(
@@ -1261,17 +1331,20 @@ function mergeErpKraDaysIntoMap(array $days, array $erpDayQty, $overwriteErpDays
 function contractorErpDaysForPartName($canonName, array $erpDayQtyByPart)
 {
     $seen = [];
-    $keys = [strtolower(trim((string) $canonName))];
-    foreach (contractorKraPartNameAliases($canonName) as $al) {
-        $keys[] = strtolower(trim((string) $al));
-    }
-    foreach ($keys as $ak) {
+    foreach (contractorKraPartNameLookupCandidates($canonName) as $al) {
+        $ak = strtolower(trim((string) $al));
         if ($ak === '' || isset($seen[$ak])) {
             continue;
         }
         $seen[$ak] = true;
         if (!empty($erpDayQtyByPart[$ak]) && is_array($erpDayQtyByPart[$ak])) {
             return $erpDayQtyByPart[$ak];
+        }
+        $ck = contractorKraCanonicalKey($al);
+        if ($ck !== '' && $ck !== $ak && !isset($seen[$ck])
+            && !empty($erpDayQtyByPart[$ck]) && is_array($erpDayQtyByPart[$ck])) {
+            $seen[$ck] = true;
+            return $erpDayQtyByPart[$ck];
         }
     }
     return [];
@@ -1282,19 +1355,23 @@ function contractorErpDaysForPartName($canonName, array $erpDayQtyByPart)
  */
 function contractorProductMatchesKraNames(array $productRow, array $kraNamesLower)
 {
-    $candidates = [];
     foreach (['product_name', 'process'] as $col) {
         $v = trim((string) ($productRow[$col] ?? ''));
-        if ($v !== '') {
-            $candidates[] = strtolower($v);
-            foreach (contractorKraPartNameAliases($v) as $al) {
-                $candidates[] = strtolower($al);
-            }
+        if ($v === '') {
+            continue;
         }
-    }
-    foreach ($candidates as $c) {
-        if (isset($kraNamesLower[$c])) {
+        $ck = contractorKraCanonicalKey($v);
+        if ($ck !== '' && isset($kraNamesLower[$ck])) {
             return true;
+        }
+        if (isset($kraNamesLower[strtolower($v)])) {
+            return true;
+        }
+        foreach (contractorKraPartNameLookupCandidates($v) as $al) {
+            $lk = strtolower(trim((string) $al));
+            if ($lk !== '' && isset($kraNamesLower[$lk])) {
+                return true;
+            }
         }
     }
     return false;
@@ -1313,18 +1390,20 @@ function contractorEnsureProduct($conn, $operation, $productName, $rate = 0.0)
     if ($operation === '') {
         return 0;
     }
-    $st = $conn->prepare(
-        "SELECT id FROM contractor_products
-         WHERE status = 1 AND operation = ?
-           AND (UPPER(TRIM(product_name)) = UPPER(?) OR UPPER(TRIM(IFNULL(process,''))) = UPPER(?))
-         LIMIT 1"
-    );
-    $st->bind_param('sss', $operation, $productName, $productName);
-    $st->execute();
-    $row = $st->get_result()->fetch_assoc();
-    $st->close();
-    if ($row) {
-        return (int) $row['id'];
+    foreach (contractorKraPartNameLookupCandidates($productName) as $cand) {
+        $st = $conn->prepare(
+            "SELECT id FROM contractor_products
+             WHERE status = 1 AND operation = ?
+               AND (UPPER(TRIM(product_name)) = UPPER(?) OR UPPER(TRIM(IFNULL(process,''))) = UPPER(?))
+             LIMIT 1"
+        );
+        $st->bind_param('sss', $operation, $cand, $cand);
+        $st->execute();
+        $row = $st->get_result()->fetch_assoc();
+        $st->close();
+        if ($row) {
+            return (int) $row['id'];
+        }
     }
     $rate = (float) $rate;
     $ins = $conn->prepare(

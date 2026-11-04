@@ -39,8 +39,11 @@ if ($operation !== '' && contractorOperationErpDepartmentName($operation) !== ''
     try {
         $erpSync = syncErpKraPartsToContractorProducts($operation, $conn, $asOf);
         foreach (($erpSync['names'] ?? []) as $pn) {
-            $kraNameSet[strtolower(trim((string) $pn))] = true;
-            foreach (contractorKraPartNameAliases($pn) as $al) {
+            $ck = contractorKraCanonicalKey($pn);
+            if ($ck !== '') {
+                $kraNameSet[$ck] = true;
+            }
+            foreach (contractorKraPartNameLookupCandidates($pn) as $al) {
                 $kraNameSet[strtolower(trim((string) $al))] = true;
             }
         }
@@ -56,9 +59,12 @@ if ($operation !== '' && contractorOperationErpDepartmentName($operation) !== ''
         ];
         if (strcasecmp($operation, 'CNC') === 0) {
             foreach (contractorCncKraBaselinePartNames() as $pn) {
-                $kraNameSet[strtolower($pn)] = true;
-                foreach (contractorKraPartNameAliases($pn) as $al) {
-                    $kraNameSet[strtolower($al)] = true;
+                $ck = contractorKraCanonicalKey($pn);
+                if ($ck !== '') {
+                    $kraNameSet[$ck] = true;
+                }
+                foreach (contractorKraPartNameLookupCandidates($pn) as $al) {
+                    $kraNameSet[strtolower(trim((string) $al))] = true;
                 }
                 contractorEnsureProduct($conn, $operation, $pn, 0.0);
             }
@@ -70,27 +76,25 @@ $products = getContractorProductsByOperation($operation, $conn);
 
 // CNC Contract Process: show only ERP KRA part names (same list as Production Planning KRA)
 if ($kraOnly && $kraNameSet) {
-    $filtered = [];
     $bestByKey = [];
     foreach ($products as $r) {
         $id = (int) ($r['id'] ?? 0);
-        if (isset($keepIds[$id])) {
-            $filtered[] = $r;
+        $forceKeep = isset($keepIds[$id]);
+        if (!$forceKeep && !contractorProductMatchesKraNames($r, $kraNameSet)) {
             continue;
         }
-        if (!contractorProductMatchesKraNames($r, $kraNameSet)) {
-            continue;
+        $raw = trim((string) ($r['product_name'] ?? ''));
+        if ($raw === '') {
+            $raw = trim((string) ($r['process'] ?? ''));
         }
-        $nk = strtolower(trim((string) ($r['product_name'] ?? '')));
+        $nk = contractorKraCanonicalKey($raw);
         if ($nk === '') {
-            $nk = strtolower(trim((string) ($r['process'] ?? '')));
+            $nk = 'id:' . $id;
         }
-        // Map aliases to canonical KRA key so ARMOR BODY / Armor Hydrant Body collapse
+        // Prefer ERP snapshot spelling as collapse key when available
         foreach (($erpSync['names'] ?? []) as $canon) {
-            $ck = strtolower(trim((string) $canon));
-            $aliases = array_map('strtolower', contractorKraPartNameAliases($canon));
-            if ($nk === $ck || in_array($nk, $aliases, true)) {
-                $nk = $ck;
+            if (contractorKraCanonicalKey($canon) === $nk) {
+                $nk = contractorKraCanonicalKey($canon);
                 break;
             }
         }
@@ -99,10 +103,7 @@ if ($kraOnly && $kraNameSet) {
             $bestByKey[$nk] = $r;
         }
     }
-    foreach ($bestByKey as $r) {
-        $filtered[] = $r;
-    }
-    $products = $filtered;
+    $products = array_values($bestByKey);
 }
 
 // Also pull keep_ids even if operation label drifted / duplicate was filtered
@@ -117,6 +118,22 @@ if ($keepIds) {
         $extra = $conn->query("SELECT * FROM contractor_products WHERE status = 1 AND id IN ($in)");
         if ($extra) {
             while ($row = $extra->fetch_assoc()) {
+                if ($kraOnly) {
+                    // Collapse into existing canonical row — never reintroduce Armor Hydrant Body #273
+                    $raw = trim((string) ($row['product_name'] ?? $row['process'] ?? ''));
+                    $nk = contractorKraCanonicalKey($raw);
+                    $dup = false;
+                    foreach ($products as $ex) {
+                        $exRaw = trim((string) ($ex['product_name'] ?? $ex['process'] ?? ''));
+                        if ($nk !== '' && $nk === contractorKraCanonicalKey($exRaw)) {
+                            $dup = true;
+                            break;
+                        }
+                    }
+                    if ($dup) {
+                        continue;
+                    }
+                }
                 $products[] = $row;
             }
         }
@@ -127,21 +144,29 @@ if ($keepIds) {
 if ($kraOnly && !empty($erpSync['names']) && strcasecmp($operation, 'CNC') === 0) {
     $order = [];
     foreach ($erpSync['names'] as $i => $pn) {
-        $order[strtolower(trim((string) $pn))] = $i;
-        foreach (contractorKraPartNameAliases($pn) as $al) {
+        $ck = contractorKraCanonicalKey($pn);
+        if ($ck !== '' && !isset($order[$ck])) {
+            $order[$ck] = $i;
+        }
+        foreach (contractorKraPartNameLookupCandidates($pn) as $al) {
             $k = strtolower(trim((string) $al));
-            if (!isset($order[$k])) {
+            if ($k !== '' && !isset($order[$k])) {
                 $order[$k] = $i;
             }
         }
     }
     $resolveOrder = static function ($row) use ($order) {
-        $candidates = [
-            strtolower(trim((string) ($row['product_name'] ?? ''))),
-            strtolower(trim((string) ($row['process'] ?? ''))),
-        ];
-        foreach ($candidates as $c) {
-            if ($c !== '' && isset($order[$c])) {
+        foreach (['product_name', 'process'] as $col) {
+            $raw = trim((string) ($row[$col] ?? ''));
+            if ($raw === '') {
+                continue;
+            }
+            $ck = contractorKraCanonicalKey($raw);
+            if ($ck !== '' && isset($order[$ck])) {
+                return $order[$ck];
+            }
+            $c = strtolower($raw);
+            if (isset($order[$c])) {
                 return $order[$c];
             }
         }
@@ -167,10 +192,14 @@ $outProducts = [];
 $seenLabels = [];
 $canonByKey = [];
 foreach (($erpSync['names'] ?? []) as $canon) {
-    $ck = strtolower(trim((string) $canon));
+    $ck = contractorKraCanonicalKey($canon);
+    if ($ck === '') {
+        continue;
+    }
     $canonByKey[$ck] = $canon;
-    foreach (contractorKraPartNameAliases($canon) as $al) {
+    foreach (contractorKraPartNameLookupCandidates($canon) as $al) {
         $canonByKey[strtolower(trim((string) $al))] = $canon;
+        $canonByKey[contractorKraCanonicalKey($al)] = $canon;
     }
 }
 foreach ($products as $r) {
@@ -185,10 +214,10 @@ foreach ($products as $r) {
     } else {
         $label = $process;
     }
-    // Clone KRA mode: show ERP part name casing (Lite Female, Armor Hydrant Body, …)
+    // Clone KRA mode: show ERP part name casing (Lite Female, Lurning Bush, …)
     if ($kraOnly && $label !== '') {
-        $lk = strtolower($name !== '' ? $name : $process);
-        if (isset($canonByKey[$lk])) {
+        $lk = contractorKraCanonicalKey($name !== '' ? $name : $process);
+        if ($lk !== '' && isset($canonByKey[$lk])) {
             $label = $canonByKey[$lk];
             $name = $label;
         }
@@ -196,12 +225,20 @@ foreach ($products as $r) {
     if ($label === '') {
         continue;
     }
-    $key = function_exists('mb_strtolower')
-        ? mb_strtolower($label, 'UTF-8')
-        : strtolower($label);
+    $key = $kraOnly
+        ? contractorKraCanonicalKey($label)
+        : (function_exists('mb_strtolower')
+            ? mb_strtolower($label, 'UTF-8')
+            : strtolower($label));
+    if ($key === '') {
+        $key = strtolower($label);
+    }
 
-    // Duplicate Contract Process labels: keep ALL ids (append #id for clarity).
+    // KRA mode: one row per ERP part — skip alias duplicates (no "#273" labels)
     if (isset($seenLabels[$key])) {
+        if ($kraOnly) {
+            continue;
+        }
         $label = $label . ' #' . $id;
     } else {
         $seenLabels[$key] = $id;

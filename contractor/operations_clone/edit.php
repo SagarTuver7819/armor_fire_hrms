@@ -67,9 +67,15 @@ if (strcasecmp($curOp, 'CNC') === 0) {
         }
     }
     $kraNameSet = [];
+    $canonLabelByKey = [];
     foreach (($kraSync['names'] ?? []) as $pn) {
-        $kraNameSet[strtolower(trim((string) $pn))] = true;
-        foreach (contractorKraPartNameAliases($pn) as $al) {
+        $ck = contractorKraCanonicalKey($pn);
+        if ($ck === '') {
+            continue;
+        }
+        $kraNameSet[$ck] = true;
+        $canonLabelByKey[$ck] = (string) $pn;
+        foreach (contractorKraPartNameLookupCandidates($pn) as $al) {
             $kraNameSet[strtolower(trim((string) $al))] = true;
         }
     }
@@ -79,20 +85,15 @@ if (strcasecmp($curOp, 'CNC') === 0) {
         if (!contractorProductMatchesKraNames($pr, $kraNameSet)) {
             continue;
         }
-        $nk = strtolower(trim((string) ($pr['product_name'] ?? '')));
+        $raw = trim((string) ($pr['product_name'] ?? ''));
+        if ($raw === '') {
+            $raw = trim((string) ($pr['process'] ?? ''));
+        }
+        $nk = contractorKraCanonicalKey($raw);
         if ($nk === '') {
-            $nk = strtolower(trim((string) ($pr['process'] ?? '')));
+            continue;
         }
-        $matchedCanon = (string) ($pr['product_name'] ?? $pr['process'] ?? '');
-        foreach (($kraSync['names'] ?? []) as $canon) {
-            $ck = strtolower(trim((string) $canon));
-            $aliases = array_map('strtolower', contractorKraPartNameAliases($canon));
-            if ($nk === $ck || in_array($nk, $aliases, true)) {
-                $nk = $ck;
-                $matchedCanon = (string) $canon;
-                break;
-            }
-        }
+        $matchedCanon = $canonLabelByKey[$nk] ?? $raw;
         $rate = (float) ($pr['rate'] ?? 0);
         if (!isset($best[$nk]) || $rate > (float) ($best[$nk]['rate'] ?? 0)) {
             $best[$nk] = $pr;
@@ -107,8 +108,8 @@ if (strcasecmp($curOp, 'CNC') === 0) {
     }
 
     foreach (($kraSync['names'] ?? []) as $canon) {
-        $ck = strtolower(trim((string) $canon));
-        if (!isset($best[$ck])) {
+        $ck = contractorKraCanonicalKey($canon);
+        if ($ck === '' || !isset($best[$ck])) {
             continue;
         }
         $pr = $best[$ck];
@@ -118,6 +119,25 @@ if (strcasecmp($curOp, 'CNC') === 0) {
             if ((int) ($it['product_id'] ?? 0) === $pid) {
                 $saved = $it;
                 break;
+            }
+        }
+        // Also accept saved qty under an alias product_id for the same part
+        if ($saved === null) {
+            foreach ($items as $it) {
+                $itPid = (int) ($it['product_id'] ?? 0);
+                if ($itPid <= 0) {
+                    continue;
+                }
+                foreach ($allCnc as $candPr) {
+                    if ((int) ($candPr['id'] ?? 0) !== $itPid) {
+                        continue;
+                    }
+                    $candKey = contractorKraCanonicalKey((string) ($candPr['product_name'] ?? $candPr['process'] ?? ''));
+                    if ($candKey === $ck) {
+                        $saved = $it;
+                        break 2;
+                    }
+                }
             }
         }
         $days = $saved['days'] ?? [];
@@ -139,33 +159,7 @@ if (strcasecmp($curOp, 'CNC') === 0) {
         ];
         unset($best[$ck]);
     }
-    foreach ($best as $pr) {
-        $pid = (int) ($pr['id'] ?? 0);
-        $saved = null;
-        foreach ($items as $it) {
-            if ((int) ($it['product_id'] ?? 0) === $pid) {
-                $saved = $it;
-                break;
-            }
-        }
-        $label = (string) ($pr['_canon'] ?? $pr['product_name'] ?? $pr['process'] ?? '');
-        $days = $saved['days'] ?? [];
-        $erpDays = contractorErpDaysForPartName($label, $erpDayQtyByPart);
-        $days = mergeErpKraDaysIntoMap(is_array($days) ? $days : [], $erpDays, true);
-        $kraPrefill[] = [
-            'product_id' => $pid,
-            'product_label' => $label,
-            'grade_id' => (int) ($saved['grade_id'] ?? 0),
-            'grade_name' => (string) ($saved['grade_name'] ?? ''),
-            'rate' => $saved !== null ? ($saved['rate'] ?? $pr['rate']) : ($pr['rate'] ?? 0),
-            'ot_rate' => $saved !== null ? ($saved['ot_rate'] ?? 0) : parseOtRate($pr['ot_text'] ?? ''),
-            'rejection_rate' => $saved !== null ? ($saved['rejection_rate'] ?? 0) : ($pr['rejection_rate'] ?? 0),
-            'days' => $days,
-            'total_qty' => $saved['total_qty'] ?? 0,
-            'total_r' => $saved['total_r'] ?? 0,
-            'total_amount' => $saved['total_amount'] ?? 0,
-        ];
-    }
+    // Do not append leftover alias duplicates (e.g. Turning Bush when ERP has Lurning Bush)
     if ($kraPrefill) {
         $items = $kraPrefill;
     }
