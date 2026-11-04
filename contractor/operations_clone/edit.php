@@ -42,12 +42,102 @@ $attMap = [];
 if (!empty($staffBundle['rows'])) {
     $attMap = getOpsCloneStaffAttendanceMap($staffBundle['rows'], $curMonth, $curYear, $conn);
 }
-$conn->close();
 
-$showGrade = contractorOperationShowsGrade($curOp);
-$showStaff = in_array($curOp, opsCloneStaffSalaryOperations(), true);
-$monthDays = (int) date('t', mktime(0, 0, 0, $curMonth, 1, $curYear));
 $items = $sheet['items'] ?? [];
+$kraAsOf = sprintf('%04d-%02d-02', $curYear, $curMonth);
+$kraPrefill = [];
+if (strcasecmp($curOp, 'CNC') === 0) {
+    // Auto rows = ERP CNC Production Planning KRA part names (fixed — no dropdown)
+    $kraSync = syncErpKraPartsToContractorProducts('CNC', $conn, $kraAsOf);
+    $kraNameSet = [];
+    foreach (($kraSync['names'] ?? []) as $pn) {
+        $kraNameSet[strtolower(trim((string) $pn))] = true;
+        foreach (contractorKraPartNameAliases($pn) as $al) {
+            $kraNameSet[strtolower(trim((string) $al))] = true;
+        }
+    }
+    $allCnc = getContractorProductsByOperation('CNC', $conn);
+    $best = [];
+    foreach ($allCnc as $pr) {
+        if (!contractorProductMatchesKraNames($pr, $kraNameSet)) {
+            continue;
+        }
+        $nk = strtolower(trim((string) ($pr['product_name'] ?? '')));
+        if ($nk === '') {
+            $nk = strtolower(trim((string) ($pr['process'] ?? '')));
+        }
+        $matchedCanon = (string) ($pr['product_name'] ?? $pr['process'] ?? '');
+        foreach (($kraSync['names'] ?? []) as $canon) {
+            $ck = strtolower(trim((string) $canon));
+            $aliases = array_map('strtolower', contractorKraPartNameAliases($canon));
+            if ($nk === $ck || in_array($nk, $aliases, true)) {
+                $nk = $ck;
+                $matchedCanon = (string) $canon;
+                break;
+            }
+        }
+        $rate = (float) ($pr['rate'] ?? 0);
+        if (!isset($best[$nk]) || $rate > (float) ($best[$nk]['rate'] ?? 0)) {
+            $best[$nk] = $pr;
+            $best[$nk]['_canon'] = $matchedCanon;
+        }
+    }
+    foreach (($kraSync['names'] ?? []) as $canon) {
+        $ck = strtolower(trim((string) $canon));
+        if (!isset($best[$ck])) {
+            continue;
+        }
+        $pr = $best[$ck];
+        $pid = (int) ($pr['id'] ?? 0);
+        $saved = null;
+        foreach ($items as $it) {
+            if ((int) ($it['product_id'] ?? 0) === $pid) {
+                $saved = $it;
+                break;
+            }
+        }
+        $kraPrefill[] = [
+            'product_id' => $pid,
+            'product_label' => (string) $canon,
+            'grade_id' => (int) ($saved['grade_id'] ?? 0),
+            'grade_name' => (string) ($saved['grade_name'] ?? ''),
+            'rate' => $saved !== null ? ($saved['rate'] ?? $pr['rate']) : ($pr['rate'] ?? 0),
+            'ot_rate' => $saved !== null ? ($saved['ot_rate'] ?? 0) : parseOtRate($pr['ot_text'] ?? ''),
+            'rejection_rate' => $saved !== null ? ($saved['rejection_rate'] ?? 0) : ($pr['rejection_rate'] ?? 0),
+            'days' => $saved['days'] ?? [],
+            'total_qty' => $saved['total_qty'] ?? 0,
+            'total_r' => $saved['total_r'] ?? 0,
+            'total_amount' => $saved['total_amount'] ?? 0,
+        ];
+        unset($best[$ck]);
+    }
+    foreach ($best as $pr) {
+        $pid = (int) ($pr['id'] ?? 0);
+        $saved = null;
+        foreach ($items as $it) {
+            if ((int) ($it['product_id'] ?? 0) === $pid) {
+                $saved = $it;
+                break;
+            }
+        }
+        $kraPrefill[] = [
+            'product_id' => $pid,
+            'product_label' => (string) ($pr['_canon'] ?? $pr['product_name'] ?? $pr['process'] ?? ''),
+            'grade_id' => (int) ($saved['grade_id'] ?? 0),
+            'grade_name' => (string) ($saved['grade_name'] ?? ''),
+            'rate' => $saved !== null ? ($saved['rate'] ?? $pr['rate']) : ($pr['rate'] ?? 0),
+            'ot_rate' => $saved !== null ? ($saved['ot_rate'] ?? 0) : parseOtRate($pr['ot_text'] ?? ''),
+            'rejection_rate' => $saved !== null ? ($saved['rejection_rate'] ?? 0) : ($pr['rejection_rate'] ?? 0),
+            'days' => $saved['days'] ?? [],
+            'total_qty' => $saved['total_qty'] ?? 0,
+            'total_r' => $saved['total_r'] ?? 0,
+            'total_amount' => $saved['total_amount'] ?? 0,
+        ];
+    }
+    if ($kraPrefill) {
+        $items = $kraPrefill;
+    }
+}
 if (!$items) {
     $items = [[
         'product_id' => 0,
@@ -61,6 +151,11 @@ if (!$items) {
         'total_amount' => 0,
     ]];
 }
+$conn->close();
+
+$showGrade = contractorOperationShowsGrade($curOp);
+$showStaff = in_array($curOp, opsCloneStaffSalaryOperations(), true);
+$monthDays = (int) date('t', mktime(0, 0, 0, $curMonth, 1, $curYear));
 
 $pageTitle = $sheet ? 'Edit Clone Operation Rate List' : 'Add Clone Operation Rate List';
 $useSidebar = true;
@@ -160,7 +255,13 @@ $otJson = json_encode(contractorOtRepairOps());
             </div>
 
             <div class="ops-toolbar">
+                <?php if (strcasecmp($curOp, 'CNC') !== 0): ?>
                 <button type="button" class="btn-primary" id="btnAddProduct"><i class="fa-solid fa-plus"></i> Add Product Row</button>
+                <?php else: ?>
+                <div class="ops-kra-hint" style="font-size:13px;color:#64748b;">
+                    <i class="fa-solid fa-link"></i> Contract Process = ERP CNC Production Planning KRA (fixed). Rate edit કરો; નવું ERP partname આપમેળે આવશે.
+                </div>
+                <?php endif; ?>
                 <div class="ops-live-summary">
                     <span class="ops-chip"><span id="sum_qty_lab">Qty</span> <b id="sum_qty">0</b></span>
                     <span class="ops-chip"><span id="sum_r_lab">R</span> <b id="sum_r">0</b></span>
@@ -204,14 +305,34 @@ $otJson = json_encode(contractorOtRepairOps());
                         }
                         $itemGradeName = trim((string) ($item['grade_name'] ?? ''));
                         ?>
-                        <tr class="ops-row" data-saved-product-id="<?php echo $itemProductId; ?>" data-saved-grade-id="<?php echo $itemGradeId; ?>">
+                        <tr class="ops-row<?php echo strcasecmp($curOp, 'CNC') === 0 ? ' ops-kra-fixed-row' : ''; ?>" data-saved-product-id="<?php echo $itemProductId; ?>" data-saved-grade-id="<?php echo $itemGradeId; ?>">
                             <td class="sticky-col sticky-action">
+                                <?php if (strcasecmp($curOp, 'CNC') !== 0): ?>
                                 <button type="button" class="btn-icon btn-remove-row" title="Delete row">
                                     <i class="fa-solid fa-trash-can"></i>
                                 </button>
+                                <?php else: ?>
+                                <span class="ops-kra-lock" title="ERP KRA fixed row"><i class="fa-solid fa-lock" style="color:#94a3b8;font-size:12px;"></i></span>
+                                <?php endif; ?>
                             </td>
                             <td class="sticky-col sticky-sr ops-sr"><?php echo $i + 1; ?></td>
                             <td class="sticky-col sticky-name">
+                                <?php if (strcasecmp($curOp, 'CNC') === 0): ?>
+                                <div class="ops-fixed-process" title="ERP CNC KRA part name"><?php echo htmlspecialchars($itemProductLabel !== '' ? $itemProductLabel : '—'); ?></div>
+                                <select name="items[<?php echo $i; ?>][product_id]" class="form-control product-select no-select2 ops-kra-hidden-select"
+                                        data-saved-label="<?php echo htmlspecialchars($itemProductLabel); ?>" tabindex="-1" aria-hidden="true">
+                                    <?php if ($itemProductId > 0): ?>
+                                        <option value="<?php echo $itemProductId; ?>" selected
+                                                data-rate="<?php echo htmlspecialchars((string) ($item['rate'] ?? 0)); ?>"
+                                                data-ot="<?php echo htmlspecialchars((string) ($item['ot_rate'] ?? 0)); ?>"
+                                                data-rej="<?php echo htmlspecialchars((string) ($item['rejection_rate'] ?? 0)); ?>">
+                                            <?php echo htmlspecialchars($itemProductLabel); ?>
+                                        </option>
+                                    <?php else: ?>
+                                        <option value="">Select Process</option>
+                                    <?php endif; ?>
+                                </select>
+                                <?php else: ?>
                                 <select name="items[<?php echo $i; ?>][product_id]" class="form-control product-select no-select2"
                                         data-saved-label="<?php echo htmlspecialchars($itemProductLabel); ?>">
                                     <option value="">Select Process</option>
@@ -224,6 +345,7 @@ $otJson = json_encode(contractorOtRepairOps());
                                         </option>
                                     <?php endif; ?>
                                 </select>
+                                <?php endif; ?>
                                 <input type="hidden" class="row-product-id" value="<?php echo $itemProductId; ?>">
                             </td>
                             <td class="sticky-col sticky-grade td-grade">
@@ -401,11 +523,9 @@ $otJson = json_encode(contractorOtRepairOps());
 <script>
     window.C_TOAST_MSG = <?php echo json_encode($toastMsg); ?>;
     window.OPS_PRODUCTS_URL = <?php echo json_encode(app_url('contractor/operations/products_json.php')); ?>;
-    window.OPS_KRA_PARTS = true; // Contract Process from ERP CNC Production Planning KRA
-    window.OPS_KRA_AS_OF = <?php
-        // Match ERP CNC Production Planning KRA date (e.g. 02/11/2026)
-        echo json_encode(sprintf('%04d-%02d-02', $curYear, $curMonth));
-    ?>;
+    window.OPS_KRA_PARTS = <?php echo strcasecmp($curOp, 'CNC') === 0 ? 'true' : 'false'; ?>;
+    window.OPS_KRA_FIXED = <?php echo strcasecmp($curOp, 'CNC') === 0 ? 'true' : 'false'; ?>; // fixed rows, no process dropdown
+    window.OPS_KRA_AS_OF = <?php echo json_encode($kraAsOf); ?>;
     window.OPS_REPAIR = <?php echo $repairJson; ?>;
     window.OPS_OT_REPAIR = <?php echo $otJson; ?>;
     window.OPS_GRADE_OPS = <?php echo json_encode(array_values(contractorShowGradeOps())); ?>;

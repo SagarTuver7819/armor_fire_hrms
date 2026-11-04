@@ -328,8 +328,158 @@
         });
     }
 
+    function isKraFixedMode() {
+        return !!window.OPS_KRA_FIXED && String(opVal() || '').toUpperCase() === 'CNC';
+    }
+
+    function setFixedProcessCell($sel, product) {
+        if (!$sel.length || !product) return;
+        var pid = String(product.id);
+        var label = product.name || ('Product #' + pid);
+        teardownOpsCombo($sel);
+        $sel.addClass('ops-kra-hidden-select no-select2')
+            .attr('tabindex', '-1')
+            .attr('aria-hidden', 'true')
+            .attr('data-saved-label', label)
+            .html(
+                '<option value="' + pid + '" selected'
+                + ' data-rate="' + (product.rate || 0) + '"'
+                + ' data-ot="' + (product.ot_rate || 0) + '"'
+                + ' data-rej="' + (product.rejection_rate || 0) + '"'
+                + ' data-process="' + $('<div/>').text(product.process || '').html() + '">'
+                + $('<div/>').text(label).html() + '</option>'
+            )
+            .val(pid);
+        var $td = $sel.closest('td');
+        var $lab = $td.find('.ops-fixed-process');
+        if (!$lab.length) {
+            $lab = $('<div class="ops-fixed-process" title="ERP CNC KRA part name"></div>');
+            $sel.before($lab);
+        }
+        $lab.text(label);
+        $sel.closest('tr').find('.row-product-id').val(pid);
+        $sel.closest('tr').attr('data-saved-product-id', pid).addClass('ops-kra-fixed-row');
+    }
+
+    /**
+     * CNC clone: rebuild grid as fixed ERP KRA part-name rows (no process dropdown).
+     * Preserves day qty / edited rate / grade per product_id.
+     */
+    function syncFixedKraRows() {
+        if (!isKraFixedMode() || !products.length) return;
+
+        var savedByPid = {};
+        $('#opsRows .ops-row').each(function () {
+            var $row = $(this);
+            var pid = nonzeroId($row.find('.row-product-id').val())
+                || nonzeroId($row.find('.product-select').val())
+                || nonzeroId($row.attr('data-saved-product-id'));
+            if (!pid) return;
+            var days = {};
+            $row.find('.day-cell').each(function () {
+                var d = String($(this).attr('data-day') || '');
+                if (!d) return;
+                days[d] = {
+                    q: $(this).find('.day-qty').val() || '',
+                    r: $(this).find('.day-qty-r').val() || '',
+                    ot: $(this).find('.day-qty-ot').val() || ''
+                };
+            });
+            savedByPid[pid] = {
+                rate: $row.find('.rate').val(),
+                gradeId: nonzeroId($row.find('.row-grade-id').val()) || nonzeroId($row.find('.grade-select').val()) || '',
+                ot: $row.find('.row-ot-rate').val(),
+                rej: $row.find('.row-rejection-rate').val(),
+                days: days,
+                rateTouched: $row.data('rate-touched') ? 1 : 0
+            };
+        });
+
+        var $template = $('#opsRows .ops-row').first();
+        if (!$template.length) return;
+
+        var built = [];
+        products.forEach(function (p) {
+            var pid = String(p.id);
+            var snap = savedByPid[pid] || null;
+            var $clone = $template.clone(false, false);
+            $clone.addClass('ops-kra-fixed-row');
+            $clone.attr('data-saved-product-id', pid);
+            $clone.find('.select2-container, .ops-combo-trigger, .ops-combo-panel').remove();
+            $clone.find('.btn-remove-row').remove();
+            $clone.find('td.sticky-action').html(
+                '<span class="ops-kra-lock" title="ERP KRA fixed row"><i class="fa-solid fa-lock" style="color:#94a3b8;font-size:12px;"></i></span>'
+            );
+
+            clearRowInputs($clone);
+            setFixedProcessCell($clone.find('.product-select'), p);
+
+            var rateVal = p.rate || 0;
+            if (snap && snap.rate !== undefined && snap.rate !== '' && parseFloat(snap.rate) > 0) {
+                rateVal = snap.rate;
+            }
+            $clone.find('.rate').val(rateVal);
+            $clone.find('.row-ot-rate').val(snap && snap.ot !== undefined && snap.ot !== '' ? snap.ot : (p.ot_rate || 0));
+            $clone.find('.row-rejection-rate').val(snap && snap.rej !== undefined && snap.rej !== '' ? snap.rej : (p.rejection_rate || 0));
+
+            if (snap && snap.days) {
+                Object.keys(snap.days).forEach(function (d) {
+                    var cell = snap.days[d] || {};
+                    var $day = $clone.find('.day-cell[data-day="' + d + '"]');
+                    $day.find('.day-qty').val(cell.q || '');
+                    $day.find('.day-qty-r').val(cell.r || '');
+                    $day.find('.day-qty-ot').val(cell.ot || '');
+                });
+            }
+
+            fillGradeSelect($clone.find('.grade-select'), snap ? snap.gradeId : '');
+            if (snap && snap.gradeId) {
+                $clone.find('.row-grade-id').val(snap.gradeId);
+                $clone.attr('data-saved-grade-id', snap.gradeId);
+            }
+            calculateRowTotals($clone);
+            built.push($clone[0]);
+        });
+
+        $('#opsRows').empty().append(built);
+        reindex();
+        applyDayEnable();
+        applyOpMode();
+        updateGrandTotals();
+    }
+
     function fillProductSelect($sel, selectedId) {
         if (!$sel.length) return;
+
+        // CNC clone fixed mode — never open process dropdown
+        if (isKraFixedMode()) {
+            selectedId = selectedId ? String(selectedId) : '';
+            if (selectedId === '0') selectedId = '';
+            var product = null;
+            if (selectedId) {
+                for (var i = 0; i < products.length; i++) {
+                    if (String(products[i].id) === selectedId) {
+                        product = products[i];
+                        break;
+                    }
+                }
+            }
+            if (!product && selectedId) {
+                product = {
+                    id: selectedId,
+                    name: ($sel.attr('data-saved-label') || ('Product #' + selectedId)),
+                    rate: $sel.closest('tr').find('.rate').val() || 0,
+                    ot_rate: $sel.closest('tr').find('.row-ot-rate').val() || 0,
+                    rejection_rate: $sel.closest('tr').find('.row-rejection-rate').val() || 0,
+                    process: ''
+                };
+            }
+            if (product) {
+                setFixedProcessCell($sel, product);
+            }
+            return;
+        }
+
         selectedId = selectedId ? String(selectedId) : '';
         if (selectedId === '0') selectedId = '';
 
@@ -436,26 +586,30 @@
                 products = (data && data.products) ? data.products : (Array.isArray(data) ? data : []);
                 grades = (data && data.grades) ? data.grades : [];
                 applyOpMode();
-                $('#opsRows .ops-row').each(function () {
-                    var $row = $(this);
-                    var sid = nonzeroId($row.find('.row-product-id').val())
-                        || nonzeroId($row.attr('data-saved-product-id'))
-                        || nonzeroId($row.find('.product-select').val());
-                    var gid = nonzeroId($row.find('.row-grade-id').val())
-                        || nonzeroId($row.attr('data-saved-grade-id'))
-                        || nonzeroId($row.find('.grade-select').val());
-                    fillProductSelect($row.find('.product-select'), sid);
-                    fillGradeSelect($row.find('.grade-select'), showsGrade() ? gid : '');
-                    var $opt = $row.find('.product-select option:selected');
-                    if ($opt.val()) {
-                        if (!$row.find('.rate').val() || parseFloat($row.find('.rate').val()) === 0) {
-                            $row.find('.rate').val($opt.attr('data-rate') || 0);
-                            $row.find('.row-ot-rate').val($opt.attr('data-ot') || 0);
-                            $row.find('.row-rejection-rate').val($opt.attr('data-rej') || 0);
+                if (isKraFixedMode()) {
+                    syncFixedKraRows();
+                } else {
+                    $('#opsRows .ops-row').each(function () {
+                        var $row = $(this);
+                        var sid = nonzeroId($row.find('.row-product-id').val())
+                            || nonzeroId($row.attr('data-saved-product-id'))
+                            || nonzeroId($row.find('.product-select').val());
+                        var gid = nonzeroId($row.find('.row-grade-id').val())
+                            || nonzeroId($row.attr('data-saved-grade-id'))
+                            || nonzeroId($row.find('.grade-select').val());
+                        fillProductSelect($row.find('.product-select'), sid);
+                        fillGradeSelect($row.find('.grade-select'), showsGrade() ? gid : '');
+                        var $opt = $row.find('.product-select option:selected');
+                        if ($opt.val()) {
+                            if (!$row.find('.rate').val() || parseFloat($row.find('.rate').val()) === 0) {
+                                $row.find('.rate').val($opt.attr('data-rate') || 0);
+                                $row.find('.row-ot-rate').val($opt.attr('data-ot') || 0);
+                                $row.find('.row-rejection-rate').val($opt.attr('data-rej') || 0);
+                            }
+                            $row.find('.row-product-id').val($opt.val());
                         }
-                        $row.find('.row-product-id').val($opt.val());
-                    }
-                });
+                    });
+                }
                 if (typeof cb === 'function') cb();
                 recalcAll();
             })
@@ -703,7 +857,13 @@
         reindex();
         updateGrandTotals();
     }
+    $('#opsRows').on('input', '.rate', function () {
+        $(this).closest('tr').data('rate-touched', 1);
+    });
     $('#opsRows').on('click', '.btn-remove-row', function () {
+        if (isKraFixedMode() || $(this).closest('tr').hasClass('ops-kra-fixed-row')) {
+            return;
+        }
         if ($('#opsRows .ops-row').length <= 1) {
             if (window.ConfirmDelete) {
                 window.ConfirmDelete.ask('At least one product row is required.', null, {
@@ -792,6 +952,9 @@
      * (Old code destroyed + refilled row #1 → edit screens could lose product selection.)
      */
     $('#btnAddProduct').on('click', function () {
+        if (isKraFixedMode()) {
+            return; // CNC KRA rows are fixed from ERP — no manual add
+        }
         var $template = $('#opsRows .ops-row').first();
         if (!$template.length) return;
 
