@@ -66,15 +66,15 @@ $dateShow = dateInputValue($row['sop_date'] ?? date('Y-m-d'));
         </a>
     </div>
 
-    <div class="form-page-card">
+    <div class="form-page-card master-form-card sop-form">
         <div class="form-page-header">
             <div class="master-list-title">
-                <div class="master-list-icon" style="background:#1d4ed8;">
+                <div class="master-list-icon" style="background:#d2232a;">
                     <i class="fa-solid fa-file-signature"></i>
                 </div>
                 <div>
                     <h1><?php echo htmlspecialchars($pageTitle); ?></h1>
-                    <p>Fill the fields. Letterhead opens after save.</p>
+                    <p>CNC SOP · fields here · letterhead after save</p>
                 </div>
             </div>
         </div>
@@ -85,13 +85,14 @@ $dateShow = dateInputValue($row['sop_date'] ?? date('Y-m-d'));
             </div>
         <?php endif; ?>
 
-        <form method="post" action="<?php echo app_url('sop/save.php'); ?>" id="sopForm" autocomplete="off">
+        <form method="post" action="<?php echo app_url('sop/save.php'); ?>" id="sopForm" class="employee-form" autocomplete="off">
             <input type="hidden" name="id" value="<?php echo (int) $id; ?>">
             <input type="hidden" name="department_id" value="<?php echo $deptId; ?>">
             <input type="hidden" name="signature_data" id="signatureData" value="">
             <input type="hidden" name="clear_signature" id="clearSignature" value="0">
 
             <div class="form-section">
+                <h3><i class="fa-solid fa-file-lines"></i> SOP Details</h3>
                 <div class="form-grid">
                     <div class="form-group">
                         <label for="sopTitle">SOP Title <span class="req">*</span></label>
@@ -113,27 +114,37 @@ $dateShow = dateInputValue($row['sop_date'] ?? date('Y-m-d'));
                         <input type="text" name="department_name" id="sopDept" class="form-control" required maxlength="150"
                                value="<?php echo $val('department_name'); ?>">
                     </div>
-                    <div class="form-group" style="grid-column:1 / -1;">
-                        <label for="sopBody">Body <span class="req">*</span></label>
-                        <textarea name="body" id="sopBody" class="form-control" required rows="10"
-                                  placeholder="Write the SOP description. Add as much as needed."><?php echo $val('body'); ?></textarea>
-                    </div>
+                </div>
+            </div>
+
+            <div class="form-section">
+                <h3><i class="fa-solid fa-align-left"></i> Description</h3>
+                <div class="form-group full">
+                    <label for="sopBody">Body <span class="req">*</span></label>
+                    <textarea name="body" id="sopBody" class="form-control" required rows="8"
+                              placeholder="Write the SOP description. Add as much as needed."><?php echo $val('body'); ?></textarea>
+                </div>
+            </div>
+
+            <div class="form-section">
+                <h3><i class="fa-solid fa-signature"></i> Authorized Signature</h3>
+                <div class="form-grid">
                     <div class="form-group">
                         <label for="sopSigner">Authorized Person</label>
                         <input type="text" name="signer_name" id="sopSigner" class="form-control" maxlength="150"
                                placeholder="Name under the signature" value="<?php echo $val('signer_name'); ?>">
                     </div>
                     <div class="form-group">
-                        <label>Authorized Signature</label>
-                        <div style="border:1px solid #cbd5e1;border-radius:8px;background:#fff;height:140px;">
-                            <canvas id="sopPad" width="640" height="280" style="width:100%;height:140px;display:block;touch-action:none;cursor:crosshair;"></canvas>
+                        <label>Draw signature</label>
+                        <div class="sop-sign-pad">
+                            <canvas id="sopPad" width="640" height="280"></canvas>
                         </div>
-                        <button type="button" class="btn-secondary" id="sopPadClear" style="margin-top:8px;">Clear signature</button>
+                        <button type="button" class="btn-secondary" id="sopPadClear">Clear signature</button>
                     </div>
                 </div>
             </div>
 
-            <div class="form-actions" style="display:flex;gap:8px;margin-top:8px;">
+            <div class="form-actions">
                 <button type="submit" class="btn-primary"><i class="fa-solid fa-check"></i> Save</button>
                 <a href="<?php echo app_url('sop/index.php?department_id=' . $deptId); ?>" class="btn-secondary">Cancel</a>
             </div>

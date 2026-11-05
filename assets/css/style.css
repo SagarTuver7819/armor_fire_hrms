@@ -12313,3 +12313,40 @@ body.co-about-open { overflow: hidden; }
 @media (max-width: 900px) {
     .pa-settings-row { grid-template-columns: 1fr; }
 }
+
+/* CNC SOP form — Armor theme */
+.sop-form .req {
+    color: var(--brand);
+    margin-left: 2px;
+}
+.sop-form .form-section h3 {
+    margin-bottom: 14px;
+}
+.sop-form textarea.form-control {
+    min-height: 180px;
+    line-height: 1.55;
+}
+.sop-sign-pad {
+    height: 150px;
+    border: 1.5px dashed var(--brand);
+    border-radius: 12px;
+    background: var(--brand-hover);
+    overflow: hidden;
+}
+.sop-sign-pad canvas {
+    width: 100%;
+    height: 150px;
+    display: block;
+    touch-action: none;
+    cursor: crosshair;
+}
+.sop-form #sopPadClear {
+    margin-top: 8px;
+}
+.sop-list .data-table th {
+    background: var(--brand-soft);
+    color: var(--brand-dark);
+}
+.sop-list .btn-secondary {
+    margin: 0 2px 4px 0;
+}

@@ -209,7 +209,7 @@ if ($department) {
                 </a>
                 <?php if ($cncHideModules): ?>
                 <a href="<?php echo app_url('sop/index.php?department_id=' . (int) $department['id']); ?>" class="module-card">
-                    <div class="module-icon" style="background-color: #1d4ed8;">
+                    <div class="module-icon" style="background-color: #d2232a;">
                         <i class="fa-solid fa-file-signature"></i>
                     </div>
                     <div class="module-label">SOP</div>

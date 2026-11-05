@@ -48,10 +48,10 @@ if (isset($_GET['msg'])) {
         <?php endif; ?>
     </div>
 
-    <div class="form-page-card">
+    <div class="form-page-card sop-list">
         <div class="form-page-header">
             <div class="master-list-title">
-                <div class="master-list-icon" style="background:#1d4ed8;">
+                <div class="master-list-icon" style="background:#d2232a;">
                     <i class="fa-solid fa-file-signature"></i>
                 </div>
                 <div>
