@@ -6349,9 +6349,10 @@ body > .select2-container .select2-dropdown {
 
 .ops-clone-staff-att-table th,
 .ops-clone-staff-att-table td {
+    box-sizing: border-box;
     border-bottom: 1px solid #e2e8f0;
     border-right: 1px solid #e2e8f0;
-    padding: 8px 10px;
+    padding: 7px 8px;
     white-space: nowrap;
     vertical-align: middle;
     background: #fff;
@@ -6362,12 +6363,14 @@ body > .select2-container .select2-dropdown {
     position: sticky;
     top: 0;
     z-index: 5;
-    height: 52px;
+    height: auto;
+    min-height: 48px;
     font-size: 12px;
     font-weight: 700;
-    line-height: 1.2;
+    line-height: 1.15;
     text-align: center;
     color: #831843;
+    white-space: normal;
 }
 
 .ops-clone-staff-att-table .sticky-staff {
@@ -6381,17 +6384,17 @@ body > .select2-container .select2-dropdown {
     z-index: 6;
 }
 
-.ops-clone-staff-att-table .sticky-sr { left: 0; width: 48px; min-width: 48px; max-width: 48px; text-align: center; padding-left: 6px; padding-right: 6px; }
-.ops-clone-staff-att-table .sticky-code { left: 48px; width: 108px; min-width: 108px; max-width: 108px; text-align: center; }
-.ops-clone-staff-att-table .sticky-name { left: 156px; width: 250px; min-width: 250px; max-width: 250px; text-align: left; overflow: hidden; text-overflow: ellipsis; }
-.ops-clone-staff-att-table .sticky-sal { left: 406px; width: 92px; min-width: 92px; max-width: 92px; text-align: right; font-variant-numeric: tabular-nums; }
-.ops-clone-staff-att-table .sticky-pdays { left: 498px; width: 78px; min-width: 78px; max-width: 78px; text-align: center; font-variant-numeric: tabular-nums; color: #166534; font-weight: 700; padding-left: 4px; padding-right: 4px; }
-.ops-clone-staff-att-table .sticky-adays { left: 576px; width: 78px; min-width: 78px; max-width: 78px; text-align: center; font-variant-numeric: tabular-nums; color: #b91c1c; font-weight: 700; padding-left: 4px; padding-right: 4px; }
+.ops-clone-staff-att-table .sticky-sr { left: 0; width: 46px; min-width: 46px; max-width: 46px; text-align: center; padding-left: 4px; padding-right: 4px; }
+.ops-clone-staff-att-table .sticky-code { left: 46px; width: 112px; min-width: 112px; max-width: 112px; text-align: center; }
+.ops-clone-staff-att-table .sticky-name { left: 158px; width: 228px; min-width: 228px; max-width: 228px; text-align: left; overflow: hidden; text-overflow: ellipsis; }
+.ops-clone-staff-att-table .sticky-sal { left: 386px; width: 88px; min-width: 88px; max-width: 88px; text-align: right; font-variant-numeric: tabular-nums; }
+.ops-clone-staff-att-table .sticky-pdays { left: 474px; width: 68px; min-width: 68px; max-width: 68px; text-align: center; font-variant-numeric: tabular-nums; color: #166534; font-weight: 700; padding-left: 4px; padding-right: 4px; }
+.ops-clone-staff-att-table .sticky-adays { left: 542px; width: 68px; min-width: 68px; max-width: 68px; text-align: center; font-variant-numeric: tabular-nums; color: #b91c1c; font-weight: 700; padding-left: 4px; padding-right: 4px; }
 .ops-clone-staff-att-table .sticky-loan {
-    left: 654px;
-    width: 90px;
-    min-width: 90px;
-    max-width: 90px;
+    left: 610px;
+    width: 78px;
+    min-width: 78px;
+    max-width: 78px;
     text-align: right;
     font-variant-numeric: tabular-nums;
     color: #b45309;
@@ -6400,10 +6403,10 @@ body > .select2-container .select2-dropdown {
     padding-right: 4px;
 }
 .ops-clone-staff-att-table .sticky-hk {
-    left: 744px;
-    width: 148px;
-    min-width: 148px;
-    max-width: 148px;
+    left: 688px;
+    width: 158px;
+    min-width: 158px;
+    max-width: 158px;
     text-align: right;
     font-variant-numeric: tabular-nums;
     color: #9a3412;
@@ -6419,8 +6422,12 @@ body > .select2-container .select2-dropdown {
     justify-content: flex-end;
     gap: 4px;
 }
+.ops-clone-staff-att-table thead .sticky-hk span,
+.ops-clone-staff-att-table thead .sticky-expense span {
+    display: block;
+}
 .ops-clone-staff-att-table .hk-expense-input {
-    width: 96px;
+    width: 108px;
     height: 28px;
     text-align: right;
     font-weight: 700;
@@ -6439,10 +6446,10 @@ body > .select2-container .select2-dropdown {
     line-height: 1;
 }
 .ops-clone-staff-att-table .sticky-expense {
-    left: 892px;
-    width: 108px;
-    min-width: 108px;
-    max-width: 108px;
+    left: 846px;
+    width: 104px;
+    min-width: 104px;
+    max-width: 104px;
     text-align: right;
     font-variant-numeric: tabular-nums;
     color: #9a3412;
@@ -6451,13 +6458,16 @@ body > .select2-container .select2-dropdown {
     padding-right: 4px;
 }
 .ops-clone-staff-att-table.show-buff-loan .sticky-final {
-    left: 1000px;
+    left: 950px;
+    width: 112px;
+    min-width: 112px;
+    max-width: 112px;
 }
 .ops-clone-staff-att-table .sticky-final {
-    left: 654px;
-    width: 118px;
-    min-width: 118px;
-    max-width: 118px;
+    left: 610px;
+    width: 112px;
+    min-width: 112px;
+    max-width: 112px;
     box-shadow: 4px 0 8px rgba(15, 23, 42, 0.08);
     text-align: right;
     font-weight: 700;

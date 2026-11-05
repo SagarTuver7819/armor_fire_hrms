@@ -255,8 +255,8 @@ if ($isBuffReport) {
     $staffShares = $loanCut['shares'];
     $staffLoanById = $loanCut['by_id'];
 }
-$staffBuffExpense = $isBuffReport ? fetchErpBuffDeptExpense($curYear, $curMonth) : 0.0;
-$staffHousekeeping = $isBuffReport ? fetchBuffHousekeepingAmount($curYear, $curMonth, $conn) : 0.0;
+$staffBuffExpense = $isBuffReport ? round(fetchErpBuffDeptExpense($curYear, $curMonth)) : 0.0;
+$staffHousekeeping = $isBuffReport ? round(fetchBuffHousekeepingAmount($curYear, $curMonth, $conn)) : 0.0;
 $staffHousekeepingHasHistory = $isBuffReport && buffHousekeepingHasHistory($conn, $curMonth, $curYear);
 $staffPool = 0.0;
 foreach ($items as $poolItem) {
@@ -630,7 +630,7 @@ $otJson = json_encode(contractorOtRepairOps());
             <input type="hidden" name="staff_att_json" id="staffAttJson" value="">
 
             <div class="ops-clone-staff-wrap">
-                <table class="ops-clone-staff-att-table<?php echo $isBuffReport ? ' show-buff-loan' : ''; ?>" id="opsCloneStaffAttTable" data-buff-expense="<?php echo htmlspecialchars(number_format((float) $staffBuffExpense, 2, '.', '')); ?>" data-housekeeping="<?php echo htmlspecialchars(number_format((float) $staffHousekeeping, 2, '.', '')); ?>">
+                <table class="ops-clone-staff-att-table<?php echo $isBuffReport ? ' show-buff-loan' : ''; ?>" id="opsCloneStaffAttTable" data-buff-expense="<?php echo htmlspecialchars(number_format((float) $staffBuffExpense, 0, '.', '')); ?>" data-housekeeping="<?php echo htmlspecialchars(number_format((float) $staffHousekeeping, 0, '.', '')); ?>">
                     <thead>
                         <tr>
                             <th class="sticky-staff sticky-sr">Sr.</th>
@@ -641,8 +641,8 @@ $otJson = json_encode(contractorOtRepairOps());
                             <th class="sticky-staff sticky-adays num">A Days</th>
                             <?php if ($isBuffReport): ?>
                             <th class="sticky-staff sticky-loan num">Loan</th>
-                            <th class="sticky-staff sticky-hk num">House keeping Expense</th>
-                            <th class="sticky-staff sticky-expense num">Buff Expense</th>
+                            <th class="sticky-staff sticky-hk num"><span>House keeping</span><span>Expense</span></th>
+                            <th class="sticky-staff sticky-expense num"><span>Buff</span><span>Expense</span></th>
                             <?php endif; ?>
                             <th class="sticky-staff sticky-final num">Final Total</th>
                             <?php for ($d = 1; $d <= $monthDays; $d++):
@@ -676,8 +676,8 @@ $otJson = json_encode(contractorOtRepairOps());
                                 $empDays = $attMap[$sid] ?? [];
                                 $share = $staffSplit['shares'][$sid] ?? null;
                                 $finalAmt = $isMainRow
-                                    ? round((float) ($staffSplit['remainder'] ?? 0) - (float) $staffBuffExpense - (float) $staffHousekeeping, 2)
-                                    : (float) ($share['final'] ?? 0);
+                                    ? round((float) ($staffSplit['remainder'] ?? 0)) - (float) $staffBuffExpense - (float) $staffHousekeeping
+                                    : round((float) ($share['final'] ?? 0));
                                 $staffFinalSum += $finalAmt;
                                 $pDays = 0;
                                 $aDays = 0;
@@ -699,7 +699,7 @@ $otJson = json_encode(contractorOtRepairOps());
                                 $finalTitle = $isMainRow
                                     ? ('Contract total minus staff salary, plus staff loan'
                                         . ($rowExpense > 0 ? ' − Buff Expense ' . number_format($rowExpense, 2, '.', '') : '')
-                                        . ($staffHousekeeping > 0 ? ' − House keeping ' . number_format((float) $staffHousekeeping, 2, '.', '') : ''))
+                                        . ($staffHousekeeping > 0 ? ' − House keeping ' . number_format((float) $staffHousekeeping, 0, '.', '') : ''))
                                     : ('Salary ' . number_format((float) ($share['salary'] ?? 0), 2, '.', '')
                                         . ' / ' . (int) ($share['working_days'] ?? 0) . ' working days × '
                                         . (float) ($share['paid_days'] ?? 0) . ' P days'
@@ -713,24 +713,24 @@ $otJson = json_encode(contractorOtRepairOps());
                                     <td class="sticky-staff sticky-pdays num staff-p-days"><?php echo (int) $pDays; ?></td>
                                     <td class="sticky-staff sticky-adays num staff-a-days"><?php echo (int) $aDays; ?></td>
                                     <?php if ($isBuffReport): ?>
-                                    <td class="sticky-staff sticky-loan num"><?php echo $rowLoan > 0 ? number_format($rowLoan, 2, '.', '') : ''; ?></td>
+                                    <td class="sticky-staff sticky-loan num"><?php echo $rowLoan > 0 ? number_format(round($rowLoan), 0, '.', '') : ''; ?></td>
                                     <td class="sticky-staff sticky-hk num">
                                         <?php if ($isMainRow): ?>
                                         <span class="hk-box">
-                                            <input type="number" step="0.01" min="0" class="hk-expense-input" id="opsHkInput"
-                                                   data-saved="<?php echo htmlspecialchars(number_format((float) $staffHousekeeping, 2, '.', '')); ?>"
+                                            <input type="number" step="1" min="0" class="hk-expense-input" id="opsHkInput"
+                                                   data-saved="<?php echo htmlspecialchars(number_format((float) $staffHousekeeping, 0, '.', '')); ?>"
                                                    data-has-history="<?php echo $staffHousekeepingHasHistory ? '1' : '0'; ?>"
-                                                   value="<?php echo htmlspecialchars(number_format((float) $staffHousekeeping, 2, '.', '')); ?>"
+                                                   value="<?php echo htmlspecialchars(number_format((float) $staffHousekeeping, 0, '.', '')); ?>"
                                                    title="House keeping expense. Main Contractor final mathi minus.">
                                             <button type="button" class="hk-history-btn" id="opsHkHistory" title="History"><i class="fa-solid fa-clock-rotate-left"></i></button>
                                         </span>
                                         <?php endif; ?>
                                     </td>
-                                    <td class="sticky-staff sticky-expense num"><?php echo $rowExpense > 0 ? number_format($rowExpense, 2, '.', '') : ''; ?></td>
+                                    <td class="sticky-staff sticky-expense num"><?php echo $rowExpense > 0 ? number_format(round($rowExpense), 0, '.', '') : ''; ?></td>
                                     <?php endif; ?>
                                     <td class="sticky-staff sticky-final num staff-final<?php echo $isMainRow ? ' is-remainder' : ''; ?>"
                                         <?php echo $isMainRow ? 'data-main="1"' : 'data-base="' . htmlspecialchars((string) $baseAmt) . '"'; ?>
-                                        title="<?php echo htmlspecialchars($finalTitle); ?>"><?php echo number_format($finalAmt, 2, '.', ''); ?></td>
+                                        title="<?php echo htmlspecialchars($finalTitle); ?>"><?php echo number_format($finalAmt, 0, '.', ''); ?></td>
                                     <?php for ($d = 1; $d <= $monthDays; $d++):
                                         $date = sprintf('%04d-%02d-%02d', $curYear, $curMonth, $d);
                                         $code = opsCloneAttCodeFromDay($empDays[$date] ?? null);
@@ -775,11 +775,11 @@ $otJson = json_encode(contractorOtRepairOps());
                             <td class="sticky-staff sticky-pdays num" id="opsStaffPSum"><?php echo (int) $staffPSum; ?></td>
                             <td class="sticky-staff sticky-adays num" id="opsStaffASum"><?php echo (int) $staffASum; ?></td>
                             <?php if ($isBuffReport): ?>
-                            <td class="sticky-staff sticky-loan num"><?php echo $staffLoanSum > 0 ? number_format($staffLoanSum, 2, '.', '') : ''; ?></td>
-                            <td class="sticky-staff sticky-hk num" id="opsHkSum"><?php echo $staffHousekeeping > 0 ? number_format((float) $staffHousekeeping, 2, '.', '') : ''; ?></td>
-                            <td class="sticky-staff sticky-expense num"><?php echo $staffBuffExpense > 0 ? number_format((float) $staffBuffExpense, 2, '.', '') : ''; ?></td>
+                            <td class="sticky-staff sticky-loan num"><?php echo $staffLoanSum > 0 ? number_format(round($staffLoanSum), 0, '.', '') : ''; ?></td>
+                            <td class="sticky-staff sticky-hk num" id="opsHkSum"><?php echo $staffHousekeeping > 0 ? number_format((float) $staffHousekeeping, 0, '.', '') : ''; ?></td>
+                            <td class="sticky-staff sticky-expense num"><?php echo $staffBuffExpense > 0 ? number_format((float) $staffBuffExpense, 0, '.', '') : ''; ?></td>
                             <?php endif; ?>
-                            <td class="sticky-staff sticky-final num" id="opsStaffFinalSum"><?php echo number_format($staffFinalSum, 2, '.', ''); ?></td>
+                            <td class="sticky-staff sticky-final num" id="opsStaffFinalSum"><?php echo number_format($staffFinalSum, 0, '.', ''); ?></td>
                             <td colspan="<?php echo (int) $monthDays; ?>"></td>
                         </tr>
                     </tfoot>
@@ -915,21 +915,21 @@ $otJson = json_encode(contractorOtRepairOps());
                 else amt = Math.round(base * scale * 100) / 100;
                 if (amt < 0) amt = 0;
                 distributed += amt;
-                td.textContent = amt.toFixed(2);
+                td.textContent = String(Math.round(amt));
             });
             distributed = Math.round(distributed * 100) / 100;
             var expenseTable = document.getElementById('opsCloneStaffAttTable');
             var expense = expenseTable ? (parseFloat(expenseTable.getAttribute('data-buff-expense')) || 0) : 0;
             var housekeeping = expenseTable ? (parseFloat(expenseTable.getAttribute('data-housekeeping')) || 0) : 0;
-            var rem = Math.round((pool - distributed - expense - housekeeping) * 100) / 100;
+            var rem = Math.round(pool - distributed) - Math.round(expense) - Math.round(housekeeping);
             var mainTd = document.querySelector('#opsCloneStaffAttTable td.staff-final[data-main="1"]');
-            if (mainTd) mainTd.textContent = rem.toFixed(2);
+            if (mainTd) mainTd.textContent = String(rem);
             var grand = 0;
             document.querySelectorAll('#opsCloneStaffAttTable td.staff-final').forEach(function (td) {
                 grand += parseFloat(td.textContent) || 0;
             });
             var sumEl = document.getElementById('opsStaffFinalSum');
-            if (sumEl) sumEl.textContent = (Math.round(grand * 100) / 100).toFixed(2);
+            if (sumEl) sumEl.textContent = String(Math.round(grand));
         };
 
         (function setupHousekeeping() {
@@ -942,7 +942,7 @@ $otJson = json_encode(contractorOtRepairOps());
             var pending = null;
 
             function money(n) {
-                n = Math.round((parseFloat(n) || 0) * 100) / 100;
+                n = Math.round(parseFloat(n) || 0);
                 if (n < 0) n = 0;
                 return n;
             }
@@ -951,13 +951,13 @@ $otJson = json_encode(contractorOtRepairOps());
             }
             function applyAmount(amount) {
                 amount = money(amount);
-                input.value = amount.toFixed(2);
-                input.setAttribute('data-saved', amount.toFixed(2));
+                input.value = String(amount);
+                input.setAttribute('data-saved', String(amount));
                 input.setAttribute('data-has-history', '1');
                 var table = document.getElementById('opsCloneStaffAttTable');
-                if (table) table.setAttribute('data-housekeeping', amount.toFixed(2));
+                if (table) table.setAttribute('data-housekeeping', String(amount));
                 var foot = document.getElementById('opsHkSum');
-                if (foot) foot.textContent = amount > 0 ? amount.toFixed(2) : '';
+                if (foot) foot.textContent = amount > 0 ? String(amount) : '';
                 var poolEl = document.getElementById('opsStaffPool');
                 var pool = poolEl ? parseFloat(poolEl.textContent) : 0;
                 if (window.opsOnGrandTotal) window.opsOnGrandTotal(pool || 0);
@@ -971,7 +971,7 @@ $otJson = json_encode(contractorOtRepairOps());
                         return { '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c];
                     });
                     return '<li><div class="ops-rh-meta">' + when + ' · ' + who + '</div>'
-                        + '<div class="ops-rh-rates">' + money(r.old_amount).toFixed(2) + ' → <b>' + money(r.new_amount).toFixed(2) + '</b></div>'
+                        + '<div class="ops-rh-rates">' + money(r.old_amount) + ' → <b>' + money(r.new_amount) + '</b></div>'
                         + '<div class="ops-rh-rem">' + rem + '</div></li>';
                 }).join('');
             }
@@ -989,7 +989,7 @@ $otJson = json_encode(contractorOtRepairOps());
             }
             function closeModal(revert) {
                 if (revert && pending) {
-                    input.value = money(pending.oldAmount).toFixed(2);
+                    input.value = String(money(pending.oldAmount));
                 }
                 pending = null;
                 if (modal) modal.setAttribute('hidden', 'hidden');
@@ -1028,8 +1028,8 @@ $otJson = json_encode(contractorOtRepairOps());
             function openModal(oldAmount, newAmount, viewOnly) {
                 ensureModal();
                 pending = viewOnly ? null : { oldAmount: oldAmount, newAmount: newAmount };
-                document.getElementById('opsHkOld').textContent = money(oldAmount).toFixed(2);
-                document.getElementById('opsHkNew').textContent = money(newAmount).toFixed(2);
+                document.getElementById('opsHkOld').textContent = String(money(oldAmount));
+                document.getElementById('opsHkNew').textContent = String(money(newAmount));
                 document.getElementById('opsHkRemark').value = '';
                 document.getElementById('opsHkErr').setAttribute('hidden', 'hidden');
                 document.getElementById('opsHkSave').style.display = viewOnly ? 'none' : '';
@@ -1077,7 +1077,7 @@ $otJson = json_encode(contractorOtRepairOps());
             function commitInput() {
                 var next = money(input.value);
                 var prev = savedAmount();
-                input.value = next.toFixed(2);
+                input.value = String(next);
                 if (Math.abs(next - prev) < 0.001) return;
                 var first = prev === 0 && input.getAttribute('data-has-history') !== '1';
                 if (first) {
@@ -1085,7 +1085,7 @@ $otJson = json_encode(contractorOtRepairOps());
                         applyAmount(data.amount);
                         if (window.toastr) toastr.success('House keeping expense Main Contractor mathi minus thai gayu.');
                     }).catch(function () {
-                        input.value = prev.toFixed(2);
+                        input.value = String(prev);
                     });
                     return;
                 }
