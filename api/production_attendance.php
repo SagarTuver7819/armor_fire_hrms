@@ -21,6 +21,10 @@ if ($dept === '') {
 }
 
 $conn = getDBConnection();
+$asOf = trim((string)($_GET['date'] ?? ''));
+if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $asOf)) {
+    $asOf = date('Y-m-d');
+}
 $salaryExpr = 'NULL AS decided_salary';
 $colRes = $conn->query("SHOW COLUMNS FROM employees LIKE 'decided_salary'");
 if ($colRes && $colRes->num_rows > 0) {
@@ -29,8 +33,31 @@ if ($colRes && $colRes->num_rows > 0) {
 if ($colRes) {
     $colRes->free();
 }
+$weekExpr = "'' AS week_off_day";
+$weekBindDate = false;
+$weekCol = $conn->query("SHOW COLUMNS FROM employees LIKE 'week_off_day'");
+$hasWeekCol = $weekCol && $weekCol->num_rows > 0;
+if ($weekCol) {
+    $weekCol->free();
+}
+$hist = $conn->query("SHOW TABLES LIKE 'employee_week_off_history'");
+$hasHist = $hist && $hist->num_rows > 0;
+if ($hist) {
+    $hist->free();
+}
+if ($hasWeekCol && $hasHist) {
+    $weekExpr = "COALESCE((
+        SELECT h.week_off_day FROM employee_week_off_history h
+        WHERE h.employee_id = employees.id AND h.effective_from <= ?
+        ORDER BY h.effective_from DESC, h.id DESC
+        LIMIT 1
+    ), week_off_day) AS week_off_day";
+    $weekBindDate = true;
+} elseif ($hasWeekCol) {
+    $weekExpr = 'week_off_day';
+}
 $stmt = $conn->prepare(
-    "SELECT employee_code, employee_name, {$salaryExpr}
+    "SELECT employee_code, employee_name, {$salaryExpr}, {$weekExpr}
      FROM employees
      WHERE (status = 1 OR LOWER(CAST(status AS CHAR)) IN ('1', 'active'))
        AND LOWER(TRIM(production_department)) = LOWER(?)
@@ -42,7 +69,11 @@ if (!$stmt) {
     $conn->close();
     exit;
 }
-$stmt->bind_param('s', $dept);
+if ($weekBindDate) {
+    $stmt->bind_param('ss', $asOf, $dept);
+} else {
+    $stmt->bind_param('s', $dept);
+}
 if (!$stmt->execute()) {
     http_response_code(500);
     echo json_encode(['ok' => false]);
@@ -63,6 +94,7 @@ if ($result) {
             $salary = '';
         }
         $salary = trim((string)$salary);
+        $weekOff = trim((string)($row['week_off_day'] ?? ''));
         if ($name === '') {
             continue;
         }
@@ -71,7 +103,7 @@ if ($result) {
             continue;
         }
         $seen[$rowKey] = true;
-        $employees[] = ['name' => $name, 'code' => $code, 'salary' => $salary];
+        $employees[] = ['name' => $name, 'code' => $code, 'salary' => $salary, 'week_off' => $weekOff];
     }
 }
 $stmt->close();
