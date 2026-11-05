@@ -228,7 +228,7 @@ $showGrade = strcasecmp($curOp, 'CNC') === 0 ? false : contractorOperationShowsG
 $showStaff = in_array($curOp, opsCloneStaffSalaryOperations(), true);
 $monthDays = (int) date('t', mktime(0, 0, 0, $curMonth, 1, $curYear));
 
-$pageTitle = 'View — New Operation List';
+$pageTitle = 'View — CNC Job Work and Attendance Report';
 $useSidebar = true;
 $sidebarMode = 'contractor';
 $sidebarActive = 'contractor_operations_clone';
@@ -247,7 +247,7 @@ $otJson = json_encode(contractorOtRepairOps());
 ?>
 <main class="dashboard-main">
     <div class="page-toolbar flex-between">
-        <a href="<?php echo app_url('contractor/operations_clone/index.php'); ?>" class="back-link"><i class="fa-solid fa-arrow-left"></i> Back to New Operation List</a>
+        <a href="<?php echo app_url('contractor/operations_clone/index.php'); ?>" class="back-link"><i class="fa-solid fa-arrow-left"></i> Back to CNC Job Work and Attendance Report</a>
         <?php if ($showStaff): ?>
             <?php
             $pdfQs = http_build_query([
