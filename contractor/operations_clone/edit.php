@@ -260,41 +260,6 @@ $otJson = json_encode(contractorOtRepairOps());
 <main class="dashboard-main">
     <div class="page-toolbar flex-between">
         <a href="<?php echo htmlspecialchars($listUrl); ?>" class="back-link"><i class="fa-solid fa-arrow-left"></i> Back to <?php echo htmlspecialchars($reportName); ?></a>
-        <?php if ($showStaff): ?>
-            <?php
-            $pdfQs = http_build_query([
-                'employee_id' => (int) $curEmp,
-                'month' => (int) $curMonth,
-                'year' => (int) $curYear,
-                'id' => (int) $id,
-            ]);
-            ?>
-            <div class="toolbar-actions" style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;">
-                <a class="btn-secondary" target="_blank" href="<?php echo app_url('contractor/operations_clone/print_report.php?' . $pdfQs); ?>">
-                    <i class="fa-solid fa-file-pdf"></i> Job work and Attendance Report
-                </a>
-                <?php if ($id > 0): ?>
-                <label for="dailyPrintDay" style="font-size:13px;margin:0;">Daily Print Day</label>
-                <select id="dailyPrintDay" class="form-control" style="width:auto;min-width:70px;">
-                    <?php
-                    $todayDay = (int) date('j');
-                    $defaultDay = ($curMonth === (int) date('n') && $curYear === (int) date('Y'))
-                        ? min($todayDay, $monthDays)
-                        : 1;
-                    for ($d = 1; $d <= $monthDays; $d++):
-                        ?>
-                        <option value="<?php echo $d; ?>" <?php echo $d === $defaultDay ? 'selected' : ''; ?>><?php echo $d; ?></option>
-                    <?php endfor; ?>
-                </select>
-                <a href="#" id="btnDailyPortrait" class="btn-secondary" title="Letter pad · Portrait">
-                    <i class="fa-solid fa-print"></i> Daily Portrait
-                </a>
-                <a href="#" id="btnDailyLandscape" class="btn-secondary" title="Letter pad · Landscape">
-                    <i class="fa-solid fa-print"></i> Daily Landscape
-                </a>
-                <?php endif; ?>
-            </div>
-        <?php endif; ?>
     </div>
 
     <!-- ========== BOX 1: Product qty grid ========== -->
@@ -711,22 +676,7 @@ $otJson = json_encode(contractorOtRepairOps());
         }
         echo json_encode(array_values(array_unique($keepPids)));
     ?>;
-    window.OPS_CLONE_DAILY_PRINT = <?php echo json_encode(app_url('contractor/operations_clone/print_daily.php?id=' . (int) $id)); ?>;
-
     (function () {
-        function openDailyPrint(orient) {
-            var dayEl = document.getElementById('dailyPrintDay');
-            var day = dayEl ? dayEl.value : '1';
-            var url = window.OPS_CLONE_DAILY_PRINT
-                + '&day=' + encodeURIComponent(day)
-                + '&orient=' + encodeURIComponent(orient || 'portrait');
-            window.open(url, '_blank');
-        }
-        var bp = document.getElementById('btnDailyPortrait');
-        var bl = document.getElementById('btnDailyLandscape');
-        if (bp) bp.addEventListener('click', function (e) { e.preventDefault(); openDailyPrint('portrait'); });
-        if (bl) bl.addEventListener('click', function (e) { e.preventDefault(); openDailyPrint('landscape'); });
-
         function reloadWithMeta() {
             var params = new URLSearchParams();
             if (<?php echo (int) $id; ?> > 0) {

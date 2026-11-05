@@ -131,7 +131,7 @@ if ($department) {
                 </a>
                 <?php endif; ?>
 
-                <?php if (!$cncHideModules): ?>
+                <?php if (!$cncHideModules && !$buffShowReport): ?>
                 <a href="<?php echo app_url('leave/index.php?department_id=' . (int) $department['id'] . '&from=modules'); ?>" class="module-card">
                     <div class="module-icon" style="background-color: #2ECC71;">
                         <i class="fa-solid fa-file-invoice"></i>
