@@ -14,22 +14,26 @@ function cncSopTermsCss()
     return <<<'CSS'
 .sop-terms {
     font-family: "Noto Sans Gujarati", "Nirmala UI", sans-serif;
-    font-size: 12px;
-    line-height: 1.45;
-    font-weight: 600;
+    font-size: 15px;
+    line-height: 1.55;
+    font-weight: 700;
     color: #111;
+    min-height: 220mm;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
 }
-.sop-terms p { margin: 0 0 3px; }
+.sop-terms p { margin: 0; }
 .sop-terms .is-title {
     text-align: center;
-    font-size: 16px;
+    font-size: 18px;
     font-weight: 800;
-    margin: 0 0 8px;
+    margin: 0;
 }
 .sop-terms .is-head {
-    font-size: 13px;
+    font-size: 16px;
     font-weight: 800;
-    margin-top: 7px;
+    margin-top: 2px;
 }
 .sop-terms-page { margin-top: 16px; }
 @media print {
