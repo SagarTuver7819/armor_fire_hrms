@@ -2026,6 +2026,155 @@ function opsCloneAttParseCode($code)
 }
 
 /**
+ * ERP CNC Attendance Sheet (HR F 04) P/A marks for a date range.
+ * Starts 01-11-2026. Empty cells are skipped. Today and future stay out.
+ *
+ * @return array<string, array<string, string>> code/name key => [Y-m-d => P|A]
+ */
+function fetchErpCncAttendanceMarks($fromDate, $toDate)
+{
+    $fromDate = date('Y-m-d', strtotime((string) $fromDate));
+    $toDate = date('Y-m-d', strtotime((string) $toDate));
+    $start = '2026-11-01';
+    $today = date('Y-m-d');
+    if ($fromDate < $start) {
+        $fromDate = $start;
+    }
+    if ($toDate > $today) {
+        $toDate = $today;
+    }
+    if ($fromDate > $toDate) {
+        return [];
+    }
+    if (!function_exists('getErpDBConnection')) {
+        require_once __DIR__ . '/../config/database.php';
+    }
+    $erp = getErpDBConnection();
+    if (!$erp) {
+        return [];
+    }
+
+    $sql = "SELECT ae.entry_date, ae.employee_code, ae.employee_name, UPPER(TRIM(ae.in_time)) AS mark
+            FROM attendance_entries ae
+            INNER JOIN departments d ON d.id = ae.department_id
+            INNER JOIN document_master dm ON dm.id = ae.document_id AND dm.department_id = ae.department_id
+            WHERE LOWER(TRIM(d.department_name)) LIKE 'cnc%'
+              AND LOWER(dm.document_name) LIKE '%attendance%'
+              AND ae.entry_date BETWEEN ? AND ?
+              AND UPPER(TRIM(COALESCE(ae.in_time, ''))) IN ('P', 'A')
+            ORDER BY ae.entry_date ASC, ae.id ASC";
+    $st = $erp->prepare($sql);
+    if (!$st) {
+        return [];
+    }
+    $st->bind_param('ss', $fromDate, $toDate);
+    $st->execute();
+    $res = $st->get_result();
+    $out = [];
+    if ($res) {
+        while ($row = $res->fetch_assoc()) {
+            $mark = strtoupper(trim((string) ($row['mark'] ?? '')));
+            if ($mark !== 'P' && $mark !== 'A') {
+                continue;
+            }
+            $date = substr((string) ($row['entry_date'] ?? ''), 0, 10);
+            if ($date === '' || $date < $start) {
+                continue;
+            }
+            $code = strtoupper(trim((string) ($row['employee_code'] ?? '')));
+            $name = strtolower(trim((string) ($row['employee_name'] ?? '')));
+            if ($code !== '') {
+                $out['c:' . $code][$date] = $mark;
+            }
+            if ($name !== '') {
+                $out['n:' . $name][$date] = $mark;
+            }
+        }
+    }
+    $st->close();
+    return $out;
+}
+
+/**
+ * Copy ERP CNC Attendance P/A into the staff day map and attendance_day_status.
+ * Leave, Half Day and Holiday already saved in HRMS stay as they are.
+ *
+ * @param array<int,array> $staffRows
+ * @param array<int,array<string,array>> $map
+ * @return array<int,array<string,array>>
+ */
+function applyErpCncAttendanceToStaffMap(array $staffRows, array $map, $month, $year, $conn)
+{
+    $month = (int) $month;
+    $year = (int) $year;
+    if ($year < 2026 || ($year === 2026 && $month < 11) || !$staffRows) {
+        return $map;
+    }
+    $monthDays = (int) date('t', mktime(0, 0, 0, $month, 1, $year));
+    $from = sprintf('%04d-%02d-01', $year, $month);
+    $to = sprintf('%04d-%02d-%02d', $year, $month, $monthDays);
+    $marks = fetchErpCncAttendanceMarks($from, $to);
+    if (!$marks) {
+        return $map;
+    }
+
+    $upsert = $conn->prepare(
+        "INSERT INTO attendance_day_status
+            (employee_id, attendance_date, day_status, punch_in, punch_out, working_minutes, source, remarks)
+         VALUES (?, ?, ?, NULL, NULL, 0, 'erp_att', NULL)
+         ON DUPLICATE KEY UPDATE
+            day_status = VALUES(day_status),
+            punch_in = NULL,
+            punch_out = NULL,
+            working_minutes = 0,
+            source = 'erp_att',
+            remarks = NULL"
+    );
+    if (!$upsert) {
+        return $map;
+    }
+
+    foreach ($staffRows as $staff) {
+        $eid = (int) ($staff['id'] ?? 0);
+        if ($eid <= 0) {
+            continue;
+        }
+        $code = strtoupper(trim((string) ($staff['employee_code'] ?? '')));
+        $name = strtolower(trim((string) ($staff['employee_name'] ?? '')));
+        $byDate = [];
+        if ($code !== '' && isset($marks['c:' . $code])) {
+            $byDate = $marks['c:' . $code];
+        } elseif ($name !== '' && isset($marks['n:' . $name])) {
+            $byDate = $marks['n:' . $name];
+        }
+        foreach ($byDate as $date => $mark) {
+            $want = $mark === 'P' ? 'Present' : 'Absent';
+            $cur = $map[$eid][$date]['day_status'] ?? '';
+            if (in_array($cur, ['Leave', 'Half Day', 'Holiday'], true)) {
+                continue;
+            }
+            if ($cur === $want) {
+                continue;
+            }
+            $upsert->bind_param('iss', $eid, $date, $want);
+            $upsert->execute();
+            $map[$eid][$date] = [
+                'employee_id' => $eid,
+                'attendance_date' => $date,
+                'day_status' => $want,
+                'punch_in' => null,
+                'punch_out' => null,
+                'remarks' => null,
+                'working_minutes' => 0,
+                'source' => 'erp_att',
+            ];
+        }
+    }
+    $upsert->close();
+    return $map;
+}
+
+/**
  * Attendance day map for clone staff employees (month of the ops sheet).
  *
  * @param array<int,array> $staffRows
@@ -2070,6 +2219,7 @@ function getOpsCloneStaffAttendanceMap(array $staffRows, $month, $year, $conn = 
             $map[(int) $r['employee_id']][substr((string) $r['attendance_date'], 0, 10)] = $r;
         }
     }
+    $map = applyErpCncAttendanceToStaffMap($staffRows, $map, $month, $year, $conn);
     if ($closeAfter) {
         $conn->close();
     }
