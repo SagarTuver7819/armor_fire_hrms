@@ -21,10 +21,23 @@ $sidebarDeptId = $cncDeptId;
 
 $conn = getDBConnection();
 ensureContractorTables($conn);
-$ops = contractorOperations();
-$months = contractorMonths();
-$employees = getActiveContractorEmployees($conn);
 $conn->close();
+
+if (!function_exists('contractorAttendanceSplitRules')) {
+    require_once __DIR__ . '/../../includes/contractor_split_helper.php';
+}
+$cncRule = null;
+foreach (contractorAttendanceSplitRules() as $rule) {
+    if (strcasecmp((string) ($rule['department_name'] ?? ''), 'CNC') === 0) {
+        $cncRule = $rule;
+        break;
+    }
+}
+$mainContractor = $cncRule ? resolveContractorAttendanceSplitMain($cncRule) : null;
+$mainContractorId = (int) ($mainContractor['id'] ?? 0);
+$mainContractorLabel = trim((string) ($mainContractor['employee_code'] ?? 'CO72141'))
+    . ' - '
+    . trim((string) ($mainContractor['employee_name'] ?? 'SOLANKI RAVI KANABHAI'));
 
 require_once __DIR__ . '/../../includes/header.php';
 
@@ -58,52 +71,11 @@ if (isset($_GET['msg'])) {
             <div class="master-list-icon" style="background:#0f766e;"><i class="fa-solid fa-table-list"></i></div>
             <div>
                 <h1>CNC Job Work and Attendance Report</h1>
+                <p>Main Contractor · <?php echo htmlspecialchars($mainContractorLabel); ?></p>
             </div>
         </div>
     </div>
     <div class="data-card data-card-pad">
-        <div class="ops-filter-bar form-grid form-grid-3">
-            <div class="form-group">
-                <label>Operation</label>
-                <select id="filter_operation" class="form-control">
-                    <option value="">All Operations</option>
-                    <?php foreach ($ops as $op): ?>
-                        <option value="<?php echo htmlspecialchars($op); ?>" <?php echo $op === 'CNC' ? 'selected' : ''; ?>><?php echo htmlspecialchars($op); ?></option>
-                    <?php endforeach; ?>
-                </select>
-            </div>
-            <div class="form-group">
-                <label>Employee</label>
-                <select id="filter_employee" class="form-control">
-                    <option value="">All Employees</option>
-                    <?php foreach ($employees as $emp): ?>
-                        <option value="<?php echo (int) $emp['id']; ?>"><?php echo htmlspecialchars(contractorEmployeeOptionLabel($emp)); ?></option>
-                    <?php endforeach; ?>
-                </select>
-            </div>
-            <div class="form-group">
-                <label>Month</label>
-                <select id="filter_month" class="form-control">
-                    <option value="">All Months</option>
-                    <?php foreach ($months as $num => $lab): ?>
-                        <option value="<?php echo (int) $num; ?>"><?php echo htmlspecialchars($lab); ?></option>
-                    <?php endforeach; ?>
-                </select>
-            </div>
-            <div class="form-group">
-                <label>Year</label>
-                <select id="filter_year" class="form-control">
-                    <option value="">All Years</option>
-                    <?php for ($y = 2024; $y <= 2032; $y++): ?>
-                        <option value="<?php echo $y; ?>"><?php echo $y; ?></option>
-                    <?php endfor; ?>
-                </select>
-            </div>
-            <div class="form-group ops-filter-actions">
-                <label>&nbsp;</label>
-                <button type="button" class="btn-primary" id="btnApplyOpsFilter"><i class="fa-solid fa-filter"></i> Apply Filter</button>
-            </div>
-        </div>
         <div class="table-wrap">
             <table id="contractorTable" class="display data-table nowrap" style="width:100%">
                 <thead>
@@ -129,12 +101,13 @@ if (isset($_GET['msg'])) {
     window.C_OPS_PRINT_URL = <?php echo json_encode(app_url('contractor/operations/print.php')); ?>;
     window.C_OPS_EXCEL_URL = <?php echo json_encode(app_url('contractor/operations/excel.php')); ?>;
     window.C_ACTION_COL = 7;
+    window.C_MAIN_ID = <?php echo (int) $mainContractorId; ?>;
     window.C_AJAX_EXTRA = function () {
         return {
-            filter_operation: document.getElementById('filter_operation').value,
-            filter_employee: document.getElementById('filter_employee').value,
-            filter_month: document.getElementById('filter_month').value,
-            filter_year: document.getElementById('filter_year').value
+            filter_operation: 'CNC',
+            filter_employee: String(window.C_MAIN_ID || ''),
+            filter_month: '',
+            filter_year: ''
         };
     };
     function opsExportQs() {
@@ -162,6 +135,5 @@ $extraJs = [
     'https://cdn.datatables.net/1.13.8/js/jquery.dataTables.min.js',
     'https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.js',
     'assets/js/contractor_list.js',
-    'assets/js/contractor_ops_filter.js',
 ];
 require_once __DIR__ . '/../../includes/footer.php';
