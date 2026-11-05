@@ -7027,8 +7027,12 @@ select.product-select.ops-kra-hidden-select {
     background: #f8fafc !important;
 }
 .ops-view-only .ops-grid .rate {
-    font-weight: 700;
+    pointer-events: auto;
+    background: #fff !important;
     color: #0f172a;
+    font-weight: 700;
+    cursor: text;
+    caret-color: auto;
 }
 
 /* CNC KRA: day qty locked — only Rate editable */

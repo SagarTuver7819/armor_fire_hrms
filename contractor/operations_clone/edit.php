@@ -312,7 +312,7 @@ $otJson = json_encode(contractorOtRepairOps());
                 <button type="button" class="btn-primary" id="btnAddProduct"><i class="fa-solid fa-plus"></i> Add Product Row</button>
                 <?php else: ?>
                 <div class="ops-kra-hint" style="font-size:13px;color:#64748b;">
-                    <i class="fa-solid fa-eye"></i> View only · ERP CNC KRA grid (last set). Day qty ERP thi · Rate locked.
+                    <i class="fa-solid fa-eye"></i> Day qty locked (ERP). <b>Rate</b> click kari change karo — remark required, history save thase.
                 </div>
                 <?php endif; ?>
                 <div class="ops-live-summary">
@@ -421,7 +421,7 @@ $otJson = json_encode(contractorOtRepairOps());
                             </td>
                             <?php endif; ?>
                             <td class="sticky-col sticky-rate">
-                                <input type="number" step="0.0001" min="0" name="items[<?php echo $i; ?>][rate]" class="form-control grid-input rate" value="<?php echo htmlspecialchars((string) ($item['rate'] ?? 0)); ?>"<?php echo $opsViewOnly ? ' readonly tabindex="-1"' : ''; ?>>
+                                <input type="number" step="0.0001" min="0" name="items[<?php echo $i; ?>][rate]" class="form-control grid-input rate" value="<?php echo htmlspecialchars((string) ($item['rate'] ?? 0)); ?>">
                             </td>
                             <?php for ($d = 1; $d <= 31; $d++):
                                 $cell = $days[(string) $d];

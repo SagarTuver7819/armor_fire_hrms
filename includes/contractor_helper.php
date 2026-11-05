@@ -411,6 +411,64 @@ function contractorSaveProductRateHistory($conn, array $data)
         }
     }
 
+    if ($sheetId > 0) {
+        $stItems = $conn->prepare(
+            'SELECT id, ot_rate, rejection_rate, days_json
+             FROM contractor_operation_items
+             WHERE sheet_id = ? AND product_id = ?'
+        );
+        if ($stItems) {
+            $stItems->bind_param('ii', $sheetId, $productId);
+            $stItems->execute();
+            $itemRes = $stItems->get_result();
+            $upd = $conn->prepare('UPDATE contractor_operation_items SET rate = ?, total_amount = ? WHERE id = ?');
+            while ($item = $itemRes->fetch_assoc()) {
+                $days = json_decode((string) ($item['days_json'] ?? ''), true);
+                if (!is_array($days)) {
+                    $days = [];
+                }
+                $calc = calculateContractorRow(
+                    $operation !== '' ? $operation : 'CNC',
+                    $newRate,
+                    (float) ($item['ot_rate'] ?? 0),
+                    (float) ($item['rejection_rate'] ?? 0),
+                    $days
+                );
+                $itemAmt = (float) ($calc['total_amount'] ?? 0);
+                $itemId = (int) $item['id'];
+                if ($upd) {
+                    $upd->bind_param('ddi', $newRate, $itemAmt, $itemId);
+                    $upd->execute();
+                }
+            }
+            if ($upd) {
+                $upd->close();
+            }
+            $stItems->close();
+            $sum = $conn->prepare(
+                'SELECT COALESCE(SUM(total_qty),0) AS q, COALESCE(SUM(total_r),0) AS r, COALESCE(SUM(total_amount),0) AS a
+                 FROM contractor_operation_items WHERE sheet_id = ?'
+            );
+            if ($sum) {
+                $sum->bind_param('i', $sheetId);
+                $sum->execute();
+                $tot = $sum->get_result()->fetch_assoc() ?: [];
+                $sum->close();
+                $q = (float) ($tot['q'] ?? 0);
+                $r = (float) ($tot['r'] ?? 0);
+                $a = (float) ($tot['a'] ?? 0);
+                $upSheet = $conn->prepare(
+                    'UPDATE contractor_operation_sheets SET total_qty = ?, total_r = ?, total_amount = ? WHERE id = ? AND status = 1'
+                );
+                if ($upSheet) {
+                    $upSheet->bind_param('dddi', $q, $r, $a, $sheetId);
+                    $upSheet->execute();
+                    $upSheet->close();
+                }
+            }
+        }
+    }
+
     return ['ok' => true, 'id' => $id, 'message' => 'Rate remark saved.'];
 }
 
