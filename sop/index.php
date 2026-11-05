@@ -91,19 +91,21 @@ if (isset($_GET['msg'])) {
                             <td><?php echo htmlspecialchars(formatDateDisplay($row['sop_date'])); ?></td>
                             <td><?php echo htmlspecialchars($row['subject']); ?></td>
                             <td><?php echo htmlspecialchars($row['department_name']); ?></td>
-                            <td style="white-space:nowrap;">
-                                <a class="btn-secondary" href="<?php echo app_url('sop/print.php?id=' . (int) $row['id'] . '&department_id=' . $deptId); ?>">Letterhead</a>
-                                <?php if (canAccess('departments', 'edit', $deptId)): ?>
-                                <a class="btn-secondary" href="<?php echo app_url('sop/edit.php?id=' . (int) $row['id'] . '&department_id=' . $deptId); ?>">Edit</a>
-                                <?php endif; ?>
-                                <button type="button" class="btn-secondary js-sop-share" data-url="<?php echo htmlspecialchars($shareUrl); ?>" data-title="<?php echo htmlspecialchars($row['title']); ?>">Share</button>
-                                <?php if (canAccess('departments', 'delete', $deptId)): ?>
-                                <form method="post" action="<?php echo app_url('sop/delete.php'); ?>" style="display:inline;" onsubmit="return confirm('Delete this SOP?');">
-                                    <input type="hidden" name="id" value="<?php echo (int) $row['id']; ?>">
-                                    <input type="hidden" name="department_id" value="<?php echo $deptId; ?>">
-                                    <button type="submit" class="btn-secondary">Delete</button>
-                                </form>
-                                <?php endif; ?>
+                            <td>
+                                <div class="sop-actions">
+                                    <a class="sop-act letter" href="<?php echo app_url('sop/print.php?id=' . (int) $row['id'] . '&department_id=' . $deptId); ?>"><i class="fa-solid fa-file-lines"></i> Letterhead</a>
+                                    <?php if (canAccess('departments', 'edit', $deptId)): ?>
+                                    <a class="sop-act edit" href="<?php echo app_url('sop/edit.php?id=' . (int) $row['id'] . '&department_id=' . $deptId); ?>"><i class="fa-solid fa-pen"></i> Edit</a>
+                                    <?php endif; ?>
+                                    <button type="button" class="sop-act share js-sop-share" data-url="<?php echo htmlspecialchars($shareUrl); ?>" data-title="<?php echo htmlspecialchars($row['title']); ?>"><i class="fa-solid fa-share-nodes"></i> Share</button>
+                                    <?php if (canAccess('departments', 'delete', $deptId)): ?>
+                                    <form method="post" action="<?php echo app_url('sop/delete.php'); ?>" onsubmit="return confirm('Delete this SOP?');">
+                                        <input type="hidden" name="id" value="<?php echo (int) $row['id']; ?>">
+                                        <input type="hidden" name="department_id" value="<?php echo $deptId; ?>">
+                                        <button type="submit" class="sop-act delete"><i class="fa-solid fa-trash"></i> Delete</button>
+                                    </form>
+                                    <?php endif; ?>
+                                </div>
                             </td>
                         </tr>
                     <?php endforeach; ?>

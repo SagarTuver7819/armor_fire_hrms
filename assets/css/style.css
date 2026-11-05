@@ -12347,6 +12347,47 @@ body.co-about-open { overflow: hidden; }
     background: var(--brand-soft);
     color: var(--brand-dark);
 }
-.sop-list .btn-secondary {
-    margin: 0 2px 4px 0;
+.sop-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+}
+.sop-actions form {
+    display: inline-flex;
+    margin: 0;
+}
+.sop-act {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 32px;
+    padding: 0 10px;
+    border: 0;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 1;
+    cursor: pointer;
+    text-decoration: none;
+    font-family: inherit;
+}
+.sop-act.letter {
+    background: var(--brand-soft);
+    color: var(--brand);
+}
+.sop-act.edit {
+    background: #e0f2fe;
+    color: #0369a1;
+}
+.sop-act.share {
+    background: #ecfdf5;
+    color: #047857;
+}
+.sop-act.delete {
+    background: #fee2e2;
+    color: #b91c1c;
+}
+.sop-act:hover {
+    filter: brightness(0.96);
 }
