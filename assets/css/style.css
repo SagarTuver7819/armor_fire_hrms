@@ -6383,6 +6383,13 @@ body > .select2-container .select2-dropdown {
     margin-left: 4px;
 }
 
+.ops-chip-r.ops-cnc-hide,
+.ops-grid.ops-cnc-plain .ops-col-r,
+.ops-grid.ops-cnc-plain .ops-col-ot,
+.ops-grid.ops-cnc-plain .ops-col-rej {
+    display: none;
+}
+
 .ops-chip.amt {
     background: #d2232a;
     border-color: #d2232a;

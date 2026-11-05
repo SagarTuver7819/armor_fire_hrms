@@ -335,13 +335,13 @@ $otJson = json_encode(contractorOtRepairOps());
                 <?php endif; ?>
                 <div class="ops-live-summary">
                     <span class="ops-chip"><span id="sum_qty_lab">Qty</span> <b id="sum_qty">0</b></span>
-                    <span class="ops-chip"><span id="sum_r_lab">R</span> <b id="sum_r">0</b></span>
+                    <span class="ops-chip ops-chip-r<?php echo strcasecmp($curOp, 'CNC') === 0 ? ' ops-cnc-hide' : ''; ?>"><span id="sum_r_lab">R</span> <b id="sum_r">0</b></span>
                     <span class="ops-chip amt">Amount <b id="sum_amt">0.00</b></span>
                 </div>
             </div>
 
             <div class="ops-grid-wrap">
-                <table class="ops-grid <?php echo $showGrade ? 'show-grade' : 'hide-grade'; ?><?php echo strcasecmp($curOp, 'CNC') === 0 ? ' ops-kra-qty-locked' : ''; ?>" id="opsGrid">
+                <table class="ops-grid <?php echo $showGrade ? 'show-grade' : 'hide-grade'; ?><?php echo strcasecmp($curOp, 'CNC') === 0 ? ' ops-kra-qty-locked ops-cnc-plain' : ''; ?>" id="opsGrid">
                     <thead>
                         <tr>
                             <th class="sticky-col sticky-action">Action</th>
@@ -361,9 +361,9 @@ $otJson = json_encode(contractorOtRepairOps());
                                 </th>
                             <?php endfor; ?>
                             <th id="th_total_qty">TOTAL QTY</th>
-                            <th id="th_total_r">TOTAL R</th>
-                            <th>OT RATE</th>
-                            <th>REJ. RATE</th>
+                            <th id="th_total_r" class="ops-col-r">TOTAL R</th>
+                            <th class="ops-col-ot">OT RATE</th>
+                            <th class="ops-col-rej">REJ. RATE</th>
                             <th id="th_amount">TOTAL AMT</th>
                         </tr>
                     </thead>
@@ -458,11 +458,11 @@ $otJson = json_encode(contractorOtRepairOps());
                                 </td>
                             <?php endfor; ?>
                             <td><input type="text" name="items[<?php echo $i; ?>][total_qty]" class="form-control grid-input total-qty" readonly value="<?php echo htmlspecialchars((string) ($item['total_qty'] ?? 0)); ?>"></td>
-                            <td><input type="text" name="items[<?php echo $i; ?>][total_r]" class="form-control grid-input total-r" readonly value="<?php echo htmlspecialchars((string) ($item['total_r'] ?? 0)); ?>"></td>
-                            <td>
+                            <td class="ops-col-r"><input type="text" name="items[<?php echo $i; ?>][total_r]" class="form-control grid-input total-r" readonly value="<?php echo htmlspecialchars((string) ($item['total_r'] ?? 0)); ?>"></td>
+                            <td class="ops-col-ot">
                                 <input type="number" step="0.01" name="items[<?php echo $i; ?>][ot_rate]" class="form-control grid-input row-ot-rate" readonly value="<?php echo htmlspecialchars((string) ($item['ot_rate'] ?? 0)); ?>">
                             </td>
-                            <td>
+                            <td class="ops-col-rej">
                                 <input type="number" step="0.01" name="items[<?php echo $i; ?>][rejection_rate]" class="form-control grid-input row-rejection-rate" readonly value="<?php echo htmlspecialchars((string) ($item['rejection_rate'] ?? 0)); ?>">
                             </td>
                             <td><input type="text" name="items[<?php echo $i; ?>][total_amount]" class="form-control grid-input total-amount" readonly value="<?php echo htmlspecialchars((string) ($item['total_amount'] ?? 0)); ?>"></td>
@@ -482,9 +482,9 @@ $otJson = json_encode(contractorOtRepairOps());
                                 </td>
                             <?php endfor; ?>
                             <td id="tf_total_qty">0</td>
-                            <td id="tf_total_r">0</td>
-                            <td></td>
-                            <td></td>
+                            <td id="tf_total_r" class="ops-col-r">0</td>
+                            <td class="ops-col-ot"></td>
+                            <td class="ops-col-rej"></td>
                             <td id="tf_amount">0.00</td>
                         </tr>
                     </tfoot>
