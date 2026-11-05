@@ -185,6 +185,31 @@ if ($kraOnly && !empty($erpSync['names']) && strcasecmp($operation, 'CNC') === 0
     });
 }
 
+// Buff Contract Process = Production Planning KRA part-name hierarchy
+if ($kraOnly && strcasecmp($operation, 'BUFF') === 0) {
+    usort($products, static function ($a, $b) {
+        $nameOf = static function ($row) {
+            $name = trim((string) ($row['product_name'] ?? ''));
+            if ($name === '') {
+                $name = trim((string) ($row['process'] ?? ''));
+            }
+            return $name;
+        };
+        $oa = contractorBuffKraSortRank($nameOf($a));
+        $ob = contractorBuffKraSortRank($nameOf($b));
+        if ($oa === 10000) {
+            $oa = contractorBuffKraSortRank((string) ($a['process'] ?? ''));
+        }
+        if ($ob === 10000) {
+            $ob = contractorBuffKraSortRank((string) ($b['process'] ?? ''));
+        }
+        if ($oa !== $ob) {
+            return $oa <=> $ob;
+        }
+        return strcasecmp($nameOf($a), $nameOf($b));
+    });
+}
+
 $grades = contractorOperationShowsGrade($operation) ? getContractorGrades($conn) : [];
 $conn->close();
 

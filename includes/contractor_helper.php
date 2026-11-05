@@ -951,6 +951,64 @@ function contractorCncKraBaselinePartNames()
 }
 
 /**
+ * Buff Production Planning KRA part hierarchy (same order as the ERP part-name column).
+ *
+ * @return list<string>
+ */
+function contractorBuffKraPartOrder()
+{
+    return [
+        'Lite Female',
+        'Lite male',
+        'Heavy Female',
+        'Heavy Male',
+        'Lite branch',
+        'Heavy Branch',
+        'Lite Nozzel',
+        'Heavy Nozzel',
+        'Armor Hydrant Body',
+        'Safegaurd Hydrant Body',
+        'Other Brand body',
+        'Heavy Adaptor',
+        'Lite Adaptor',
+        'Lurning Bush',
+    ];
+}
+
+/**
+ * Sort index for a Buff KRA part. Names outside the hierarchy sort after it.
+ */
+function contractorBuffKraSortRank($productName)
+{
+    static $rank = null;
+    if ($rank === null) {
+        $rank = [];
+        foreach (contractorBuffKraPartOrder() as $i => $pn) {
+            $ck = contractorKraCanonicalKey($pn);
+            if ($ck !== '' && !isset($rank[$ck])) {
+                $rank[$ck] = $i;
+            }
+            foreach (contractorKraPartNameLookupCandidates($pn) as $al) {
+                $k = strtolower(trim((string) $al));
+                if ($k !== '' && !isset($rank[$k])) {
+                    $rank[$k] = $i;
+                }
+            }
+        }
+    }
+    $name = trim((string) $productName);
+    if ($name === '') {
+        return 10000;
+    }
+    $ck = contractorKraCanonicalKey($name);
+    if ($ck !== '' && isset($rank[$ck])) {
+        return $rank[$ck];
+    }
+    $k = strtolower($name);
+    return $rank[$k] ?? 10000;
+}
+
+/**
  * Canonical key => alternate spellings (ERP typos / HRMS Product Master variants).
  *
  * @return array<string, list<string>>

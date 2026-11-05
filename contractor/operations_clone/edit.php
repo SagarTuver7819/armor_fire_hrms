@@ -146,6 +146,17 @@ if ($isJobReport) {
         }
     }
 
+    if ($isBuffReport && !empty($kraSync['names']) && is_array($kraSync['names'])) {
+        usort($kraSync['names'], static function ($a, $b) {
+            $oa = contractorBuffKraSortRank($a);
+            $ob = contractorBuffKraSortRank($b);
+            if ($oa !== $ob) {
+                return $oa <=> $ob;
+            }
+            return strcasecmp((string) $a, (string) $b);
+        });
+    }
+
     foreach (($kraSync['names'] ?? []) as $canon) {
         $ck = contractorKraCanonicalKey($canon);
         if ($ck === '' || !isset($best[$ck])) {
