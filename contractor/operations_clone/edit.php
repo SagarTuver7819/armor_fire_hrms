@@ -522,7 +522,6 @@ $otJson = json_encode(contractorOtRepairOps());
     <div class="form-page-card ops-page-card ops-clone-box ops-clone-staff-card<?php echo $opsViewOnly ? ' ops-view-only' : ''; ?>">
         <div class="ops-clone-staff-head">
             <h2><i class="fa-solid fa-users"></i> CNC Department — Normal Salary Employees</h2>
-            <p>Contract total <strong id="opsStaffPool"><?php echo number_format((float) $staffSplit['pool'], 2, '.', ''); ?></strong> divide: salary ÷ month working days (week-off sivay), 01-11-2026 thi aaj sudhi. Week-off par P hoy to e day pan count. Baki rakan Main Contractor.</p>
         </div>
 
         <form method="POST" action="<?php echo app_url('contractor/operations_clone/save_staff.php'); ?>" id="opsStaffForm" class="employee-form" autocomplete="off">
