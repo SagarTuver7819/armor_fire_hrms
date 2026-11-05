@@ -6382,6 +6382,16 @@ body > .select2-container .select2-dropdown {
 .ops-clone-staff-att-table .att-day-cell { width: 48px; min-width: 48px; text-align: center; }
 .ops-clone-staff-att-table tr.is-main-contractor td { background: #fff7ed; }
 .ops-clone-staff-att-table tr.is-main-contractor .sticky-staff { background: #fff7ed; }
+.ops-clone-staff-att-table tfoot td {
+    background: #fef3c7;
+    font-weight: 800;
+    color: #0f172a;
+}
+.ops-clone-staff-att-table tfoot .sticky-staff {
+    background: #fef3c7 !important;
+    position: sticky;
+    z-index: 4;
+}
 
 .ops-clone-staff-att-table .att-day-head .day-no { display: block; font-weight: 700; }
 .ops-clone-staff-att-table .att-day-head .day-wd { display: block; font-size: 10px; color: #64748b; }

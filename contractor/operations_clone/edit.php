@@ -566,6 +566,7 @@ $otJson = json_encode(contractorOtRepairOps());
                                 <td colspan="<?php echo 5 + $monthDays; ?>" class="empty-msg">No Normal Salary employees found in CNC.</td>
                             </tr>
                         <?php else: ?>
+                            <?php $staffFinalSum = 0.0; ?>
                             <?php foreach ($staffDisplay as $si => $staff):
                                 $sid = (int) $staff['id'];
                                 $isMainRow = !empty($staff['_is_main']);
@@ -574,6 +575,7 @@ $otJson = json_encode(contractorOtRepairOps());
                                 $finalAmt = $isMainRow
                                     ? (float) ($staffSplit['remainder'] ?? 0)
                                     : (float) ($share['final'] ?? 0);
+                                $staffFinalSum += $finalAmt;
                                 $baseAmt = $isMainRow ? 0 : (float) ($share['amount'] ?? 0);
                                 $finalTitle = $isMainRow
                                     ? 'Contract total minus staff salary'
@@ -623,6 +625,18 @@ $otJson = json_encode(contractorOtRepairOps());
                             <?php endforeach; ?>
                         <?php endif; ?>
                     </tbody>
+                    <?php if (!empty($staffDisplay)): ?>
+                    <tfoot>
+                        <tr>
+                            <td class="sticky-staff sticky-sr"></td>
+                            <td class="sticky-staff sticky-code"></td>
+                            <td class="sticky-staff sticky-name">Total</td>
+                            <td class="sticky-staff sticky-sal"></td>
+                            <td class="sticky-staff sticky-final num" id="opsStaffFinalSum"><?php echo number_format($staffFinalSum, 2, '.', ''); ?></td>
+                            <td colspan="<?php echo (int) $monthDays; ?>"></td>
+                        </tr>
+                    </tfoot>
+                    <?php endif; ?>
                 </table>
             </div>
 
@@ -746,6 +760,12 @@ $otJson = json_encode(contractorOtRepairOps());
             var rem = Math.max(0, Math.round((pool - distributed) * 100) / 100);
             var mainTd = document.querySelector('#opsCloneStaffAttTable td.staff-final[data-main="1"]');
             if (mainTd) mainTd.textContent = rem.toFixed(2);
+            var grand = 0;
+            document.querySelectorAll('#opsCloneStaffAttTable td.staff-final').forEach(function (td) {
+                grand += parseFloat(td.textContent) || 0;
+            });
+            var sumEl = document.getElementById('opsStaffFinalSum');
+            if (sumEl) sumEl.textContent = (Math.round(grand * 100) / 100).toFixed(2);
         };
 
         if (window.toastr && window.C_TOAST_MSG) {
