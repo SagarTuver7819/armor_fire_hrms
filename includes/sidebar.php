@@ -644,6 +644,11 @@ $sidebarCompanyName = function_exists('getCompanyName') ? getCompanyName() : 'Ar
                         <i class="fa-solid fa-table-list"></i>
                         <span>CNC Job Work and Attendance Report</span>
                     </a>
+                    <a href="<?php echo app_url('sop/index.php?department_id=' . (int) $sidebarDeptId); ?>"
+                       class="sidebar-link <?php echo $sidebarActive === 'cnc_sop' ? 'active' : ''; ?>">
+                        <i class="fa-solid fa-file-signature"></i>
+                        <span>SOP</span>
+                    </a>
                     <?php endif; ?>
                     <a href="<?php echo app_url('employees/index.php?department_id=' . $sidebarDeptId); ?>"
                        class="sidebar-link <?php echo $sidebarActive === 'join_employee' ? 'active' : ''; ?>">

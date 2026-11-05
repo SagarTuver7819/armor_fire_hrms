@@ -34,6 +34,7 @@ $cncHideModules = $department && preg_match('/^cnc(\b|\s|$)/i', trim((string) ($
 $holidayCount = 0;
 $advanceOpen = 0;
 $loanOpen = 0;
+$sopCount = 0;
 if ($department) {
     ensureMasterTables();
     $conn = getDBConnection();
@@ -50,6 +51,10 @@ if ($department) {
     require_once __DIR__ . '/includes/advance_loan_helper.php';
     $advanceOpen = advanceLoanOpenCount($conn, $did, 'Advance');
     $loanOpen = advanceLoanOpenCount($conn, $did, 'Loan');
+    if ($cncHideModules) {
+        require_once __DIR__ . '/includes/sop_helper.php';
+        $sopCount = cncSopCount($conn, $did);
+    }
     $conn->close();
 }
 ?>
@@ -202,6 +207,15 @@ if ($department) {
                     <div class="module-label">Loan Master</div>
                     <div class="module-meta"><?php echo (int) $loanOpen; ?> Open · Employee wise</div>
                 </a>
+                <?php if ($cncHideModules): ?>
+                <a href="<?php echo app_url('sop/index.php?department_id=' . (int) $department['id']); ?>" class="module-card">
+                    <div class="module-icon" style="background-color: #1d4ed8;">
+                        <i class="fa-solid fa-file-signature"></i>
+                    </div>
+                    <div class="module-label">SOP</div>
+                    <div class="module-meta"><?php echo (int) $sopCount; ?> SOP · Letterhead · Share</div>
+                </a>
+                <?php endif; ?>
                 <?php if (!$cncHideModules): ?>
                 <a href="<?php echo app_url('masters/holidays/index.php?department_id=' . (int) $department['id'] . '&from=modules'); ?>" class="module-card">
                     <div class="module-icon" style="background-color: #E85D75;">
