@@ -89,6 +89,7 @@ if ($sidebarDeptId > 0) {
         }
     }
 }
+$sidebarIsCnc = $sidebarDept && preg_match('/^cnc(\b|\s|$)/i', trim((string) ($sidebarDept['department_name'] ?? '')));
 
 if (!function_exists('getMastersConfig')) {
     require_once __DIR__ . '/masters_config.php';
@@ -658,6 +659,7 @@ $sidebarCompanyName = function_exists('getCompanyName') ? getCompanyName() : 'Ar
                         <i class="fa-solid fa-utensils"></i>
                         <span>Canteen Report</span>
                     </a>
+                    <?php if (!$sidebarIsCnc): ?>
                     <a href="<?php echo app_url('attendance/manual.php?department_id=' . $sidebarDeptId . '&show=1'); ?>"
                        class="sidebar-link <?php echo $sidebarActive === 'attendance_manual' ? 'active' : ''; ?>">
                         <i class="fa-solid fa-pen-to-square"></i>
@@ -688,6 +690,7 @@ $sidebarCompanyName = function_exists('getCompanyName') ? getCompanyName() : 'Ar
                         <i class="fa-solid fa-table"></i>
                         <span>Salary Register</span>
                     </a>
+                    <?php endif; ?>
                     <a href="<?php echo app_url('payroll/joining_exit.php?department_id=' . $sidebarDeptId); ?>"
                        class="sidebar-link <?php echo $sidebarActive === 'joining_exit_report' ? 'active' : ''; ?>">
                         <i class="fa-solid fa-right-left"></i>
@@ -703,11 +706,13 @@ $sidebarCompanyName = function_exists('getCompanyName') ? getCompanyName() : 'Ar
                         <i class="fa-solid fa-building-columns"></i>
                         <span>NEFT Sheet</span>
                     </a>
+                    <?php if (!$sidebarIsCnc): ?>
                     <a href="<?php echo app_url('leave/index.php?department_id=' . $sidebarDeptId); ?>"
                        class="sidebar-link <?php echo $sidebarActive === 'leave_request' ? 'active' : ''; ?>">
                         <i class="fa-solid fa-file-invoice"></i>
                         <span>Leave Request</span>
                     </a>
+                    <?php endif; ?>
                     <a href="<?php echo app_url('leave/balance.php?department_id=' . $sidebarDeptId); ?>"
                        class="sidebar-link <?php echo $sidebarActive === 'leave_balance' ? 'active' : ''; ?>">
                         <i class="fa-solid fa-scale-balanced"></i>
@@ -743,11 +748,13 @@ $sidebarCompanyName = function_exists('getCompanyName') ? getCompanyName() : 'Ar
                         <i class="fa-solid fa-landmark"></i>
                         <span>Loan Master</span>
                     </a>
+                    <?php if (!$sidebarIsCnc): ?>
                     <a href="<?php echo app_url('masters/holidays/index.php?department_id=' . $sidebarDeptId); ?>"
                        class="sidebar-link <?php echo $sidebarActive === 'holidays' ? 'active' : ''; ?>">
                         <i class="fa-solid fa-calendar-days"></i>
                         <span>Holiday Master</span>
                     </a>
+                    <?php endif; ?>
                 </nav>
             </div>
         <?php endif; ?>

@@ -30,6 +30,7 @@ if (function_exists('navRemember') && $department) {
 
 $empCount = $department ? countEmployeesByDepartment($department['id']) : 0;
 $exitEmpCount = $department ? countExitEmployeesByDepartment($department['id']) : 0;
+$cncHideModules = $department && preg_match('/^cnc(\b|\s|$)/i', trim((string) ($department['department_name'] ?? '')));
 $holidayCount = 0;
 $advanceOpen = 0;
 $loanOpen = 0;
@@ -105,6 +106,7 @@ if ($department) {
                     <div class="module-meta"><?php echo (int) $exitEmpCount; ?> Exited · Open List</div>
                 </a>
 
+                <?php if (!$cncHideModules): ?>
                 <a href="<?php echo app_url('leave/index.php?department_id=' . (int) $department['id'] . '&from=modules'); ?>" class="module-card">
                     <div class="module-icon" style="background-color: #2ECC71;">
                         <i class="fa-solid fa-file-invoice"></i>
@@ -161,6 +163,7 @@ if ($department) {
                     <div class="module-label">Salary Register</div>
                     <div class="module-meta">Salary · Jobwork Govt / Actual · Lock → NEFT</div>
                 </a>
+                <?php endif; ?>
                 <a href="<?php echo app_url('payroll/joining_exit.php?department_id=' . (int) $department['id'] . '&from=modules'); ?>" class="module-card">
                     <div class="module-icon" style="background-color: #7C3AED;">
                         <i class="fa-solid fa-right-left"></i>
@@ -189,6 +192,7 @@ if ($department) {
                     <div class="module-label">Loan Master</div>
                     <div class="module-meta"><?php echo (int) $loanOpen; ?> Open · Employee wise</div>
                 </a>
+                <?php if (!$cncHideModules): ?>
                 <a href="<?php echo app_url('masters/holidays/index.php?department_id=' . (int) $department['id'] . '&from=modules'); ?>" class="module-card">
                     <div class="module-icon" style="background-color: #E85D75;">
                         <i class="fa-solid fa-calendar-days"></i>
@@ -196,6 +200,7 @@ if ($department) {
                     <div class="module-label">Holiday Master</div>
                     <div class="module-meta"><?php echo (int) $holidayCount; ?> Holidays · Department wise</div>
                 </a>
+                <?php endif; ?>
             </div>
         </section>
     <?php endif; ?>
