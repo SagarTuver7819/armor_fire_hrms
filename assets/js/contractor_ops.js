@@ -878,6 +878,9 @@
             $r.text(showR ? fmtFoot(dayR[d]) : '');
             $ot.text(showOt ? fmtFoot(dayOt[d]) : '');
         });
+        if (typeof window.opsOnGrandTotal === 'function') {
+            window.opsOnGrandTotal(gAmt);
+        }
     }
     function reindex() {
         $('#opsRows .ops-row').each(function (i) {

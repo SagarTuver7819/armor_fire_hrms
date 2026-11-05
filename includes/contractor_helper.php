@@ -2226,6 +2226,131 @@ function getOpsCloneStaffAttendanceMap(array $staffRows, $month, $year, $conn = 
     return $map;
 }
 
+/**
+ * CNC staff pay for the New Operation List.
+ * Daily rate = monthly salary / month working days (week-off excluded).
+ * Paid days = P from 01-11-2026 through today (or month end). A week-off counts only when it is P.
+ *
+ * @param array<int,array> $staffRows
+ * @param array<int,array<string,array>> $attMap
+ * @return array<int,array{working_days:int,paid_days:float,per_day:float,amount:float,salary:float}>
+ */
+function opsCloneCncSalaryShare(array $staffRows, array $attMap, $month, $year)
+{
+    $month = (int) $month;
+    $year = (int) $year;
+    $out = [];
+    if ($month < 1 || $month > 12 || $year < 2000) {
+        return $out;
+    }
+    $monthDays = (int) date('t', mktime(0, 0, 0, $month, 1, $year));
+    $today = date('Y-m-d');
+    $periodStart = sprintf('%04d-%02d-01', $year, $month);
+    if ($periodStart < '2026-11-01') {
+        $periodStart = '2026-11-01';
+    }
+    $periodEnd = sprintf('%04d-%02d-%02d', $year, $month, $monthDays);
+    if ($periodEnd > $today) {
+        $periodEnd = $today;
+    }
+
+    foreach ($staffRows as $staff) {
+        $eid = (int) ($staff['id'] ?? 0);
+        if ($eid <= 0) {
+            continue;
+        }
+        $salary = (float) ($staff['decided_salary'] ?? 0);
+        $weekOff = trim((string) ($staff['week_off_day'] ?? ''));
+        if ($weekOff === '') {
+            $weekOff = 'Sunday';
+        }
+        $working = 0;
+        for ($d = 1; $d <= $monthDays; $d++) {
+            $date = sprintf('%04d-%02d-%02d', $year, $month, $d);
+            if ($date < '2026-11-01') {
+                continue;
+            }
+            $dow = date('l', mktime(0, 0, 0, $month, $d, $year));
+            if (strcasecmp($dow, $weekOff) === 0) {
+                continue;
+            }
+            $working++;
+        }
+        $paid = 0.0;
+        if ($periodStart <= $periodEnd) {
+            $ts = strtotime($periodStart);
+            $endTs = strtotime($periodEnd);
+            while ($ts !== false && $endTs !== false && $ts <= $endTs) {
+                $date = date('Y-m-d', $ts);
+                $code = strtoupper(opsCloneAttCodeFromDay($attMap[$eid][$date] ?? null));
+                if ($code === 'P') {
+                    $paid += 1;
+                }
+                $ts += 86400;
+            }
+        }
+        $perDay = $working > 0 ? ($salary / $working) : 0.0;
+        $out[$eid] = [
+            'working_days' => $working,
+            'paid_days' => $paid,
+            'per_day' => round($perDay, 4),
+            'amount' => round($perDay * $paid, 2),
+            'salary' => $salary,
+        ];
+    }
+    return $out;
+}
+
+/**
+ * Fit staff salary amounts into the contractor final total.
+ * Leftover stays as the main contractor remainder. If staff pay is higher than the total, scale it down.
+ *
+ * @param array<int,array> $shares
+ * @return array{shares:array<int,array>,remainder:float,distributed:float,pool:float}
+ */
+function opsCloneApplyContractorPool(array $shares, $pool)
+{
+    $pool = round((float) $pool, 2);
+    $sum = 0.0;
+    foreach ($shares as $row) {
+        $sum += (float) ($row['amount'] ?? 0);
+    }
+    $sum = round($sum, 2);
+    $scale = 1.0;
+    if ($pool <= 0) {
+        $scale = 0.0;
+    } elseif ($sum > $pool && $sum > 0) {
+        $scale = $pool / $sum;
+    }
+    $distributed = 0.0;
+    $out = [];
+    $ids = array_keys($shares);
+    $n = count($ids);
+    foreach ($ids as $i => $eid) {
+        $base = (float) ($shares[$eid]['amount'] ?? 0);
+        if ($scale === 1.0 || $pool <= 0) {
+            $amt = round($base * $scale, 2);
+        } elseif ($i === $n - 1) {
+            $amt = round($pool - $distributed, 2);
+        } else {
+            $amt = round($base * $scale, 2);
+        }
+        if ($amt < 0) {
+            $amt = 0.0;
+        }
+        $distributed += $amt;
+        $out[$eid] = $shares[$eid];
+        $out[$eid]['final'] = $amt;
+    }
+    $distributed = round($distributed, 2);
+    return [
+        'shares' => $out,
+        'remainder' => round(max(0, $pool - $distributed), 2),
+        'distributed' => $distributed,
+        'pool' => $pool,
+    ];
+}
+
 function getOpsCloneDepartmentStaff($operation, $excludeEmployeeId = 0, $conn = null)
 {
     $operation = trim((string) $operation);
@@ -2270,7 +2395,7 @@ function getOpsCloneDepartmentStaff($operation, $excludeEmployeeId = 0, $conn = 
     }
     ensureEmployeesTable($conn);
 
-    $sql = "SELECT e.id, e.employee_code, e.employee_name, e.decided_salary, e.pay_type, e.designation
+    $sql = "SELECT e.id, e.employee_code, e.employee_name, e.decided_salary, e.pay_type, e.designation, e.week_off_day
             FROM employees e
             WHERE e.department_id = ?
               AND e.status = 1

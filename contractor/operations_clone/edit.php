@@ -58,9 +58,15 @@ if ($beforeNov) {
 $employees = ensureOpsEmployeeInList($employees, $curEmp, $conn);
 $staffBundle = getOpsCloneDepartmentStaff($curOp, $curEmp, $conn);
 $attMap = [];
-if (!empty($staffBundle['rows'])) {
-    $attMap = getOpsCloneStaffAttendanceMap($staffBundle['rows'], $curMonth, $curYear, $conn);
+$attRows = $staffBundle['rows'];
+$mainStaff = $staffBundle['main'] ?? null;
+if (is_array($mainStaff) && (int) ($mainStaff['id'] ?? 0) > 0) {
+    $attRows[] = $mainStaff;
 }
+if (!empty($attRows)) {
+    $attMap = getOpsCloneStaffAttendanceMap($attRows, $curMonth, $curYear, $conn);
+}
+$staffShares = opsCloneCncSalaryShare($staffBundle['rows'], $attMap, $curMonth, $curYear);
 
 $items = $sheet['items'] ?? [];
 // Live as-of = today so ERP KRA "Add item" appears immediately (not frozen to day 02)
@@ -203,6 +209,18 @@ if (!$items) {
         'total_amount' => 0,
     ]];
 }
+$staffPool = 0.0;
+foreach ($items as $poolItem) {
+    $calc = calculateContractorRow(
+        $curOp,
+        (float) ($poolItem['rate'] ?? 0),
+        (float) ($poolItem['ot_rate'] ?? 0),
+        (float) ($poolItem['rejection_rate'] ?? 0),
+        is_array($poolItem['days'] ?? null) ? $poolItem['days'] : []
+    );
+    $staffPool += (float) ($calc['total_amount'] ?? 0);
+}
+$staffSplit = opsCloneApplyContractorPool($staffShares, $staffPool);
 $conn->close();
 
 // CNC clone: no GRADE column (ERP KRA part rows only — qty × rate)
@@ -491,6 +509,7 @@ $otJson = json_encode(contractorOtRepairOps());
     <div class="form-page-card ops-page-card ops-clone-box ops-clone-staff-card<?php echo $opsViewOnly ? ' ops-view-only' : ''; ?>">
         <div class="ops-clone-staff-head">
             <h2><i class="fa-solid fa-users"></i> CNC Department — Normal Salary Employees</h2>
+            <p>Contract total <strong id="opsStaffPool"><?php echo number_format((float) $staffSplit['pool'], 2, '.', ''); ?></strong> divide: salary ÷ month working days (week-off sivay), 01-11-2026 thi aaj sudhi. Week-off par P hoy to e day pan count. Baki rakan Main Contractor.</p>
         </div>
 
         <form method="POST" action="<?php echo app_url('contractor/operations_clone/save_staff.php'); ?>" id="opsStaffForm" class="employee-form" autocomplete="off">
@@ -510,6 +529,7 @@ $otJson = json_encode(contractorOtRepairOps());
                             <th class="sticky-staff sticky-name">Employee Name</th>
                             <th class="sticky-staff sticky-desig">Designation</th>
                             <th class="sticky-staff sticky-sal num">Salary</th>
+                            <th class="sticky-staff sticky-final num">Final Total</th>
                             <?php for ($d = 1; $d <= $monthDays; $d++):
                                 $wd = date('D', mktime(0, 0, 0, $curMonth, $d, $curYear));
                                 $wk = in_array($wd, ['Sat', 'Sun'], true) ? ' is-weekend' : '';
@@ -522,26 +542,48 @@ $otJson = json_encode(contractorOtRepairOps());
                         </tr>
                     </thead>
                     <tbody>
-                        <?php if (empty($staffBundle['rows'])): ?>
+                        <?php
+                        $staffDisplay = $staffBundle['rows'];
+                        if (is_array($mainStaff) && (int) ($mainStaff['id'] ?? 0) > 0) {
+                            $mainStaff['_is_main'] = true;
+                            $staffDisplay[] = $mainStaff;
+                        }
+                        ?>
+                        <?php if (empty($staffDisplay)): ?>
                             <tr>
-                                <td colspan="<?php echo 5 + $monthDays; ?>" class="empty-msg">No Normal Salary employees found in CNC (excluding Main Contractor).</td>
+                                <td colspan="<?php echo 6 + $monthDays; ?>" class="empty-msg">No Normal Salary employees found in CNC.</td>
                             </tr>
                         <?php else: ?>
-                            <?php foreach ($staffBundle['rows'] as $si => $staff):
+                            <?php foreach ($staffDisplay as $si => $staff):
                                 $sid = (int) $staff['id'];
+                                $isMainRow = !empty($staff['_is_main']);
                                 $empDays = $attMap[$sid] ?? [];
+                                $share = $staffSplit['shares'][$sid] ?? null;
+                                $finalAmt = $isMainRow
+                                    ? (float) ($staffSplit['remainder'] ?? 0)
+                                    : (float) ($share['final'] ?? 0);
+                                $baseAmt = $isMainRow ? 0 : (float) ($share['amount'] ?? 0);
+                                $finalTitle = $isMainRow
+                                    ? 'Contract total minus staff salary'
+                                    : ('Salary ' . number_format((float) ($share['salary'] ?? 0), 2, '.', '')
+                                        . ' / ' . (int) ($share['working_days'] ?? 0) . ' working days × '
+                                        . (float) ($share['paid_days'] ?? 0) . ' P days');
                                 ?>
-                                <tr data-emp="<?php echo $sid; ?>">
+                                <tr data-emp="<?php echo $sid; ?>" class="<?php echo $isMainRow ? 'is-main-contractor' : ''; ?>">
                                     <td class="sticky-staff sticky-sr"><?php echo $si + 1; ?></td>
                                     <td class="sticky-staff sticky-code"><span class="code-badge"><?php echo htmlspecialchars((string) $staff['employee_code']); ?></span></td>
-                                    <td class="sticky-staff sticky-name"><?php echo htmlspecialchars((string) $staff['employee_name']); ?></td>
+                                    <td class="sticky-staff sticky-name"><?php echo htmlspecialchars((string) $staff['employee_name']); ?><?php echo $isMainRow ? ' (Main Contractor)' : ''; ?></td>
                                     <td class="sticky-staff sticky-desig"><?php echo htmlspecialchars((string) ($staff['designation'] ?? '')); ?></td>
                                     <td class="sticky-staff sticky-sal num">
                                         <input type="number" step="0.01" min="0"
                                                name="staff_salary[<?php echo $sid; ?>]"
                                                class="form-control grid-input staff-sal-input"
-                                               value="<?php echo htmlspecialchars((string) round((float) ($staff['decided_salary'] ?? 0), 2)); ?>">
+                                               value="<?php echo htmlspecialchars((string) round((float) ($staff['decided_salary'] ?? 0), 2)); ?>"
+                                               <?php echo $isMainRow ? 'readonly tabindex="-1"' : ''; ?>>
                                     </td>
+                                    <td class="sticky-staff sticky-final num staff-final<?php echo $isMainRow ? ' is-remainder' : ''; ?>"
+                                        <?php echo $isMainRow ? 'data-main="1"' : 'data-base="' . htmlspecialchars((string) $baseAmt) . '"'; ?>
+                                        title="<?php echo htmlspecialchars($finalTitle); ?>"><?php echo number_format($finalAmt, 2, '.', ''); ?></td>
                                     <?php for ($d = 1; $d <= $monthDays; $d++):
                                         $date = sprintf('%04d-%02d-%02d', $curYear, $curMonth, $d);
                                         $code = opsCloneAttCodeFromDay($empDays[$date] ?? null);
@@ -672,6 +714,34 @@ $otJson = json_encode(contractorOtRepairOps());
                 if (hid) hid.value = JSON.stringify(payload);
             });
         }
+
+        window.opsOnGrandTotal = function (pool) {
+            pool = Math.round((parseFloat(pool) || 0) * 100) / 100;
+            var poolEl = document.getElementById('opsStaffPool');
+            if (poolEl) poolEl.textContent = pool.toFixed(2);
+            var cells = Array.prototype.slice.call(document.querySelectorAll('#opsCloneStaffAttTable td.staff-final[data-base]'));
+            var sum = 0;
+            cells.forEach(function (td) { sum += parseFloat(td.getAttribute('data-base')) || 0; });
+            sum = Math.round(sum * 100) / 100;
+            var scale = 1;
+            if (pool <= 0) scale = 0;
+            else if (sum > pool && sum > 0) scale = pool / sum;
+            var distributed = 0;
+            cells.forEach(function (td, i) {
+                var base = parseFloat(td.getAttribute('data-base')) || 0;
+                var amt;
+                if (scale === 1 || pool <= 0) amt = Math.round(base * scale * 100) / 100;
+                else if (i === cells.length - 1) amt = Math.round((pool - distributed) * 100) / 100;
+                else amt = Math.round(base * scale * 100) / 100;
+                if (amt < 0) amt = 0;
+                distributed += amt;
+                td.textContent = amt.toFixed(2);
+            });
+            distributed = Math.round(distributed * 100) / 100;
+            var rem = Math.max(0, Math.round((pool - distributed) * 100) / 100);
+            var mainTd = document.querySelector('#opsCloneStaffAttTable td.staff-final[data-main="1"]');
+            if (mainTd) mainTd.textContent = rem.toFixed(2);
+        };
 
         if (window.toastr && window.C_TOAST_MSG) {
             toastr.options = { closeButton: true, progressBar: true, positionClass: 'toast-top-right', timeOut: 3500 };
