@@ -82,6 +82,7 @@ if (!$beforeNov && $mainId > 0) {
         $paid = (float) ($st['paid_days'] ?? 0);
         $final = round((float) ($st['final'] ?? 0), 2);
         $isMain = !empty($st['is_main']);
+        $pt = $final >= 12001 ? 200.0 : 0.0;
         $rows[] = [
             'code' => (string) ($st['code'] ?? ''),
             'name' => (string) ($st['name'] ?? ''),
@@ -92,7 +93,9 @@ if (!$beforeNov && $mainId > 0) {
             'present' => $paid,
             'total_days' => $paid,
             'gross' => $final,
-            'net' => $final,
+            'pt' => $pt,
+            'deduction' => $pt,
+            'net' => round($final - $pt, 2),
             'account' => trim((string) ($ex['bank_account_number'] ?? '')),
             'ifsc' => trim((string) ($ex['ifsc_code'] ?? '')),
             'is_main' => $isMain,
@@ -102,9 +105,13 @@ if (!$beforeNov && $mainId > 0) {
 
 $sumSalary = 0.0;
 $sumGross = 0.0;
+$sumPt = 0.0;
+$sumNet = 0.0;
 foreach ($rows as $r) {
     $sumSalary += $r['salary'];
     $sumGross += $r['gross'];
+    $sumPt += $r['pt'];
+    $sumNet += $r['net'];
 }
 $monthLabel = date('F Y', mktime(0, 0, 0, $month, 1, $year));
 ?>
@@ -144,7 +151,7 @@ $monthLabel = date('F Y', mktime(0, 0, 0, $month, 1, $year));
         <?php elseif ($mainId <= 0): ?>
             <p class="form-hint">CNC main contractor was not found.</p>
         <?php else: ?>
-            <p class="form-hint">P.Days are Present marks from 01-11-2026 through today. Week-off counts only when it is P. Staff Gross and Net follow the New Operation List final total. Main contractor <?php echo htmlspecialchars($mainLabel); ?> is the last row: his Salary, Gross and Net are the remainder that is left after the staff split.</p>
+            <p class="form-hint">P.Days are Present marks from 01-11-2026 through today. Week-off counts only when it is P. Staff Gross follows the New Operation List final total. Gross 12,001 or more cuts P.T. 200, and Net is Gross minus that P.T. Main contractor <?php echo htmlspecialchars($mainLabel); ?> is the last row: his Salary and Gross are the remainder left after the staff split.</p>
         <?php endif; ?>
     </div>
 
@@ -222,10 +229,10 @@ $monthLabel = date('F Y', mktime(0, 0, 0, $month, 1, $year));
                         <td class="num"><?php echo cncCloneNum($r['total_days'], 1); ?></td>
                         <td class="num"><?php echo cncCloneNum($r['gross'], 2); ?></td>
                         <td class="num">0</td>
+                        <td class="num"><?php echo cncCloneNum($r['pt'], 0); ?></td>
                         <td class="num">0</td>
                         <td class="num">0</td>
-                        <td class="num">0</td>
-                        <td class="num">0</td>
+                        <td class="num"><?php echo cncCloneNum($r['deduction'], 0); ?></td>
                         <td class="num">0</td>
                         <td class="num"><strong><?php echo cncCloneNum($r['net'], 2); ?></strong></td>
                         <td><?php echo htmlspecialchars($r['account'] !== '' ? $r['account'] : '-'); ?></td>
@@ -242,12 +249,12 @@ $monthLabel = date('F Y', mktime(0, 0, 0, $month, 1, $year));
                         <td colspan="8"></td>
                         <td class="num"><strong><?php echo cncCloneNum($sumGross, 2); ?></strong></td>
                         <td class="num">0</td>
+                        <td class="num"><strong><?php echo cncCloneNum($sumPt, 0); ?></strong></td>
                         <td class="num">0</td>
                         <td class="num">0</td>
+                        <td class="num"><strong><?php echo cncCloneNum($sumPt, 0); ?></strong></td>
                         <td class="num">0</td>
-                        <td class="num">0</td>
-                        <td class="num">0</td>
-                        <td class="num"><strong><?php echo cncCloneNum($sumGross, 2); ?></strong></td>
+                        <td class="num"><strong><?php echo cncCloneNum($sumNet, 2); ?></strong></td>
                         <td colspan="3"></td>
                     </tr>
                 </tfoot>
