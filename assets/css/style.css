@@ -6399,8 +6399,20 @@ body > .select2-container .select2-dropdown {
     padding-left: 4px;
     padding-right: 4px;
 }
-.ops-clone-staff-att-table.show-buff-loan .sticky-final {
+.ops-clone-staff-att-table .sticky-expense {
     left: 744px;
+    width: 108px;
+    min-width: 108px;
+    max-width: 108px;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    color: #9a3412;
+    font-weight: 700;
+    padding-left: 4px;
+    padding-right: 4px;
+}
+.ops-clone-staff-att-table.show-buff-loan .sticky-final {
+    left: 852px;
 }
 .ops-clone-staff-att-table .sticky-final {
     left: 654px;

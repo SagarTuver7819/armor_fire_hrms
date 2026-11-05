@@ -2604,6 +2604,143 @@ function fetchErpBuffLoanAmounts($year, $month)
     return $out;
 }
 
+/**
+ * ERP Buffing Expense "BUFF EXPENSE" for the month.
+ * Same split as the ERP sheet: round the grand total, then half stays with Buff.
+ */
+function fetchErpBuffDeptExpense($year, $month)
+{
+    $year = (int) $year;
+    $month = (int) $month;
+    if ($year < 2000 || $month < 1 || $month > 12) {
+        return 0.0;
+    }
+    if (!function_exists('getErpDBConnection')) {
+        require_once __DIR__ . '/../config/database.php';
+    }
+    $erp = getErpDBConnection();
+    if (!$erp) {
+        return 0.0;
+    }
+    $dept = $erp->query("SELECT id FROM departments WHERE LOWER(TRIM(department_name)) LIKE 'buff%' ORDER BY id ASC LIMIT 1");
+    $deptRow = $dept ? $dept->fetch_assoc() : null;
+    $deptId = (int) ($deptRow['id'] ?? 0);
+    if ($deptId <= 0) {
+        return 0.0;
+    }
+    $from = sprintf('%04d-%02d-01', $year, $month);
+    $to = date('Y-m-t', strtotime($from));
+
+    $rates = [];
+    $active = [];
+    $hasConsumable = false;
+    $col = $erp->query("SHOW COLUMNS FROM sub_items LIKE 'consumable_department_id'");
+    if ($col && $col->fetch_assoc()) {
+        $hasConsumable = true;
+    }
+    if ($hasConsumable) {
+        $rateSql = "SELECT product_name, variant_name, purchase_cost
+                    FROM sub_items
+                    WHERE IFNULL(is_consumable, 0) = 1 AND consumable_department_id = ?
+                    ORDER BY id ASC";
+        $rateSt = $erp->prepare($rateSql);
+        if ($rateSt) {
+            $rateSt->bind_param('i', $deptId);
+            $rateSt->execute();
+            $rateRes = $rateSt->get_result();
+            if ($rateRes) {
+                while ($rateRow = $rateRes->fetch_assoc()) {
+                    $rateName = trim((string) ($rateRow['product_name'] ?? ''));
+                    $variant = trim((string) ($rateRow['variant_name'] ?? ''));
+                    if ($variant !== '') {
+                        $rateName .= ' (' . $variant . ')';
+                    }
+                    $rateKey = strtolower($rateName);
+                    if ($rateKey === '') {
+                        continue;
+                    }
+                    $masterRate = (float) ($rateRow['purchase_cost'] ?? 0);
+                    if (!isset($rates[$rateKey]) || ($rates[$rateKey] <= 0 && $masterRate > 0)) {
+                        $rates[$rateKey] = $masterRate;
+                    }
+                    $active[$rateKey] = true;
+                }
+            }
+            $rateSt->close();
+        }
+    }
+
+    $dayCols = [];
+    for ($d = 1; $d <= 30; $d++) {
+        $dayCols[] = 'fe.day_' . $d;
+    }
+    $sql = "SELECT fe.id, fe.entry_date, fe.item_name, fe.rate, " . implode(', ', $dayCols) . "
+            FROM furnace_expense_entries fe
+            INNER JOIN document_master dm ON dm.id = fe.document_id AND dm.department_id = fe.department_id
+            WHERE fe.department_id = ?
+              AND (LOWER(dm.document_name) LIKE '%expense%' OR LOWER(dm.document_name) LIKE '%expence%')
+              AND fe.entry_date BETWEEN ? AND ?
+            ORDER BY fe.entry_date ASC, fe.id ASC";
+    $st = $erp->prepare($sql);
+    if (!$st) {
+        return 0.0;
+    }
+    $st->bind_param('iss', $deptId, $from, $to);
+    $st->execute();
+    $res = $st->get_result();
+    $groups = [];
+    if ($res) {
+        while ($row = $res->fetch_assoc()) {
+            $key = strtolower(trim((string) ($row['item_name'] ?? '')));
+            if ($key === '') {
+                continue;
+            }
+            $groups[$key][] = $row;
+        }
+    }
+    $st->close();
+
+    $grand = 0.0;
+    foreach ($groups as $key => $groupRows) {
+        if ($active && !isset($active[$key])) {
+            continue;
+        }
+        $keeper = $groupRows[0];
+        foreach ($groupRows as $groupRow) {
+            if (substr((string) ($groupRow['entry_date'] ?? ''), 0, 10) === $from) {
+                $keeper = $groupRow;
+                break;
+            }
+        }
+        $qty = 0.0;
+        for ($d = 1; $d <= 30; $d++) {
+            $colName = 'day_' . $d;
+            $val = (float) ($keeper[$colName] ?? 0);
+            if ($val <= 0) {
+                foreach ($groupRows as $groupRow) {
+                    if ((int) ($groupRow['id'] ?? 0) === (int) ($keeper['id'] ?? 0)) {
+                        continue;
+                    }
+                    $other = (float) ($groupRow[$colName] ?? 0);
+                    if ($other > 0) {
+                        $val = $other;
+                        break;
+                    }
+                }
+            }
+            $qty += $val;
+        }
+        $rate = array_key_exists($key, $rates) ? (float) $rates[$key] : (float) ($keeper['rate'] ?? 0);
+        $grand += $qty * $rate;
+    }
+    $rounded = (int) round($grand);
+    if ($rounded <= 0) {
+        return 0.0;
+    }
+    $company = round($rounded / 2, 2);
+    return round($rounded - $company, 2);
+}
+
 function opsCloneLoanForStaff(array $staff, array $loans)
 {
     $code = strtoupper(trim((string) ($staff['employee_code'] ?? '')));

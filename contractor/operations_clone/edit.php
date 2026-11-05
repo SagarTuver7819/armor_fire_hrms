@@ -255,6 +255,7 @@ if ($isBuffReport) {
     $staffShares = $loanCut['shares'];
     $staffLoanById = $loanCut['by_id'];
 }
+$staffBuffExpense = $isBuffReport ? fetchErpBuffDeptExpense($curYear, $curMonth) : 0.0;
 $staffPool = 0.0;
 foreach ($items as $poolItem) {
     $calc = calculateContractorRow(
@@ -627,7 +628,7 @@ $otJson = json_encode(contractorOtRepairOps());
             <input type="hidden" name="staff_att_json" id="staffAttJson" value="">
 
             <div class="ops-clone-staff-wrap">
-                <table class="ops-clone-staff-att-table<?php echo $isBuffReport ? ' show-buff-loan' : ''; ?>" id="opsCloneStaffAttTable">
+                <table class="ops-clone-staff-att-table<?php echo $isBuffReport ? ' show-buff-loan' : ''; ?>" id="opsCloneStaffAttTable" data-buff-expense="<?php echo htmlspecialchars(number_format((float) $staffBuffExpense, 2, '.', '')); ?>">
                     <thead>
                         <tr>
                             <th class="sticky-staff sticky-sr">Sr.</th>
@@ -638,6 +639,7 @@ $otJson = json_encode(contractorOtRepairOps());
                             <th class="sticky-staff sticky-adays num">A Days</th>
                             <?php if ($isBuffReport): ?>
                             <th class="sticky-staff sticky-loan num">Loan</th>
+                            <th class="sticky-staff sticky-expense num">Buff Expense</th>
                             <?php endif; ?>
                             <th class="sticky-staff sticky-final num">Final Total</th>
                             <?php for ($d = 1; $d <= $monthDays; $d++):
@@ -661,7 +663,7 @@ $otJson = json_encode(contractorOtRepairOps());
                         ?>
                         <?php if (empty($staffDisplay)): ?>
                             <tr>
-                                <td colspan="<?php echo 7 + ($isBuffReport ? 1 : 0) + $monthDays; ?>" class="empty-msg">No Normal Salary employees found in <?php echo htmlspecialchars($reportDeptKey); ?>.</td>
+                                <td colspan="<?php echo 7 + ($isBuffReport ? 2 : 0) + $monthDays; ?>" class="empty-msg">No Normal Salary employees found in <?php echo htmlspecialchars($reportDeptKey); ?>.</td>
                             </tr>
                         <?php else: ?>
                             <?php $staffFinalSum = 0.0; $staffPSum = 0; $staffASum = 0; $staffLoanSum = 0.0; ?>
@@ -671,7 +673,7 @@ $otJson = json_encode(contractorOtRepairOps());
                                 $empDays = $attMap[$sid] ?? [];
                                 $share = $staffSplit['shares'][$sid] ?? null;
                                 $finalAmt = $isMainRow
-                                    ? (float) ($staffSplit['remainder'] ?? 0)
+                                    ? round((float) ($staffSplit['remainder'] ?? 0) - (float) $staffBuffExpense, 2)
                                     : (float) ($share['final'] ?? 0);
                                 $staffFinalSum += $finalAmt;
                                 $pDays = 0;
@@ -690,8 +692,10 @@ $otJson = json_encode(contractorOtRepairOps());
                                 $rowLoan = $isMainRow ? 0.0 : (float) ($staffLoanById[$sid] ?? 0);
                                 $staffLoanSum += $rowLoan;
                                 $baseAmt = $isMainRow ? 0 : (float) ($share['amount'] ?? 0);
+                                $rowExpense = ($isMainRow && $staffBuffExpense > 0) ? (float) $staffBuffExpense : 0.0;
                                 $finalTitle = $isMainRow
-                                    ? 'Contract total minus staff salary, plus staff loan'
+                                    ? ('Contract total minus staff salary, plus staff loan'
+                                        . ($rowExpense > 0 ? ' − Buff Expense ' . number_format($rowExpense, 2, '.', '') : ''))
                                     : ('Salary ' . number_format((float) ($share['salary'] ?? 0), 2, '.', '')
                                         . ' / ' . (int) ($share['working_days'] ?? 0) . ' working days × '
                                         . (float) ($share['paid_days'] ?? 0) . ' P days'
@@ -706,6 +710,7 @@ $otJson = json_encode(contractorOtRepairOps());
                                     <td class="sticky-staff sticky-adays num staff-a-days"><?php echo (int) $aDays; ?></td>
                                     <?php if ($isBuffReport): ?>
                                     <td class="sticky-staff sticky-loan num"><?php echo $rowLoan > 0 ? number_format($rowLoan, 2, '.', '') : ''; ?></td>
+                                    <td class="sticky-staff sticky-expense num"><?php echo $rowExpense > 0 ? number_format($rowExpense, 2, '.', '') : ''; ?></td>
                                     <?php endif; ?>
                                     <td class="sticky-staff sticky-final num staff-final<?php echo $isMainRow ? ' is-remainder' : ''; ?>"
                                         <?php echo $isMainRow ? 'data-main="1"' : 'data-base="' . htmlspecialchars((string) $baseAmt) . '"'; ?>
@@ -755,6 +760,7 @@ $otJson = json_encode(contractorOtRepairOps());
                             <td class="sticky-staff sticky-adays num" id="opsStaffASum"><?php echo (int) $staffASum; ?></td>
                             <?php if ($isBuffReport): ?>
                             <td class="sticky-staff sticky-loan num"><?php echo $staffLoanSum > 0 ? number_format($staffLoanSum, 2, '.', '') : ''; ?></td>
+                            <td class="sticky-staff sticky-expense num"><?php echo $staffBuffExpense > 0 ? number_format((float) $staffBuffExpense, 2, '.', '') : ''; ?></td>
                             <?php endif; ?>
                             <td class="sticky-staff sticky-final num" id="opsStaffFinalSum"><?php echo number_format($staffFinalSum, 2, '.', ''); ?></td>
                             <td colspan="<?php echo (int) $monthDays; ?>"></td>
@@ -895,7 +901,9 @@ $otJson = json_encode(contractorOtRepairOps());
                 td.textContent = amt.toFixed(2);
             });
             distributed = Math.round(distributed * 100) / 100;
-            var rem = Math.max(0, Math.round((pool - distributed) * 100) / 100);
+            var expenseTable = document.getElementById('opsCloneStaffAttTable');
+            var expense = expenseTable ? (parseFloat(expenseTable.getAttribute('data-buff-expense')) || 0) : 0;
+            var rem = Math.round((pool - distributed - expense) * 100) / 100;
             var mainTd = document.querySelector('#opsCloneStaffAttTable td.staff-final[data-main="1"]');
             if (mainTd) mainTd.textContent = rem.toFixed(2);
             var grand = 0;
