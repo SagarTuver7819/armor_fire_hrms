@@ -52,19 +52,9 @@ foreach ($export['rows'] as $row) {
     }
     echo '</tr>';
 }
-echo '<tr style="font-weight:700;background:#ecfdf5;">';
-echo '<td></td><td></td><td></td>';
-echo '<td>NORMAL TOTAL (' . (int) $sec['normal_count'] . ')</td><td></td><td></td>';
-echo '<td style="mso-number-format:0.00;">' . htmlspecialchars(number_format((float) $sec['normal_total'], 2, '.', '')) . '</td>';
-echo '<td colspan="6"></td></tr>';
-echo '<tr style="font-weight:700;background:#eff6ff;">';
-echo '<td></td><td></td><td></td>';
-echo '<td>JOBWORK TOTAL (' . (int) $sec['jobwork_count'] . ')</td><td></td><td></td>';
-echo '<td style="mso-number-format:0.00;">' . htmlspecialchars(number_format((float) $sec['jobwork_total'], 2, '.', '')) . '</td>';
-echo '<td colspan="6"></td></tr>';
 echo '<tr style="font-weight:700;background:#fff2cc;">';
 echo '<td></td><td></td><td></td>';
-echo '<td>FINAL TOTAL (NORMAL + JOBWORK)</td><td></td><td></td>';
+echo '<td>TOTAL (' . count($export['rows']) . ')</td><td></td><td></td>';
 echo '<td style="mso-number-format:0.00;">' . htmlspecialchars(number_format((float) $sec['final_total'], 2, '.', '')) . '</td>';
 echo '<td colspan="6"></td></tr>';
 echo '</table></body></html>';

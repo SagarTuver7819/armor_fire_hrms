@@ -66,16 +66,12 @@ $companyName = function_exists('getCompanyName') ? getCompanyName() : 'Armor Fir
         · EMAIL=<?php echo htmlspecialchars($export['cfg']['email_id']); ?>
     </div>
     <div class="chips meta">
-        <span><?php echo count($neftRows); ?> total</span>
-        <span>Normal <?php echo (int) $sec['normal_count']; ?> · ₹ <?php echo cncCloneNum($sec['normal_total'], 2); ?></span>
-        <span>Jobwork <?php echo (int) $sec['jobwork_count']; ?> · ₹ <?php echo cncCloneNum($sec['jobwork_total'], 2); ?></span>
-        <span><strong>Final ₹ <?php echo cncCloneNum($sec['final_total'], 2); ?></strong></span>
+        <span><?php echo count($neftRows); ?> employees · ₹ <?php echo cncCloneNum($sec['final_total'], 2); ?></span>
     </div>
     <table>
         <thead>
             <tr>
                 <th>Sr</th>
-                <th>Type</th>
                 <th>BNF_NAME</th>
                 <th>Department</th>
                 <th>BENE_ACC_NO</th>
@@ -91,7 +87,6 @@ $companyName = function_exists('getCompanyName') ? getCompanyName() : 'Armor Fir
             <?php $missBank = !empty($r['missing_bank']); ?>
             <tr>
                 <td><?php echo (int) $r['sr']; ?></td>
-                <td><?php echo htmlspecialchars($r['register_kind']); ?></td>
                 <td>
                     <strong><?php echo htmlspecialchars(cncCloneBeneName($r['employee_name'])); ?></strong>
                     <div class="sub"><?php echo htmlspecialchars($r['employee_code']); ?><?php echo $missBank ? ' · No bank A/C' : ''; ?></div>
@@ -108,18 +103,8 @@ $companyName = function_exists('getCompanyName') ? getCompanyName() : 'Armor Fir
         </tbody>
     </table>
     <table class="neft-totals">
-        <tr class="sec-n">
-            <td colspan="6">Normal Salary Total (<?php echo (int) $sec['normal_count']; ?>)</td>
-            <td class="num"><?php echo cncCloneNum($sec['normal_total'], 2); ?></td>
-            <td colspan="3"></td>
-        </tr>
-        <tr class="sec-j">
-            <td colspan="6">Jobwork Total (<?php echo (int) $sec['jobwork_count']; ?>)</td>
-            <td class="num"><?php echo cncCloneNum($sec['jobwork_total'], 2); ?></td>
-            <td colspan="3"></td>
-        </tr>
         <tr class="sec-f">
-            <td colspan="6">Final NEFT Total (Normal + Jobwork)</td>
+            <td colspan="5">NEFT Total (<?php echo count($neftRows); ?>)</td>
             <td class="num"><?php echo cncCloneNum($sec['final_total'], 2); ?></td>
             <td colspan="3"></td>
         </tr>

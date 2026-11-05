@@ -101,9 +101,7 @@ $neftQs = http_build_query(['month' => $month, 'year' => $year]);
             </div>
         </div>
         <div class="ops-live-summary">
-            <span class="ops-chip">Normal <?php echo (int) $neftSec['normal_count']; ?> · ₹ <?php echo cncCloneNum($neftSec['normal_total'], 2); ?></span>
-            <span class="ops-chip">Jobwork <?php echo (int) $neftSec['jobwork_count']; ?> · ₹ <?php echo cncCloneNum($neftSec['jobwork_total'], 2); ?></span>
-            <span class="ops-chip"><strong>Final ₹ <?php echo cncCloneNum($neftSec['final_total'], 2); ?></strong></span>
+            <span class="ops-chip"><strong><?php echo count($neftRows); ?> employees · ₹ <?php echo cncCloneNum($neftSec['final_total'], 2); ?></strong></span>
             <?php if ((int) $neftSec['missing_bank'] > 0): ?>
                 <span class="ops-chip" style="color:#b45309;"><?php echo (int) $neftSec['missing_bank']; ?> missing bank A/C</span>
             <?php endif; ?>
@@ -113,7 +111,6 @@ $neftQs = http_build_query(['month' => $month, 'year' => $year]);
                 <thead>
                     <tr>
                         <th>Sr</th>
-                        <th>Type</th>
                         <th>BNF_NAME</th>
                         <th>Department</th>
                         <th>BENE_ACC_NO</th>
@@ -129,7 +126,6 @@ $neftQs = http_build_query(['month' => $month, 'year' => $year]);
                     <?php $missBank = !empty($nr['missing_bank']); ?>
                     <tr<?php echo $missBank ? ' style="background:#fff7ed;"' : ''; ?>>
                         <td><?php echo (int) $nr['sr']; ?></td>
-                        <td><?php echo htmlspecialchars($nr['register_kind']); ?></td>
                         <td>
                             <strong><?php echo htmlspecialchars(cncCloneBeneName($nr['employee_name'])); ?></strong>
                             <div class="sr-code"><?php echo htmlspecialchars($nr['employee_code']); ?><?php echo $missBank ? ' · No bank A/C' : ''; ?></div>
@@ -145,18 +141,8 @@ $neftQs = http_build_query(['month' => $month, 'year' => $year]);
                 <?php endforeach; ?>
                 </tbody>
                 <tfoot>
-                    <tr style="background:#ecfdf5;">
-                        <td colspan="6"><strong>Normal Salary Total (<?php echo (int) $neftSec['normal_count']; ?>)</strong></td>
-                        <td class="num"><strong><?php echo cncCloneNum($neftSec['normal_total'], 2); ?></strong></td>
-                        <td colspan="3"></td>
-                    </tr>
-                    <tr style="background:#eff6ff;">
-                        <td colspan="6"><strong>Jobwork Total (<?php echo (int) $neftSec['jobwork_count']; ?>)</strong></td>
-                        <td class="num"><strong><?php echo cncCloneNum($neftSec['jobwork_total'], 2); ?></strong></td>
-                        <td colspan="3"></td>
-                    </tr>
                     <tr style="background:#fef3c7;">
-                        <td colspan="6"><strong>Final NEFT Total</strong></td>
+                        <td colspan="5"><strong>NEFT Total (<?php echo count($neftRows); ?>)</strong></td>
                         <td class="num"><strong><?php echo cncCloneNum($neftSec['final_total'], 2); ?></strong></td>
                         <td colspan="3"></td>
                     </tr>

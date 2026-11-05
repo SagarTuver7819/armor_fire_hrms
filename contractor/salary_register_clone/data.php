@@ -236,13 +236,9 @@ function cncCloneNfpsExport(array $neftRows, $month, $year)
         if (strlen($mobile) !== 10) {
             $mobile = '';
         }
-        $kind = trim((string) ($r['register_kind'] ?? ''));
         $remarkParts = ['CNC CLONE'];
         if ($account === '') {
             $remarkParts[] = 'MISSING BANK A/C';
-        }
-        if ($kind !== '') {
-            $remarkParts[] = strtoupper($kind);
         }
         $total += $amount;
         $rows[] = [
