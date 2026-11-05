@@ -6,17 +6,7 @@
 require_once __DIR__ . '/../_bootstrap.php';
 require_once __DIR__ . '/../../includes/contractor_split_helper.php';
 require_once __DIR__ . '/../../includes/ops_clone_report.php';
-
-function cncCloneNum($n, $decimals = 2)
-{
-    return formatIndianNumber((float) $n, (int) $decimals);
-}
-
-function cncCloneDate($value)
-{
-    $formatted = formatDateDisplay($value);
-    return $formatted !== '' ? $formatted : '-';
-}
+require_once __DIR__ . '/data.php';
 
 $month = (int) ($_GET['month'] ?? date('n'));
 $year = (int) ($_GET['year'] ?? date('Y'));
@@ -26,7 +16,6 @@ if ($month < 1 || $month > 12) {
 if ($year < 2000 || $year > 2100) {
     $year = (int) date('Y');
 }
-$beforeNov = ($year < 2026) || ($year === 2026 && $month < 11);
 
 $pageTitle = 'Clone Salary Register';
 $useSidebar = true;
@@ -34,74 +23,11 @@ $sidebarMode = 'contractor';
 $sidebarActive = 'contractor_salary_clone';
 require_once __DIR__ . '/../../includes/header.php';
 
-$main = null;
-foreach (contractorAttendanceSplitRules() as $rule) {
-    if (strcasecmp((string) ($rule['department_name'] ?? ''), 'CNC') === 0) {
-        $main = resolveContractorAttendanceSplitMain($rule);
-        break;
-    }
-}
-$mainId = (int) ($main['id'] ?? 0);
-$mainLabel = trim((string) ($main['employee_code'] ?? '') . ' — ' . (string) ($main['employee_name'] ?? ''));
-
-$rows = [];
-$report = null;
-if (!$beforeNov && $mainId > 0) {
-    $conn = getDBConnection();
-    ensureContractorTables($conn);
-    $report = opsCloneBuildCncReport($conn, $mainId, $month, $year, 0);
-    $ids = [];
-    foreach ($report['staff'] as $st) {
-        $code = strtoupper(trim((string) ($st['code'] ?? '')));
-        if ($code !== '') {
-            $ids[$code] = $st;
-        }
-    }
-    $extra = [];
-    if ($ids) {
-        $codes = array_keys($ids);
-        $ph = implode(',', array_fill(0, count($codes), '?'));
-        $types = str_repeat('s', count($codes));
-        $sql = "SELECT employee_code, designation, date_of_joining, uan_number, bank_account_number, ifsc_code
-                FROM employees WHERE UPPER(TRIM(employee_code)) IN ($ph)";
-        $st = $conn->prepare($sql);
-        if ($st) {
-            $st->bind_param($types, ...$codes);
-            $st->execute();
-            $res = $st->get_result();
-            while ($er = $res->fetch_assoc()) {
-                $extra[strtoupper(trim((string) $er['employee_code']))] = $er;
-            }
-            $st->close();
-        }
-    }
-    $conn->close();
-    foreach ($report['staff'] as $st) {
-        $code = strtoupper(trim((string) ($st['code'] ?? '')));
-        $ex = $extra[$code] ?? [];
-        $paid = (float) ($st['paid_days'] ?? 0);
-        $final = round((float) ($st['final'] ?? 0), 2);
-        $isMain = !empty($st['is_main']);
-        $pt = $final >= 12001 ? 200.0 : 0.0;
-        $rows[] = [
-            'code' => (string) ($st['code'] ?? ''),
-            'name' => (string) ($st['name'] ?? ''),
-            'designation' => trim((string) ($ex['designation'] ?? '')),
-            'doj' => cncCloneDate($ex['date_of_joining'] ?? ''),
-            'uan' => trim((string) ($ex['uan_number'] ?? '')),
-            'salary' => $isMain ? $final : (float) ($st['salary'] ?? 0),
-            'present' => $paid,
-            'total_days' => $paid,
-            'gross' => $final,
-            'pt' => $pt,
-            'deduction' => $pt,
-            'net' => round($final - $pt, 2),
-            'account' => trim((string) ($ex['bank_account_number'] ?? '')),
-            'ifsc' => trim((string) ($ex['ifsc_code'] ?? '')),
-            'is_main' => $isMain,
-        ];
-    }
-}
+$bundle = cncCloneRegisterBundle($month, $year);
+$beforeNov = !empty($bundle['before_nov']);
+$mainId = (int) $bundle['main_id'];
+$mainLabel = (string) $bundle['main_label'];
+$rows = $bundle['rows'];
 
 $sumSalary = 0.0;
 $sumGross = 0.0;
@@ -116,8 +42,15 @@ foreach ($rows as $r) {
 $monthLabel = date('F Y', mktime(0, 0, 0, $month, 1, $year));
 ?>
 <main class="dashboard-main">
-    <div class="page-toolbar">
+    <div class="page-toolbar flex-between">
         <a href="<?php echo app_url('contractor/index.php'); ?>" class="back-link"><i class="fa-solid fa-arrow-left"></i> Back to Contractor Hub</a>
+        <?php if (!$beforeNov && $mainId > 0 && $rows): ?>
+        <div class="toolbar-actions">
+            <a class="btn-primary" href="<?php echo app_url('contractor/salary_register_clone/neft.php?' . http_build_query(['month' => $month, 'year' => $year])); ?>">
+                <i class="fa-solid fa-building-columns"></i> Clone NEFT
+            </a>
+        </div>
+        <?php endif; ?>
     </div>
     <div class="form-page-card">
         <div class="form-page-header">
