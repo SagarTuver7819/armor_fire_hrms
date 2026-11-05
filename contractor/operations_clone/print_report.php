@@ -131,8 +131,8 @@ $title = 'Job work and Attendance Report — ' . $monthLabel;
             padding: 42mm 12mm 28mm 12mm !important;
             height: 100% !important; max-height: 100% !important; overflow: hidden !important;
         }
-        .doc-title { text-align: center; font-size: 16px; font-weight: 800; margin: 0; letter-spacing: .02em; }
-        .doc-sub { text-align: center; font-size: 12px; color: #9f1239; font-weight: 700; margin: 2px 0 8px; }
+        .doc-title { text-align: center; font-size: 16px; font-weight: 800; margin: 0; letter-spacing: .04em; text-transform: uppercase; }
+        .doc-sub { text-align: center; font-size: 12px; color: #9f1239; font-weight: 800; margin: 2px 0 8px; letter-spacing: .03em; text-transform: uppercase; }
         .sec-title { font-size: 13px; font-weight: 800; margin: 0 0 6px; color: #9f1239; }
         .meta {
             display: grid; grid-template-columns: 1fr 1fr; gap: 2px 16px;
@@ -169,8 +169,8 @@ $title = 'Job work and Attendance Report — ' . $monthLabel;
                 <?php echo companyDocRenderWatermark($brand); ?>
                 <div class="cdoc-inner">
                     <?php echo companyDocRenderHeader($brand, 'CNC Department'); ?>
-                    <div class="doc-title">Job work and Attendance Report</div>
-                    <div class="doc-sub">CNC Department · <?php echo $h($periodLabel); ?><?php echo ($pi > 0) ? ' · Continued' : ''; ?></div>
+                    <div class="doc-title">JOB WORK AND ATTENDANCE REPORT</div>
+                    <div class="doc-sub">CNC DEPARTMENT · <?php echo $h($periodLabel); ?><?php echo ($pi > 0) ? ' · CONTINUED' : ''; ?></div>
                     <?php if ($pg['kind'] === 'qty'): ?>
                         <div class="sec-title">Job Work — Rate &amp; Quantity<?php echo $pg['cont'] ? ' (continued)' : ''; ?></div>
                         <?php if (!$pg['cont']): ?>
