@@ -2507,7 +2507,7 @@ function fetchErpCncAttendanceMarks($fromDate, $toDate, $deptLike = 'cnc%')
             WHERE LOWER(TRIM(d.department_name)) LIKE ?
               AND LOWER(dm.document_name) LIKE '%attendance%'
               AND ae.entry_date BETWEEN ? AND ?
-              AND UPPER(TRIM(COALESCE(ae.in_time, ''))) IN ('P', 'A')
+              AND UPPER(TRIM(COALESCE(ae.in_time, ''))) IN ('P', 'A', 'WO')
             ORDER BY ae.entry_date ASC, ae.id ASC";
     $st = $erp->prepare($sql);
     if (!$st) {
@@ -2520,7 +2520,7 @@ function fetchErpCncAttendanceMarks($fromDate, $toDate, $deptLike = 'cnc%')
     if ($res) {
         while ($row = $res->fetch_assoc()) {
             $mark = strtoupper(trim((string) ($row['mark'] ?? '')));
-            if ($mark !== 'P' && $mark !== 'A') {
+            if ($mark !== 'P' && $mark !== 'A' && $mark !== 'WO') {
                 continue;
             }
             $date = substr((string) ($row['entry_date'] ?? ''), 0, 10);
@@ -2599,6 +2599,9 @@ function applyErpCncAttendanceToStaffMap(array $staffRows, array $map, $month, $
             if (in_array($cur, ['Leave', 'Half Day', 'Holiday'], true)) {
                 continue;
             }
+            if ($mark !== 'P' && $cur === 'Present') {
+                continue;
+            }
             if ($cur === $want) {
                 continue;
             }
@@ -2608,6 +2611,97 @@ function applyErpCncAttendanceToStaffMap(array $staffRows, array $map, $month, $
                 'employee_id' => $eid,
                 'attendance_date' => $date,
                 'day_status' => $want,
+                'punch_in' => null,
+                'punch_out' => null,
+                'remarks' => null,
+                'working_minutes' => 0,
+                'source' => 'erp_att',
+            ];
+        }
+    }
+    $upsert->close();
+    return $map;
+}
+
+/**
+ * Week-off weekday → A in the staff grid, same as CNC.
+ * P, Leave, Half Day and Holiday stay. Today is included. Tomorrow stays blank.
+ *
+ * @param array<int,array> $staffRows
+ * @param array<int,array<string,array>> $map
+ * @return array<int,array<string,array>>
+ */
+function applyOpsCloneWeekOffAsAbsent(array $staffRows, array $map, $month, $year, $conn)
+{
+    $month = (int) $month;
+    $year = (int) $year;
+    if ($year < 2026 || ($year === 2026 && $month < 11) || !$staffRows || !$conn) {
+        return $map;
+    }
+    if (!function_exists('employeeWeekOffHistoryRows')) {
+        require_once __DIR__ . '/employee_helper.php';
+    }
+    $monthDays = (int) date('t', mktime(0, 0, 0, $month, 1, $year));
+    $today = date('Y-m-d');
+    $start = '2026-11-01';
+    $upsert = $conn->prepare(
+        "INSERT INTO attendance_day_status
+            (employee_id, attendance_date, day_status, punch_in, punch_out, working_minutes, source, remarks)
+         VALUES (?, ?, 'Absent', NULL, NULL, 0, 'erp_att', NULL)
+         ON DUPLICATE KEY UPDATE
+            day_status = 'Absent',
+            punch_in = NULL,
+            punch_out = NULL,
+            working_minutes = 0,
+            source = 'erp_att',
+            remarks = NULL"
+    );
+    if (!$upsert) {
+        return $map;
+    }
+    foreach ($staffRows as $staff) {
+        $eid = (int) ($staff['id'] ?? 0);
+        if ($eid <= 0) {
+            continue;
+        }
+        $fallback = trim((string) ($staff['week_off_day'] ?? ''));
+        if ($fallback === '') {
+            $fallback = 'Sunday';
+        }
+        $history = employeeWeekOffHistoryRows($eid, $conn);
+        for ($d = 1; $d <= $monthDays; $d++) {
+            $date = sprintf('%04d-%02d-%02d', $year, $month, $d);
+            if ($date < $start || $date > $today) {
+                continue;
+            }
+            $weekOff = employeeWeekOffDayFromHistory($history, $date, $fallback);
+            $dow = date('l', mktime(0, 0, 0, $month, $d, $year));
+            $normDay = static function ($name) {
+                $name = strtolower(trim((string) $name));
+                $map = [
+                    'sun' => 'sunday', 'sunday' => 'sunday',
+                    'mon' => 'monday', 'monday' => 'monday',
+                    'tue' => 'tuesday', 'tues' => 'tuesday', 'tuesday' => 'tuesday',
+                    'wed' => 'wednesday', 'wednesday' => 'wednesday',
+                    'thu' => 'thursday', 'thur' => 'thursday', 'thurs' => 'thursday', 'thursday' => 'thursday',
+                    'fri' => 'friday', 'friday' => 'friday',
+                    'sat' => 'saturday', 'saturday' => 'saturday',
+                ];
+                return $map[$name] ?? ($map[substr($name, 0, 3)] ?? $name);
+            };
+            if ($normDay($dow) !== $normDay($weekOff)) {
+                continue;
+            }
+            $cur = (string) ($map[$eid][$date]['day_status'] ?? '');
+            if (in_array($cur, ['Present', 'Leave', 'Half Day', 'Holiday', 'Absent'], true)) {
+                continue;
+            }
+            $upsert->bind_param('is', $eid, $date);
+            $upsert->execute();
+            $map[$eid][$date] = [
+                'employee_id' => $eid,
+                'attendance_date' => $date,
+                'day_status' => 'Absent',
                 'punch_in' => null,
                 'punch_out' => null,
                 'remarks' => null,
@@ -2666,6 +2760,7 @@ function getOpsCloneStaffAttendanceMap(array $staffRows, $month, $year, $conn = 
         }
     }
     $map = applyErpCncAttendanceToStaffMap($staffRows, $map, $month, $year, $conn, $deptLike);
+    $map = applyOpsCloneWeekOffAsAbsent($staffRows, $map, $month, $year, $conn);
     if ($closeAfter) {
         $conn->close();
     }
