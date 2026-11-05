@@ -8,6 +8,7 @@ require_once __DIR__ . '/../includes/settings.php';
 require_once __DIR__ . '/../includes/document_print.php';
 require_once __DIR__ . '/../includes/sop_helper.php';
 require_once __DIR__ . '/../includes/sop_letter.php';
+require_once __DIR__ . '/../includes/sop_terms.php';
 
 $token = (string) ($_GET['t'] ?? '');
 $conn = getDBConnection();
@@ -27,6 +28,7 @@ $title = (string) $row['title'];
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title><?php echo cncSopH($title); ?></title>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+Gujarati:wght@600;700;800&display=swap">
     <style>
         body {
             margin: 0;
@@ -37,6 +39,7 @@ $title = (string) $row['title'];
         }
         <?php echo companyDocPrintCss(); ?>
         <?php echo cncSopLetterCss(); ?>
+        <?php echo cncSopTermsCss(); ?>
         @media print {
             html, body { background: #fff !important; padding: 0 !important; margin: 0 !important; }
             @page { size: A4 portrait; margin: 6mm; }
@@ -50,6 +53,7 @@ $title = (string) $row['title'];
     </div>
     <div class="sop-sheet-wrap">
         <?php echo cncSopLetterSheet($row, $brand, false, true); ?>
+        <?php echo cncSopTermsSheetsHtml($brand); ?>
     </div>
     <script>
     (function () {
