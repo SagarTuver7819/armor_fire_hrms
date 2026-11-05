@@ -41,14 +41,15 @@ function cncCloneBeneName($name)
 /**
  * @return array{before_nov:bool,main_id:int,main_label:string,rows:array<int,array>}
  */
-function cncCloneRegisterBundle($month, $year)
+function cncCloneRegisterBundle($month, $year, $operation = 'CNC')
 {
     $month = (int) $month;
     $year = (int) $year;
+    $operation = strtoupper(trim((string) $operation)) === 'BUFF' ? 'BUFF' : 'CNC';
     $beforeNov = ($year < 2026) || ($year === 2026 && $month < 11);
     $main = null;
     foreach (contractorAttendanceSplitRules() as $rule) {
-        if (strcasecmp((string) ($rule['department_name'] ?? ''), 'CNC') === 0) {
+        if (strcasecmp((string) ($rule['department_name'] ?? ''), $operation) === 0) {
             $main = resolveContractorAttendanceSplitMain($rule);
             break;
         }
@@ -61,15 +62,18 @@ function cncCloneRegisterBundle($month, $year)
             'before_nov' => $beforeNov,
             'main_id' => $mainId,
             'main_label' => $mainLabel,
+            'operation' => $operation,
             'rows' => $rows,
         ];
     }
 
     $conn = getDBConnection();
     ensureContractorTables($conn);
-    $report = opsCloneBuildCncReport($conn, $mainId, $month, $year, 0);
+    $staffList = $operation === 'BUFF'
+        ? opsCloneBuffStaffPay($conn, $mainId, $month, $year)
+        : (opsCloneBuildCncReport($conn, $mainId, $month, $year, 0)['staff'] ?? []);
     $ids = [];
-    foreach ($report['staff'] as $st) {
+    foreach ($staffList as $st) {
         $code = strtoupper(trim((string) ($st['code'] ?? '')));
         if ($code !== '') {
             $ids[$code] = $st;
@@ -100,15 +104,16 @@ function cncCloneRegisterBundle($month, $year)
     }
     $conn->close();
 
-    foreach ($report['staff'] as $st) {
+    foreach ($staffList as $st) {
         $code = strtoupper(trim((string) ($st['code'] ?? '')));
         $ex = $extra[$code] ?? [];
         $paid = (float) ($st['paid_days'] ?? 0);
         $final = round((float) ($st['final'] ?? 0), 2);
+        $loan = !empty($st['is_main']) ? 0.0 : round((float) ($st['loan'] ?? 0), 2);
         $isMain = !empty($st['is_main']);
-        $gross = cncCloneRoundRupee($final);
+        $gross = cncCloneRoundRupee($isMain ? $final : ($final + $loan));
         $pt = $gross >= 12001 ? 200.0 : 0.0;
-        $net = cncCloneRoundRupee($gross - $pt);
+        $net = cncCloneRoundRupee($gross - $pt - $loan);
         $rows[] = [
             'code' => (string) ($st['code'] ?? ''),
             'name' => (string) ($st['name'] ?? ''),
@@ -120,12 +125,14 @@ function cncCloneRegisterBundle($month, $year)
             'total_days' => $paid,
             'gross' => $gross,
             'pt' => $pt,
-            'deduction' => $pt,
+            'loan' => $loan,
+            'deduction' => round($pt + $loan, 2),
             'net' => $net,
             'account' => trim((string) ($ex['bank_account_number'] ?? '')),
             'ifsc' => trim((string) ($ex['ifsc_code'] ?? '')),
             'mobile' => trim((string) ($ex['mobile_number'] ?? '')),
             'is_main' => $isMain,
+            'department' => $operation,
         ];
     }
 
@@ -133,6 +140,7 @@ function cncCloneRegisterBundle($month, $year)
         'before_nov' => false,
         'main_id' => $mainId,
         'main_label' => $mainLabel,
+        'operation' => $operation,
         'rows' => $rows,
     ];
 }
@@ -155,7 +163,7 @@ function cncCloneNeftRows(array $registerRows)
             'sr' => $sr,
             'employee_code' => (string) ($r['code'] ?? ''),
             'employee_name' => (string) ($r['name'] ?? ''),
-            'department' => 'CNC',
+            'department' => (string) ($r['department'] ?? 'CNC'),
             'account' => $account !== '' ? $account : '-',
             'ifsc' => trim((string) ($r['ifsc'] ?? '')),
             'amount' => $amount,
@@ -243,7 +251,7 @@ function cncCloneNfpsExport(array $neftRows, $month, $year)
         if (strlen($mobile) !== 10) {
             $mobile = '';
         }
-        $remarkParts = ['CNC CLONE'];
+        $remarkParts = [strtoupper((string) ($r['department'] ?? 'CNC')) . ' CLONE'];
         if ($account === '') {
             $remarkParts[] = 'MISSING BANK A/C';
         }

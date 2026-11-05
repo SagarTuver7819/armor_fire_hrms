@@ -6387,6 +6387,21 @@ body > .select2-container .select2-dropdown {
 .ops-clone-staff-att-table .sticky-sal { left: 406px; width: 92px; min-width: 92px; max-width: 92px; text-align: right; font-variant-numeric: tabular-nums; }
 .ops-clone-staff-att-table .sticky-pdays { left: 498px; width: 78px; min-width: 78px; max-width: 78px; text-align: center; font-variant-numeric: tabular-nums; color: #166534; font-weight: 700; padding-left: 4px; padding-right: 4px; }
 .ops-clone-staff-att-table .sticky-adays { left: 576px; width: 78px; min-width: 78px; max-width: 78px; text-align: center; font-variant-numeric: tabular-nums; color: #b91c1c; font-weight: 700; padding-left: 4px; padding-right: 4px; }
+.ops-clone-staff-att-table .sticky-loan {
+    left: 654px;
+    width: 90px;
+    min-width: 90px;
+    max-width: 90px;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    color: #b45309;
+    font-weight: 700;
+    padding-left: 4px;
+    padding-right: 4px;
+}
+.ops-clone-staff-att-table.show-buff-loan .sticky-final {
+    left: 744px;
+}
 .ops-clone-staff-att-table .sticky-final {
     left: 654px;
     width: 118px;

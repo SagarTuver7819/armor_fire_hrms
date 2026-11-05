@@ -228,3 +228,180 @@ function opsCloneBuildCncReport($conn, $employeeId, $month, $year, $sheetId = 0)
         'remainder' => (float) ($split['remainder'] ?? 0),
     ];
 }
+
+/**
+ * Buff New Operation List staff split — same finals as the Buff job screen.
+ *
+ * @return array<int,array>
+ */
+function opsCloneBuffStaffPay($conn, $employeeId, $month, $year)
+{
+    $employeeId = (int) $employeeId;
+    $month = (int) $month;
+    $year = (int) $year;
+    $sheetId = 0;
+    if ($employeeId > 0) {
+        $st = $conn->prepare(
+            "SELECT id FROM contractor_operation_sheets
+             WHERE employee_id = ? AND operation = 'BUFF' AND month_no = ? AND year_no = ? AND status = 1
+             ORDER BY id DESC LIMIT 1"
+        );
+        if ($st) {
+            $st->bind_param('iii', $employeeId, $month, $year);
+            $st->execute();
+            $row = $st->get_result()->fetch_assoc();
+            $st->close();
+            $sheetId = (int) ($row['id'] ?? 0);
+        }
+    }
+    $sheet = $sheetId > 0 ? getContractorSheetById($sheetId, $conn) : null;
+    $items = $sheet['items'] ?? [];
+
+    $kraAsOf = date('Y-m-d');
+    try {
+        $kraSync = syncErpKraPartsToContractorProducts('BUFF', $conn, $kraAsOf);
+    } catch (Throwable $e) {
+        $kraSync = ['names' => []];
+    }
+    if (!empty($kraSync['names']) && is_array($kraSync['names'])) {
+        usort($kraSync['names'], static function ($a, $b) {
+            $oa = contractorBuffKraSortRank($a);
+            $ob = contractorBuffKraSortRank($b);
+            if ($oa !== $ob) {
+                return $oa <=> $ob;
+            }
+            return strcasecmp((string) $a, (string) $b);
+        });
+    }
+    $kraNameSet = [];
+    $canonLabelByKey = [];
+    foreach (($kraSync['names'] ?? []) as $pn) {
+        $ck = contractorKraCanonicalKey($pn);
+        if ($ck === '') {
+            continue;
+        }
+        $kraNameSet[$ck] = true;
+        $canonLabelByKey[$ck] = (string) $pn;
+        foreach (contractorKraPartNameLookupCandidates($pn) as $al) {
+            $kraNameSet[strtolower(trim((string) $al))] = true;
+        }
+    }
+    $products = getContractorProductsByOperation('BUFF', $conn);
+    $best = [];
+    foreach ($products as $pr) {
+        if (!contractorProductMatchesKraNames($pr, $kraNameSet)) {
+            continue;
+        }
+        $raw = trim((string) ($pr['product_name'] ?? ''));
+        if ($raw === '') {
+            $raw = trim((string) ($pr['process'] ?? ''));
+        }
+        $nk = contractorKraCanonicalKey($raw);
+        if ($nk === '') {
+            continue;
+        }
+        $rate = (float) ($pr['rate'] ?? 0);
+        if (!isset($best[$nk]) || $rate > (float) ($best[$nk]['rate'] ?? 0)) {
+            $best[$nk] = $pr;
+            $best[$nk]['_canon'] = $canonLabelByKey[$nk] ?? $raw;
+        }
+    }
+    try {
+        $erpDayQtyByPart = fetchErpKraDateWiseQtys('BUFF', $year, $month);
+    } catch (Throwable $e) {
+        $erpDayQtyByPart = [];
+    }
+    try {
+        $erpBuffExtraByPart = fetchErpBuffKraDayExtras($year, $month);
+    } catch (Throwable $e) {
+        $erpBuffExtraByPart = [];
+    }
+
+    $pool = 0.0;
+    foreach (($kraSync['names'] ?? []) as $canon) {
+        $ck = contractorKraCanonicalKey($canon);
+        if ($ck === '' || !isset($best[$ck])) {
+            continue;
+        }
+        $pr = $best[$ck];
+        $pid = (int) ($pr['id'] ?? 0);
+        $saved = null;
+        foreach ($items as $it) {
+            if ((int) ($it['product_id'] ?? 0) === $pid) {
+                $saved = $it;
+                break;
+            }
+        }
+        if ($saved === null) {
+            foreach ($items as $it) {
+                $itPid = (int) ($it['product_id'] ?? 0);
+                if ($itPid <= 0) {
+                    continue;
+                }
+                foreach ($products as $candPr) {
+                    if ((int) ($candPr['id'] ?? 0) !== $itPid) {
+                        continue;
+                    }
+                    $candKey = contractorKraCanonicalKey((string) ($candPr['product_name'] ?? $candPr['process'] ?? ''));
+                    if ($candKey === $ck) {
+                        $saved = $it;
+                        break 2;
+                    }
+                }
+            }
+        }
+        $days = is_array($saved['days'] ?? null) ? $saved['days'] : [];
+        $days = mergeErpKraDaysIntoMap($days, contractorErpDaysForPartName($canon, $erpDayQtyByPart), true);
+        $days = mergeErpBuffExtrasIntoMap($days, contractorErpBuffExtrasForPartName($canon, $erpBuffExtraByPart));
+        $calc = calculateContractorRow(
+            'BUFF',
+            (float) ($saved !== null ? ($saved['rate'] ?? $pr['rate'] ?? 0) : ($pr['rate'] ?? 0)),
+            (float) ($saved !== null ? ($saved['ot_rate'] ?? 0) : parseOtRate($pr['ot_text'] ?? '')),
+            (float) ($saved !== null ? ($saved['rejection_rate'] ?? $pr['rejection_rate'] ?? 0) : ($pr['rejection_rate'] ?? 0)),
+            $days,
+            (float) ($saved !== null ? ($saved['argon_rate'] ?? $pr['argon_rate'] ?? 0) : ($pr['argon_rate'] ?? 0))
+        );
+        $pool += (float) ($calc['total_amount'] ?? 0);
+    }
+    $pool = round($pool, 2);
+
+    $staffBundle = getOpsCloneDepartmentStaff('BUFF', $employeeId, $conn);
+    $main = $staffBundle['main'] ?? null;
+    $attRows = $staffBundle['rows'];
+    if (is_array($main) && (int) ($main['id'] ?? 0) > 0) {
+        $attRows[] = $main;
+    }
+    $attMap = $attRows ? getOpsCloneStaffAttendanceMap($attRows, $month, $year, $conn, 'buff%') : [];
+    $shares = opsCloneCncSalaryShare($staffBundle['rows'], $attMap, $month, $year);
+    $loanCut = opsCloneSubtractLoansFromShares($shares, $staffBundle['rows'], fetchErpBuffLoanAmounts($year, $month));
+    $shares = $loanCut['shares'];
+    $loanById = $loanCut['by_id'];
+    $split = opsCloneApplyContractorPool($shares, $pool);
+
+    $staff = [];
+    foreach ($staffBundle['rows'] as $row) {
+        $eid = (int) ($row['id'] ?? 0);
+        $share = $split['shares'][$eid] ?? [];
+        $staff[] = [
+            'code' => (string) ($row['employee_code'] ?? ''),
+            'name' => (string) ($row['employee_name'] ?? ''),
+            'salary' => (float) ($row['decided_salary'] ?? 0),
+            'paid_days' => (float) ($share['paid_days'] ?? 0),
+            'final' => (float) ($share['final'] ?? 0),
+            'loan' => (float) ($loanById[$eid] ?? 0),
+            'is_main' => false,
+        ];
+    }
+    if (is_array($main) && (int) ($main['id'] ?? 0) > 0) {
+        $staff[] = [
+            'code' => (string) ($main['employee_code'] ?? ''),
+            'name' => (string) ($main['employee_name'] ?? ''),
+            'salary' => (float) ($main['decided_salary'] ?? 0),
+            'paid_days' => (float) (opsCloneCncSalaryShare([$main], $attMap, $month, $year)[(int) $main['id']]['paid_days'] ?? 0),
+            'final' => (float) ($split['remainder'] ?? 0),
+            'loan' => 0.0,
+            'is_main' => true,
+        ];
+    }
+    return $staff;
+}

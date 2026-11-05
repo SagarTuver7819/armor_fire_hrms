@@ -245,6 +245,16 @@ if (!$items) {
         'total_amount' => 0,
     ]];
 }
+$staffLoanById = [];
+if ($isBuffReport) {
+    $loanCut = opsCloneSubtractLoansFromShares(
+        $staffShares,
+        $staffBundle['rows'],
+        fetchErpBuffLoanAmounts($curYear, $curMonth)
+    );
+    $staffShares = $loanCut['shares'];
+    $staffLoanById = $loanCut['by_id'];
+}
 $staffPool = 0.0;
 foreach ($items as $poolItem) {
     $calc = calculateContractorRow(
@@ -617,7 +627,7 @@ $otJson = json_encode(contractorOtRepairOps());
             <input type="hidden" name="staff_att_json" id="staffAttJson" value="">
 
             <div class="ops-clone-staff-wrap">
-                <table class="ops-clone-staff-att-table" id="opsCloneStaffAttTable">
+                <table class="ops-clone-staff-att-table<?php echo $isBuffReport ? ' show-buff-loan' : ''; ?>" id="opsCloneStaffAttTable">
                     <thead>
                         <tr>
                             <th class="sticky-staff sticky-sr">Sr.</th>
@@ -626,6 +636,9 @@ $otJson = json_encode(contractorOtRepairOps());
                             <th class="sticky-staff sticky-sal num">Salary</th>
                             <th class="sticky-staff sticky-pdays num">P Days</th>
                             <th class="sticky-staff sticky-adays num">A Days</th>
+                            <?php if ($isBuffReport): ?>
+                            <th class="sticky-staff sticky-loan num">Loan</th>
+                            <?php endif; ?>
                             <th class="sticky-staff sticky-final num">Final Total</th>
                             <?php for ($d = 1; $d <= $monthDays; $d++):
                                 $wd = date('D', mktime(0, 0, 0, $curMonth, $d, $curYear));
@@ -648,10 +661,10 @@ $otJson = json_encode(contractorOtRepairOps());
                         ?>
                         <?php if (empty($staffDisplay)): ?>
                             <tr>
-                                <td colspan="<?php echo 7 + $monthDays; ?>" class="empty-msg">No Normal Salary employees found in <?php echo htmlspecialchars($reportDeptKey); ?>.</td>
+                                <td colspan="<?php echo 7 + ($isBuffReport ? 1 : 0) + $monthDays; ?>" class="empty-msg">No Normal Salary employees found in <?php echo htmlspecialchars($reportDeptKey); ?>.</td>
                             </tr>
                         <?php else: ?>
-                            <?php $staffFinalSum = 0.0; $staffPSum = 0; $staffASum = 0; ?>
+                            <?php $staffFinalSum = 0.0; $staffPSum = 0; $staffASum = 0; $staffLoanSum = 0.0; ?>
                             <?php foreach ($staffDisplay as $si => $staff):
                                 $sid = (int) $staff['id'];
                                 $isMainRow = !empty($staff['_is_main']);
@@ -674,12 +687,15 @@ $otJson = json_encode(contractorOtRepairOps());
                                 }
                                 $staffPSum += $pDays;
                                 $staffASum += $aDays;
+                                $rowLoan = $isMainRow ? 0.0 : (float) ($staffLoanById[$sid] ?? 0);
+                                $staffLoanSum += $rowLoan;
                                 $baseAmt = $isMainRow ? 0 : (float) ($share['amount'] ?? 0);
                                 $finalTitle = $isMainRow
-                                    ? 'Contract total minus staff salary'
+                                    ? 'Contract total minus staff salary, plus staff loan'
                                     : ('Salary ' . number_format((float) ($share['salary'] ?? 0), 2, '.', '')
                                         . ' / ' . (int) ($share['working_days'] ?? 0) . ' working days × '
-                                        . (float) ($share['paid_days'] ?? 0) . ' P days');
+                                        . (float) ($share['paid_days'] ?? 0) . ' P days'
+                                        . ($rowLoan > 0 ? ' − loan ' . number_format($rowLoan, 2, '.', '') : ''));
                                 ?>
                                 <tr data-emp="<?php echo $sid; ?>" class="<?php echo $isMainRow ? 'is-main-contractor' : ''; ?>">
                                     <td class="sticky-staff sticky-sr"><?php echo $si + 1; ?></td>
@@ -688,6 +704,9 @@ $otJson = json_encode(contractorOtRepairOps());
                                     <td class="sticky-staff sticky-sal num"><?php echo number_format((float) ($staff['decided_salary'] ?? 0), 0, '.', ''); ?></td>
                                     <td class="sticky-staff sticky-pdays num staff-p-days"><?php echo (int) $pDays; ?></td>
                                     <td class="sticky-staff sticky-adays num staff-a-days"><?php echo (int) $aDays; ?></td>
+                                    <?php if ($isBuffReport): ?>
+                                    <td class="sticky-staff sticky-loan num"><?php echo $rowLoan > 0 ? number_format($rowLoan, 2, '.', '') : ''; ?></td>
+                                    <?php endif; ?>
                                     <td class="sticky-staff sticky-final num staff-final<?php echo $isMainRow ? ' is-remainder' : ''; ?>"
                                         <?php echo $isMainRow ? 'data-main="1"' : 'data-base="' . htmlspecialchars((string) $baseAmt) . '"'; ?>
                                         title="<?php echo htmlspecialchars($finalTitle); ?>"><?php echo number_format($finalAmt, 2, '.', ''); ?></td>
@@ -734,6 +753,9 @@ $otJson = json_encode(contractorOtRepairOps());
                             <td class="sticky-staff sticky-sal"></td>
                             <td class="sticky-staff sticky-pdays num" id="opsStaffPSum"><?php echo (int) $staffPSum; ?></td>
                             <td class="sticky-staff sticky-adays num" id="opsStaffASum"><?php echo (int) $staffASum; ?></td>
+                            <?php if ($isBuffReport): ?>
+                            <td class="sticky-staff sticky-loan num"><?php echo $staffLoanSum > 0 ? number_format($staffLoanSum, 2, '.', '') : ''; ?></td>
+                            <?php endif; ?>
                             <td class="sticky-staff sticky-final num" id="opsStaffFinalSum"><?php echo number_format($staffFinalSum, 2, '.', ''); ?></td>
                             <td colspan="<?php echo (int) $monthDays; ?>"></td>
                         </tr>

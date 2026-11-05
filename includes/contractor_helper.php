@@ -2542,6 +2542,117 @@ function fetchErpCncAttendanceMarks($fromDate, $toDate, $deptLike = 'cnc%')
 }
 
 /**
+ * Buff ERP Attendance Sheet loan amounts for the month, summed per employee.
+ * Keys: c:CODE and n:name. Lookup uses one key, so the amount is not doubled.
+ *
+ * @return array<string, float>
+ */
+function fetchErpBuffLoanAmounts($year, $month)
+{
+    $year = (int) $year;
+    $month = (int) $month;
+    if ($year < 2000 || $month < 1 || $month > 12) {
+        return [];
+    }
+    if (!function_exists('getErpDBConnection')) {
+        require_once __DIR__ . '/../config/database.php';
+    }
+    $erp = getErpDBConnection();
+    if (!$erp) {
+        return [];
+    }
+    $col = $erp->query("SHOW COLUMNS FROM attendance_entries LIKE 'loan_amount'");
+    if (!$col || !$col->fetch_assoc()) {
+        return [];
+    }
+    $from = sprintf('%04d-%02d-01', $year, $month);
+    $to = date('Y-m-t', strtotime($from));
+    $sql = "SELECT ae.employee_code, ae.employee_name, ae.loan_amount
+            FROM attendance_entries ae
+            INNER JOIN departments d ON d.id = ae.department_id
+            INNER JOIN document_master dm ON dm.id = ae.document_id AND dm.department_id = ae.department_id
+            WHERE LOWER(TRIM(d.department_name)) LIKE 'buff%'
+              AND LOWER(dm.document_name) LIKE '%attendance%'
+              AND ae.entry_date BETWEEN ? AND ?
+              AND TRIM(COALESCE(ae.loan_amount, '')) <> ''";
+    $st = $erp->prepare($sql);
+    if (!$st) {
+        return [];
+    }
+    $st->bind_param('ss', $from, $to);
+    $st->execute();
+    $res = $st->get_result();
+    $out = [];
+    if ($res) {
+        while ($row = $res->fetch_assoc()) {
+            $raw = str_replace(',', '', trim((string) ($row['loan_amount'] ?? '')));
+            $amt = is_numeric($raw) ? round((float) $raw, 2) : 0.0;
+            if ($amt <= 0) {
+                continue;
+            }
+            $code = strtoupper(trim((string) ($row['employee_code'] ?? '')));
+            $name = strtolower(trim((string) ($row['employee_name'] ?? '')));
+            if ($code !== '') {
+                $out['c:' . $code] = round(($out['c:' . $code] ?? 0) + $amt, 2);
+            }
+            if ($name !== '') {
+                $out['n:' . $name] = round(($out['n:' . $name] ?? 0) + $amt, 2);
+            }
+        }
+    }
+    $st->close();
+    return $out;
+}
+
+function opsCloneLoanForStaff(array $staff, array $loans)
+{
+    $code = strtoupper(trim((string) ($staff['employee_code'] ?? '')));
+    $name = strtolower(trim((string) ($staff['employee_name'] ?? '')));
+    if ($code !== '' && isset($loans['c:' . $code])) {
+        return (float) $loans['c:' . $code];
+    }
+    if ($name !== '' && isset($loans['n:' . $name])) {
+        return (float) $loans['n:' . $name];
+    }
+    return 0.0;
+}
+
+/**
+ * Cut each staff share by that employee's ERP loan. The pool split then
+ * leaves the cut amount with the main contractor.
+ *
+ * @param array<int,array> $shares
+ * @param array<int,array> $staffRows
+ * @param array<string,float> $loans
+ * @return array{shares:array<int,array>,by_id:array<int,float>}
+ */
+function opsCloneSubtractLoansFromShares(array $shares, array $staffRows, array $loans)
+{
+    $byId = [];
+    if (!$loans) {
+        return ['shares' => $shares, 'by_id' => $byId];
+    }
+    foreach ($staffRows as $staff) {
+        $eid = (int) ($staff['id'] ?? 0);
+        if ($eid <= 0 || !isset($shares[$eid])) {
+            continue;
+        }
+        $loan = opsCloneLoanForStaff($staff, $loans);
+        if ($loan <= 0) {
+            continue;
+        }
+        $amt = (float) ($shares[$eid]['amount'] ?? 0);
+        $cut = round(min($loan, max(0, $amt)), 2);
+        if ($cut <= 0) {
+            continue;
+        }
+        $shares[$eid]['amount'] = round($amt - $cut, 2);
+        $byId[$eid] = $cut;
+    }
+    return ['shares' => $shares, 'by_id' => $byId];
+}
+
+/**
  * Copy ERP CNC Attendance P/A into the staff day map and attendance_day_status.
  * Leave, Half Day and Holiday already saved in HRMS stay as they are.
  *

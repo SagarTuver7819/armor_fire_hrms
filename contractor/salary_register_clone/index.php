@@ -23,27 +23,31 @@ $sidebarMode = 'contractor';
 $sidebarActive = 'contractor_salary_clone';
 require_once __DIR__ . '/../../includes/header.php';
 
-$bundle = cncCloneRegisterBundle($month, $year);
-$beforeNov = !empty($bundle['before_nov']);
-$mainId = (int) $bundle['main_id'];
-$mainLabel = (string) $bundle['main_label'];
-$rows = $bundle['rows'];
-
-$sumSalary = 0.0;
-$sumGross = 0.0;
-$sumPt = 0.0;
-$sumNet = 0.0;
-foreach ($rows as $r) {
-    $sumSalary += $r['salary'];
-    $sumGross += $r['gross'];
-    $sumPt += $r['pt'];
-    $sumNet += $r['net'];
+$dept = strtoupper(trim((string) ($_GET['dept'] ?? 'ALL')));
+if (!in_array($dept, ['ALL', 'CNC', 'BUFF'], true)) {
+    $dept = 'ALL';
 }
+$ops = $dept === 'ALL' ? ['CNC', 'BUFF'] : [$dept];
+$bundles = [];
+foreach ($ops as $opName) {
+    $bundles[$opName] = cncCloneRegisterBundle($month, $year, $opName);
+}
+$beforeNov = !empty($bundles[$ops[0]]['before_nov']);
 $monthLabel = date('F Y', mktime(0, 0, 0, $month, 1, $year));
-$neftRows = (!$beforeNov && $mainId > 0) ? cncCloneNeftRows($rows) : [];
+$neftSource = [];
+foreach ($bundles as $opName => $one) {
+    if ($beforeNov || (int) ($one['main_id'] ?? 0) <= 0) {
+        continue;
+    }
+    foreach ($one['rows'] as $r) {
+        $r['department'] = $opName;
+        $neftSource[] = $r;
+    }
+}
+$neftRows = $neftSource ? cncCloneNeftRows($neftSource) : [];
 $neftSec = cncCloneNeftSummary($neftRows);
 $neftExport = cncCloneNfpsExport($neftRows, $month, $year);
-$neftQs = http_build_query(['month' => $month, 'year' => $year]);
+$neftQs = http_build_query(['month' => $month, 'year' => $year, 'dept' => $dept]);
 ?>
 <main class="dashboard-main">
     <div class="page-toolbar flex-between">
@@ -60,14 +64,18 @@ $neftQs = http_build_query(['month' => $month, 'year' => $year]);
         <div class="form-page-header">
             <div>
                 <h1>Clone Salary Register</h1>
-                <p>CNC · New Operation List only. Main Salary Register is not used.</p>
+                <p>CNC and BUFF · New Operation List only. Main Salary Register is not used.</p>
             </div>
         </div>
         <form method="GET" class="employee-form register-filters">
             <div class="form-grid form-grid-3">
                 <div class="form-group">
                     <label>Department</label>
-                    <input type="text" class="form-control" value="CNC" readonly>
+                    <select name="dept" class="form-control" onchange="this.form.submit()">
+                        <option value="ALL" <?php echo $dept === 'ALL' ? 'selected' : ''; ?>>CNC + BUFF</option>
+                        <option value="CNC" <?php echo $dept === 'CNC' ? 'selected' : ''; ?>>CNC</option>
+                        <option value="BUFF" <?php echo $dept === 'BUFF' ? 'selected' : ''; ?>>BUFF</option>
+                    </select>
                 </div>
                 <div class="form-group">
                     <label>Month</label>
@@ -85,10 +93,8 @@ $neftQs = http_build_query(['month' => $month, 'year' => $year]);
         </form>
         <?php if ($beforeNov): ?>
             <p class="form-hint">Clone Salary Register starts from November 2026.</p>
-        <?php elseif ($mainId <= 0): ?>
-            <p class="form-hint">CNC main contractor was not found.</p>
         <?php else: ?>
-            <p class="form-hint">P.Days are Present marks from 01-11-2026 through today. Week-off counts only when it is P. Staff Gross follows the New Operation List final total, then Gross and Net round to the nearest rupee (50 paise and above rounds up). Gross 12,001 or more cuts P.T. 200. Main contractor <?php echo htmlspecialchars($mainLabel); ?> is the last row: his Salary and Gross are the remainder left after the staff split.</p>
+            <p class="form-hint">P.Days are Present marks from 01-11-2026 through today. Week-off counts only when it is P. Staff Gross follows the New Operation List final total, then Gross and Net round to the nearest rupee (50 paise and above rounds up). Gross 12,001 or more cuts P.T. 200. The main contractor is the last row: his Salary and Gross are the remainder left after the staff split. BUFF uses the Buff job-report amount (Q × Qty Rate + RW × Rework Rate + AP × Argon Polish Rate).</p>
         <?php endif; ?>
     </div>
 
@@ -97,7 +103,7 @@ $neftQs = http_build_query(['month' => $month, 'year' => $year]);
         <div class="form-page-header">
             <div>
                 <h1>NEFT Sheet</h1>
-                <p>CNC · <?php echo htmlspecialchars($monthLabel); ?> · Amount is Clone Register Net · CREDIT_NARR <?php echo htmlspecialchars($neftExport['credit_narr']); ?> · PYMT_DATE <?php echo htmlspecialchars($neftExport['pay_date']); ?></p>
+                <p><?php echo htmlspecialchars($dept === 'ALL' ? 'CNC + BUFF' : $dept); ?> · <?php echo htmlspecialchars($monthLabel); ?> · Amount is Clone Register Net · CREDIT_NARR <?php echo htmlspecialchars($neftExport['credit_narr']); ?> · PYMT_DATE <?php echo htmlspecialchars($neftExport['pay_date']); ?></p>
             </div>
         </div>
         <div class="ops-live-summary">
@@ -130,7 +136,7 @@ $neftQs = http_build_query(['month' => $month, 'year' => $year]);
                             <strong><?php echo htmlspecialchars(cncCloneBeneName($nr['employee_name'])); ?></strong>
                             <div class="sr-code"><?php echo htmlspecialchars($nr['employee_code']); ?><?php echo $missBank ? ' · No bank A/C' : ''; ?></div>
                         </td>
-                        <td>CNC</td>
+                        <td><?php echo htmlspecialchars((string) ($nr['department'] ?? 'CNC')); ?></td>
                         <td><?php echo htmlspecialchars($missBank ? '—' : $nr['account']); ?></td>
                         <td><?php echo htmlspecialchars($nr['ifsc'] !== '' ? $nr['ifsc'] : '-'); ?></td>
                         <td class="num"><strong><?php echo cncCloneNum($nr['amount'], 0); ?></strong></td>
@@ -152,10 +158,30 @@ $neftQs = http_build_query(['month' => $month, 'year' => $year]);
     </div>
     <?php endif; ?>
 
-    <?php if (!$beforeNov && $mainId > 0): ?>
-    <div class="cnc-clone-sheet">
+    <?php foreach ($bundles as $opName => $bundle): ?>
+    <?php
+        $rows = $bundle['rows'];
+        $mainId = (int) $bundle['main_id'];
+        $mainLabel = (string) $bundle['main_label'];
+        if ($beforeNov || $mainId <= 0) {
+            continue;
+        }
+        $sumSalary = 0.0;
+        $sumGross = 0.0;
+        $sumPt = 0.0;
+        $sumLoan = 0.0;
+        $sumNet = 0.0;
+        foreach ($rows as $r) {
+            $sumSalary += $r['salary'];
+            $sumGross += $r['gross'];
+            $sumPt += $r['pt'];
+            $sumLoan += (float) ($r['loan'] ?? 0);
+            $sumNet += $r['net'];
+        }
+    ?>
+    <div class="cnc-clone-sheet" style="margin-top:16px;">
         <div class="cnc-clone-banner">
-            <strong>Salaried Person (Fixed) · CNC</strong>
+            <strong>Salaried Person (Fixed) · <?php echo htmlspecialchars($opName); ?></strong>
             <span>New Operation List · <?php echo htmlspecialchars($monthLabel); ?></span>
         </div>
         <div class="table-wrap">
@@ -199,7 +225,7 @@ $neftQs = http_build_query(['month' => $month, 'year' => $year]);
                 </thead>
                 <tbody>
                 <?php if (!$rows): ?>
-                    <tr><td colspan="25" class="empty-cell">No CNC salary employees for this month.</td></tr>
+                    <tr><td colspan="25" class="empty-cell">No <?php echo htmlspecialchars($opName); ?> salary employees for this month.</td></tr>
                 <?php endif; ?>
                 <?php foreach ($rows as $r): ?>
                     <tr class="<?php echo !empty($r['is_main']) ? 'cnc-clone-main' : ''; ?>">
@@ -227,7 +253,7 @@ $neftQs = http_build_query(['month' => $month, 'year' => $year]);
                         <td class="num"><?php echo cncCloneNum($r['gross'], 0); ?></td>
                         <td class="num">0</td>
                         <td class="num"><?php echo cncCloneNum($r['pt'], 0); ?></td>
-                        <td class="num">0</td>
+                        <td class="num"><?php echo cncCloneNum($r['loan'] ?? 0, 0); ?></td>
                         <td class="num">0</td>
                         <td class="num"><?php echo cncCloneNum($r['deduction'], 0); ?></td>
                         <td class="num">0</td>
@@ -247,9 +273,9 @@ $neftQs = http_build_query(['month' => $month, 'year' => $year]);
                         <td class="num"><strong><?php echo cncCloneNum($sumGross, 0); ?></strong></td>
                         <td class="num">0</td>
                         <td class="num"><strong><?php echo cncCloneNum($sumPt, 0); ?></strong></td>
+                        <td class="num"><strong><?php echo cncCloneNum($sumLoan, 0); ?></strong></td>
                         <td class="num">0</td>
-                        <td class="num">0</td>
-                        <td class="num"><strong><?php echo cncCloneNum($sumPt, 0); ?></strong></td>
+                        <td class="num"><strong><?php echo cncCloneNum($sumPt + $sumLoan, 0); ?></strong></td>
                         <td class="num">0</td>
                         <td class="num"><strong><?php echo cncCloneNum($sumNet, 0); ?></strong></td>
                         <td colspan="3"></td>
@@ -259,6 +285,6 @@ $neftQs = http_build_query(['month' => $month, 'year' => $year]);
             </table>
         </div>
     </div>
-    <?php endif; ?>
+    <?php endforeach; ?>
 </main>
 <?php require_once __DIR__ . '/../../includes/footer.php'; ?>
