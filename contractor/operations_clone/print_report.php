@@ -170,13 +170,13 @@ $title = 'Job work and Attendance Report — ' . $monthLabel;
                 <div class="cdoc-inner">
                     <?php echo companyDocRenderHeader($brand, 'CNC Department'); ?>
                     <div class="doc-title">Job work and Attendance Report</div>
-                    <div class="doc-sub">CNC Department · <?php echo $h($monthLabel); ?><?php echo ($pi > 0) ? ' · Continued' : ''; ?></div>
+                    <div class="doc-sub">CNC Department · <?php echo $h($periodLabel); ?><?php echo ($pi > 0) ? ' · Continued' : ''; ?></div>
                     <?php if ($pg['kind'] === 'qty'): ?>
                         <div class="sec-title">Job Work — Rate &amp; Quantity<?php echo $pg['cont'] ? ' (continued)' : ''; ?></div>
                         <?php if (!$pg['cont']): ?>
                         <div class="meta">
                             <div><strong>Department:</strong> CNC</div>
-                            <div><strong>Month:</strong> <?php echo $h($monthLabel); ?></div>
+                            <div><strong>Period:</strong> <?php echo $h($periodLabel); ?></div>
                             <div><strong>Contractor:</strong> <?php echo $h($empLabel); ?></div>
                             <div><strong>Qty source:</strong> ERP KRA</div>
                         </div>
