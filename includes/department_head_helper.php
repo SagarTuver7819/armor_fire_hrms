@@ -45,6 +45,9 @@ function ensureDepartmentHeadTables($conn = null)
  */
 function seedStandardRoles($conn = null)
 {
+    if (!hrmsSyncAllowsSeed()) {
+        return;
+    }
     $closeAfter = false;
     if ($conn === null) {
         $conn = getDBConnection();

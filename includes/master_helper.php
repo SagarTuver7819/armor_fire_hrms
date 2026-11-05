@@ -276,6 +276,9 @@ function ensureMasterTables($conn = null)
  */
 function seedSubDepartmentsFromDepartments($conn)
 {
+    if (!hrmsSyncAllowsSeed()) {
+        return;
+    }
     $res = $conn->query(
         "SELECT d.id, d.department_name
          FROM departments d
@@ -303,6 +306,9 @@ function seedSubDepartmentsFromDepartments($conn)
  */
 function seedAssignedStatesAndLocations($conn)
 {
+    if (!hrmsSyncAllowsSeed()) {
+        return;
+    }
     $states = [
         'Gujarat', 'Maharashtra', 'Rajasthan', 'Madhya Pradesh', 'Goa',
         'Karnataka', 'Tamil Nadu', 'Telangana', 'Andhra Pradesh', 'Delhi',

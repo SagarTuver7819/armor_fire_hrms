@@ -19,6 +19,14 @@ if (!defined('APP_ENV')) {
     define('APP_ENV', env('APP_ENV', 'local'));
 }
 
+if (!function_exists('hrmsSyncAllowsSeed')) {
+    /** False only while db_sync.php runs in schema-only mode. */
+    function hrmsSyncAllowsSeed()
+    {
+        return !defined('HRMS_DB_SYNC_ALLOW_SEED') || HRMS_DB_SYNC_ALLOW_SEED;
+    }
+}
+
 if (!defined('APP_URL')) {
     define('APP_URL', rtrim((string) env('APP_URL', ''), '/'));
 }

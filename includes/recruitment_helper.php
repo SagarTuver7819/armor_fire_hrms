@@ -625,6 +625,9 @@ if (!function_exists('ensureRecruitmentTables')) {
      */
     function recruitmentEnsureHrMatrixSeeded($conn)
     {
+        if (!hrmsSyncAllowsSeed()) {
+            return;
+        }
         $hasMatrix = false;
         $st = @$conn->query("SELECT id FROM recruitment_criteria WHERE position_name = '' AND criteria_label LIKE 'Reason to Change%' LIMIT 1");
         if ($st && $st->num_rows > 0) {

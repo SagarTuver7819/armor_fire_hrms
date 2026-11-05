@@ -256,6 +256,8 @@ if ($isBuffReport) {
     $staffLoanById = $loanCut['by_id'];
 }
 $staffBuffExpense = $isBuffReport ? fetchErpBuffDeptExpense($curYear, $curMonth) : 0.0;
+$staffHousekeeping = $isBuffReport ? fetchBuffHousekeepingAmount($curYear, $curMonth, $conn) : 0.0;
+$staffHousekeepingHasHistory = $isBuffReport && buffHousekeepingHasHistory($conn, $curMonth, $curYear);
 $staffPool = 0.0;
 foreach ($items as $poolItem) {
     $calc = calculateContractorRow(
@@ -628,7 +630,7 @@ $otJson = json_encode(contractorOtRepairOps());
             <input type="hidden" name="staff_att_json" id="staffAttJson" value="">
 
             <div class="ops-clone-staff-wrap">
-                <table class="ops-clone-staff-att-table<?php echo $isBuffReport ? ' show-buff-loan' : ''; ?>" id="opsCloneStaffAttTable" data-buff-expense="<?php echo htmlspecialchars(number_format((float) $staffBuffExpense, 2, '.', '')); ?>">
+                <table class="ops-clone-staff-att-table<?php echo $isBuffReport ? ' show-buff-loan' : ''; ?>" id="opsCloneStaffAttTable" data-buff-expense="<?php echo htmlspecialchars(number_format((float) $staffBuffExpense, 2, '.', '')); ?>" data-housekeeping="<?php echo htmlspecialchars(number_format((float) $staffHousekeeping, 2, '.', '')); ?>">
                     <thead>
                         <tr>
                             <th class="sticky-staff sticky-sr">Sr.</th>
@@ -639,6 +641,7 @@ $otJson = json_encode(contractorOtRepairOps());
                             <th class="sticky-staff sticky-adays num">A Days</th>
                             <?php if ($isBuffReport): ?>
                             <th class="sticky-staff sticky-loan num">Loan</th>
+                            <th class="sticky-staff sticky-hk num">House keeping Expense</th>
                             <th class="sticky-staff sticky-expense num">Buff Expense</th>
                             <?php endif; ?>
                             <th class="sticky-staff sticky-final num">Final Total</th>
@@ -663,7 +666,7 @@ $otJson = json_encode(contractorOtRepairOps());
                         ?>
                         <?php if (empty($staffDisplay)): ?>
                             <tr>
-                                <td colspan="<?php echo 7 + ($isBuffReport ? 2 : 0) + $monthDays; ?>" class="empty-msg">No Normal Salary employees found in <?php echo htmlspecialchars($reportDeptKey); ?>.</td>
+                                <td colspan="<?php echo 7 + ($isBuffReport ? 3 : 0) + $monthDays; ?>" class="empty-msg">No Normal Salary employees found in <?php echo htmlspecialchars($reportDeptKey); ?>.</td>
                             </tr>
                         <?php else: ?>
                             <?php $staffFinalSum = 0.0; $staffPSum = 0; $staffASum = 0; $staffLoanSum = 0.0; ?>
@@ -673,7 +676,7 @@ $otJson = json_encode(contractorOtRepairOps());
                                 $empDays = $attMap[$sid] ?? [];
                                 $share = $staffSplit['shares'][$sid] ?? null;
                                 $finalAmt = $isMainRow
-                                    ? round((float) ($staffSplit['remainder'] ?? 0) - (float) $staffBuffExpense, 2)
+                                    ? round((float) ($staffSplit['remainder'] ?? 0) - (float) $staffBuffExpense - (float) $staffHousekeeping, 2)
                                     : (float) ($share['final'] ?? 0);
                                 $staffFinalSum += $finalAmt;
                                 $pDays = 0;
@@ -695,7 +698,8 @@ $otJson = json_encode(contractorOtRepairOps());
                                 $rowExpense = ($isMainRow && $staffBuffExpense > 0) ? (float) $staffBuffExpense : 0.0;
                                 $finalTitle = $isMainRow
                                     ? ('Contract total minus staff salary, plus staff loan'
-                                        . ($rowExpense > 0 ? ' − Buff Expense ' . number_format($rowExpense, 2, '.', '') : ''))
+                                        . ($rowExpense > 0 ? ' − Buff Expense ' . number_format($rowExpense, 2, '.', '') : '')
+                                        . ($staffHousekeeping > 0 ? ' − House keeping ' . number_format((float) $staffHousekeeping, 2, '.', '') : ''))
                                     : ('Salary ' . number_format((float) ($share['salary'] ?? 0), 2, '.', '')
                                         . ' / ' . (int) ($share['working_days'] ?? 0) . ' working days × '
                                         . (float) ($share['paid_days'] ?? 0) . ' P days'
@@ -710,6 +714,18 @@ $otJson = json_encode(contractorOtRepairOps());
                                     <td class="sticky-staff sticky-adays num staff-a-days"><?php echo (int) $aDays; ?></td>
                                     <?php if ($isBuffReport): ?>
                                     <td class="sticky-staff sticky-loan num"><?php echo $rowLoan > 0 ? number_format($rowLoan, 2, '.', '') : ''; ?></td>
+                                    <td class="sticky-staff sticky-hk num">
+                                        <?php if ($isMainRow): ?>
+                                        <span class="hk-box">
+                                            <input type="number" step="0.01" min="0" class="hk-expense-input" id="opsHkInput"
+                                                   data-saved="<?php echo htmlspecialchars(number_format((float) $staffHousekeeping, 2, '.', '')); ?>"
+                                                   data-has-history="<?php echo $staffHousekeepingHasHistory ? '1' : '0'; ?>"
+                                                   value="<?php echo htmlspecialchars(number_format((float) $staffHousekeeping, 2, '.', '')); ?>"
+                                                   title="House keeping expense. Main Contractor final mathi minus.">
+                                            <button type="button" class="hk-history-btn" id="opsHkHistory" title="History"><i class="fa-solid fa-clock-rotate-left"></i></button>
+                                        </span>
+                                        <?php endif; ?>
+                                    </td>
                                     <td class="sticky-staff sticky-expense num"><?php echo $rowExpense > 0 ? number_format($rowExpense, 2, '.', '') : ''; ?></td>
                                     <?php endif; ?>
                                     <td class="sticky-staff sticky-final num staff-final<?php echo $isMainRow ? ' is-remainder' : ''; ?>"
@@ -760,6 +776,7 @@ $otJson = json_encode(contractorOtRepairOps());
                             <td class="sticky-staff sticky-adays num" id="opsStaffASum"><?php echo (int) $staffASum; ?></td>
                             <?php if ($isBuffReport): ?>
                             <td class="sticky-staff sticky-loan num"><?php echo $staffLoanSum > 0 ? number_format($staffLoanSum, 2, '.', '') : ''; ?></td>
+                            <td class="sticky-staff sticky-hk num" id="opsHkSum"><?php echo $staffHousekeeping > 0 ? number_format((float) $staffHousekeeping, 2, '.', '') : ''; ?></td>
                             <td class="sticky-staff sticky-expense num"><?php echo $staffBuffExpense > 0 ? number_format((float) $staffBuffExpense, 2, '.', '') : ''; ?></td>
                             <?php endif; ?>
                             <td class="sticky-staff sticky-final num" id="opsStaffFinalSum"><?php echo number_format($staffFinalSum, 2, '.', ''); ?></td>
@@ -903,7 +920,8 @@ $otJson = json_encode(contractorOtRepairOps());
             distributed = Math.round(distributed * 100) / 100;
             var expenseTable = document.getElementById('opsCloneStaffAttTable');
             var expense = expenseTable ? (parseFloat(expenseTable.getAttribute('data-buff-expense')) || 0) : 0;
-            var rem = Math.round((pool - distributed - expense) * 100) / 100;
+            var housekeeping = expenseTable ? (parseFloat(expenseTable.getAttribute('data-housekeeping')) || 0) : 0;
+            var rem = Math.round((pool - distributed - expense - housekeeping) * 100) / 100;
             var mainTd = document.querySelector('#opsCloneStaffAttTable td.staff-final[data-main="1"]');
             if (mainTd) mainTd.textContent = rem.toFixed(2);
             var grand = 0;
@@ -913,6 +931,181 @@ $otJson = json_encode(contractorOtRepairOps());
             var sumEl = document.getElementById('opsStaffFinalSum');
             if (sumEl) sumEl.textContent = (Math.round(grand * 100) / 100).toFixed(2);
         };
+
+        (function setupHousekeeping() {
+            var input = document.getElementById('opsHkInput');
+            if (!input) return;
+            var hkUrl = <?php echo json_encode(app_url('contractor/operations_clone/housekeeping.php')); ?>;
+            var hkMonth = <?php echo (int) $curMonth; ?>;
+            var hkYear = <?php echo (int) $curYear; ?>;
+            var modal = null;
+            var pending = null;
+
+            function money(n) {
+                n = Math.round((parseFloat(n) || 0) * 100) / 100;
+                if (n < 0) n = 0;
+                return n;
+            }
+            function savedAmount() {
+                return money(input.getAttribute('data-saved'));
+            }
+            function applyAmount(amount) {
+                amount = money(amount);
+                input.value = amount.toFixed(2);
+                input.setAttribute('data-saved', amount.toFixed(2));
+                input.setAttribute('data-has-history', '1');
+                var table = document.getElementById('opsCloneStaffAttTable');
+                if (table) table.setAttribute('data-housekeeping', amount.toFixed(2));
+                var foot = document.getElementById('opsHkSum');
+                if (foot) foot.textContent = amount > 0 ? amount.toFixed(2) : '';
+                var poolEl = document.getElementById('opsStaffPool');
+                var pool = poolEl ? parseFloat(poolEl.textContent) : 0;
+                if (window.opsOnGrandTotal) window.opsOnGrandTotal(pool || 0);
+            }
+            function histHtml(rows) {
+                if (!rows || !rows.length) return '<li class="muted">No history yet.</li>';
+                return rows.map(function (r) {
+                    var when = String(r.created_at || '').replace('T', ' ').substr(0, 16);
+                    var who = r.changed_by_name || 'User';
+                    var rem = String(r.remark || '').replace(/[&<>]/g, function (c) {
+                        return { '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c];
+                    });
+                    return '<li><div class="ops-rh-meta">' + when + ' · ' + who + '</div>'
+                        + '<div class="ops-rh-rates">' + money(r.old_amount).toFixed(2) + ' → <b>' + money(r.new_amount).toFixed(2) + '</b></div>'
+                        + '<div class="ops-rh-rem">' + rem + '</div></li>';
+                }).join('');
+            }
+            function loadHistory() {
+                var list = document.getElementById('opsHkHist');
+                if (!list) return;
+                fetch(hkUrl + '?month=' + hkMonth + '&year=' + hkYear, { credentials: 'same-origin' })
+                    .then(function (res) { return res.json(); })
+                    .then(function (data) {
+                        list.innerHTML = histHtml(data && data.rows);
+                    })
+                    .catch(function () {
+                        list.innerHTML = '<li class="muted">Could not load history.</li>';
+                    });
+            }
+            function closeModal(revert) {
+                if (revert && pending) {
+                    input.value = money(pending.oldAmount).toFixed(2);
+                }
+                pending = null;
+                if (modal) modal.setAttribute('hidden', 'hidden');
+            }
+            function ensureModal() {
+                if (modal) return modal;
+                var wrap = document.createElement('div');
+                wrap.id = 'opsHkModal';
+                wrap.className = 'ops-rate-remark-modal';
+                wrap.setAttribute('hidden', 'hidden');
+                wrap.innerHTML = ''
+                    + '<div class="ops-rate-remark-backdrop" data-hk-cancel></div>'
+                    + '<div class="ops-rate-remark-box" role="dialog" aria-modal="true">'
+                    + '  <div class="ops-rate-remark-head"><h3><i class="fa-solid fa-house"></i> House keeping Expense</h3>'
+                    + '    <button type="button" class="ops-rate-remark-x" data-hk-cancel aria-label="Close">&times;</button></div>'
+                    + '  <p class="ops-rate-remark-sub">Main Contractor final mathi minus. Change mate remark jaruri.</p>'
+                    + '  <div class="ops-rate-remark-delta"><span><em>Old</em> <b id="opsHkOld">0.00</b></span>'
+                    + '    <i class="fa-solid fa-arrow-right"></i><span><em>New</em> <b id="opsHkNew">0.00</b></span></div>'
+                    + '  <label class="ops-rate-remark-label" for="opsHkRemark">Remark <span class="req">*</span></label>'
+                    + '  <textarea id="opsHkRemark" class="form-control" rows="3" maxlength="500" placeholder="Shu badlu?"></textarea>'
+                    + '  <div class="ops-rate-remark-err" id="opsHkErr" hidden></div>'
+                    + '  <div class="ops-rate-remark-hist-wrap"><div class="ops-rate-remark-hist-title"><i class="fa-solid fa-clock-rotate-left"></i> History</div>'
+                    + '    <ul class="ops-rate-remark-hist" id="opsHkHist"><li class="muted">No history yet.</li></ul></div>'
+                    + '  <div class="ops-rate-remark-actions">'
+                    + '    <button type="button" class="btn-secondary" data-hk-cancel>Cancel</button>'
+                    + '    <button type="button" class="btn-primary" id="opsHkSave"><i class="fa-solid fa-check"></i> Save</button>'
+                    + '  </div></div>';
+                document.body.appendChild(wrap);
+                modal = wrap;
+                modal.addEventListener('click', function (ev) {
+                    if (ev.target && ev.target.getAttribute && ev.target.hasAttribute('data-hk-cancel')) closeModal(true);
+                });
+                document.getElementById('opsHkSave').addEventListener('click', savePending);
+                return modal;
+            }
+            function openModal(oldAmount, newAmount, viewOnly) {
+                ensureModal();
+                pending = viewOnly ? null : { oldAmount: oldAmount, newAmount: newAmount };
+                document.getElementById('opsHkOld').textContent = money(oldAmount).toFixed(2);
+                document.getElementById('opsHkNew').textContent = money(newAmount).toFixed(2);
+                document.getElementById('opsHkRemark').value = '';
+                document.getElementById('opsHkErr').setAttribute('hidden', 'hidden');
+                document.getElementById('opsHkSave').style.display = viewOnly ? 'none' : '';
+                document.getElementById('opsHkRemark').style.display = viewOnly ? 'none' : '';
+                modal.querySelector('.ops-rate-remark-label').style.display = viewOnly ? 'none' : '';
+                loadHistory();
+                modal.removeAttribute('hidden');
+                if (!viewOnly) document.getElementById('opsHkRemark').focus();
+            }
+            function postAmount(amount, remark) {
+                return fetch(hkUrl, {
+                    method: 'POST',
+                    credentials: 'same-origin',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ month: hkMonth, year: hkYear, amount: amount, remark: remark })
+                }).then(function (res) {
+                    return res.json().then(function (data) {
+                        if (!res.ok || !data || !data.ok) {
+                            throw new Error((data && data.message) || 'Save failed.');
+                        }
+                        return data;
+                    });
+                });
+            }
+            function savePending() {
+                if (!pending) return;
+                var remark = String(document.getElementById('opsHkRemark').value || '').trim();
+                var err = document.getElementById('opsHkErr');
+                if (!remark) {
+                    err.removeAttribute('hidden');
+                    err.textContent = 'Remark lakhjo. Shu mate amount badlayu?';
+                    return;
+                }
+                var btn = document.getElementById('opsHkSave');
+                btn.disabled = true;
+                postAmount(pending.newAmount, remark).then(function (data) {
+                    applyAmount(data.amount);
+                    closeModal(false);
+                    if (window.toastr) toastr.success('House keeping expense save thai gayu.');
+                }).catch(function (e) {
+                    err.removeAttribute('hidden');
+                    err.textContent = e.message || 'Save failed.';
+                }).then(function () { btn.disabled = false; });
+            }
+            function commitInput() {
+                var next = money(input.value);
+                var prev = savedAmount();
+                input.value = next.toFixed(2);
+                if (Math.abs(next - prev) < 0.001) return;
+                var first = prev === 0 && input.getAttribute('data-has-history') !== '1';
+                if (first) {
+                    postAmount(next, 'Initial set').then(function (data) {
+                        applyAmount(data.amount);
+                        if (window.toastr) toastr.success('House keeping expense Main Contractor mathi minus thai gayu.');
+                    }).catch(function () {
+                        input.value = prev.toFixed(2);
+                    });
+                    return;
+                }
+                openModal(prev, next, false);
+            }
+            input.addEventListener('change', commitInput);
+            input.addEventListener('keydown', function (ev) {
+                if (ev.key === 'Enter') {
+                    ev.preventDefault();
+                    input.blur();
+                }
+            });
+            var histBtn = document.getElementById('opsHkHistory');
+            if (histBtn) {
+                histBtn.addEventListener('click', function () {
+                    var current = savedAmount();
+                    openModal(current, current, true);
+                });
+            }
+        })();
 
         if (window.toastr && window.C_TOAST_MSG) {
             toastr.options = { closeButton: true, progressBar: true, positionClass: 'toast-top-right', timeOut: 3500 };

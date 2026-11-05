@@ -336,6 +336,28 @@ function ensureContractorTables($conn = null)
     contractorEnsureColumn($conn, 'contractor_operation_items', 'argon_rate', 'argon_rate DECIMAL(12, 4) NOT NULL DEFAULT 0 AFTER rejection_rate');
     contractorEnsureColumn($conn, 'contractor_products', 'argon_rate', 'argon_rate DECIMAL(12, 4) NOT NULL DEFAULT 0 AFTER rejection_rate');
     contractorEnsureColumn($conn, 'contractor_product_rate_history', 'rate_kind', "rate_kind VARCHAR(20) NOT NULL DEFAULT 'qty' AFTER year_no");
+
+    $conn->query("CREATE TABLE IF NOT EXISTS contractor_buff_housekeeping (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        month_no TINYINT NOT NULL,
+        year_no SMALLINT NOT NULL,
+        amount DECIMAL(12, 2) NOT NULL DEFAULT 0,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        UNIQUE KEY uq_buff_hk (year_no, month_no)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+
+    $conn->query("CREATE TABLE IF NOT EXISTS contractor_buff_housekeeping_history (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        month_no TINYINT NOT NULL,
+        year_no SMALLINT NOT NULL,
+        old_amount DECIMAL(12, 2) NOT NULL DEFAULT 0,
+        new_amount DECIMAL(12, 2) NOT NULL DEFAULT 0,
+        remark TEXT NOT NULL,
+        changed_by INT NOT NULL DEFAULT 0,
+        changed_by_name VARCHAR(120) DEFAULT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        INDEX idx_buff_hk_hist (year_no, month_no, created_at)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
     contractorEnsureColumn($conn, 'contractor_employment', 'sub_department_id', 'sub_department_id INT DEFAULT NULL AFTER department_id');
 
     if ($closeAfter) {
@@ -2739,6 +2761,139 @@ function fetchErpBuffDeptExpense($year, $month)
     }
     $company = round($rounded / 2, 2);
     return round($rounded - $company, 2);
+}
+
+function fetchBuffHousekeepingAmount($year, $month, $conn = null)
+{
+    $year = (int) $year;
+    $month = (int) $month;
+    if ($year < 2000 || $month < 1 || $month > 12) {
+        return 0.0;
+    }
+    $own = $conn === null;
+    if ($own) {
+        $conn = getDBConnection();
+    }
+    ensureContractorTables($conn);
+    $st = $conn->prepare('SELECT amount FROM contractor_buff_housekeeping WHERE year_no = ? AND month_no = ? LIMIT 1');
+    $amount = 0.0;
+    if ($st) {
+        $st->bind_param('ii', $year, $month);
+        $st->execute();
+        $row = $st->get_result()->fetch_assoc();
+        $st->close();
+        $amount = round((float) ($row['amount'] ?? 0), 2);
+    }
+    if ($own) {
+        $conn->close();
+    }
+    return $amount;
+}
+
+function buffHousekeepingHasHistory($conn, $month, $year)
+{
+    ensureContractorTables($conn);
+    $month = (int) $month;
+    $year = (int) $year;
+    $st = $conn->prepare('SELECT id FROM contractor_buff_housekeeping_history WHERE year_no = ? AND month_no = ? LIMIT 1');
+    if (!$st) {
+        return false;
+    }
+    $st->bind_param('ii', $year, $month);
+    $st->execute();
+    $row = $st->get_result()->fetch_assoc();
+    $st->close();
+    return !empty($row);
+}
+
+function buffHousekeepingHistoryList($conn, $month, $year, $limit = 30)
+{
+    ensureContractorTables($conn);
+    $month = (int) $month;
+    $year = (int) $year;
+    $limit = max(1, min(100, (int) $limit));
+    $st = $conn->prepare(
+        'SELECT old_amount, new_amount, remark, changed_by_name, created_at
+         FROM contractor_buff_housekeeping_history
+         WHERE year_no = ? AND month_no = ?
+         ORDER BY id DESC
+         LIMIT ' . $limit
+    );
+    $rows = [];
+    if (!$st) {
+        return $rows;
+    }
+    $st->bind_param('ii', $year, $month);
+    $st->execute();
+    $res = $st->get_result();
+    if ($res) {
+        while ($row = $res->fetch_assoc()) {
+            $rows[] = [
+                'old_amount' => round((float) ($row['old_amount'] ?? 0), 2),
+                'new_amount' => round((float) ($row['new_amount'] ?? 0), 2),
+                'remark' => (string) ($row['remark'] ?? ''),
+                'changed_by_name' => (string) ($row['changed_by_name'] ?? ''),
+                'created_at' => (string) ($row['created_at'] ?? ''),
+            ];
+        }
+    }
+    $st->close();
+    return $rows;
+}
+
+/**
+ * @return array{ok:bool,amount:float,message:string}
+ */
+function saveBuffHousekeepingAmount($conn, $month, $year, $newAmount, $remark)
+{
+    ensureContractorTables($conn);
+    $month = (int) $month;
+    $year = (int) $year;
+    $newAmount = round((float) $newAmount, 2);
+    $remark = trim((string) $remark);
+    if ($month < 1 || $month > 12 || $year < 2000) {
+        return ['ok' => false, 'amount' => 0.0, 'message' => 'Month required.'];
+    }
+    if ($newAmount < 0) {
+        return ['ok' => false, 'amount' => 0.0, 'message' => 'Amount cannot be negative.'];
+    }
+    if ($remark === '') {
+        return ['ok' => false, 'amount' => 0.0, 'message' => 'Remark required.'];
+    }
+    $oldAmount = fetchBuffHousekeepingAmount($year, $month, $conn);
+    if (abs($oldAmount - $newAmount) < 0.001) {
+        return ['ok' => false, 'amount' => $oldAmount, 'message' => 'Amount unchanged.'];
+    }
+    $changedBy = (int) ($_SESSION['user_id'] ?? 0);
+    $changedByName = trim((string) ($_SESSION['full_name'] ?? $_SESSION['username'] ?? 'User'));
+    if ($changedByName === '') {
+        $changedByName = 'User';
+    }
+    $up = $conn->prepare(
+        'INSERT INTO contractor_buff_housekeeping (month_no, year_no, amount)
+         VALUES (?, ?, ?)
+         ON DUPLICATE KEY UPDATE amount = VALUES(amount)'
+    );
+    if (!$up) {
+        return ['ok' => false, 'amount' => $oldAmount, 'message' => 'Save failed.'];
+    }
+    $up->bind_param('iid', $month, $year, $newAmount);
+    $ok = $up->execute();
+    $up->close();
+    if (!$ok) {
+        return ['ok' => false, 'amount' => $oldAmount, 'message' => 'Save failed.'];
+    }
+    $hist = $conn->prepare(
+        'INSERT INTO contractor_buff_housekeeping_history
+            (month_no, year_no, old_amount, new_amount, remark, changed_by, changed_by_name)
+         VALUES (?, ?, ?, ?, ?, ?, ?)'
+    );
+    if ($hist) {
+        $hist->bind_param('iiddsis', $month, $year, $oldAmount, $newAmount, $remark, $changedBy, $changedByName);
+        $hist->execute();
+        $hist->close();
+    }
+    return ['ok' => true, 'amount' => $newAmount, 'message' => 'House keeping expense saved.'];
 }
 
 function opsCloneLoanForStaff(array $staff, array $loans)

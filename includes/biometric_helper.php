@@ -135,6 +135,9 @@ function seedArmorBiometricMachines($conn)
  */
 function seedArmorBiometricMachinesOnce($conn)
 {
+    if (!hrmsSyncAllowsSeed()) {
+        return;
+    }
     seedBiometricSyncDefaults($conn);
 
     $flag = '';

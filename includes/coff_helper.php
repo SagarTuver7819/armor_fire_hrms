@@ -62,6 +62,13 @@ function ensureCoffTables($conn = null)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
     );
 
+    if (!hrmsSyncAllowsSeed()) {
+        if ($closeAfter) {
+            $conn->close();
+        }
+        return;
+    }
+
     // Seed C-Off leave type (balance driven by ledger, not yearly opening)
     $chk = $conn->query(
         "SELECT id FROM leave_types WHERE UPPER(TRIM(code)) IN ('C-OFF','COFF','C OFF') LIMIT 1"

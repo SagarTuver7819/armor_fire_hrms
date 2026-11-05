@@ -1,12 +1,18 @@
 <?php
 /**
- * DB Sync — apply schema + seeds on live (Admin only).
+ * DB Sync — schema only on live (Admin). No seed / master data.
  * Local:  http://localhost/armor_new_hrms/db_sync.php
  * Live:   https://armor-hrms.oceanhub.co.in/db_sync.php
+ * Optional seeds (products, leave balances, roles, states): ?seed=1
  * Bulk employee logins (Office Staff):
  *   .../db_sync.php?bulk_logins=1
  *   Username = Employee Code · Password = FirstName@123
  */
+
+$allowSeed = isset($_GET['seed']) && (string) $_GET['seed'] === '1';
+if (!defined('HRMS_DB_SYNC_ALLOW_SEED')) {
+    define('HRMS_DB_SYNC_ALLOW_SEED', $allowSeed);
+}
 
 require_once __DIR__ . '/config/app.php';
 require_once __DIR__ . '/config/database.php';
@@ -68,6 +74,9 @@ function dbSyncHasTable($conn, $table)
 $conn = getDBConnection();
 
 try {
+    $log[] = hrmsSyncAllowsSeed()
+        ? 'Seed mode: master rows may be inserted.'
+        : 'Schema only: no product, leave, state, role, or company seed rows.';
     ensureEmployeesTable($conn);
     $log[] = 'Employees table + extra columns ready (pay_type, office fields, emergency contact name/relation, gender, blood_group, marital, photo, pf_start_date, pf contributions, family).';
 
@@ -88,8 +97,12 @@ try {
     $log[] = 'Attendance flex: late/early columns (is_late, is_early, flex_seq, penalty_leave, shift_start/end) — 1h window, 2 flex/month, Half PL → Half LWP.';
 
     ensureBiometricTables($conn);
-    seedArmorBiometricMachinesOnce($conn);
-    $log[] = 'Biometric machines ready (tables + one-time default seed if empty; delete will not recreate).';
+    if (hrmsSyncAllowsSeed()) {
+        seedArmorBiometricMachinesOnce($conn);
+        $log[] = 'Biometric machines ready (tables + one-time default seed if empty; delete will not recreate).';
+    } else {
+        $log[] = 'Biometric tables ready. Machine seed skipped.';
+    }
 
     ensureLeaveTables($conn);
     $log[] = 'Leave tables ready (balances, requests, attachment_path).';
@@ -98,15 +111,18 @@ try {
     ensureCoffTables($conn);
     $log[] = 'C-Off tables ready (credits ledger, usage, C-OFF leave type; 4h=0.5 / 8h=1 on WO/Holiday, expire 2 months).';
 
-    // Seed / refresh current-year leave balances for all active employees
-    $yearNow = (int) date('Y');
-    try {
-        $alloc = leaveAllocateYearlyBalances($yearNow, 0, false, $conn);
-        $log[] = 'Leave balances year ' . $yearNow . ': created/refreshed '
-            . (int) ($alloc['created'] ?? 0) . ' + updated ' . (int) ($alloc['updated'] ?? 0)
-            . ' row(s) (PL monthly CF, SL monthly wipe, DL/LWP/C-Off tracked).';
-    } catch (Throwable $e) {
-        $log[] = 'Leave balance allocate warning: ' . $e->getMessage();
+    if (hrmsSyncAllowsSeed()) {
+        $yearNow = (int) date('Y');
+        try {
+            $alloc = leaveAllocateYearlyBalances($yearNow, 0, false, $conn);
+            $log[] = 'Leave balances year ' . $yearNow . ': created/refreshed '
+                . (int) ($alloc['created'] ?? 0) . ' + updated ' . (int) ($alloc['updated'] ?? 0)
+                . ' row(s) (PL monthly CF, SL monthly wipe, DL/LWP/C-Off tracked).';
+        } catch (Throwable $e) {
+            $log[] = 'Leave balance allocate warning: ' . $e->getMessage();
+        }
+    } else {
+        $log[] = 'Leave balance rows not created. Schema only.';
     }
 
     ensureCircularTables($conn);
@@ -159,16 +175,20 @@ try {
     $iconUpdated = syncDepartmentIcons($conn);
     $log[] = 'Department dashboard icons updated: ' . $iconUpdated . ' row(s).';
 
-    $seed = seedContractorProductMasters($conn);
-    if ($seed['ok']) {
-        $log[] = 'Contractor grades: inserted ' . $seed['grades_inserted'] . ', active ' . $seed['grades_active'] . '.';
-        $log[] = 'Contractor products: inserted ' . $seed['products_inserted']
-            . ', updated ' . $seed['products_updated']
-            . ', skipped ' . $seed['products_skipped']
-            . ', active ' . $seed['products_active'] . '.';
+    if (hrmsSyncAllowsSeed()) {
+        $seed = seedContractorProductMasters($conn);
+        if ($seed['ok']) {
+            $log[] = 'Contractor grades: inserted ' . $seed['grades_inserted'] . ', active ' . $seed['grades_active'] . '.';
+            $log[] = 'Contractor products: inserted ' . $seed['products_inserted']
+                . ', updated ' . $seed['products_updated']
+                . ', skipped ' . $seed['products_skipped']
+                . ', active ' . $seed['products_active'] . '.';
+        } else {
+            $ok = false;
+            $log[] = 'Product seed: ' . $seed['error'];
+        }
     } else {
-        $ok = false;
-        $log[] = 'Product seed: ' . $seed['error'];
+        $log[] = 'Contractor product / grade seed skipped. Existing rates are not changed.';
     }
 
     $checks = [
@@ -187,6 +207,11 @@ try {
         'holidays.holiday_to_date' => dbSyncHasColumn($conn, 'holidays', 'holiday_to_date'),
         'contractor_employment.sub_department_id' => dbSyncHasColumn($conn, 'contractor_employment', 'sub_department_id'),
         'contractor_operation_items.grade_id' => dbSyncHasColumn($conn, 'contractor_operation_items', 'grade_id'),
+        'contractor_products.argon_rate' => dbSyncHasColumn($conn, 'contractor_products', 'argon_rate'),
+        'contractor_operation_items.argon_rate' => dbSyncHasColumn($conn, 'contractor_operation_items', 'argon_rate'),
+        'contractor_product_rate_history.rate_kind' => dbSyncHasColumn($conn, 'contractor_product_rate_history', 'rate_kind'),
+        'contractor_buff_housekeeping table' => dbSyncHasTable($conn, 'contractor_buff_housekeeping'),
+        'contractor_buff_housekeeping_history table' => dbSyncHasTable($conn, 'contractor_buff_housekeeping_history'),
         'contractor_products table' => dbSyncHasTable($conn, 'contractor_products'),
         'contractor_grades table' => dbSyncHasTable($conn, 'contractor_grades'),
         'contractor_operation_sheets table' => dbSyncHasTable($conn, 'contractor_operation_sheets'),
@@ -271,8 +296,12 @@ require_once __DIR__ . '/includes/header.php';
         <div class="form-page-header">
             <h1><?php echo $ok ? 'DB Sync complete' : 'DB Sync finished with issues'; ?></h1>
             <p>
-                Safe re-run for live. Creates missing tables/columns · seeds PL/SL/DL/LWP/C-Off ·
-                attendance late/early flex · leave attachments · leave balances for current year.
+                Schema only. Missing tables and columns are created. Product rates, leave balances, states, and other seed rows are not inserted.
+                <?php if (!hrmsSyncAllowsSeed()): ?>
+                    Seed data skipped. Add <code>?seed=1</code> only when you want master seed.
+                <?php else: ?>
+                    Seed mode is on for this run.
+                <?php endif; ?>
             </p>
         </div>
 

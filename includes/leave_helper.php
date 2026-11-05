@@ -125,6 +125,13 @@ function ensureLeaveTables($conn = null)
         ensureMasterTables($conn);
     }
 
+    if (!hrmsSyncAllowsSeed()) {
+        if ($closeAfter) {
+            $conn->close();
+        }
+        return;
+    }
+
     // Default PL policy: 24/year, monthly CF, max 6 concurrent, year-end encashment
     @$conn->query(
         "UPDATE leave_types SET

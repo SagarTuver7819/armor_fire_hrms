@@ -92,6 +92,9 @@ if (!function_exists('ensureCompanyContentTables')) {
 
     function seedCompanyContentDefaults($conn)
     {
+        if (!hrmsSyncAllowsSeed()) {
+            return;
+        }
         $defaults = [
             'history' => [
                 'title' => 'Company History',

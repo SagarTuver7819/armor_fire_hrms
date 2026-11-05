@@ -12,6 +12,19 @@ require_once __DIR__ . '/../includes/contractor_helper.php';
 
 function seedContractorProductMasters($conn)
 {
+    if (!hrmsSyncAllowsSeed()) {
+        return [
+            'ok' => true,
+            'error' => '',
+            'grades_inserted' => 0,
+            'grades_active' => 0,
+            'products_inserted' => 0,
+            'products_updated' => 0,
+            'products_skipped' => 0,
+            'products_active' => 0,
+            'source' => 0,
+        ];
+    }
     $localJson = __DIR__ . '/armor_steel_products.json';
     $products = [];
     if (is_file($localJson)) {

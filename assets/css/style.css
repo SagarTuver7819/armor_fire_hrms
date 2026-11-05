@@ -6399,8 +6399,47 @@ body > .select2-container .select2-dropdown {
     padding-left: 4px;
     padding-right: 4px;
 }
-.ops-clone-staff-att-table .sticky-expense {
+.ops-clone-staff-att-table .sticky-hk {
     left: 744px;
+    width: 148px;
+    min-width: 148px;
+    max-width: 148px;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    color: #9a3412;
+    font-weight: 700;
+    padding-left: 4px;
+    padding-right: 4px;
+    white-space: normal;
+    line-height: 1.15;
+}
+.ops-clone-staff-att-table .hk-box {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 4px;
+}
+.ops-clone-staff-att-table .hk-expense-input {
+    width: 96px;
+    height: 28px;
+    text-align: right;
+    font-weight: 700;
+    color: #9a3412;
+    border: 1px solid #fdba74;
+    border-radius: 6px;
+    padding: 2px 6px;
+    background: #fff;
+}
+.ops-clone-staff-att-table .hk-history-btn {
+    border: 0;
+    background: transparent;
+    color: #9a3412;
+    cursor: pointer;
+    padding: 0 2px;
+    line-height: 1;
+}
+.ops-clone-staff-att-table .sticky-expense {
+    left: 892px;
     width: 108px;
     min-width: 108px;
     max-width: 108px;
@@ -6412,7 +6451,7 @@ body > .select2-container .select2-dropdown {
     padding-right: 4px;
 }
 .ops-clone-staff-att-table.show-buff-loan .sticky-final {
-    left: 852px;
+    left: 1000px;
 }
 .ops-clone-staff-att-table .sticky-final {
     left: 654px;
@@ -7173,13 +7212,23 @@ select.product-select.ops-kra-hidden-select {
 }
 .ops-view-only .ops-grid .rate,
 .ops-view-only .ops-grid .rate-rw,
-.ops-view-only .ops-grid .rate-ap {
+.ops-view-only .ops-grid .rate-ap,
+.ops-view-only .hk-expense-input {
     pointer-events: auto;
     background: #fff !important;
     color: #0f172a;
     font-weight: 700;
     cursor: text;
     caret-color: auto;
+}
+.ops-view-only input.hk-expense-input,
+.ops-view-only button.hk-history-btn {
+    pointer-events: auto !important;
+    cursor: pointer;
+}
+.ops-view-only input.hk-expense-input {
+    background: #fff !important;
+    color: #9a3412 !important;
 }
 
 .ops-grid.show-buff-ap .sticky-rate,
