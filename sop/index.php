@@ -24,6 +24,10 @@ $useSidebar = true;
 $sidebarMode = 'department';
 $sidebarDeptId = $deptId;
 $sidebarActive = 'cnc_sop';
+$extraCss = [
+    'https://cdn.datatables.net/1.13.8/css/jquery.dataTables.min.css',
+    'https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.css',
+];
 require_once __DIR__ . '/../includes/header.php';
 
 $toast = '';
@@ -48,85 +52,70 @@ if (isset($_GET['msg'])) {
         <?php endif; ?>
     </div>
 
-    <div class="form-page-card sop-list">
-        <div class="form-page-header">
-            <div class="master-list-title">
-                <div class="master-list-icon" style="background:#d2232a;">
-                    <i class="fa-solid fa-file-signature"></i>
-                </div>
-                <div>
-                    <h1>SOP</h1>
-                    <p>Letterhead · Title, Date, Subject, Department, Body · Digital signature · Share</p>
-                </div>
-            </div>
+    <div class="list-header">
+        <div>
+            <h1>SOP</h1>
+            <p><?php echo htmlspecialchars($department['department_name']); ?> · Letterhead · Share</p>
         </div>
+    </div>
 
-        <?php if ($toast !== ''): ?>
-            <div class="form-alert" style="margin:0 0 14px;padding:10px 12px;border-radius:8px;background:#ecfdf5;color:#166534;font-weight:700;">
-                <?php echo htmlspecialchars($toast); ?>
-            </div>
-        <?php endif; ?>
-
+    <div class="data-card data-card-pad">
         <div class="table-wrap">
-            <table class="data-table" style="width:100%;">
+            <table id="sopTable" class="display data-table nowrap" style="width:100%">
                 <thead>
                     <tr>
-                        <th>Sr</th>
+                        <th>Sr.</th>
                         <th>Title</th>
                         <th>Date</th>
                         <th>Subject</th>
                         <th>Department</th>
+                        <th>Letterhead</th>
                         <th>Action</th>
                     </tr>
                 </thead>
                 <tbody>
-                <?php if (!$rows): ?>
-                    <tr><td colspan="6" style="text-align:center;padding:18px;">No SOP yet. Add one on the letterhead.</td></tr>
-                <?php else: ?>
-                    <?php foreach ($rows as $i => $row): ?>
-                        <?php $shareUrl = cncSopShareUrl($row); ?>
-                        <tr>
-                            <td><?php echo $i + 1; ?></td>
-                            <td><?php echo htmlspecialchars($row['title']); ?></td>
-                            <td><?php echo htmlspecialchars(formatDateDisplay($row['sop_date'])); ?></td>
-                            <td><?php echo htmlspecialchars($row['subject']); ?></td>
-                            <td><?php echo htmlspecialchars($row['department_name']); ?></td>
-                            <td>
-                                <div class="sop-actions">
-                                    <a class="sop-act letter" href="<?php echo app_url('sop/print.php?id=' . (int) $row['id'] . '&department_id=' . $deptId); ?>"><i class="fa-solid fa-file-lines"></i> Letterhead</a>
-                                    <?php if (canAccess('departments', 'edit', $deptId)): ?>
-                                    <a class="sop-act edit" href="<?php echo app_url('sop/edit.php?id=' . (int) $row['id'] . '&department_id=' . $deptId); ?>"><i class="fa-solid fa-pen"></i> Edit</a>
-                                    <?php endif; ?>
-                                    <button type="button" class="sop-act share js-sop-share" data-url="<?php echo htmlspecialchars($shareUrl); ?>" data-title="<?php echo htmlspecialchars($row['title']); ?>"><i class="fa-solid fa-share-nodes"></i> Share</button>
-                                    <?php if (canAccess('departments', 'delete', $deptId)): ?>
-                                    <form method="post" action="<?php echo app_url('sop/delete.php'); ?>" onsubmit="return confirm('Delete this SOP?');">
-                                        <input type="hidden" name="id" value="<?php echo (int) $row['id']; ?>">
-                                        <input type="hidden" name="department_id" value="<?php echo $deptId; ?>">
-                                        <button type="submit" class="sop-act delete"><i class="fa-solid fa-trash"></i> Delete</button>
-                                    </form>
-                                    <?php endif; ?>
-                                </div>
-                            </td>
-                        </tr>
-                    <?php endforeach; ?>
-                <?php endif; ?>
+                <?php foreach ($rows as $i => $row): ?>
+                    <?php $shareUrl = cncSopShareUrl($row); ?>
+                    <tr>
+                        <td><?php echo $i + 1; ?></td>
+                        <td><?php echo htmlspecialchars($row['title']); ?></td>
+                        <td data-order="<?php echo htmlspecialchars((string) $row['sop_date']); ?>"><?php echo htmlspecialchars(formatDateDisplay($row['sop_date'])); ?></td>
+                        <td><?php echo htmlspecialchars($row['subject']); ?></td>
+                        <td><?php echo htmlspecialchars($row['department_name']); ?></td>
+                        <td class="pdf-links">
+                            <a class="pdf-btn hi" title="Letterhead" href="<?php echo app_url('sop/print.php?id=' . (int) $row['id'] . '&department_id=' . $deptId); ?>">PDF</a>
+                        </td>
+                        <td>
+                            <div class="action-links">
+                                <?php if (canAccess('departments', 'edit', $deptId)): ?>
+                                <a class="action-btn edit" title="Edit" href="<?php echo app_url('sop/edit.php?id=' . (int) $row['id'] . '&department_id=' . $deptId); ?>"><i class="fa-solid fa-pen"></i></a>
+                                <?php endif; ?>
+                                <button type="button" class="action-btn share js-sop-share" title="Share" data-url="<?php echo htmlspecialchars($shareUrl); ?>" data-title="<?php echo htmlspecialchars($row['title']); ?>"><i class="fa-solid fa-share-nodes"></i></button>
+                                <?php if (canAccess('departments', 'delete', $deptId)): ?>
+                                <form method="post" class="sop-del-form" action="<?php echo app_url('sop/delete.php'); ?>" onsubmit="return confirm('Delete this SOP?');">
+                                    <input type="hidden" name="id" value="<?php echo (int) $row['id']; ?>">
+                                    <input type="hidden" name="department_id" value="<?php echo $deptId; ?>">
+                                    <button type="submit" class="action-btn delete" title="Delete"><i class="fa-solid fa-trash"></i></button>
+                                </form>
+                                <?php endif; ?>
+                            </div>
+                        </td>
+                    </tr>
+                <?php endforeach; ?>
                 </tbody>
             </table>
         </div>
     </div>
 </main>
 <script>
-document.querySelectorAll('.js-sop-share').forEach(function (btn) {
-    btn.addEventListener('click', function () {
-        var url = btn.getAttribute('data-url') || '';
-        var title = btn.getAttribute('data-title') || 'SOP';
-        var text = title + '\n' + url;
-        if (navigator.share) {
-            navigator.share({ title: title, text: title, url: url }).catch(function () {});
-            return;
-        }
-        window.open('https://wa.me/?text=' + encodeURIComponent(text), '_blank', 'noopener');
-    });
-});
+    window.SOP_TOAST_MSG = <?php echo json_encode($toast); ?>;
 </script>
-<?php require_once __DIR__ . '/../includes/footer.php'; ?>
+<?php
+$extraJs = [
+    'https://code.jquery.com/jquery-3.7.1.min.js',
+    'https://cdn.datatables.net/1.13.8/js/jquery.dataTables.min.js',
+    'https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.js',
+    'assets/js/sop_list.js',
+];
+require_once __DIR__ . '/../includes/footer.php';
+?>
