@@ -75,6 +75,8 @@ $items = $sheet['items'] ?? [];
 $kraAsOf = date('Y-m-d');
 $kraPrefill = [];
 $erpDayQtyByPart = [];
+$erpBuffExtraByPart = [];
+$isBuffReport = strcasecmp($curOp, 'BUFF') === 0;
 if ($isJobReport) {
     // Auto rows = ERP CNC Production Planning KRA part names (fixed — no dropdown)
     try {
@@ -135,6 +137,14 @@ if ($isJobReport) {
     } catch (Throwable $e) {
         $erpDayQtyByPart = [];
     }
+    if ($isBuffReport) {
+        // Buff KRA: Rework → RW, Argon Polish → AP (same part + date as Total → Q)
+        try {
+            $erpBuffExtraByPart = fetchErpBuffKraDayExtras($curYear, $curMonth);
+        } catch (Throwable $e) {
+            $erpBuffExtraByPart = [];
+        }
+    }
 
     foreach (($kraSync['names'] ?? []) as $canon) {
         $ck = contractorKraCanonicalKey($canon);
@@ -173,6 +183,10 @@ if ($isJobReport) {
         $erpDays = contractorErpDaysForPartName($canon, $erpDayQtyByPart);
         // Always prefer live ERP KRA Total over previously saved (alias-tripled) day qty
         $days = mergeErpKraDaysIntoMap(is_array($days) ? $days : [], $erpDays, true);
+        if ($isBuffReport) {
+            $buffExtra = contractorErpBuffExtrasForPartName($canon, $erpBuffExtraByPart);
+            $days = mergeErpBuffExtrasIntoMap(is_array($days) ? $days : [], $buffExtra);
+        }
         $kraPrefill[] = [
             'product_id' => $pid,
             'product_label' => (string) $canon,
@@ -194,11 +208,16 @@ if ($isJobReport) {
     }
     // Remap ERP day qty under canonical KRA names for JS (single key, no alias fan-out)
     $erpCanonMap = [];
+    $erpBuffCanonMap = [];
     foreach (($kraSync['names'] ?? []) as $canon) {
         $ck = strtolower(trim((string) $canon));
         $erpCanonMap[$ck] = contractorErpDaysForPartName($canon, $erpDayQtyByPart);
+        if ($isBuffReport) {
+            $erpBuffCanonMap[$ck] = contractorErpBuffExtrasForPartName($canon, $erpBuffExtraByPart);
+        }
     }
     $erpDayQtyByPart = $erpCanonMap;
+    $erpBuffExtraByPart = $erpBuffCanonMap;
 }
 if (!$items) {
     $items = [[
@@ -222,7 +241,12 @@ foreach ($items as $poolItem) {
         (float) ($poolItem['rejection_rate'] ?? 0),
         is_array($poolItem['days'] ?? null) ? $poolItem['days'] : []
     );
-    $staffPool += (float) ($calc['total_amount'] ?? 0);
+    // Job report amount is Qty × Rate. Buff RW / AP stay in their own boxes.
+    if ($isJobReport) {
+        $staffPool += round((float) ($poolItem['rate'] ?? 0) * (float) ($calc['total_qty'] ?? 0), 2);
+    } else {
+        $staffPool += (float) ($calc['total_amount'] ?? 0);
+    }
 }
 $staffSplit = opsCloneApplyContractorPool($staffShares, $staffPool);
 $conn->close();
@@ -320,18 +344,27 @@ $otJson = json_encode(contractorOtRepairOps());
                 <button type="button" class="btn-primary" id="btnAddProduct"><i class="fa-solid fa-plus"></i> Add Product Row</button>
                 <?php else: ?>
                 <div class="ops-kra-hint" style="font-size:13px;color:#64748b;">
-                    <i class="fa-solid fa-eye"></i> Day qty locked (ERP). <b>Rate</b> click kari change karo — remark required, history save thase.
+                    <i class="fa-solid fa-eye"></i>
+                    <?php if ($isBuffReport): ?>
+                    Daily boxes ERP mathi: <b>Q</b> = Total, <b>RW</b> = Rework, <b>AP</b> = Argon Polish. <b>Rate</b> click kari change karo — remark required, history save thase.
+                    <?php else: ?>
+                    Day qty locked (ERP). <b>Rate</b> click kari change karo — remark required, history save thase.
+                    <?php endif; ?>
                 </div>
                 <?php endif; ?>
                 <div class="ops-live-summary">
                     <span class="ops-chip"><span id="sum_qty_lab">Qty</span> <b id="sum_qty">0</b></span>
+                    <?php if ($isBuffReport): ?>
+                    <span class="ops-chip"><span>RW</span> <b id="sum_rw">0</b></span>
+                    <span class="ops-chip"><span>AP</span> <b id="sum_ap">0</b></span>
+                    <?php endif; ?>
                     <span class="ops-chip ops-chip-r<?php echo $isJobReport ? ' ops-cnc-hide' : ''; ?>"><span id="sum_r_lab">R</span> <b id="sum_r">0</b></span>
                     <span class="ops-chip amt">Amount <b id="sum_amt">0.00</b></span>
                 </div>
             </div>
 
             <div class="ops-grid-wrap">
-                <table class="ops-grid <?php echo $showGrade ? 'show-grade' : 'hide-grade'; ?><?php echo $isJobReport ? ' ops-kra-qty-locked ops-cnc-plain' : ''; ?>" id="opsGrid">
+                <table class="ops-grid <?php echo $showGrade ? 'show-grade' : 'hide-grade'; ?><?php echo $isJobReport ? ' ops-kra-qty-locked ops-cnc-plain' : ''; ?><?php echo $isBuffReport ? ' show-r show-buff-ap' : ''; ?>" id="opsGrid">
                     <thead>
                         <tr>
                             <th class="sticky-col sticky-action">Action</th>
@@ -347,7 +380,7 @@ $otJson = json_encode(contractorOtRepairOps());
                                 <th class="day-head" data-day="<?php echo $d; ?>">
                                     <span class="day-no"><?php echo $d; ?></span>
                                     <span class="day-wd"><?php echo htmlspecialchars($wd); ?></span>
-                                    <div class="ops-subhead"><span class="q-lab">Q</span><span class="r-lab">R</span><span class="ot-lab">OT</span></div>
+                                    <div class="ops-subhead"><span class="q-lab">Q</span><span class="r-lab"><?php echo $isBuffReport ? 'RW' : 'R'; ?></span><span class="ap-lab">AP</span><span class="ot-lab">OT</span></div>
                                 </th>
                             <?php endfor; ?>
                             <th id="th_total_qty">TOTAL QTY</th>
@@ -439,9 +472,11 @@ $otJson = json_encode(contractorOtRepairOps());
                                     <?php $kraRo = $isJobReport ? ' readonly tabindex="-1"' : ''; ?>
                                     <div class="ops-day-triple">
                                         <input type="text" inputmode="decimal" class="grid-input day-qty" <?php echo $dis . $kraRo; ?>
-                                               name="items[<?php echo $i; ?>][days][<?php echo $d; ?>][q]" value="<?php echo htmlspecialchars((string) $cell['q']); ?>" autocomplete="off">
+                                               name="items[<?php echo $i; ?>][days][<?php echo $d; ?>][q]" value="<?php echo htmlspecialchars((string) $cell['q']); ?>" autocomplete="off" title="Q — Daily Total">
                                         <input type="text" inputmode="decimal" class="grid-input day-qty-r r-field" <?php echo $dis . $kraRo; ?>
-                                               name="items[<?php echo $i; ?>][days][<?php echo $d; ?>][r]" value="<?php echo htmlspecialchars((string) $cell['r']); ?>" autocomplete="off">
+                                               name="items[<?php echo $i; ?>][days][<?php echo $d; ?>][r]" value="<?php echo htmlspecialchars((string) $cell['r']); ?>" autocomplete="off" title="<?php echo $isBuffReport ? 'RW — Rework' : 'R'; ?>">
+                                        <input type="text" inputmode="decimal" class="grid-input day-qty-ap ap-field" <?php echo $dis . $kraRo; ?>
+                                               name="items[<?php echo $i; ?>][days][<?php echo $d; ?>][ap]" value="<?php echo htmlspecialchars((string) ($cell['ap'] ?? '')); ?>" autocomplete="off" title="AP — Argon Polish">
                                         <input type="text" inputmode="decimal" class="grid-input day-qty-ot ot-field" <?php echo $dis . $kraRo; ?>
                                                name="items[<?php echo $i; ?>][days][<?php echo $d; ?>][ot]" value="<?php echo htmlspecialchars((string) $cell['ot']); ?>" autocomplete="off">
                                     </div>
@@ -467,6 +502,7 @@ $otJson = json_encode(contractorOtRepairOps());
                                     <div class="ops-day-triple foot-totals">
                                         <span class="foot-q"></span>
                                         <span class="foot-r"></span>
+                                        <span class="foot-ap"></span>
                                         <span class="foot-ot"></span>
                                     </div>
                                 </td>
@@ -655,6 +691,7 @@ $otJson = json_encode(contractorOtRepairOps());
     window.OPS_KRA_FIXED = <?php echo $isJobReport ? 'true' : 'false'; ?>; // fixed rows, no process dropdown
     window.OPS_KRA_AS_OF = <?php echo json_encode($kraAsOf); ?>;
     window.OPS_KRA_DAY_QTY = <?php echo json_encode($erpDayQtyByPart ?? [], JSON_UNESCAPED_UNICODE); ?>;
+    window.OPS_BUFF_DAY_EXTRA = <?php echo json_encode($erpBuffExtraByPart ?? [], JSON_UNESCAPED_UNICODE); ?>;
     window.OPS_REPAIR = <?php echo $repairJson; ?>;
     window.OPS_OT_REPAIR = <?php echo $otJson; ?>;
     window.OPS_GRADE_OPS = <?php

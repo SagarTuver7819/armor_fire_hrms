@@ -112,8 +112,9 @@ foreach ((array) $itemsIn as $it) {
         }
         $daysRaw[(string) $d] = [
             'q' => (float) ($cell['q'] ?? 0),
-            'r' => (float) ($cell['r'] ?? 0),
+            'r' => (float) ($cell['r'] ?? ($cell['rw'] ?? 0)),
             'ot' => (float) ($cell['ot'] ?? 0),
+            'ap' => (float) ($cell['ap'] ?? 0),
         ];
     }
     $calc = calculateContractorRow($operation, $rate, $otRate, $rej, $daysRaw);

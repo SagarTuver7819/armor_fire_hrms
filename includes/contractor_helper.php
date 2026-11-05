@@ -1505,6 +1505,193 @@ function mergeErpKraDaysIntoMap(array $days, array $erpDayQty, $overwriteErpDays
 }
 
 /**
+ * ERP Buff Production Planning KRA — date-wise Rework (RW) and Argon Polish (AP).
+ * Returns map: lowercase product_key => [ '1' => ['rw' => qty, 'ap' => qty], ... ].
+ *
+ * @return array<string, array<string, array{rw:float,ap:float}>>
+ */
+function fetchErpBuffKraDayExtras($year, $month)
+{
+    $year = (int) $year;
+    $month = (int) $month;
+    $out = [];
+    if ($year < 2000 || $month < 1 || $month > 12) {
+        return $out;
+    }
+    if (!function_exists('getErpDBConnection')) {
+        require_once __DIR__ . '/../config/database.php';
+    }
+    $erp = getErpDBConnection();
+    if (!$erp) {
+        return $out;
+    }
+
+    try {
+        $deptName = contractorOperationErpDepartmentName('BUFF');
+        $deptId = 0;
+        $docId = 0;
+        $st = $erp->prepare(
+            'SELECT id FROM departments WHERE LOWER(TRIM(department_name)) = LOWER(?) LIMIT 1'
+        );
+        if ($st) {
+            $st->bind_param('s', $deptName);
+            $st->execute();
+            $row = $st->get_result()->fetch_assoc();
+            $st->close();
+            $deptId = (int) ($row['id'] ?? 0);
+        }
+        if ($deptId <= 0) {
+            return $out;
+        }
+        $st = $erp->prepare(
+            "SELECT id FROM document_master
+             WHERE department_id = ?
+               AND (
+                    LOWER(document_name) LIKE '%production planning kra%'
+                    OR LOWER(document_name) LIKE '%planning kra%'
+                    OR UPPER(TRIM(document_number)) = 'PRO F 31'
+               )
+             ORDER BY id ASC LIMIT 1"
+        );
+        if ($st) {
+            $st->bind_param('i', $deptId);
+            $st->execute();
+            $row = $st->get_result()->fetch_assoc();
+            $st->close();
+            $docId = (int) ($row['id'] ?? 0);
+        }
+        if ($docId <= 0) {
+            return $out;
+        }
+
+        $from = sprintf('%04d-%02d-01', $year, $month);
+        $toExcl = date('Y-m-d', strtotime($from . ' +1 month'));
+        $add = static function (array &$bucket, $entryDate, $productKey, $field, $qty) {
+            $d = (int) date('j', strtotime((string) $entryDate));
+            if ($d < 1 || $d > 31) {
+                return;
+            }
+            $qty = (float) $qty;
+            if ($qty == 0.0) {
+                return;
+            }
+            $k = strtolower(trim((string) $productKey));
+            if ($k === '') {
+                return;
+            }
+            $dk = (string) $d;
+            if (!isset($bucket[$k][$dk])) {
+                $bucket[$k][$dk] = ['rw' => 0.0, 'ap' => 0.0];
+            }
+            $bucket[$k][$dk][$field] = ($bucket[$k][$dk][$field] ?? 0) + $qty;
+        };
+
+        $hasRework = $erp->query("SHOW TABLES LIKE 'buff_kra_rework'");
+        if ($hasRework && $hasRework->num_rows > 0) {
+            $sql = 'SELECT entry_date, product_key, rework_qty
+                    FROM buff_kra_rework
+                    WHERE department_id = ? AND document_id = ?
+                      AND entry_date >= ? AND entry_date < ?
+                      AND rework_qty IS NOT NULL AND rework_qty <> 0';
+            $st = $erp->prepare($sql);
+            if ($st) {
+                $st->bind_param('iiss', $deptId, $docId, $from, $toExcl);
+                if ($st->execute()) {
+                    $res = $st->get_result();
+                    while ($row = $res->fetch_assoc()) {
+                        $add($out, $row['entry_date'] ?? '', $row['product_key'] ?? '', 'rw', $row['rework_qty'] ?? 0);
+                    }
+                }
+                $st->close();
+            }
+        }
+
+        $hasArgon = $erp->query("SHOW TABLES LIKE 'buff_kra_argon'");
+        if ($hasArgon && $hasArgon->num_rows > 0) {
+            $sql = 'SELECT entry_date, product_key, argon_qty
+                    FROM buff_kra_argon
+                    WHERE department_id = ? AND document_id = ?
+                      AND entry_date >= ? AND entry_date < ?
+                      AND argon_qty IS NOT NULL AND argon_qty <> 0';
+            $st = $erp->prepare($sql);
+            if ($st) {
+                $st->bind_param('iiss', $deptId, $docId, $from, $toExcl);
+                if ($st->execute()) {
+                    $res = $st->get_result();
+                    while ($row = $res->fetch_assoc()) {
+                        $add($out, $row['entry_date'] ?? '', $row['product_key'] ?? '', 'ap', $row['argon_qty'] ?? 0);
+                    }
+                }
+                $st->close();
+            }
+        }
+    } catch (Throwable $e) {
+        // Keep shared ERP connection open.
+    }
+    return $out;
+}
+
+/**
+ * Rework → r, Argon Polish → ap. Non-zero ERP values overwrite the day cell.
+ *
+ * @param array<string,array> $days
+ * @param array<string,array{rw?:float,ap?:float}> $extras day => pair
+ * @return array<string,array>
+ */
+function mergeErpBuffExtrasIntoMap(array $days, array $extras)
+{
+    foreach ($extras as $d => $pair) {
+        if (!is_array($pair)) {
+            continue;
+        }
+        $d = (string) ((int) $d);
+        if (!isset($days[$d]) || !is_array($days[$d])) {
+            $days[$d] = ['q' => '', 'r' => '', 'ot' => '', 'ap' => ''];
+        }
+        if (!array_key_exists('ap', $days[$d])) {
+            $days[$d]['ap'] = '';
+        }
+        $rw = (float) ($pair['rw'] ?? 0);
+        $ap = (float) ($pair['ap'] ?? 0);
+        if ($rw != 0.0) {
+            $days[$d]['r'] = $rw;
+        }
+        if ($ap != 0.0) {
+            $days[$d]['ap'] = $ap;
+        }
+    }
+    return $days;
+}
+
+/**
+ * Resolve Buff Rework / Argon day map for a KRA part name (canon, then aliases).
+ *
+ * @param array<string, array<string, array{rw:float,ap:float}>> $erpExtraByPart
+ * @return array<string, array{rw:float,ap:float}>
+ */
+function contractorErpBuffExtrasForPartName($canonName, array $erpExtraByPart)
+{
+    $seen = [];
+    foreach (contractorKraPartNameLookupCandidates($canonName) as $al) {
+        $ak = strtolower(trim((string) $al));
+        if ($ak === '' || isset($seen[$ak])) {
+            continue;
+        }
+        $seen[$ak] = true;
+        if (!empty($erpExtraByPart[$ak]) && is_array($erpExtraByPart[$ak])) {
+            return $erpExtraByPart[$ak];
+        }
+        $ck = contractorKraCanonicalKey($al);
+        if ($ck !== '' && $ck !== $ak && !isset($seen[$ck])
+            && !empty($erpExtraByPart[$ck]) && is_array($erpExtraByPart[$ck])) {
+            $seen[$ck] = true;
+            return $erpExtraByPart[$ck];
+        }
+    }
+    return [];
+}
+
+/**
  * Resolve ERP day-qty for a KRA part: try canon then unique aliases; first hit wins (no sum).
  *
  * @param array<string, array<string, float>> $erpDayQtyByPart
@@ -1884,7 +2071,7 @@ function emptyDayMap($month, $year)
     $n = daysInMonthNum($month, $year);
     $days = [];
     for ($d = 1; $d <= 31; $d++) {
-        $days[(string) $d] = ['q' => '', 'r' => '', 'ot' => '', 'disabled' => ($d > $n)];
+        $days[(string) $d] = ['q' => '', 'r' => '', 'ot' => '', 'ap' => '', 'disabled' => ($d > $n)];
     }
     return $days;
 }
@@ -1901,8 +2088,9 @@ function mergeDayMap($saved, $month, $year)
             continue;
         }
         $base[$k]['q'] = $cell['q'] ?? ($cell['qty'] ?? '');
-        $base[$k]['r'] = $cell['r'] ?? '';
+        $base[$k]['r'] = $cell['r'] ?? ($cell['rw'] ?? '');
         $base[$k]['ot'] = $cell['ot'] ?? '';
+        $base[$k]['ap'] = $cell['ap'] ?? '';
     }
     return $base;
 }

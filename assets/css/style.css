@@ -7156,6 +7156,7 @@ select.product-select.ops-kra-hidden-select {
 /* CNC KRA: day qty locked — only Rate editable */
 .ops-grid.ops-kra-qty-locked .day-qty,
 .ops-grid.ops-kra-qty-locked .day-qty-r,
+.ops-grid.ops-kra-qty-locked .day-qty-ap,
 .ops-grid.ops-kra-qty-locked .day-qty-ot {
     background: #f1f5f9 !important;
     color: #334155;
@@ -7164,6 +7165,7 @@ select.product-select.ops-kra-hidden-select {
 }
 .ops-grid.ops-kra-qty-locked .day-qty:focus,
 .ops-grid.ops-kra-qty-locked .day-qty-r:focus,
+.ops-grid.ops-kra-qty-locked .day-qty-ap:focus,
 .ops-grid.ops-kra-qty-locked .day-qty-ot:focus {
     outline: none !important;
     box-shadow: none !important;
@@ -7172,6 +7174,7 @@ select.product-select.ops-kra-hidden-select {
 
 .ops-grid .day-qty:focus,
 .ops-grid .day-qty-r:focus,
+.ops-grid .day-qty-ap:focus,
 .ops-grid .day-qty-ot:focus {
     outline: 2px solid #d2232a;
     border-color: #d2232a;
@@ -7236,10 +7239,13 @@ select.product-select.ops-kra-hidden-select {
 
 .ops-grid .r-field,
 .ops-grid .ot-field,
+.ops-grid .ap-field,
 .ops-grid .r-lab,
 .ops-grid .ot-lab,
+.ops-grid .ap-lab,
 .ops-grid .foot-r,
-.ops-grid .foot-ot {
+.ops-grid .foot-ot,
+.ops-grid .foot-ap {
     display: none;
 }
 
@@ -7255,6 +7261,22 @@ select.product-select.ops-kra-hidden-select {
     display: inline-block;
 }
 
+.ops-grid.show-buff-ap .ap-field,
+.ops-grid.show-buff-ap .ap-lab,
+.ops-grid.show-buff-ap .foot-ap {
+    display: inline-block;
+}
+
+.ops-grid.show-buff-ap .day-qty,
+.ops-grid.show-buff-ap .day-qty-r,
+.ops-grid.show-buff-ap .day-qty-ap {
+    width: 48px;
+}
+
+.ops-grid.show-buff-ap .day-head {
+    min-width: 168px;
+}
+
 .ops-grid .foot-totals {
     font-size: 11px;
     font-weight: 800;
@@ -7264,6 +7286,7 @@ select.product-select.ops-kra-hidden-select {
 
 .ops-grid .foot-q,
 .ops-grid .foot-r,
+.ops-grid .foot-ap,
 .ops-grid .foot-ot {
     min-width: 28px;
     text-align: center;

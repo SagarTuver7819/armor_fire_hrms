@@ -52,7 +52,7 @@
     function applyKraQtyReadonly() {
         var lock = isKraFixedMode();
         $('#opsGrid').toggleClass('ops-kra-qty-locked', lock);
-        $('#opsRows .day-qty, #opsRows .day-qty-r, #opsRows .day-qty-ot').each(function () {
+        $('#opsRows .day-qty, #opsRows .day-qty-r, #opsRows .day-qty-ap, #opsRows .day-qty-ot').each(function () {
             var $inp = $(this);
             if ($inp.prop('disabled')) return;
             $inp.prop('readonly', lock);
@@ -69,24 +69,27 @@
         var showR = repairOps.indexOf(op) !== -1;
         var showOt = otRepairOps.indexOf(op) !== -1;
         var showG = showsGrade(op);
-        $('#opsGrid').toggleClass('show-r', showR);
-        $('#opsGrid').toggleClass('show-ot', showOt);
+        var buffBoxes = String(op || '').toUpperCase() === 'BUFF' && $('#opsGrid .day-qty-ap').length > 0;
+        $('#opsGrid').toggleClass('show-r', showR || buffBoxes);
+        $('#opsGrid').toggleClass('show-ot', showOt && !buffBoxes);
+        $('#opsGrid').toggleClass('show-buff-ap', buffBoxes);
         $('#opsGrid').toggleClass('show-foundry', isFoundry);
         $('#opsGrid').toggleClass('show-grade', showG);
         $('#opsGrid').toggleClass('hide-grade', !showG);
-        $('.r-field').prop('readonly', !showR || isKraFixedMode());
-        $('.ot-field').prop('readonly', !showOt || isKraFixedMode());
+        $('.r-field').prop('readonly', !(showR || buffBoxes) || isKraFixedMode());
+        $('.ap-field').prop('readonly', !buffBoxes || isKraFixedMode());
+        $('.ot-field').prop('readonly', !showOt || buffBoxes || isKraFixedMode());
         applyKraQtyReadonly();
         // Do NOT wipe existing day qty when toggling mode (Add Product Row / load).
         // Values stay; hidden columns just won't display.
 
         // Foundry: D / N with separate Day Qty Total & Night Qty Total (not combined)
         $('.q-lab').text(isFoundry ? 'D' : 'Q');
-        $('.r-lab').text(isFoundry ? 'N' : 'R');
+        $('.r-lab').text(isFoundry ? 'N' : (buffBoxes ? 'RW' : 'R'));
         $('#th_total_qty').text(isFoundry ? 'Day Qty Total' : 'TOTAL QTY');
-        $('#th_total_r').text(isFoundry ? 'Night Qty Total' : 'TOTAL R');
+        $('#th_total_r').text(isFoundry ? 'Night Qty Total' : (buffBoxes ? 'TOTAL RW' : 'TOTAL R'));
         $('#sum_qty_lab').text(isFoundry ? 'Day Qty Total' : 'Qty');
-        $('#sum_r_lab').text(isFoundry ? 'Night Qty Total' : 'R');
+        $('#sum_r_lab').text(isFoundry ? 'Night Qty Total' : (buffBoxes ? 'RW' : 'R'));
 
         // Action + Sr + Process + (Grade?) + Rate
         $('#tf_grand_total_label').attr('colspan', showG ? 5 : 4);
@@ -404,6 +407,7 @@
                 days[d] = {
                     q: $(this).find('.day-qty').val() || '',
                     r: $(this).find('.day-qty-r').val() || '',
+                    ap: $(this).find('.day-qty-ap').val() || '',
                     ot: $(this).find('.day-qty-ot').val() || ''
                 };
             });
@@ -450,10 +454,11 @@
                     var $day = $clone.find('.day-cell[data-day="' + d + '"]');
                     $day.find('.day-qty').val(cell.q || '');
                     $day.find('.day-qty-r').val(cell.r || '');
+                    $day.find('.day-qty-ap').val(cell.ap || '');
                     $day.find('.day-qty-ot').val(cell.ot || '');
                 });
             }
-            // ERP KRA date-wise Total → day boxes (overwrite so alias-tripled saves get corrected)
+            // ERP KRA date-wise Total → Q; Buff Rework → RW; Argon Polish → AP
             var kraMap = window.OPS_KRA_DAY_QTY || {};
             var pkey = String(p.name || p.product_name || '').toLowerCase().trim();
             var erpDays = kraMap[pkey] || {};
@@ -463,6 +468,22 @@
                 var qv = erpDays[d];
                 if (qv !== undefined && qv !== null && parseFloat(qv) !== 0) {
                     $inp.val(qv);
+                }
+            });
+            var buffMap = window.OPS_BUFF_DAY_EXTRA || {};
+            var buffDays = buffMap[pkey] || {};
+            Object.keys(buffDays).forEach(function (d) {
+                var pair = buffDays[d] || {};
+                var $day = $clone.find('.day-cell[data-day="' + d + '"]');
+                var rw = pair.rw;
+                var ap = pair.ap;
+                if (rw !== undefined && rw !== null && parseFloat(rw) !== 0) {
+                    var $rw = $day.find('.day-qty-r');
+                    if ($rw.length && !$rw.prop('disabled')) $rw.val(rw);
+                }
+                if (ap !== undefined && ap !== null && parseFloat(ap) !== 0) {
+                    var $ap = $day.find('.day-qty-ap');
+                    if ($ap.length && !$ap.prop('disabled')) $ap.val(ap);
                 }
             });
 
@@ -760,6 +781,7 @@
                 days[d] = {
                     q: $(this).find('.day-qty').val() || 0,
                     r: $(this).find('.day-qty-r').val() || 0,
+                    ap: $(this).find('.day-qty-ap').val() || 0,
                     ot: $(this).find('.day-qty-ot').val() || 0
                 };
             });
@@ -830,12 +852,14 @@
     }
     function updateGrandTotals() {
         var op = opVal();
-        var showR = repairOps.indexOf(op) !== -1;
-        var showOt = otRepairOps.indexOf(op) !== -1;
-        var gQty = 0, gR = 0, gOt = 0, gAmt = 0;
+        var showR = repairOps.indexOf(op) !== -1 || $('#opsGrid').hasClass('show-buff-ap');
+        var showOt = otRepairOps.indexOf(op) !== -1 && !$('#opsGrid').hasClass('show-buff-ap');
+        var showAp = $('#opsGrid').hasClass('show-buff-ap');
+        var gQty = 0, gR = 0, gOt = 0, gAp = 0, gAmt = 0;
         var dayQ = {};
         var dayR = {};
         var dayOt = {};
+        var dayAp = {};
         $('#opsRows .ops-row').each(function () {
             gR += parseFloat($(this).find('.total-r').val()) || 0;
             gAmt += parseFloat($(this).find('.total-amount').val()) || 0;
@@ -865,6 +889,14 @@
                 $(this).find('.total-ot').val(parseFloat(rowOt.toFixed(2)));
                 gOt += rowOt;
             }
+            if (showAp) {
+                $(this).find('.day-qty-ap').each(function () {
+                    var d = $(this).closest('.day-cell').attr('data-day');
+                    var n = parseFloat($(this).val()) || 0;
+                    if (!$(this).prop('disabled')) gAp += n;
+                    dayAp[d] = (dayAp[d] || 0) + n;
+                });
+            }
         });
         $('#tf_total_qty').text(parseFloat(gQty.toFixed(2)));
         $('#tf_total_r').text(parseFloat(gR.toFixed(2)));
@@ -872,11 +904,14 @@
         $('#tf_amount').text(gAmt.toFixed(2));
         $('#sum_qty').text(parseFloat(gQty.toFixed(2)));
         $('#sum_r').text(parseFloat(gR.toFixed(2)));
+        $('#sum_rw').text(parseFloat(gR.toFixed(2)));
+        $('#sum_ap').text(parseFloat(gAp.toFixed(2)));
         $('#sum_amt').text(gAmt.toFixed(2));
         $('.day-foot').each(function () {
             var d = $(this).attr('data-day');
             var $q = $(this).find('.foot-q');
             var $r = $(this).find('.foot-r');
+            var $ap = $(this).find('.foot-ap');
             var $ot = $(this).find('.foot-ot');
             if (!$q.length) {
                 // fallback for old markup
@@ -886,6 +921,7 @@
             }
             $q.text(fmtFoot(dayQ[d]));
             $r.text(showR ? fmtFoot(dayR[d]) : '');
+            if ($ap.length) $ap.text(showAp ? fmtFoot(dayAp[d]) : '');
             $ot.text(showOt ? fmtFoot(dayOt[d]) : '');
         });
         if (typeof window.opsOnGrandTotal === 'function') {
