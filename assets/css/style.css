@@ -6341,25 +6341,30 @@ body > .select2-container .select2-dropdown {
     border-collapse: separate;
     border-spacing: 0;
     min-width: 100%;
-    font-size: 12px;
+    font-size: 13px;
 }
 
 .ops-clone-staff-att-table th,
 .ops-clone-staff-att-table td {
     border-bottom: 1px solid #e2e8f0;
-    border-right: 1px solid #f1f5f9;
-    padding: 4px 5px;
+    border-right: 1px solid #e2e8f0;
+    padding: 8px 10px;
     white-space: nowrap;
     vertical-align: middle;
+    background: #fff;
 }
 
 .ops-clone-staff-att-table thead th {
     background: #fce7f3;
     position: sticky;
     top: 0;
-    z-index: 2;
-    font-size: 11px;
+    z-index: 5;
+    height: 52px;
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 1.2;
     text-align: center;
+    color: #831843;
 }
 
 .ops-clone-staff-att-table .sticky-staff {
@@ -6370,42 +6375,65 @@ body > .select2-container .select2-dropdown {
 
 .ops-clone-staff-att-table thead .sticky-staff {
     background: #fce7f3;
-    z-index: 4;
+    z-index: 6;
 }
 
-.ops-clone-staff-att-table .sticky-sr { left: 0; width: 42px; min-width: 42px; max-width: 42px; text-align: center; }
-.ops-clone-staff-att-table .sticky-code { left: 42px; width: 92px; min-width: 92px; max-width: 92px; }
-.ops-clone-staff-att-table .sticky-name { left: 134px; width: 280px; min-width: 280px; max-width: 280px; text-align: left; overflow: hidden; text-overflow: ellipsis; }
-.ops-clone-staff-att-table .sticky-sal { left: 414px; width: 88px; min-width: 88px; max-width: 88px; text-align: right; font-variant-numeric: tabular-nums; }
-.ops-clone-staff-att-table .sticky-pdays { left: 502px; width: 68px; min-width: 68px; max-width: 68px; text-align: center; font-variant-numeric: tabular-nums; color: #166534; font-weight: 700; }
-.ops-clone-staff-att-table .sticky-adays { left: 570px; width: 68px; min-width: 68px; max-width: 68px; text-align: center; font-variant-numeric: tabular-nums; color: #b91c1c; font-weight: 700; }
-.ops-clone-staff-att-table .sticky-final { left: 638px; width: 108px; min-width: 108px; max-width: 108px; box-shadow: 2px 0 4px rgba(15, 23, 42, 0.06); text-align: right; font-weight: 700; color: #9f1239; font-variant-numeric: tabular-nums; }
+.ops-clone-staff-att-table .sticky-sr { left: 0; width: 48px; min-width: 48px; max-width: 48px; text-align: center; padding-left: 6px; padding-right: 6px; }
+.ops-clone-staff-att-table .sticky-code { left: 48px; width: 108px; min-width: 108px; max-width: 108px; text-align: center; }
+.ops-clone-staff-att-table .sticky-name { left: 156px; width: 250px; min-width: 250px; max-width: 250px; text-align: left; overflow: hidden; text-overflow: ellipsis; }
+.ops-clone-staff-att-table .sticky-sal { left: 406px; width: 92px; min-width: 92px; max-width: 92px; text-align: right; font-variant-numeric: tabular-nums; }
+.ops-clone-staff-att-table .sticky-pdays { left: 498px; width: 78px; min-width: 78px; max-width: 78px; text-align: center; font-variant-numeric: tabular-nums; color: #166534; font-weight: 700; padding-left: 4px; padding-right: 4px; }
+.ops-clone-staff-att-table .sticky-adays { left: 576px; width: 78px; min-width: 78px; max-width: 78px; text-align: center; font-variant-numeric: tabular-nums; color: #b91c1c; font-weight: 700; padding-left: 4px; padding-right: 4px; }
+.ops-clone-staff-att-table .sticky-final {
+    left: 654px;
+    width: 118px;
+    min-width: 118px;
+    max-width: 118px;
+    box-shadow: 4px 0 8px rgba(15, 23, 42, 0.08);
+    text-align: right;
+    font-weight: 700;
+    color: #9f1239;
+    font-variant-numeric: tabular-nums;
+}
 .ops-clone-staff-att-table .att-day-head,
-.ops-clone-staff-att-table .att-day-cell { width: 48px; min-width: 48px; text-align: center; }
+.ops-clone-staff-att-table .att-day-cell {
+    width: 54px;
+    min-width: 54px;
+    max-width: 54px;
+    padding: 6px 4px;
+    text-align: center;
+}
 .ops-clone-staff-att-table tr.is-main-contractor td { background: #fff7ed; }
 .ops-clone-staff-att-table tr.is-main-contractor .sticky-staff { background: #fff7ed; }
 .ops-clone-staff-att-table tfoot td {
     background: #fef3c7;
     font-weight: 800;
     color: #0f172a;
+    height: 44px;
 }
 .ops-clone-staff-att-table tfoot .sticky-staff {
     background: #fef3c7 !important;
     position: sticky;
     z-index: 4;
 }
+.ops-clone-staff-att-table tfoot .sticky-pdays { color: #166534; }
+.ops-clone-staff-att-table tfoot .sticky-adays { color: #b91c1c; }
+.ops-clone-staff-att-table tfoot .sticky-final { color: #9f1239; }
 
-.ops-clone-staff-att-table .att-day-head .day-no { display: block; font-weight: 700; }
-.ops-clone-staff-att-table .att-day-head .day-wd { display: block; font-size: 10px; color: #64748b; }
+.ops-clone-staff-att-table .att-day-head .day-no { display: block; font-weight: 800; font-size: 13px; color: #0f172a; }
+.ops-clone-staff-att-table .att-day-head .day-wd { display: block; margin-top: 2px; font-size: 10px; font-weight: 600; color: #64748b; }
 .ops-clone-staff-att-table .att-day-head.is-weekend,
 .ops-clone-staff-att-table .att-day-cell.is-weekend { background: #fff7ed; }
 
 .ops-clone-staff-att-table .staff-att-input {
-    width: 42px;
+    width: 40px;
+    height: 28px;
+    margin: 0 auto;
+    display: block;
     text-align: center;
-    padding: 3px 2px;
-    font-size: 11px;
-    font-weight: 600;
+    padding: 0;
+    font-size: 12px;
+    font-weight: 700;
     border: 1px solid #cbd5e1;
     border-radius: 6px;
     text-transform: uppercase;
