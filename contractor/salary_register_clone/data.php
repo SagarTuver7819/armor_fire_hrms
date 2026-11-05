@@ -266,3 +266,103 @@ function cncCloneNfpsExport(array $neftRows, $month, $year)
         'cfg' => $cfg,
     ];
 }
+
+/**
+ * Copy the NFPS workbook and write payment rows under the original heading row.
+ *
+ * @param array<int,array<int,string|float>> $rows
+ */
+function cncCloneFillNfpsTemplate($templatePath, array $rows)
+{
+    $zip = new ZipArchive();
+    $flags = defined('ZipArchive::RDONLY') ? ZipArchive::RDONLY : 0;
+    if ($zip->open($templatePath, $flags) !== true) {
+        return '';
+    }
+    $sheet = $zip->getFromName('xl/worksheets/sheet1.xml');
+    $zip->close();
+    if (!is_string($sheet) || !preg_match('/<row r="1"[^>]*>.*?<\/row>/s', $sheet, $headerMatch)) {
+        return '';
+    }
+
+    $last = max(49, count($rows) + 1);
+    $sheetData = '<sheetData>' . $headerMatch[0];
+    $dataIndex = 0;
+    for ($r = 2; $r <= $last; $r++) {
+        if ($dataIndex < count($rows)) {
+            $sheetData .= cncCloneNfpsDataRow($r, $rows[$dataIndex]);
+            $dataIndex++;
+        } else {
+            $sheetData .= cncCloneNfpsBlankRow($r);
+        }
+    }
+    $sheetData .= '</sheetData>';
+
+    $sheet = preg_replace('/<sheetData>.*?<\/sheetData>/s', $sheetData, $sheet, 1);
+    $sheet = preg_replace('/<dimension ref="[^"]+"/', '<dimension ref="A1:M' . $last . '"', $sheet, 1);
+    if (!is_string($sheet)) {
+        return '';
+    }
+
+    $tmp = tempnam(sys_get_temp_dir(), 'cnc_nfps_');
+    if ($tmp === false || !copy($templatePath, $tmp)) {
+        return '';
+    }
+    $out = new ZipArchive();
+    if ($out->open($tmp) !== true) {
+        @unlink($tmp);
+        return '';
+    }
+    $out->addFromString('xl/worksheets/sheet1.xml', $sheet);
+    $out->close();
+    $bytes = file_get_contents($tmp);
+    @unlink($tmp);
+    return is_string($bytes) ? $bytes : '';
+}
+
+function cncCloneNfpsDataRow($r, array $cells)
+{
+    $r = (int) $r;
+    $text = static function ($value) {
+        return htmlspecialchars((string) $value, ENT_XML1 | ENT_QUOTES, 'UTF-8');
+    };
+    $inline = static function ($col, $style, $value) use ($r, $text) {
+        $value = (string) $value;
+        if ($value === '') {
+            return '<c r="' . $col . $r . '" s="' . $style . '"/>';
+        }
+        return '<c r="' . $col . $r . '" s="' . $style . '" t="inlineStr"><is><t>' . $text($value) . '</t></is></c>';
+    };
+    $amount = number_format((float) ($cells[6] ?? 0), 2, '.', '');
+    $xml = '<row r="' . $r . '" spans="1:13">';
+    $xml .= $inline('A', '4', $cells[0] ?? '');
+    $xml .= $inline('B', '4', $cells[1] ?? '');
+    $xml .= $inline('C', '6', $cells[2] ?? '');
+    $xml .= $inline('D', '6', $cells[3] ?? '');
+    $xml .= $inline('E', '9', $cells[4] ?? '');
+    $xml .= $inline('F', '4', $cells[5] ?? '');
+    $xml .= '<c r="G' . $r . '" s="4"><v>' . $amount . '</v></c>';
+    $xml .= $inline('H', '4', $cells[7] ?? '');
+    $xml .= $inline('I', '4', $cells[8] ?? '');
+    $xml .= $inline('J', '4', $cells[9] ?? '');
+    $xml .= $inline('K', '7', $cells[10] ?? '');
+    $xml .= $inline('L', '4', '');
+    $xml .= $inline('M', '4', '');
+    $xml .= '</row>';
+    return $xml;
+}
+
+function cncCloneNfpsBlankRow($r)
+{
+    $r = (int) $r;
+    $styles = [
+        'A' => '4', 'B' => '4', 'C' => '6', 'D' => '6', 'E' => '9', 'F' => '4',
+        'G' => '4', 'H' => '4', 'I' => '4', 'J' => '4', 'K' => '7', 'L' => '4', 'M' => '4',
+    ];
+    $xml = '<row r="' . $r . '" spans="1:13">';
+    foreach ($styles as $col => $style) {
+        $xml .= '<c r="' . $col . $r . '" s="' . $style . '"/>';
+    }
+    $xml .= '</row>';
+    return $xml;
+}
