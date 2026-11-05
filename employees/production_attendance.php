@@ -21,8 +21,16 @@ if ($dept === '') {
 }
 
 $conn = getDBConnection();
+$salaryExpr = 'NULL AS decided_salary';
+$colRes = $conn->query("SHOW COLUMNS FROM employees LIKE 'decided_salary'");
+if ($colRes && $colRes->num_rows > 0) {
+    $salaryExpr = 'decided_salary';
+}
+if ($colRes) {
+    $colRes->free();
+}
 $stmt = $conn->prepare(
-    "SELECT employee_code, employee_name
+    "SELECT employee_code, employee_name, {$salaryExpr}
      FROM employees
      WHERE (status = 1 OR LOWER(CAST(status AS CHAR)) IN ('1', 'active'))
        AND LOWER(TRIM(production_department)) = LOWER(?)
@@ -50,6 +58,11 @@ if ($result) {
     while ($row = $result->fetch_assoc()) {
         $name = trim((string)($row['employee_name'] ?? ''));
         $code = trim((string)($row['employee_code'] ?? ''));
+        $salary = $row['decided_salary'] ?? '';
+        if ($salary === null) {
+            $salary = '';
+        }
+        $salary = trim((string)$salary);
         if ($name === '') {
             continue;
         }
@@ -58,7 +71,7 @@ if ($result) {
             continue;
         }
         $seen[$rowKey] = true;
-        $employees[] = ['name' => $name, 'code' => $code];
+        $employees[] = ['name' => $name, 'code' => $code, 'salary' => $salary];
     }
 }
 $stmt->close();
