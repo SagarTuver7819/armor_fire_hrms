@@ -7326,12 +7326,52 @@ select.product-select.ops-kra-hidden-select {
 
 .ops-grid.show-buff-ap .day-qty,
 .ops-grid.show-buff-ap .day-qty-r,
-.ops-grid.show-buff-ap .day-qty-ap {
+.ops-grid.show-buff-ap .day-qty-ap,
+.ops-grid.show-buff-ap .foot-q,
+.ops-grid.show-buff-ap .foot-r,
+.ops-grid.show-buff-ap .foot-ap {
     width: 48px;
+    min-width: 48px;
+    max-width: 48px;
 }
 
-.ops-grid.show-buff-ap .day-head {
+.ops-grid.show-buff-ap .ops-subhead {
+    gap: 3px;
+}
+.ops-grid.show-buff-ap .ops-subhead .q-lab,
+.ops-grid.show-buff-ap .ops-subhead .r-lab,
+.ops-grid.show-buff-ap .ops-subhead .ap-lab {
+    width: 48px;
+    min-width: 48px;
+    text-align: center;
+}
+
+.ops-grid.show-buff-ap th.day-head,
+.ops-grid.show-buff-ap td.day-cell,
+.ops-grid.show-buff-ap td.day-foot {
     min-width: 168px;
+    width: 168px;
+}
+
+.ops-grid.show-buff-ap td.day-foot .foot-totals,
+.ops-grid.show-buff-ap td.day-cell .ops-day-triple {
+    flex-wrap: nowrap;
+}
+
+.ops-grid.show-buff-ap td.day-foot .foot-q,
+.ops-grid.show-buff-ap td.day-foot .foot-r,
+.ops-grid.show-buff-ap td.day-foot .foot-ap {
+    display: inline-block !important;
+    height: 34px;
+    padding: 2px 0;
+    font-size: 12px;
+    font-weight: 800;
+    color: #9a3412;
+    background: #fff !important;
+}
+
+.ops-grid.show-buff-ap td.day-foot .foot-ot {
+    display: none !important;
 }
 
 .ops-grid .foot-totals {

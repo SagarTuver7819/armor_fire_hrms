@@ -562,12 +562,20 @@ $otJson = json_encode(contractorOtRepairOps());
                             <td class="sticky-col sticky-action" colspan="<?php echo ($showGrade ? 4 : 3) + ($isBuffReport ? 3 : 1); ?>" id="tf_grand_total_label">GRAND TOTAL</td>
                             <?php for ($d = 1; $d <= 31; $d++): ?>
                                 <td class="day-foot" data-day="<?php echo $d; ?>">
+                                    <?php if ($isBuffReport): ?>
+                                    <div class="ops-day-triple foot-totals">
+                                        <input type="text" class="grid-input foot-q" readonly tabindex="-1" value="0" title="Q total">
+                                        <input type="text" class="grid-input foot-r r-field" readonly tabindex="-1" value="0" title="RW total">
+                                        <input type="text" class="grid-input foot-ap ap-field" readonly tabindex="-1" value="0" title="AP total">
+                                    </div>
+                                    <?php else: ?>
                                     <div class="ops-day-triple foot-totals">
                                         <span class="foot-q"></span>
                                         <span class="foot-r"></span>
                                         <span class="foot-ap"></span>
                                         <span class="foot-ot"></span>
                                     </div>
+                                    <?php endif; ?>
                                 </td>
                             <?php endfor; ?>
                             <td id="tf_total_qty"><?php if ($isBuffReport): ?><div class="ops-day-triple foot-totals"><span id="tf_sum_q">0</span><span id="tf_sum_rw">0</span><span id="tf_sum_ap">0</span></div><?php else: ?>0<?php endif; ?></td>

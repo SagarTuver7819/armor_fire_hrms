@@ -978,8 +978,112 @@ function contractorBuffKraPartOrder()
 /**
  * Sort index for a Buff KRA part. Names outside the hierarchy sort after it.
  */
+function contractorBuffOtherBrandLabel($brandName)
+{
+    $brandName = trim((string) $brandName);
+    if ($brandName === '') {
+        return '';
+    }
+    return 'Other Brand — ' . $brandName;
+}
+
+function contractorBuffOtherBrandFromLabel($label)
+{
+    $label = trim((string) $label);
+    if (preg_match('/^other\s*brand\s*[—–\-]+\s*(.+)$/iu', $label, $m)) {
+        return trim((string) $m[1]);
+    }
+    return '';
+}
+
+/**
+ * Other Brand rows selected on Buff Production Planning KRA for this month.
+ * KRA always has this slot (dropdown + Add); the part name is "Other Brand — Safex".
+ *
+ * @return list<string>
+ */
+function contractorErpBuffOtherBrandLabels($erp, $deptId, $docId, $asOf)
+{
+    $deptId = (int) $deptId;
+    $docId = (int) $docId;
+    $labels = [];
+    $add = static function ($brand) use (&$labels) {
+        $label = contractorBuffOtherBrandLabel($brand);
+        if ($label === '') {
+            return;
+        }
+        $k = strtolower($label);
+        if (!isset($labels[$k])) {
+            $labels[$k] = $label;
+        }
+    };
+    if (!$erp || $deptId <= 0 || $docId <= 0) {
+        return [];
+    }
+    $monthStart = '';
+    $monthEnd = '';
+    if (preg_match('/^(\d{4})-(\d{2})-\d{2}$/', (string) $asOf, $m)) {
+        $monthStart = $m[1] . '-' . $m[2] . '-01';
+        $monthEnd = date('Y-m-d', strtotime($monthStart . ' +1 month'));
+    }
+
+    if ($monthStart !== '') {
+        $sql = "SELECT DISTINCT TRIM(ob.brand_name) AS brand_name
+                FROM production_entries pe
+                JOIN sub_items s ON s.id = pe.sub_item_id
+                JOIN other_brands_master ob ON ob.id = NULLIF(pe.other_brand_id, 0)
+                WHERE pe.department_id = ?
+                  AND pe.document_id = ?
+                  AND pe.entry_date >= ?
+                  AND pe.entry_date < ?
+                  AND TRIM(LOWER(s.product_name)) IN ('other brand', 'other brand body')
+                  AND TRIM(IFNULL(ob.brand_name, '')) <> ''";
+        $st = $erp->prepare($sql);
+        if ($st) {
+            $st->bind_param('iiss', $deptId, $docId, $monthStart, $monthEnd);
+            if ($st->execute()) {
+                $res = $st->get_result();
+                while ($row = $res->fetch_assoc()) {
+                    $add($row['brand_name'] ?? '');
+                }
+            }
+            $st->close();
+        }
+    }
+
+    $setRes = $erp->query("SELECT setting_key, setting_value FROM app_settings WHERE setting_key LIKE 'selected_kra_variant_%'");
+    $suffix = '_' . $docId;
+    if ($setRes) {
+        while ($row = $setRes->fetch_assoc()) {
+            $key = (string) ($row['setting_key'] ?? '');
+            $prefix = 'selected_kra_variant_';
+            if (strpos($key, $prefix) !== 0 || substr($key, -strlen($suffix)) !== $suffix) {
+                continue;
+            }
+            $date = substr($key, strlen($prefix), 10);
+            if ($monthStart !== '' && ($date < $monthStart || $date >= $monthEnd)) {
+                continue;
+            }
+            $add($row['setting_value'] ?? '');
+        }
+    }
+
+    if (!$labels) {
+        $st = $erp->prepare('SELECT TRIM(brand_name) AS brand_name FROM other_brands_master WHERE TRIM(IFNULL(brand_name, \'\')) <> \'\' ORDER BY brand_name ASC LIMIT 1');
+        if ($st && $st->execute()) {
+            $row = $st->get_result()->fetch_assoc();
+            $st->close();
+            $add($row['brand_name'] ?? '');
+        }
+    }
+    return array_values($labels);
+}
+
 function contractorBuffKraSortRank($productName)
 {
+    if (contractorBuffOtherBrandFromLabel($productName) !== '') {
+        return 20000;
+    }
     static $rank = null;
     if ($rank === null) {
         $rank = [];
@@ -1146,6 +1250,7 @@ function syncErpKraPartsToContractorProducts($operation, $hrmsConn = null, $asOf
     $rateMap = [];
     $erpNote = '';
     $erpSnapNames = [];
+    $buffOtherBrandLabels = [];
 
     if (!function_exists('getErpDBConnection')) {
         require_once __DIR__ . '/../config/database.php';
@@ -1316,6 +1421,14 @@ function syncErpKraPartsToContractorProducts($operation, $hrmsConn = null, $asOf
                             $st->close();
                         }
                     }
+                    if (strcasecmp($operation, 'BUFF') === 0 && $deptId > 0 && $docId > 0) {
+                        $buffOtherBrandLabels = contractorErpBuffOtherBrandLabels(
+                            $erp,
+                            $deptId,
+                            $docId,
+                            $asOfUse
+                        );
+                    }
                     $uniqSnap = count(array_unique(array_map('strtolower', $erpSnapNames)));
                     $erpNote = 'ERP OK latest=' . ($effLatest !== '' ? $effLatest : 'none')
                         . ' asof=' . ($effAsOf !== '' ? $effAsOf : 'none')
@@ -1333,6 +1446,9 @@ function syncErpKraPartsToContractorProducts($operation, $hrmsConn = null, $asOf
     // Prefer ERP snapshot order; then CNC baseline (covers thin local ERP / missing live pull)
     foreach ($erpSnapNames as $pn) {
         $appendName($names, $pn);
+    }
+    foreach ($buffOtherBrandLabels as $pn) {
+        $names[] = $pn;
     }
     if (strcasecmp($operation, 'CNC') === 0) {
         foreach (contractorCncKraBaselinePartNames() as $pn) {
@@ -1527,10 +1643,11 @@ function fetchErpKraDateWiseQtys($operation, $year, $month)
             }
             $pn = trim((string) ($row['product_name'] ?? ''));
             $brand = trim((string) ($row['brand_name'] ?? ''));
-            // One key only — alias fan-out here + again in edit.php caused 3×/4× qty
+            // One key only — alias fan-out here + again in edit.php caused 3×/4× qty.
+            // Other Brand qty belongs to "Other Brand — Safex", not the bare brand name.
             $k = '';
             if ($pn !== '' && preg_match('/^other\s*brand/i', $pn)) {
-                $k = $brand !== '' ? strtolower($brand) : '';
+                $k = $brand !== '' ? strtolower(contractorBuffOtherBrandLabel($brand)) : '';
             } elseif ($pn !== '') {
                 $k = strtolower($pn);
             }
@@ -1730,6 +1847,37 @@ function fetchErpBuffKraDayExtras($year, $month)
                 }
                 $st->close();
             }
+        }
+
+        $brandById = [];
+        $bq = $erp->query('SELECT id, TRIM(brand_name) AS brand_name FROM other_brands_master');
+        if ($bq) {
+            while ($row = $bq->fetch_assoc()) {
+                $brandById[(int) ($row['id'] ?? 0)] = trim((string) ($row['brand_name'] ?? ''));
+            }
+        }
+        $aliased = [];
+        foreach ($out as $k => $days) {
+            if (!preg_match('/^other brand\|(\d+)$/', (string) $k, $m)) {
+                continue;
+            }
+            $label = strtolower(contractorBuffOtherBrandLabel($brandById[(int) $m[1]] ?? ''));
+            if ($label === '') {
+                continue;
+            }
+            if (!isset($aliased[$label])) {
+                $aliased[$label] = [];
+            }
+            foreach ($days as $dk => $pair) {
+                if (!isset($aliased[$label][$dk])) {
+                    $aliased[$label][$dk] = ['rw' => 0.0, 'ap' => 0.0];
+                }
+                $aliased[$label][$dk]['rw'] += (float) ($pair['rw'] ?? 0);
+                $aliased[$label][$dk]['ap'] += (float) ($pair['ap'] ?? 0);
+            }
+        }
+        foreach ($aliased as $label => $days) {
+            $out[$label] = $days;
         }
     } catch (Throwable $e) {
         // Keep shared ERP connection open.

@@ -875,9 +875,12 @@
         $row.find('.total-amount').val(totalAmt.toFixed(2));
         updateGrandTotals();
     }
-    function fmtFoot(v) {
+    function fmtFoot(v, force) {
         v = parseFloat(v) || 0;
-        return v ? parseFloat(v.toFixed(2)) : '';
+        if (!v && !force) return '';
+        var r = parseFloat(v.toFixed(2));
+        if (Math.abs(r - Math.round(r)) < 0.001) return String(Math.round(r));
+        return r.toFixed(2);
     }
     function updateGrandTotals() {
         var op = opVal();
@@ -963,10 +966,25 @@
                 $(this).text(onlyQ ? parseFloat(onlyQ.toFixed(2)) : '');
                 return;
             }
-            $q.text(fmtFoot(dayQ[d]));
-            $r.text(showR ? fmtFoot(dayR[d]) : '');
-            if ($ap.length) $ap.text(showAp ? fmtFoot(dayAp[d]) : '');
-            $ot.text(showOt ? fmtFoot(dayOt[d]) : '');
+            var putFoot = function ($el, text) {
+                if (!$el || !$el.length) return;
+                if ($el.is('input,textarea')) $el.val(text);
+                else $el.text(text);
+            };
+            if (showAp) {
+                var qv = dayQ[d] || 0;
+                var rv = dayR[d] || 0;
+                var av = dayAp[d] || 0;
+                putFoot($q, fmtFoot(qv, true));
+                putFoot($r, fmtFoot(rv, true));
+                putFoot($ap, fmtFoot(av, true));
+                putFoot($ot, '');
+            } else {
+                putFoot($q, fmtFoot(dayQ[d]));
+                putFoot($r, showR ? fmtFoot(dayR[d]) : '');
+                putFoot($ap, '');
+                putFoot($ot, showOt ? fmtFoot(dayOt[d]) : '');
+            }
         });
         if (typeof window.opsOnGrandTotal === 'function') {
             window.opsOnGrandTotal(gAmt);
