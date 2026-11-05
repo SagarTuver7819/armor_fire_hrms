@@ -18,60 +18,67 @@ function cncSopLetterCss()
 }
 .sop-date {
     text-align: right;
-    font-size: 13px;
-    font-weight: 700;
-    margin: 0 0 12px;
+    font-size: 16px;
+    font-weight: 800;
+    color: #111;
+    margin: 0 0 14px;
 }
 .sop-subject {
     text-align: center;
-    font-size: 15px;
+    font-size: 20px;
     font-weight: 800;
+    color: #111;
     text-decoration: underline;
-    text-underline-offset: 3px;
-    margin: 0 0 14px;
+    text-underline-offset: 4px;
+    margin: 0 0 16px;
 }
 .sop-name {
-    font-size: 13px;
-    font-weight: 700;
-    margin: 0 0 10px;
+    font-size: 16px;
+    font-weight: 800;
+    color: #111;
+    margin: 0 0 12px;
 }
 .sop-body-box {
     flex: 1 1 auto;
-    min-height: 90mm;
-    border: 1px solid #111;
-    padding: 8px 10px;
+    min-height: 70mm;
+    border: 0;
+    padding: 4px 2px 8px;
     white-space: pre-wrap;
-    font-size: 13px;
-    font-weight: 700;
-    line-height: 1.5;
+    font-size: 16px;
+    font-weight: 800;
+    color: #111;
+    line-height: 1.55;
 }
 .sop-signs {
     display: flex;
     justify-content: space-between;
-    gap: 24px;
-    margin-top: 12px;
+    gap: 28px;
+    margin-top: 16px;
 }
 .sop-sign-slot {
-    width: 46%;
-    min-height: 32mm;
-    border: 1px solid #111;
+    width: 42%;
+    min-height: 36mm;
+    border: 1.5px solid #111;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: flex-end;
-    padding: 6px 8px 8px;
+    padding: 8px 10px 10px;
     text-align: center;
-    font-size: 12px;
+    font-size: 15px;
     font-weight: 800;
+    color: #111;
 }
 .sop-sign-slot img {
     max-width: 100%;
-    max-height: 22mm;
+    max-height: 24mm;
     object-fit: contain;
-    margin-bottom: 4px;
+    margin-bottom: 6px;
 }
 .sop-sign-slot .who {
-    font-weight: 700;
+    font-size: 15px;
+    font-weight: 800;
+    color: #111;
     margin-bottom: 2px;
 }
 .sop-sheet .cdoc-inner {
