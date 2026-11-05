@@ -58,11 +58,6 @@ if (isset($_GET['msg'])) {
             <div class="master-list-icon" style="background:#0f766e;"><i class="fa-solid fa-table-list"></i></div>
             <div>
                 <h1>CNC Job Work and Attendance Report</h1>
-                <p>
-                    CNC · Main Contractor <strong>Ravi (SOLANKI RAVI KANABHAI)</strong> · months from <strong>November 2026</strong>.
-                    Eye = View (last set ERP KRA grid). Add / Edit removed.
-                    Past <em>Operations Rate List</em> is unchanged.
-                </p>
             </div>
         </div>
     </div>
