@@ -813,6 +813,7 @@
         }
         $row.find('.total-qty').val(parseFloat(totalQty.toFixed(2)));
         $row.find('.total-r').val(parseFloat(rQty.toFixed(2)));
+        $row.find('.total-ot').val(parseFloat(otQty.toFixed(2)));
         var totalAmt = 0;
         if (op === 'FOUNDRY') {
             totalAmt = (normalQty + rQty) * rate;
@@ -832,7 +833,7 @@
         var op = opVal();
         var showR = repairOps.indexOf(op) !== -1;
         var showOt = otRepairOps.indexOf(op) !== -1;
-        var gQty = 0, gR = 0, gAmt = 0;
+        var gQty = 0, gR = 0, gOt = 0, gAmt = 0;
         var dayQ = {};
         var dayR = {};
         var dayOt = {};
@@ -851,14 +852,20 @@
                 });
             }
             if (showOt) {
+                var rowOt = 0;
                 $(this).find('.day-qty-ot').each(function () {
                     var d = $(this).closest('.day-cell').attr('data-day');
-                    dayOt[d] = (dayOt[d] || 0) + (parseFloat($(this).val()) || 0);
+                    var n = parseFloat($(this).val()) || 0;
+                    if (!$(this).prop('disabled')) rowOt += n;
+                    dayOt[d] = (dayOt[d] || 0) + n;
                 });
+                $(this).find('.total-ot').val(parseFloat(rowOt.toFixed(2)));
+                gOt += rowOt;
             }
         });
         $('#tf_total_qty').text(parseFloat(gQty.toFixed(2)));
         $('#tf_total_r').text(parseFloat(gR.toFixed(2)));
+        $('#tf_total_ot').text(parseFloat(gOt.toFixed(2)));
         $('#tf_amount').text(gAmt.toFixed(2));
         $('#sum_qty').text(parseFloat(gQty.toFixed(2)));
         $('#sum_r').text(parseFloat(gR.toFixed(2)));

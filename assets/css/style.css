@@ -7106,7 +7106,8 @@ select.product-select.ops-kra-hidden-select {
 .ops-grid .rate,
 .ops-grid .row-ot-rate,
 .ops-grid .row-rejection-rate,
-.ops-grid .total-r {
+.ops-grid .total-r,
+.ops-grid .total-ot {
     background: #f8fafc;
     font-weight: 700;
 }
@@ -7115,6 +7116,9 @@ select.product-select.ops-kra-hidden-select {
     color: #b91c1c;
     min-width: 80px;
 }
+
+.ops-grid .ops-col-ot-qty { display: none; }
+.ops-grid.show-ot .ops-col-ot-qty { display: table-cell; }
 
 .ops-grid .r-field,
 .ops-grid .ot-field,

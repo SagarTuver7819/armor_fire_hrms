@@ -137,6 +137,7 @@ $otJson = json_encode(contractorOtRepairOps());
                             <?php endfor; ?>
                             <th id="th_total_qty">TOTAL QTY</th>
                             <th id="th_total_r">TOTAL R</th>
+                            <th id="th_total_ot" class="ops-col-ot-qty">TOTAL OT</th>
                             <th>OT RATE</th>
                             <th>REJ. RATE</th>
                             <th id="th_amount">TOTAL AMT</th>
@@ -207,6 +208,7 @@ $otJson = json_encode(contractorOtRepairOps());
                             <?php endfor; ?>
                             <td><input type="text" name="items[<?php echo $i; ?>][total_qty]" class="form-control grid-input total-qty" readonly value="<?php echo htmlspecialchars((string) ($item['total_qty'] ?? 0)); ?>"></td>
                             <td><input type="text" name="items[<?php echo $i; ?>][total_r]" class="form-control grid-input total-r" readonly value="<?php echo htmlspecialchars((string) ($item['total_r'] ?? 0)); ?>"></td>
+                            <td class="ops-col-ot-qty"><input type="text" class="form-control grid-input total-ot" readonly value="0" tabindex="-1"></td>
                             <td>
                                 <input type="number" step="0.01" name="items[<?php echo $i; ?>][ot_rate]" class="form-control grid-input row-ot-rate" readonly value="<?php echo htmlspecialchars((string) ($item['ot_rate'] ?? 0)); ?>">
                             </td>
@@ -231,6 +233,7 @@ $otJson = json_encode(contractorOtRepairOps());
                             <?php endfor; ?>
                             <td id="tf_total_qty">0</td>
                             <td id="tf_total_r">0</td>
+                            <td id="tf_total_ot" class="ops-col-ot-qty">0</td>
                             <td></td>
                             <td></td>
                             <td id="tf_amount">0.00</td>
