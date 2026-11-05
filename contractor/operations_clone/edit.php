@@ -387,7 +387,7 @@ $otJson = json_encode(contractorOtRepairOps());
                                     <div class="ops-subhead"><span class="q-lab">Q</span><span class="r-lab"><?php echo $isBuffReport ? 'RW' : 'R'; ?></span><span class="ap-lab">AP</span><span class="ot-lab">OT</span></div>
                                 </th>
                             <?php endfor; ?>
-                            <th id="th_total_qty">TOTAL QTY</th>
+                            <th id="th_total_qty"><?php if ($isBuffReport): ?><span class="th-qty-lab">TOTAL QTY</span><div class="ops-subhead"><span class="q-lab">Q</span><span class="r-lab">RW</span><span class="ap-lab">AP</span></div><?php else: ?>TOTAL QTY<?php endif; ?></th>
                             <th id="th_total_r" class="ops-col-r">TOTAL R</th>
                             <th class="ops-col-ot">OT RATE</th>
                             <th class="ops-col-rej">REJ. RATE</th>
@@ -494,8 +494,46 @@ $otJson = json_encode(contractorOtRepairOps());
                                     </div>
                                 </td>
                             <?php endfor; ?>
-                            <td><input type="text" name="items[<?php echo $i; ?>][total_qty]" class="form-control grid-input total-qty" readonly value="<?php echo htmlspecialchars((string) ($item['total_qty'] ?? 0)); ?>"></td>
-                            <td class="ops-col-r"><input type="text" name="items[<?php echo $i; ?>][total_r]" class="form-control grid-input total-r" readonly value="<?php echo htmlspecialchars((string) ($item['total_r'] ?? 0)); ?>"></td>
+                            <?php
+                            $rowQ = 0.0;
+                            $rowR = 0.0;
+                            $rowAp = 0.0;
+                            foreach ($days as $sumCell) {
+                                if (!empty($sumCell['disabled'])) {
+                                    continue;
+                                }
+                                $rowQ += (float) ($sumCell['q'] ?? 0);
+                                $rowR += (float) ($sumCell['r'] ?? 0);
+                                $rowAp += (float) ($sumCell['ap'] ?? 0);
+                            }
+                            $fmtQty = static function ($n) {
+                                $n = round((float) $n, 2);
+                                if (abs($n - round($n)) < 0.001) {
+                                    return (string) (int) round($n);
+                                }
+                                return number_format($n, 2, '.', '');
+                            };
+                            $rowAmt = $isBuffReport
+                                ? round(
+                                    ($rowQ * (float) ($item['rate'] ?? 0))
+                                    + ($rowR * (float) ($item['rejection_rate'] ?? 0))
+                                    + ($rowAp * (float) ($item['argon_rate'] ?? 0)),
+                                    2
+                                )
+                                : (float) ($item['total_amount'] ?? 0);
+                            ?>
+                            <td class="<?php echo $isBuffReport ? 'ops-total-split' : ''; ?>">
+                                <?php if ($isBuffReport): ?>
+                                <div class="ops-day-triple">
+                                    <input type="text" name="items[<?php echo $i; ?>][total_qty]" class="form-control grid-input total-qty" readonly title="Q total" value="<?php echo htmlspecialchars($fmtQty($rowQ)); ?>">
+                                    <input type="text" name="items[<?php echo $i; ?>][total_r]" class="form-control grid-input total-r" readonly title="RW total" value="<?php echo htmlspecialchars($fmtQty($rowR)); ?>">
+                                    <input type="text" class="form-control grid-input total-ap" readonly title="AP total" value="<?php echo htmlspecialchars($fmtQty($rowAp)); ?>">
+                                </div>
+                                <?php else: ?>
+                                <input type="text" name="items[<?php echo $i; ?>][total_qty]" class="form-control grid-input total-qty" readonly value="<?php echo htmlspecialchars((string) ($item['total_qty'] ?? 0)); ?>">
+                                <?php endif; ?>
+                            </td>
+                            <td class="ops-col-r"><?php if (!$isBuffReport): ?><input type="text" name="items[<?php echo $i; ?>][total_r]" class="form-control grid-input total-r" readonly value="<?php echo htmlspecialchars((string) ($item['total_r'] ?? 0)); ?>"><?php endif; ?></td>
                             <td class="ops-col-ot">
                                 <input type="number" step="0.01" name="items[<?php echo $i; ?>][ot_rate]" class="form-control grid-input row-ot-rate" readonly value="<?php echo htmlspecialchars((string) ($item['ot_rate'] ?? 0)); ?>">
                             </td>
@@ -504,7 +542,7 @@ $otJson = json_encode(contractorOtRepairOps());
                                 <input type="number" step="0.01" name="items[<?php echo $i; ?>][rejection_rate]" class="form-control grid-input row-rejection-rate" readonly value="<?php echo htmlspecialchars((string) ($item['rejection_rate'] ?? 0)); ?>">
                                 <?php endif; ?>
                             </td>
-                            <td><input type="text" name="items[<?php echo $i; ?>][total_amount]" class="form-control grid-input total-amount" readonly value="<?php echo htmlspecialchars((string) ($item['total_amount'] ?? 0)); ?>"></td>
+                            <td><input type="text" name="items[<?php echo $i; ?>][total_amount]" class="form-control grid-input total-amount" readonly title="<?php echo $isBuffReport ? 'Q × Qty Rate + RW × Rework Rate + AP × Argon Polish Rate' : ''; ?>" value="<?php echo htmlspecialchars(number_format($rowAmt, 2, '.', '')); ?>"></td>
                         </tr>
                     <?php endforeach; ?>
                     </tbody>
@@ -521,7 +559,7 @@ $otJson = json_encode(contractorOtRepairOps());
                                     </div>
                                 </td>
                             <?php endfor; ?>
-                            <td id="tf_total_qty">0</td>
+                            <td id="tf_total_qty"><?php if ($isBuffReport): ?><div class="ops-day-triple foot-totals"><span id="tf_sum_q">0</span><span id="tf_sum_rw">0</span><span id="tf_sum_ap">0</span></div><?php else: ?>0<?php endif; ?></td>
                             <td id="tf_total_r" class="ops-col-r">0</td>
                             <td class="ops-col-ot"></td>
                             <td class="ops-col-rej"></td>

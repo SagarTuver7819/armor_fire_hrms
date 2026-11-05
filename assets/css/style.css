@@ -7158,17 +7158,19 @@ select.product-select.ops-kra-hidden-select {
 .ops-grid.show-buff-ap .sticky-rate,
 .ops-grid.show-buff-ap .sticky-rate-rw,
 .ops-grid.show-buff-ap .sticky-rate-ap {
-    width: 112px;
-    min-width: 112px;
-    max-width: 112px;
+    width: 82px;
+    min-width: 82px;
+    max-width: 82px;
     text-align: center;
     white-space: normal;
     line-height: 1.15;
     font-size: 11px;
+    padding-left: 4px;
+    padding-right: 4px;
 }
 .ops-grid.show-buff-ap .sticky-rate { left: 306px !important; }
 .ops-grid.show-buff-ap .sticky-rate-rw {
-    left: 418px !important;
+    left: 388px !important;
     position: sticky;
     z-index: 5;
     background: #fff;
@@ -7179,7 +7181,7 @@ select.product-select.ops-kra-hidden-select {
     background: #fef2f2;
 }
 .ops-grid.show-buff-ap .sticky-rate-ap {
-    left: 530px !important;
+    left: 470px !important;
     position: sticky;
     z-index: 5;
     background: #fff;
@@ -7188,7 +7190,24 @@ select.product-select.ops-kra-hidden-select {
 .ops-grid.show-buff-ap .sticky-rate .grid-input,
 .ops-grid.show-buff-ap .sticky-rate-rw .grid-input,
 .ops-grid.show-buff-ap .sticky-rate-ap .grid-input {
-    width: 100px;
+    width: 70px;
+    padding-left: 2px;
+    padding-right: 2px;
+}
+
+.ops-grid.show-buff-ap th#th_total_qty,
+.ops-grid.show-buff-ap td.ops-total-split,
+.ops-grid.show-buff-ap #tf_total_qty {
+    min-width: 168px;
+    width: 168px;
+}
+.ops-grid.show-buff-ap td.ops-total-split .total-qty,
+.ops-grid.show-buff-ap td.ops-total-split .total-r,
+.ops-grid.show-buff-ap td.ops-total-split .total-ap,
+.ops-grid.show-buff-ap #tf_total_qty .foot-totals span {
+    width: 48px;
+    min-width: 48px;
+    text-align: center;
 }
 
 /* CNC KRA: day qty locked — only Rate editable */

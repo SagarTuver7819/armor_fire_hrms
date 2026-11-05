@@ -91,7 +91,12 @@
         // Foundry: D / N with separate Day Qty Total & Night Qty Total (not combined)
         $('.q-lab').text(isFoundry ? 'D' : 'Q');
         $('.r-lab').text(isFoundry ? 'N' : (buffBoxes ? 'RW' : 'R'));
-        $('#th_total_qty').text(isFoundry ? 'Day Qty Total' : 'TOTAL QTY');
+        var $thQty = $('#th_total_qty');
+        if ($thQty.find('.th-qty-lab').length) {
+            $thQty.find('.th-qty-lab').text(isFoundry ? 'Day Qty Total' : 'TOTAL QTY');
+        } else {
+            $thQty.text(isFoundry ? 'Day Qty Total' : 'TOTAL QTY');
+        }
         $('#th_total_r').text(isFoundry ? 'Night Qty Total' : (buffBoxes ? 'TOTAL RW' : 'TOTAL R'));
         $('#sum_qty_lab').text(isFoundry ? 'Day Qty Total' : 'Qty');
         $('#sum_r_lab').text(isFoundry ? 'Night Qty Total' : (buffBoxes ? 'RW' : 'R'));
@@ -854,6 +859,7 @@
         var totalQty = normalQty;
         $row.find('.total-qty').val(parseFloat(totalQty.toFixed(2)));
         $row.find('.total-r').val(parseFloat(rQty.toFixed(2)));
+        $row.find('.total-ap').val(parseFloat(apQty.toFixed(2)));
         $row.find('.total-ot').val(parseFloat(otQty.toFixed(2)));
         var totalAmt = 0;
         var buffBoxes = String(op || '').toUpperCase() === 'BUFF' && $row.find('.rate-ap').length > 0;
@@ -884,9 +890,10 @@
         var dayOt = {};
         var dayAp = {};
         $('#opsRows .ops-row').each(function () {
-            gR += parseFloat($(this).find('.total-r').val()) || 0;
             gAmt += parseFloat($(this).find('.total-amount').val()) || 0;
             var rowQ = 0;
+            var rowR = 0;
+            var rowAp = 0;
             $(this).find('.day-qty').each(function () {
                 var d = $(this).closest('.day-cell').attr('data-day');
                 var n = parseFloat($(this).val()) || 0;
@@ -898,8 +905,14 @@
             if (showR) {
                 $(this).find('.day-qty-r').each(function () {
                     var d = $(this).closest('.day-cell').attr('data-day');
-                    dayR[d] = (dayR[d] || 0) + (parseFloat($(this).val()) || 0);
+                    var n = parseFloat($(this).val()) || 0;
+                    if (!$(this).prop('disabled')) rowR += n;
+                    dayR[d] = (dayR[d] || 0) + n;
                 });
+                $(this).find('.total-r').val(parseFloat(rowR.toFixed(2)));
+                gR += rowR;
+            } else {
+                gR += parseFloat($(this).find('.total-r').val()) || 0;
             }
             if (showOt) {
                 var rowOt = 0;
@@ -916,12 +929,20 @@
                 $(this).find('.day-qty-ap').each(function () {
                     var d = $(this).closest('.day-cell').attr('data-day');
                     var n = parseFloat($(this).val()) || 0;
-                    if (!$(this).prop('disabled')) gAp += n;
+                    if (!$(this).prop('disabled')) rowAp += n;
                     dayAp[d] = (dayAp[d] || 0) + n;
                 });
+                $(this).find('.total-ap').val(parseFloat(rowAp.toFixed(2)));
+                gAp += rowAp;
             }
         });
-        $('#tf_total_qty').text(parseFloat(gQty.toFixed(2)));
+        if ($('#tf_sum_q').length) {
+            $('#tf_sum_q').text(parseFloat(gQty.toFixed(2)));
+            $('#tf_sum_rw').text(parseFloat(gR.toFixed(2)));
+            $('#tf_sum_ap').text(parseFloat(gAp.toFixed(2)));
+        } else {
+            $('#tf_total_qty').text(parseFloat(gQty.toFixed(2)));
+        }
         $('#tf_total_r').text(parseFloat(gR.toFixed(2)));
         $('#tf_total_ot').text(parseFloat(gOt.toFixed(2)));
         $('#tf_amount').text(gAmt.toFixed(2));
