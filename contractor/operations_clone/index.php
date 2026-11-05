@@ -52,19 +52,8 @@ if (isset($_GET['msg'])) {
 }
 ?>
 <main class="dashboard-main">
-    <div class="page-toolbar flex-between">
+    <div class="page-toolbar">
         <a href="<?php echo $cncDeptId > 0 ? app_url('department.php?id=' . $cncDeptId) : app_url('contractor/index.php'); ?>" class="back-link"><i class="fa-solid fa-arrow-left"></i> Back to CNC Department</a>
-        <div class="toolbar-actions">
-            <a href="#" id="btnOpsPrint" class="btn-secondary" title="Print / PDF">
-                <i class="fa-solid fa-print"></i> Print PDF
-            </a>
-            <a href="#" id="btnOpsExcel" class="btn-secondary" title="Excel — all employees day-wise">
-                <i class="fa-solid fa-file-excel"></i> Excel (All Employees)
-            </a>
-            <a href="#" id="btnOpsExcelSummary" class="btn-secondary" title="Excel — product-wise summary">
-                <i class="fa-solid fa-table"></i> Excel Summary
-            </a>
-        </div>
     </div>
     <div class="list-header">
         <div class="master-list-title">
@@ -98,8 +87,6 @@ if (isset($_GET['msg'])) {
 <script>
     window.C_TOAST_MSG = <?php echo json_encode($toastMsg); ?>;
     window.C_AJAX_URL = <?php echo json_encode(app_url('contractor/operations_clone/ajax_list.php')); ?>;
-    window.C_OPS_PRINT_URL = <?php echo json_encode(app_url('contractor/operations/print.php')); ?>;
-    window.C_OPS_EXCEL_URL = <?php echo json_encode(app_url('contractor/operations/excel.php')); ?>;
     window.C_ACTION_COL = 7;
     window.C_MAIN_ID = <?php echo (int) $mainContractorId; ?>;
     window.C_AJAX_EXTRA = function () {
@@ -110,25 +97,6 @@ if (isset($_GET['msg'])) {
             filter_year: ''
         };
     };
-    function opsExportQs() {
-        var q = new URLSearchParams(window.C_AJAX_EXTRA());
-        return q.toString();
-    }
-    document.getElementById('btnOpsPrint').addEventListener('click', function (e) {
-        e.preventDefault();
-        window.open(window.C_OPS_PRINT_URL + '?' + opsExportQs(), '_blank');
-    });
-    document.getElementById('btnOpsExcel').addEventListener('click', function (e) {
-        e.preventDefault();
-        window.location.href = window.C_OPS_EXCEL_URL + '?' + opsExportQs();
-    });
-    var btnSum = document.getElementById('btnOpsExcelSummary');
-    if (btnSum) {
-        btnSum.addEventListener('click', function (e) {
-            e.preventDefault();
-            window.location.href = window.C_OPS_EXCEL_URL + '?' + opsExportQs() + '&mode=summary';
-        });
-    }
 </script>
 <?php
 $extraJs = [
