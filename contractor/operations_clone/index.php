@@ -1,10 +1,11 @@
 <?php
 /**
- * Clone Operation Rate List — CNC staff salary workflow (not on live Ops Rate List).
+ * New Operation List — CNC month view from November 2026 (Main Contractor Ravi).
+ * Existing Operations Rate List is unchanged.
  */
 require_once __DIR__ . '/../_bootstrap.php';
 
-$pageTitle = 'Clone Operation Rate List';
+$pageTitle = 'New Operation List';
 $extraCss = [
     'https://cdn.datatables.net/1.13.8/css/jquery.dataTables.min.css',
     'https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.css',
@@ -45,17 +46,17 @@ if (isset($_GET['msg'])) {
             <a href="#" id="btnOpsExcelSummary" class="btn-secondary" title="Excel — product-wise summary">
                 <i class="fa-solid fa-table"></i> Excel Summary
             </a>
-            <a href="<?php echo app_url('contractor/operations_clone/edit.php?operation=CNC'); ?>" class="btn-primary"><i class="fa-solid fa-plus"></i> Add CNC</a>
         </div>
     </div>
     <div class="list-header">
         <div class="master-list-title">
-            <div class="master-list-icon" style="background:#64748b;"><i class="fa-solid fa-clone"></i></div>
+            <div class="master-list-icon" style="background:#0f766e;"><i class="fa-solid fa-table-list"></i></div>
             <div>
-                <h1>Clone Operation Rate List</h1>
+                <h1>New Operation List</h1>
                 <p>
-                    CNC: Edit pencil → product qty grid + <strong>CNC Normal Salary employees</strong> (Main Contractor excluded) Emp Code · Name · Salary.
-                    Live <em>Operations Rate List</em> has no staff salary section.
+                    CNC · Main Contractor <strong>Ravi (SOLANKI RAVI KANABHAI)</strong> · months from <strong>November 2026</strong>.
+                    Eye = View (last set ERP KRA grid). Add / Edit removed.
+                    Past <em>Operations Rate List</em> is unchanged.
                 </p>
             </div>
         </div>

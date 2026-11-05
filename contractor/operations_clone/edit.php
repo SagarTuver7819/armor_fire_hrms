@@ -36,6 +36,25 @@ if ($curMonth < 1 || $curMonth > 12) {
 if ($curYear < 2000 || $curYear > 2100) {
     $curYear = (int) date('Y');
 }
+// New Operation List is view-only (Add / Edit removed). Old Ops Rate List is a different page.
+$opsViewOnly = isset($_GET['view']) && (string) $_GET['view'] !== '0';
+if (!$opsViewOnly) {
+    $conn->close();
+    if ($id > 0 || $prefillEmp > 0 || isset($_GET['month']) || isset($_GET['year'])) {
+        $qs = $_GET;
+        $qs['view'] = '1';
+        header('Location: ' . app_url('contractor/operations_clone/edit.php?' . http_build_query($qs)));
+    } else {
+        header('Location: ' . app_url('contractor/operations_clone/index.php'));
+    }
+    exit;
+}
+$beforeNov = ($curYear < 2026) || ($curYear === 2026 && $curMonth < 11);
+if ($beforeNov) {
+    $conn->close();
+    header('Location: ' . app_url('contractor/operations_clone/index.php'));
+    exit;
+}
 $employees = ensureOpsEmployeeInList($employees, $curEmp, $conn);
 $staffBundle = getOpsCloneDepartmentStaff($curOp, $curEmp, $conn);
 $attMap = [];
@@ -191,7 +210,7 @@ $showGrade = strcasecmp($curOp, 'CNC') === 0 ? false : contractorOperationShowsG
 $showStaff = in_array($curOp, opsCloneStaffSalaryOperations(), true);
 $monthDays = (int) date('t', mktime(0, 0, 0, $curMonth, 1, $curYear));
 
-$pageTitle = $sheet ? 'Edit Clone Operation Rate List' : 'Add Clone Operation Rate List';
+$pageTitle = 'View — New Operation List';
 $useSidebar = true;
 $sidebarMode = 'contractor';
 $sidebarActive = 'contractor_operations_clone';
@@ -210,7 +229,7 @@ $otJson = json_encode(contractorOtRepairOps());
 ?>
 <main class="dashboard-main">
     <div class="page-toolbar flex-between">
-        <a href="<?php echo app_url('contractor/operations_clone/index.php'); ?>" class="back-link"><i class="fa-solid fa-arrow-left"></i> Back to Clone Rate List</a>
+        <a href="<?php echo app_url('contractor/operations_clone/index.php'); ?>" class="back-link"><i class="fa-solid fa-arrow-left"></i> Back to New Operation List</a>
         <?php if ($id > 0 && $showStaff): ?>
             <div class="toolbar-actions" style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;">
                 <label for="dailyPrintDay" style="font-size:13px;margin:0;">Daily Print Day</label>
@@ -236,11 +255,11 @@ $otJson = json_encode(contractorOtRepairOps());
     </div>
 
     <!-- ========== BOX 1: Product qty grid ========== -->
-    <div class="form-page-card ops-page-card ops-clone-box">
+    <div class="form-page-card ops-page-card ops-clone-box<?php echo $opsViewOnly ? ' ops-view-only' : ''; ?>">
         <div class="form-page-header">
             <div>
-                <h1><?php echo $sheet ? 'Edit' : 'Add'; ?> — Product Rate Grid</h1>
-                <p>Box 1 · Contract process qty × rate · Own Save (does not save staff attendance).</p>
+                <h1>View — Product Rate Grid</h1>
+                <p>CNC · <?php echo htmlspecialchars($months[$curMonth] ?? (string) $curMonth); ?> <?php echo (int) $curYear; ?> · last set ERP KRA grid (view only).</p>
             </div>
         </div>
 
@@ -251,7 +270,7 @@ $otJson = json_encode(contractorOtRepairOps());
                 <div class="form-grid form-grid-3">
                     <div class="form-group">
                         <label>Operation <span class="req">*</span></label>
-                        <select name="operation" id="operationSelect" class="form-control" required>
+                        <select name="operation" id="operationSelect" class="form-control" required<?php echo $opsViewOnly ? ' disabled' : ''; ?>>
                             <?php foreach ($ops as $op): ?>
                                 <option value="<?php echo htmlspecialchars($op); ?>" <?php echo $curOp === $op ? 'selected' : ''; ?>><?php echo htmlspecialchars($op); ?></option>
                             <?php endforeach; ?>
@@ -260,7 +279,7 @@ $otJson = json_encode(contractorOtRepairOps());
                     <div class="form-group">
                         <label>Name <span class="req">*</span></label>
                         <select name="employee_id" id="opsEmployeeSelect" class="form-control" required
-                                data-current-emp="<?php echo (int) $curEmp; ?>">
+                                data-current-emp="<?php echo (int) $curEmp; ?>"<?php echo $opsViewOnly ? ' disabled' : ''; ?>>
                             <option value="">Select Employee</option>
                             <?php foreach ($employees as $emp): ?>
                                 <option value="<?php echo (int) $emp['id']; ?>" <?php echo $curEmp === (int) $emp['id'] ? 'selected' : ''; ?>>
@@ -271,7 +290,7 @@ $otJson = json_encode(contractorOtRepairOps());
                     </div>
                     <div class="form-group">
                         <label>Month <span class="req">*</span></label>
-                        <select name="month_no" id="monthSelect" class="form-control" required>
+                        <select name="month_no" id="monthSelect" class="form-control" required<?php echo $opsViewOnly ? ' disabled' : ''; ?>>
                             <?php foreach ($months as $num => $lab): ?>
                                 <option value="<?php echo (int) $num; ?>" <?php echo $curMonth === (int) $num ? 'selected' : ''; ?>><?php echo htmlspecialchars($lab); ?></option>
                             <?php endforeach; ?>
@@ -279,7 +298,7 @@ $otJson = json_encode(contractorOtRepairOps());
                     </div>
                     <div class="form-group">
                         <label>Year <span class="req">*</span></label>
-                        <select name="year_no" id="yearSelect" class="form-control" required>
+                        <select name="year_no" id="yearSelect" class="form-control" required<?php echo $opsViewOnly ? ' disabled' : ''; ?>>
                             <?php for ($y = 2024; $y <= 2032; $y++): ?>
                                 <option value="<?php echo $y; ?>" <?php echo $curYear === $y ? 'selected' : ''; ?>><?php echo $y; ?></option>
                             <?php endfor; ?>
@@ -293,7 +312,7 @@ $otJson = json_encode(contractorOtRepairOps());
                 <button type="button" class="btn-primary" id="btnAddProduct"><i class="fa-solid fa-plus"></i> Add Product Row</button>
                 <?php else: ?>
                 <div class="ops-kra-hint" style="font-size:13px;color:#64748b;">
-                    <i class="fa-solid fa-link"></i> Contract Process = ERP CNC Production Planning KRA (fixed). Only <b>Rate</b> editable · day Qty ERP thi auto · નવું partname આપમેળે.
+                    <i class="fa-solid fa-eye"></i> View only · ERP CNC KRA grid (last set). Day qty ERP thi · Rate locked.
                 </div>
                 <?php endif; ?>
                 <div class="ops-live-summary">
@@ -402,7 +421,7 @@ $otJson = json_encode(contractorOtRepairOps());
                             </td>
                             <?php endif; ?>
                             <td class="sticky-col sticky-rate">
-                                <input type="number" step="0.0001" min="0" name="items[<?php echo $i; ?>][rate]" class="form-control grid-input rate" value="<?php echo htmlspecialchars((string) ($item['rate'] ?? 0)); ?>">
+                                <input type="number" step="0.0001" min="0" name="items[<?php echo $i; ?>][rate]" class="form-control grid-input rate" value="<?php echo htmlspecialchars((string) ($item['rate'] ?? 0)); ?>"<?php echo $opsViewOnly ? ' readonly tabindex="-1"' : ''; ?>>
                             </td>
                             <?php for ($d = 1; $d <= 31; $d++):
                                 $cell = $days[(string) $d];
@@ -454,16 +473,22 @@ $otJson = json_encode(contractorOtRepairOps());
                 </table>
             </div>
 
+            <?php if (!$opsViewOnly): ?>
             <div class="form-actions sticky-actions">
                 <button type="submit" class="btn-primary"><i class="fa-solid fa-check"></i> Save Product Grid</button>
                 <a href="<?php echo app_url('contractor/operations_clone/index.php'); ?>" class="btn-secondary">Cancel</a>
             </div>
+            <?php else: ?>
+            <div class="form-actions sticky-actions">
+                <a href="<?php echo app_url('contractor/operations_clone/index.php'); ?>" class="btn-secondary">Back to List</a>
+            </div>
+            <?php endif; ?>
         </form>
     </div>
 
     <?php if ($showStaff): ?>
     <!-- ========== BOX 2: CNC staff salary + attendance ========== -->
-    <div class="form-page-card ops-page-card ops-clone-box ops-clone-staff-card">
+    <div class="form-page-card ops-page-card ops-clone-box ops-clone-staff-card<?php echo $opsViewOnly ? ' ops-view-only' : ''; ?>">
         <div class="ops-clone-staff-head">
             <h2><i class="fa-solid fa-users"></i> CNC Department — Normal Salary Employees</h2>
         </div>
@@ -554,16 +579,19 @@ $otJson = json_encode(contractorOtRepairOps());
                 </table>
             </div>
 
+            <?php if (!$opsViewOnly): ?>
             <div class="form-actions sticky-actions">
                 <button type="submit" class="btn-primary" id="btnSaveStaff"><i class="fa-solid fa-check"></i> Save Staff Salary + Attendance</button>
                 <a href="<?php echo app_url('contractor/operations_clone/index.php'); ?>" class="btn-secondary">Cancel</a>
             </div>
+            <?php endif; ?>
         </form>
     </div>
     <?php endif; ?>
 </main>
 <script>
     window.C_TOAST_MSG = <?php echo json_encode($toastMsg); ?>;
+    window.OPS_VIEW_ONLY = <?php echo $opsViewOnly ? 'true' : 'false'; ?>;
     window.OPS_PRODUCTS_URL = <?php echo json_encode(app_url('contractor/operations/products_json.php')); ?>;
     window.OPS_RATE_HISTORY_URL = <?php echo json_encode(app_url('contractor/operations/rate_history.php')); ?>;
     window.OPS_SHEET_ID = <?php echo (int) $id; ?>;

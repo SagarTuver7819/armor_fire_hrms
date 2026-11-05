@@ -1090,6 +1090,7 @@
     }
 
     function maybePromptRateRemark($input) {
+        if (window.OPS_VIEW_ONLY) return;
         if (!$input || !$input.length) return;
         if (rateRemarkCtx) return; // modal already open
         var $row = $input.closest('tr');

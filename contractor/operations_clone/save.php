@@ -11,6 +11,9 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     header('Location: ' . app_url('contractor/operations_clone/index.php'));
     exit;
 }
+// New Operation List is view-only — do not write sheets from this screen.
+header('Location: ' . app_url('contractor/operations_clone/index.php'));
+exit;
 
 $id = (int) ($_POST['id'] ?? 0);
 $ops = contractorOperations();

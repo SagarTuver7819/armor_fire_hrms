@@ -11,6 +11,8 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     header('Location: ' . app_url('contractor/operations_clone/index.php'));
     exit;
 }
+header('Location: ' . app_url('contractor/operations_clone/index.php'));
+exit;
 
 @set_time_limit(300);
 
