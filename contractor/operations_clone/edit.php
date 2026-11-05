@@ -258,11 +258,8 @@ $otJson = json_encode(contractorOtRepairOps());
             ]);
             ?>
             <div class="toolbar-actions" style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;">
-                <a class="btn-secondary" target="_blank" href="<?php echo app_url('contractor/operations_clone/print_report.php?type=qty&' . $pdfQs); ?>">
-                    <i class="fa-solid fa-file-pdf"></i> Rate &amp; Qty PDF
-                </a>
-                <a class="btn-secondary" target="_blank" href="<?php echo app_url('contractor/operations_clone/print_report.php?type=salary&' . $pdfQs); ?>">
-                    <i class="fa-solid fa-file-pdf"></i> Salary PDF
+                <a class="btn-secondary" target="_blank" href="<?php echo app_url('contractor/operations_clone/print_report.php?' . $pdfQs); ?>">
+                    <i class="fa-solid fa-file-pdf"></i> Job work and Attendance Report
                 </a>
                 <?php if ($id > 0): ?>
                 <label for="dailyPrintDay" style="font-size:13px;margin:0;">Daily Print Day</label>

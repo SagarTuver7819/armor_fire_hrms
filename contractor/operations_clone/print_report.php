@@ -1,8 +1,7 @@
 <?php
 /**
- * CNC New Operation List — two letterhead PDFs.
- * type=qty    Rate × Qty for the main contractor (matches the grid total)
- * type=salary Department salary split (matches the staff list)
+ * CNC New Operation List — one letterhead PDF.
+ * Job work (rate × qty) and attendance salary, same document.
  */
 require_once __DIR__ . '/../_bootstrap.php';
 require_once __DIR__ . '/../../includes/settings.php';
@@ -11,10 +10,6 @@ require_once __DIR__ . '/../../includes/contractor_split_helper.php';
 require_once __DIR__ . '/../../includes/ops_clone_report.php';
 require_once __DIR__ . '/../../includes/number_helper.php';
 
-$type = strtolower(trim((string) ($_GET['type'] ?? 'qty')));
-if (!in_array($type, ['qty', 'salary'], true)) {
-    $type = 'qty';
-}
 $employeeId = (int) ($_GET['employee_id'] ?? 0);
 $month = (int) ($_GET['month'] ?? date('n'));
 $year = (int) ($_GET['year'] ?? date('Y'));
@@ -59,43 +54,38 @@ $backUrl = app_url('contractor/operations_clone/edit.php?' . http_build_query([
 ]));
 
 $pages = [];
-if ($type === 'qty') {
-    $chunks = array_chunk($report['lines'], 16);
-    if (!$chunks) {
-        $chunks = [[]];
-    }
-    $sr = 0;
-    foreach ($chunks as $i => $chunk) {
-        $pages[] = [
-            'kind' => 'qty',
-            'rows' => $chunk,
-            'sr' => $sr,
-            'last' => $i === count($chunks) - 1,
-            'cont' => $i > 0,
-        ];
-        $sr += count($chunk);
-    }
-} else {
-    $chunks = array_chunk($report['staff'], 14);
-    if (!$chunks) {
-        $chunks = [[]];
-    }
-    $sr = 0;
-    foreach ($chunks as $i => $chunk) {
-        $pages[] = [
-            'kind' => 'salary',
-            'rows' => $chunk,
-            'sr' => $sr,
-            'last' => $i === count($chunks) - 1,
-            'cont' => $i > 0,
-        ];
-        $sr += count($chunk);
-    }
+$qtyChunks = array_chunk($report['lines'], 16);
+if (!$qtyChunks) {
+    $qtyChunks = [[]];
+}
+$sr = 0;
+foreach ($qtyChunks as $i => $chunk) {
+    $pages[] = [
+        'kind' => 'qty',
+        'rows' => $chunk,
+        'sr' => $sr,
+        'last' => $i === count($qtyChunks) - 1,
+        'cont' => $i > 0,
+    ];
+    $sr += count($chunk);
+}
+$staffChunks = array_chunk($report['staff'], 14);
+if (!$staffChunks) {
+    $staffChunks = [[]];
+}
+$sr = 0;
+foreach ($staffChunks as $i => $chunk) {
+    $pages[] = [
+        'kind' => 'salary',
+        'rows' => $chunk,
+        'sr' => $sr,
+        'last' => $i === count($staffChunks) - 1,
+        'cont' => $i > 0,
+    ];
+    $sr += count($chunk);
 }
 
-$title = $type === 'qty'
-    ? 'CNC Rate & Qty — ' . $monthLabel
-    : 'CNC Salary Register — ' . $monthLabel;
+$title = 'Job work and Attendance Report — ' . $monthLabel;
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -143,6 +133,7 @@ $title = $type === 'qty'
         }
         .doc-title { text-align: center; font-size: 16px; font-weight: 800; margin: 0; letter-spacing: .02em; }
         .doc-sub { text-align: center; font-size: 12px; color: #9f1239; font-weight: 700; margin: 2px 0 8px; }
+        .sec-title { font-size: 13px; font-weight: 800; margin: 0 0 6px; color: #9f1239; }
         .meta {
             display: grid; grid-template-columns: 1fr 1fr; gap: 2px 16px;
             font-size: 12px; margin-bottom: 8px; border: 1px solid #e2e8f0; padding: 6px 8px;
@@ -169,8 +160,6 @@ $title = $type === 'qty'
 </head>
 <body>
     <div class="toolbar">
-        <a class="<?php echo $type === 'qty' ? 'btn-on' : 'btn-off'; ?>" href="<?php echo $h(app_url('contractor/operations_clone/print_report.php?' . http_build_query(['type' => 'qty', 'employee_id' => (int) ($emp['id'] ?? $employeeId), 'month' => $report['month'], 'year' => $report['year'], 'id' => $sheetId]))); ?>">Rate &amp; Qty PDF</a>
-        <a class="<?php echo $type === 'salary' ? 'btn-on' : 'btn-off'; ?>" href="<?php echo $h(app_url('contractor/operations_clone/print_report.php?' . http_build_query(['type' => 'salary', 'employee_id' => (int) ($emp['id'] ?? $employeeId), 'month' => $report['month'], 'year' => $report['year'], 'id' => $sheetId]))); ?>">Salary PDF</a>
         <button type="button" class="btn-print" onclick="window.print()">Print / Save PDF</button>
         <a class="btn-back" href="<?php echo $h($backUrl); ?>">Back</a>
     </div>
@@ -180,9 +169,10 @@ $title = $type === 'qty'
                 <?php echo companyDocRenderWatermark($brand); ?>
                 <div class="cdoc-inner">
                     <?php echo companyDocRenderHeader($brand, 'CNC Department'); ?>
+                    <div class="doc-title">Job work and Attendance Report</div>
+                    <div class="doc-sub">CNC Department · <?php echo $h($monthLabel); ?><?php echo ($pi > 0) ? ' · Continued' : ''; ?></div>
                     <?php if ($pg['kind'] === 'qty'): ?>
-                        <div class="doc-title">CNC Department — Rate &amp; Quantity</div>
-                        <div class="doc-sub">Main Contractor · <?php echo $h($monthLabel); ?><?php echo $pg['cont'] ? ' · Continued' : ''; ?></div>
+                        <div class="sec-title">Job Work — Rate &amp; Quantity<?php echo $pg['cont'] ? ' (continued)' : ''; ?></div>
                         <?php if (!$pg['cont']): ?>
                         <div class="meta">
                             <div><strong>Department:</strong> CNC</div>
@@ -227,8 +217,7 @@ $title = $type === 'qty'
                             <p class="note">Amount = Qty × Rate. This total is the CNC contract amount for <?php echo $h($empLabel); ?>.</p>
                         <?php endif; ?>
                     <?php else: ?>
-                        <div class="doc-title">CNC Department — Salary Register</div>
-                        <div class="doc-sub">From contract amount · <?php echo $h($monthLabel); ?><?php echo $pg['cont'] ? ' · Continued' : ''; ?></div>
+                        <div class="sec-title">Attendance — Salary<?php echo $pg['cont'] ? ' (continued)' : ''; ?></div>
                         <?php if (!$pg['cont']): ?>
                         <div class="meta">
                             <div><strong>Department:</strong> CNC</div>
