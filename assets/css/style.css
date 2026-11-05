@@ -6377,7 +6377,9 @@ body > .select2-container .select2-dropdown {
 .ops-clone-staff-att-table .sticky-code { left: 42px; width: 92px; min-width: 92px; max-width: 92px; }
 .ops-clone-staff-att-table .sticky-name { left: 134px; width: 280px; min-width: 280px; max-width: 280px; text-align: left; overflow: hidden; text-overflow: ellipsis; }
 .ops-clone-staff-att-table .sticky-sal { left: 414px; width: 88px; min-width: 88px; max-width: 88px; text-align: right; font-variant-numeric: tabular-nums; }
-.ops-clone-staff-att-table .sticky-final { left: 502px; width: 108px; min-width: 108px; max-width: 108px; box-shadow: 2px 0 4px rgba(15, 23, 42, 0.06); text-align: right; font-weight: 700; color: #9f1239; font-variant-numeric: tabular-nums; }
+.ops-clone-staff-att-table .sticky-pdays { left: 502px; width: 68px; min-width: 68px; max-width: 68px; text-align: center; font-variant-numeric: tabular-nums; color: #166534; font-weight: 700; }
+.ops-clone-staff-att-table .sticky-adays { left: 570px; width: 68px; min-width: 68px; max-width: 68px; text-align: center; font-variant-numeric: tabular-nums; color: #b91c1c; font-weight: 700; }
+.ops-clone-staff-att-table .sticky-final { left: 638px; width: 108px; min-width: 108px; max-width: 108px; box-shadow: 2px 0 4px rgba(15, 23, 42, 0.06); text-align: right; font-weight: 700; color: #9f1239; font-variant-numeric: tabular-nums; }
 .ops-clone-staff-att-table .att-day-head,
 .ops-clone-staff-att-table .att-day-cell { width: 48px; min-width: 48px; text-align: center; }
 .ops-clone-staff-att-table tr.is-main-contractor td { background: #fff7ed; }

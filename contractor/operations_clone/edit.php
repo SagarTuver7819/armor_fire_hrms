@@ -540,6 +540,8 @@ $otJson = json_encode(contractorOtRepairOps());
                             <th class="sticky-staff sticky-code">Emp Code</th>
                             <th class="sticky-staff sticky-name">Employee Name</th>
                             <th class="sticky-staff sticky-sal num">Salary</th>
+                            <th class="sticky-staff sticky-pdays num">P Days</th>
+                            <th class="sticky-staff sticky-adays num">A Days</th>
                             <th class="sticky-staff sticky-final num">Final Total</th>
                             <?php for ($d = 1; $d <= $monthDays; $d++):
                                 $wd = date('D', mktime(0, 0, 0, $curMonth, $d, $curYear));
@@ -562,10 +564,10 @@ $otJson = json_encode(contractorOtRepairOps());
                         ?>
                         <?php if (empty($staffDisplay)): ?>
                             <tr>
-                                <td colspan="<?php echo 5 + $monthDays; ?>" class="empty-msg">No Normal Salary employees found in CNC.</td>
+                                <td colspan="<?php echo 7 + $monthDays; ?>" class="empty-msg">No Normal Salary employees found in CNC.</td>
                             </tr>
                         <?php else: ?>
-                            <?php $staffFinalSum = 0.0; ?>
+                            <?php $staffFinalSum = 0.0; $staffPSum = 0; $staffASum = 0; ?>
                             <?php foreach ($staffDisplay as $si => $staff):
                                 $sid = (int) $staff['id'];
                                 $isMainRow = !empty($staff['_is_main']);
@@ -575,6 +577,19 @@ $otJson = json_encode(contractorOtRepairOps());
                                     ? (float) ($staffSplit['remainder'] ?? 0)
                                     : (float) ($share['final'] ?? 0);
                                 $staffFinalSum += $finalAmt;
+                                $pDays = 0;
+                                $aDays = 0;
+                                for ($cd = 1; $cd <= $monthDays; $cd++) {
+                                    $cDate = sprintf('%04d-%02d-%02d', $curYear, $curMonth, $cd);
+                                    $cCode = strtoupper(opsCloneAttCodeFromDay($empDays[$cDate] ?? null));
+                                    if ($cCode === 'P') {
+                                        $pDays++;
+                                    } elseif ($cCode === 'A') {
+                                        $aDays++;
+                                    }
+                                }
+                                $staffPSum += $pDays;
+                                $staffASum += $aDays;
                                 $baseAmt = $isMainRow ? 0 : (float) ($share['amount'] ?? 0);
                                 $finalTitle = $isMainRow
                                     ? 'Contract total minus staff salary'
@@ -587,6 +602,8 @@ $otJson = json_encode(contractorOtRepairOps());
                                     <td class="sticky-staff sticky-code"><span class="code-badge"><?php echo htmlspecialchars((string) $staff['employee_code']); ?></span></td>
                                     <td class="sticky-staff sticky-name" title="<?php echo htmlspecialchars((string) $staff['employee_name']); ?>"><?php echo htmlspecialchars((string) $staff['employee_name']); ?><?php echo $isMainRow ? ' (Main Contractor)' : ''; ?></td>
                                     <td class="sticky-staff sticky-sal num"><?php echo number_format((float) ($staff['decided_salary'] ?? 0), 0, '.', ''); ?></td>
+                                    <td class="sticky-staff sticky-pdays num staff-p-days"><?php echo (int) $pDays; ?></td>
+                                    <td class="sticky-staff sticky-adays num staff-a-days"><?php echo (int) $aDays; ?></td>
                                     <td class="sticky-staff sticky-final num staff-final<?php echo $isMainRow ? ' is-remainder' : ''; ?>"
                                         <?php echo $isMainRow ? 'data-main="1"' : 'data-base="' . htmlspecialchars((string) $baseAmt) . '"'; ?>
                                         title="<?php echo htmlspecialchars($finalTitle); ?>"><?php echo number_format($finalAmt, 2, '.', ''); ?></td>
@@ -631,6 +648,8 @@ $otJson = json_encode(contractorOtRepairOps());
                             <td class="sticky-staff sticky-code"></td>
                             <td class="sticky-staff sticky-name">Total</td>
                             <td class="sticky-staff sticky-sal"></td>
+                            <td class="sticky-staff sticky-pdays num" id="opsStaffPSum"><?php echo (int) $staffPSum; ?></td>
+                            <td class="sticky-staff sticky-adays num" id="opsStaffASum"><?php echo (int) $staffASum; ?></td>
                             <td class="sticky-staff sticky-final num" id="opsStaffFinalSum"><?php echo number_format($staffFinalSum, 2, '.', ''); ?></td>
                             <td colspan="<?php echo (int) $monthDays; ?>"></td>
                         </tr>
@@ -718,7 +737,35 @@ $otJson = json_encode(contractorOtRepairOps());
         });
 
         var staffForm = document.getElementById('opsStaffForm');
+        function refreshStaffDayCounts() {
+            var pTotal = 0;
+            var aTotal = 0;
+            document.querySelectorAll('#opsCloneStaffAttTable tbody tr[data-emp]').forEach(function (tr) {
+                var p = 0;
+                var a = 0;
+                tr.querySelectorAll('.staff-att-input').forEach(function (inp) {
+                    var v = (inp.value || '').trim().toUpperCase();
+                    if (v === 'P') p++;
+                    else if (v === 'A') a++;
+                });
+                var pEl = tr.querySelector('.staff-p-days');
+                var aEl = tr.querySelector('.staff-a-days');
+                if (pEl) pEl.textContent = String(p);
+                if (aEl) aEl.textContent = String(a);
+                pTotal += p;
+                aTotal += a;
+            });
+            var pSum = document.getElementById('opsStaffPSum');
+            var aSum = document.getElementById('opsStaffASum');
+            if (pSum) pSum.textContent = String(pTotal);
+            if (aSum) aSum.textContent = String(aTotal);
+        }
         if (staffForm) {
+            staffForm.addEventListener('input', function (ev) {
+                if (ev.target && ev.target.classList && ev.target.classList.contains('staff-att-input')) {
+                    refreshStaffDayCounts();
+                }
+            });
             staffForm.addEventListener('submit', function () {
                 var payload = {};
                 document.querySelectorAll('.staff-att-input').forEach(function (inp) {
