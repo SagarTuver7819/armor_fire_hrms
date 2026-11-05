@@ -400,7 +400,7 @@ function opsCloneBuffStaffPay($conn, $employeeId, $month, $year)
             'name' => (string) ($main['employee_name'] ?? ''),
             'salary' => (float) ($main['decided_salary'] ?? 0),
             'paid_days' => (float) (opsCloneCncSalaryShare([$main], $attMap, $month, $year)[(int) $main['id']]['paid_days'] ?? 0),
-            'final' => round((float) ($split['remainder'] ?? 0) - $buffExpense - $housekeeping, 2),
+            'final' => round((float) ($split['remainder'] ?? 0)) - round((float) $buffExpense) - round((float) $housekeeping),
             'register_final' => round((float) ($split['remainder'] ?? 0)),
             'loan' => 0.0,
             'buff_expense' => round((float) $buffExpense),

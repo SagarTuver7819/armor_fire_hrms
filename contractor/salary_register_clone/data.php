@@ -111,11 +111,7 @@ function cncCloneRegisterBundle($month, $year, $operation = 'CNC')
         $isMain = !empty($st['is_main']);
         $isBuff = $operation === 'BUFF';
         if ($isBuff && $isMain) {
-            $gross = cncCloneRoundRupee($st['register_final'] ?? (
-                (float) ($st['final'] ?? 0)
-                + (float) ($st['buff_expense'] ?? 0)
-                + (float) ($st['housekeeping'] ?? 0)
-            ));
+            $gross = cncCloneRoundRupee($st['final'] ?? 0);
             $loan = 0.0;
             $pt = $gross >= 12001 ? 200.0 : 0.0;
             $net = cncCloneRoundRupee($gross - $pt);
