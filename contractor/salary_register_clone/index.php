@@ -88,7 +88,7 @@ $neftQs = http_build_query(['month' => $month, 'year' => $year]);
         <?php elseif ($mainId <= 0): ?>
             <p class="form-hint">CNC main contractor was not found.</p>
         <?php else: ?>
-            <p class="form-hint">P.Days are Present marks from 01-11-2026 through today. Week-off counts only when it is P. Staff Gross follows the New Operation List final total. Gross 12,001 or more cuts P.T. 200, and Net is Gross minus that P.T. Main contractor <?php echo htmlspecialchars($mainLabel); ?> is the last row: his Salary and Gross are the remainder left after the staff split.</p>
+            <p class="form-hint">P.Days are Present marks from 01-11-2026 through today. Week-off counts only when it is P. Staff Gross follows the New Operation List final total, then Gross and Net round to the nearest rupee (50 paise and above rounds up). Gross 12,001 or more cuts P.T. 200. Main contractor <?php echo htmlspecialchars($mainLabel); ?> is the last row: his Salary and Gross are the remainder left after the staff split.</p>
         <?php endif; ?>
     </div>
 
@@ -101,7 +101,7 @@ $neftQs = http_build_query(['month' => $month, 'year' => $year]);
             </div>
         </div>
         <div class="ops-live-summary">
-            <span class="ops-chip"><strong><?php echo count($neftRows); ?> employees · ₹ <?php echo cncCloneNum($neftSec['final_total'], 2); ?></strong></span>
+            <span class="ops-chip"><strong><?php echo count($neftRows); ?> employees · ₹ <?php echo cncCloneNum($neftSec['final_total'], 0); ?></strong></span>
             <?php if ((int) $neftSec['missing_bank'] > 0): ?>
                 <span class="ops-chip" style="color:#b45309;"><?php echo (int) $neftSec['missing_bank']; ?> missing bank A/C</span>
             <?php endif; ?>
@@ -133,7 +133,7 @@ $neftQs = http_build_query(['month' => $month, 'year' => $year]);
                         <td>CNC</td>
                         <td><?php echo htmlspecialchars($missBank ? '—' : $nr['account']); ?></td>
                         <td><?php echo htmlspecialchars($nr['ifsc'] !== '' ? $nr['ifsc'] : '-'); ?></td>
-                        <td class="num"><strong><?php echo cncCloneNum($nr['amount'], 2); ?></strong></td>
+                        <td class="num"><strong><?php echo cncCloneNum($nr['amount'], 0); ?></strong></td>
                         <td><?php echo htmlspecialchars($neftExport['credit_narr']); ?></td>
                         <td><?php echo htmlspecialchars($neftExport['pay_date']); ?></td>
                         <td><?php echo htmlspecialchars($neftExport['cfg']['email_id']); ?></td>
@@ -143,7 +143,7 @@ $neftQs = http_build_query(['month' => $month, 'year' => $year]);
                 <tfoot>
                     <tr style="background:#fef3c7;">
                         <td colspan="5"><strong>NEFT Total (<?php echo count($neftRows); ?>)</strong></td>
-                        <td class="num"><strong><?php echo cncCloneNum($neftSec['final_total'], 2); ?></strong></td>
+                        <td class="num"><strong><?php echo cncCloneNum($neftSec['final_total'], 0); ?></strong></td>
                         <td colspan="3"></td>
                     </tr>
                 </tfoot>
@@ -215,7 +215,7 @@ $neftQs = http_build_query(['month' => $month, 'year' => $year]);
                         <td><?php echo htmlspecialchars($r['designation'] !== '' ? $r['designation'] : '-'); ?></td>
                         <td><?php echo htmlspecialchars($r['doj']); ?></td>
                         <td><?php echo htmlspecialchars($r['uan'] !== '' ? $r['uan'] : '-'); ?></td>
-                        <td class="num"><?php echo cncCloneNum($r['salary'], !empty($r['is_main']) ? 2 : 0); ?></td>
+                        <td class="num"><?php echo cncCloneNum($r['salary'], 0); ?></td>
                         <td class="num"><?php echo cncCloneNum($r['present'], 1); ?></td>
                         <td class="num">0.0</td>
                         <td class="num">0.0</td>
@@ -224,14 +224,14 @@ $neftQs = http_build_query(['month' => $month, 'year' => $year]);
                         <td class="num">0.0</td>
                         <td class="num">0.0</td>
                         <td class="num"><?php echo cncCloneNum($r['total_days'], 1); ?></td>
-                        <td class="num"><?php echo cncCloneNum($r['gross'], 2); ?></td>
+                        <td class="num"><?php echo cncCloneNum($r['gross'], 0); ?></td>
                         <td class="num">0</td>
                         <td class="num"><?php echo cncCloneNum($r['pt'], 0); ?></td>
                         <td class="num">0</td>
                         <td class="num">0</td>
                         <td class="num"><?php echo cncCloneNum($r['deduction'], 0); ?></td>
                         <td class="num">0</td>
-                        <td class="num"><strong><?php echo cncCloneNum($r['net'], 2); ?></strong></td>
+                        <td class="num"><strong><?php echo cncCloneNum($r['net'], 0); ?></strong></td>
                         <td><?php echo htmlspecialchars($r['account'] !== '' ? $r['account'] : '-'); ?></td>
                         <td><?php echo htmlspecialchars($r['ifsc'] !== '' ? $r['ifsc'] : '-'); ?></td>
                         <td>-</td>
@@ -242,16 +242,16 @@ $neftQs = http_build_query(['month' => $month, 'year' => $year]);
                 <tfoot>
                     <tr>
                         <td colspan="5"><strong>Department Total</strong></td>
-                        <td class="num"><strong><?php echo cncCloneNum($sumSalary, 2); ?></strong></td>
+                        <td class="num"><strong><?php echo cncCloneNum($sumSalary, 0); ?></strong></td>
                         <td colspan="8"></td>
-                        <td class="num"><strong><?php echo cncCloneNum($sumGross, 2); ?></strong></td>
+                        <td class="num"><strong><?php echo cncCloneNum($sumGross, 0); ?></strong></td>
                         <td class="num">0</td>
                         <td class="num"><strong><?php echo cncCloneNum($sumPt, 0); ?></strong></td>
                         <td class="num">0</td>
                         <td class="num">0</td>
                         <td class="num"><strong><?php echo cncCloneNum($sumPt, 0); ?></strong></td>
                         <td class="num">0</td>
-                        <td class="num"><strong><?php echo cncCloneNum($sumNet, 2); ?></strong></td>
+                        <td class="num"><strong><?php echo cncCloneNum($sumNet, 0); ?></strong></td>
                         <td colspan="3"></td>
                     </tr>
                 </tfoot>

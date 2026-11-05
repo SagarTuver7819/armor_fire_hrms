@@ -66,7 +66,7 @@ $companyName = function_exists('getCompanyName') ? getCompanyName() : 'Armor Fir
         · EMAIL=<?php echo htmlspecialchars($export['cfg']['email_id']); ?>
     </div>
     <div class="chips meta">
-        <span><?php echo count($neftRows); ?> employees · ₹ <?php echo cncCloneNum($sec['final_total'], 2); ?></span>
+        <span><?php echo count($neftRows); ?> employees · ₹ <?php echo cncCloneNum($sec['final_total'], 0); ?></span>
     </div>
     <table>
         <thead>
@@ -94,7 +94,7 @@ $companyName = function_exists('getCompanyName') ? getCompanyName() : 'Armor Fir
                 <td><?php echo htmlspecialchars($r['department']); ?></td>
                 <td><?php echo htmlspecialchars($missBank ? '—' : $r['account']); ?></td>
                 <td><?php echo htmlspecialchars($r['ifsc'] !== '' ? $r['ifsc'] : '-'); ?></td>
-                <td class="num"><?php echo cncCloneNum($r['amount'], 2); ?></td>
+                <td class="num"><?php echo cncCloneNum($r['amount'], 0); ?></td>
                 <td><?php echo htmlspecialchars($export['credit_narr']); ?></td>
                 <td><?php echo htmlspecialchars($export['pay_date']); ?></td>
                 <td><?php echo htmlspecialchars($export['cfg']['email_id']); ?></td>
@@ -105,7 +105,7 @@ $companyName = function_exists('getCompanyName') ? getCompanyName() : 'Armor Fir
     <table class="neft-totals">
         <tr class="sec-f">
             <td colspan="5">NEFT Total (<?php echo count($neftRows); ?>)</td>
-            <td class="num"><?php echo cncCloneNum($sec['final_total'], 2); ?></td>
+            <td class="num"><?php echo cncCloneNum($sec['final_total'], 0); ?></td>
             <td colspan="3"></td>
         </tr>
     </table>

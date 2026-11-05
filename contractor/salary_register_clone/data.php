@@ -15,6 +15,11 @@ function cncCloneDate($value)
     return $formatted !== '' ? $formatted : '-';
 }
 
+function cncCloneRoundRupee($n)
+{
+    return (float) round((float) $n, 0, PHP_ROUND_HALF_UP);
+}
+
 function cncCloneNfpsSettings()
 {
     return [
@@ -101,20 +106,22 @@ function cncCloneRegisterBundle($month, $year)
         $paid = (float) ($st['paid_days'] ?? 0);
         $final = round((float) ($st['final'] ?? 0), 2);
         $isMain = !empty($st['is_main']);
-        $pt = $final >= 12001 ? 200.0 : 0.0;
+        $gross = cncCloneRoundRupee($final);
+        $pt = $gross >= 12001 ? 200.0 : 0.0;
+        $net = cncCloneRoundRupee($gross - $pt);
         $rows[] = [
             'code' => (string) ($st['code'] ?? ''),
             'name' => (string) ($st['name'] ?? ''),
             'designation' => trim((string) ($ex['designation'] ?? '')),
             'doj' => cncCloneDate($ex['date_of_joining'] ?? ''),
             'uan' => trim((string) ($ex['uan_number'] ?? '')),
-            'salary' => $isMain ? $final : (float) ($st['salary'] ?? 0),
+            'salary' => $isMain ? $gross : (float) ($st['salary'] ?? 0),
             'present' => $paid,
             'total_days' => $paid,
-            'gross' => $final,
+            'gross' => $gross,
             'pt' => $pt,
             'deduction' => $pt,
-            'net' => round($final - $pt, 2),
+            'net' => $net,
             'account' => trim((string) ($ex['bank_account_number'] ?? '')),
             'ifsc' => trim((string) ($ex['ifsc_code'] ?? '')),
             'mobile' => trim((string) ($ex['mobile_number'] ?? '')),
