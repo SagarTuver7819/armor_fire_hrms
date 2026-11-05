@@ -3119,8 +3119,6 @@ body > .select2-container--open {
 .salary-register-table .sr-net { background: #facc15 !important; }
 .salary-register-table td.num { text-align: right; font-variant-numeric: tabular-nums; }
 .salary-register-table tfoot td { background: #f8fafc; font-weight: 700; color: #0f172a; }
-.salary-register-table tr.sr-main-row td,
-.salary-register-table tr.sr-main-row td.sr-sticky { background: #fff7ed !important; }
 .salary-register-table tfoot tr.sr-grand-total td {
     background: #1e3a5f !important;
     color: #ffffff !important;
@@ -3155,6 +3153,77 @@ body > .select2-container--open {
     color: #ffffff !important;
 }
 .sr-code { font-size: 11px; color: #64748b; font-weight: 600; }
+
+.cnc-clone-sheet {
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 14px;
+    margin: 18px 0 28px;
+    overflow: visible;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.04);
+}
+.cnc-clone-banner {
+    background: #94a3b8;
+    color: #0f172a;
+    padding: 10px 16px;
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+    font-size: 14px;
+    border-radius: 14px 14px 0 0;
+}
+.cnc-clone-banner span { opacity: 0.85; font-weight: 500; }
+.cnc-clone-sheet .table-wrap {
+    overflow: auto;
+    max-width: 100%;
+    border-radius: 0 0 14px 14px;
+}
+.cnc-clone-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    font-size: 12px;
+    min-width: 1400px;
+}
+.cnc-clone-table th,
+.cnc-clone-table td {
+    border: 1px solid #cbd5e1;
+    padding: 6px 8px;
+    white-space: nowrap;
+    background: #fff;
+}
+.cnc-clone-table thead th {
+    background: #e2e8f0;
+    font-weight: 700;
+    text-align: center;
+}
+.cnc-clone-table .cnc-clone-group th { border-bottom: 0; }
+.cnc-clone-table .cnc-clone-earn { background: #86efac !important; }
+.cnc-clone-table .cnc-clone-gross { background: #bbf7d0 !important; }
+.cnc-clone-table .cnc-clone-ded { background: #fde047 !important; }
+.cnc-clone-table .cnc-clone-net { background: #facc15 !important; }
+.cnc-clone-table td.num { text-align: right; font-variant-numeric: tabular-nums; }
+.cnc-clone-table tfoot td { background: #f8fafc; font-weight: 700; color: #0f172a; }
+.cnc-clone-table tr.cnc-clone-main td,
+.cnc-clone-table tr.cnc-clone-main td.cnc-clone-sticky { background: #fff7ed !important; }
+.cnc-clone-table .cnc-clone-sticky {
+    position: sticky;
+    z-index: 3;
+    background: #fff !important;
+}
+.cnc-clone-table thead .cnc-clone-sticky {
+    z-index: 5;
+    background: #e2e8f0 !important;
+}
+.cnc-clone-table .cnc-clone-sticky-1 { left: 0; min-width: 96px; }
+.cnc-clone-table .cnc-clone-sticky-2 {
+    left: 96px;
+    min-width: 180px;
+    max-width: 240px;
+    white-space: normal;
+}
+.cnc-clone-code { font-size: 11px; color: #64748b; font-weight: 600; }
 .register-toolbar-actions { display: flex; gap: 8px; }
 .register-filters { margin-bottom: 8px; }
 .sr-print-heading {
