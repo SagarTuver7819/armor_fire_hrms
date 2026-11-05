@@ -36,18 +36,26 @@ $saved = isset($_GET['msg']) && in_array($_GET['msg'], ['added', 'updated'], tru
     <meta charset="utf-8">
     <title><?php echo cncSopH($title); ?></title>
     <style>
-        body { margin: 0; background: #eef2f6; font-family: Calibri, Candara, "Segoe UI", Arial, sans-serif; }
+        body {
+            margin: 0;
+            padding: 14px;
+            background: #e5e7eb;
+            color: #111;
+            font-family: Calibri, Candara, Segoe UI, Arial, sans-serif;
+        }
         <?php echo companyDocPrintCss(); ?>
         <?php echo cncSopLetterCss(); ?>
-        <?php echo companyDocLetterheadPageCss($brand, true); ?>
-        .sop-note { max-width: 210mm; margin: 8px auto 0; color: #166534; font-weight: 700; }
+        @media print {
+            html, body { background: #fff !important; padding: 0 !important; margin: 0 !important; }
+            @page { size: A4 portrait; margin: 6mm; }
+        }
     </style>
 </head>
 <body>
     <div class="sop-toolbar no-print">
-        <a href="<?php echo app_url('sop/index.php?department_id=' . $deptId); ?>">Back to SOP</a>
-        <a href="<?php echo app_url('sop/edit.php?id=' . (int) $row['id'] . '&department_id=' . $deptId); ?>">Edit</a>
-        <button type="button" class="is-primary" onclick="window.print()">Print / Save PDF</button>
+        <a class="secondary" href="<?php echo app_url('sop/index.php?department_id=' . $deptId); ?>">Back to SOP</a>
+        <a class="secondary" href="<?php echo app_url('sop/edit.php?id=' . (int) $row['id'] . '&department_id=' . $deptId); ?>">Edit</a>
+        <button type="button" onclick="window.print()">Print / Save PDF</button>
         <button type="button" id="sopCopy">Copy share link</button>
         <button type="button" id="sopWhatsapp">WhatsApp</button>
         <button type="button" id="sopNative">Share</button>

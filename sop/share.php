@@ -28,15 +28,24 @@ $title = (string) $row['title'];
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title><?php echo cncSopH($title); ?></title>
     <style>
-        body { margin: 0; background: #eef2f6; font-family: Calibri, Candara, "Segoe UI", Arial, sans-serif; }
+        body {
+            margin: 0;
+            padding: 14px;
+            background: #e5e7eb;
+            color: #111;
+            font-family: Calibri, Candara, Segoe UI, Arial, sans-serif;
+        }
         <?php echo companyDocPrintCss(); ?>
         <?php echo cncSopLetterCss(); ?>
-        <?php echo companyDocLetterheadPageCss($brand, true); ?>
+        @media print {
+            html, body { background: #fff !important; padding: 0 !important; margin: 0 !important; }
+            @page { size: A4 portrait; margin: 6mm; }
+        }
     </style>
 </head>
 <body>
     <div class="sop-toolbar no-print">
-        <button type="button" class="is-primary" onclick="window.print()">Print / Save PDF</button>
+        <button type="button" onclick="window.print()">Print / Save PDF</button>
     </div>
     <div class="sop-sheet-wrap">
         <?php echo cncSopLetterSheet($row, $brand, false); ?>
