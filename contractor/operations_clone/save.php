@@ -82,7 +82,7 @@ if ($exists) {
 }
 
 $productsById = [];
-$pr = $conn->query("SELECT id, rate, ot_text, rejection_rate FROM contractor_products WHERE status = 1");
+$pr = $conn->query("SELECT id, rate, ot_text, rejection_rate, argon_rate FROM contractor_products WHERE status = 1");
 if ($pr) {
     while ($p = $pr->fetch_assoc()) {
         $productsById[(int) $p['id']] = $p;
@@ -104,6 +104,7 @@ foreach ((array) $itemsIn as $it) {
     $rate = isset($it['rate']) && $it['rate'] !== '' ? (float) $it['rate'] : (float) $prod['rate'];
     $otRate = isset($it['ot_rate']) && $it['ot_rate'] !== '' ? (float) $it['ot_rate'] : parseOtRate($prod['ot_text'] ?? '');
     $rej = isset($it['rejection_rate']) && $it['rejection_rate'] !== '' ? (float) $it['rejection_rate'] : (float) $prod['rejection_rate'];
+    $argonRate = isset($it['argon_rate']) && $it['argon_rate'] !== '' ? (float) $it['argon_rate'] : (float) ($prod['argon_rate'] ?? 0);
     $daysRaw = [];
     foreach ((array) ($it['days'] ?? []) as $d => $cell) {
         $d = (int) $d;
@@ -117,7 +118,7 @@ foreach ((array) $itemsIn as $it) {
             'ap' => (float) ($cell['ap'] ?? 0),
         ];
     }
-    $calc = calculateContractorRow($operation, $rate, $otRate, $rej, $daysRaw);
+    $calc = calculateContractorRow($operation, $rate, $otRate, $rej, $daysRaw, $argonRate);
     $grandQty += $calc['total_qty'];
     $grandR += $calc['total_r'];
     $grandAmt += $calc['total_amount'];
@@ -127,6 +128,7 @@ foreach ((array) $itemsIn as $it) {
         'rate' => $rate,
         'ot_rate' => $otRate,
         'rejection_rate' => $rej,
+        'argon_rate' => $argonRate,
         'days_json' => json_encode($daysRaw),
         'total_qty' => $calc['total_qty'],
         'total_r' => $calc['total_r'],
@@ -163,16 +165,17 @@ if (!$ok || $id <= 0) {
     die('Save failed: ' . htmlspecialchars($error ?: 'unknown') . ' <a href="javascript:history.back()">Go Back</a>');
 }
 
-$ins = $conn->prepare('INSERT INTO contractor_operation_items (sheet_id, product_id, grade_id, rate, ot_rate, rejection_rate, days_json, total_qty, total_r, total_amount, sort_order) VALUES (?,?,?,?,?,?,?,?,?,?,?)');
+$ins = $conn->prepare('INSERT INTO contractor_operation_items (sheet_id, product_id, grade_id, rate, ot_rate, rejection_rate, argon_rate, days_json, total_qty, total_r, total_amount, sort_order) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)');
 foreach ($built as $b) {
     $ins->bind_param(
-        'iiidddsdddi',
+        'iiiddddsdddi',
         $id,
         $b['product_id'],
         $b['grade_id'],
         $b['rate'],
         $b['ot_rate'],
         $b['rejection_rate'],
+        $b['argon_rate'],
         $b['days_json'],
         $b['total_qty'],
         $b['total_r'],

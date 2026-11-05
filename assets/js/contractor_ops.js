@@ -92,7 +92,7 @@
         $('#sum_r_lab').text(isFoundry ? 'Night Qty Total' : (buffBoxes ? 'RW' : 'R'));
 
         // Action + Sr + Process + (Grade?) + Rate
-        $('#tf_grand_total_label').attr('colspan', showG ? 5 : 4);
+        $('#tf_grand_total_label').attr('colspan', (showG ? 4 : 3) + (buffBoxes ? 3 : 1));
         // Cleanup Select2 leftovers / custom combo when Grade column hidden
         // Only touch grade cells inside the grid — never the header Name (employee) Select2
         if (!showG) {
@@ -416,6 +416,7 @@
                 gradeId: nonzeroId($row.find('.row-grade-id').val()) || nonzeroId($row.find('.grade-select').val()) || '',
                 ot: $row.find('.row-ot-rate').val(),
                 rej: $row.find('.row-rejection-rate').val(),
+                argon: $row.find('.rate-ap').val(),
                 days: days,
                 rateTouched: $row.data('rate-touched') ? 1 : 0
             };
@@ -445,8 +446,13 @@
                 rateVal = snap.rate;
             }
             $clone.find('.rate').val(rateVal).attr('data-rate-baseline', String(rateVal));
+            var rwVal = p.rejection_rate || 0;
+            if (snap && snap.rej !== undefined && snap.rej !== '') rwVal = snap.rej;
+            var apRateVal = p.argon_rate || 0;
+            if (snap && snap.argon !== undefined && snap.argon !== '') apRateVal = snap.argon;
             $clone.find('.row-ot-rate').val(snap && snap.ot !== undefined && snap.ot !== '' ? snap.ot : (p.ot_rate || 0));
-            $clone.find('.row-rejection-rate').val(snap && snap.rej !== undefined && snap.rej !== '' ? snap.rej : (p.rejection_rate || 0));
+            $clone.find('.row-rejection-rate, .rate-rw').val(rwVal).attr('data-rate-baseline', String(rwVal));
+            $clone.find('.rate-ap').val(apRateVal).attr('data-rate-baseline', String(apRateVal));
 
             if (snap && snap.days) {
                 Object.keys(snap.days).forEach(function (d) {
@@ -813,10 +819,13 @@
         var op = opVal();
         var rate = parseFloat($row.find('.rate').val()) || 0;
         var otRate = parseFloat($row.find('.row-ot-rate').val()) || 0;
-        var rejRate = parseFloat($row.find('.row-rejection-rate').val()) || 0;
+        var rejRate = parseFloat($row.find('.rate-rw').val());
+        if (isNaN(rejRate)) rejRate = parseFloat($row.find('.row-rejection-rate').val()) || 0;
+        var argonRate = parseFloat($row.find('.rate-ap').val()) || 0;
         var normalQty = 0;
         var rQty = 0;
         var otQty = 0;
+        var apQty = 0;
         $row.find('.day-qty').each(function () {
             if (!$(this).prop('disabled')) normalQty += parseFloat($(this).val()) || 0;
         });
@@ -830,14 +839,20 @@
                 if (!$(this).prop('disabled')) otQty += parseFloat($(this).val()) || 0;
             });
         }
+        $row.find('.day-qty-ap').each(function () {
+            if (!$(this).prop('disabled')) apQty += parseFloat($(this).val()) || 0;
+        });
         // Total Qty is the Q column only. R and OT stay in their own totals.
         var totalQty = normalQty;
         $row.find('.total-qty').val(parseFloat(totalQty.toFixed(2)));
         $row.find('.total-r').val(parseFloat(rQty.toFixed(2)));
         $row.find('.total-ot').val(parseFloat(otQty.toFixed(2)));
         var totalAmt = 0;
+        var buffBoxes = String(op || '').toUpperCase() === 'BUFF' && $row.find('.rate-ap').length > 0;
         if (op === 'FOUNDRY') {
             totalAmt = (normalQty + rQty) * rate;
+        } else if (buffBoxes) {
+            totalAmt = (normalQty * rate) + (rQty * rejRate) + (apQty * argonRate);
         } else if (repairOps.indexOf(op) !== -1 && !isKraFixedMode()) {
             totalAmt = (normalQty * rate) + (rQty * rejRate) + (otQty * otRate);
         } else {
@@ -954,7 +969,7 @@
         var $row = $(this).closest('tr');
         $row.find('.row-grade-id').val($(this).val() || '0');
     });
-    $('#opsRows').on('input', '.day-qty, .day-qty-r, .day-qty-ot, .rate', function () {
+    $('#opsRows').on('input', '.day-qty, .day-qty-r, .day-qty-ap, .day-qty-ot, .rate, .rate-rw, .rate-ap', function () {
         calculateRowTotals($(this).closest('tr'));
     });
     $('#opsRows').on('keydown', '.day-qty, .day-qty-r, .day-qty-ot', function (e) {
@@ -981,7 +996,7 @@
         reindex();
         updateGrandTotals();
     }
-    $('#opsRows').on('input', '.rate', function () {
+    $('#opsRows').on('input', '.rate, .rate-rw, .rate-ap', function () {
         $(this).closest('tr').data('rate-touched', 1);
     });
 
@@ -1043,13 +1058,13 @@
         }).join('');
     }
 
-    function loadRateHistory(productId) {
+    function loadRateHistory(productId, rateKind) {
         var url = window.OPS_RATE_HISTORY_URL;
         if (!url || !productId) {
             $('#opsRateRemarkHist').html('<li class="muted">No history yet.</li>');
             return;
         }
-        $.getJSON(url, { product_id: productId })
+        $.getJSON(url, { product_id: productId, rate_kind: rateKind || 'qty' })
             .done(function (data) {
                 $('#opsRateRemarkHist').html(formatRateHistRows(data && data.rows));
             })
@@ -1061,12 +1076,14 @@
     function openRateRemarkModal(ctx) {
         ensureRateRemarkModal();
         rateRemarkCtx = ctx;
+        var kindTitle = { qty: 'Qty Rate', rework: 'Rework Rate', argon: 'Argon Polish Rate' };
+        $('#opsRateRemarkTitle').html('<i class="fa-solid fa-pen-to-square"></i> ' + (kindTitle[ctx.kind] || 'Rate') + ' Remark');
         $('#opsRateRemarkProcess').text(ctx.label || ('Product #' + ctx.productId));
         $('#opsRateRemarkOld').text(Number(ctx.oldRate).toFixed(4).replace(/\.?0+$/, '') || '0');
         $('#opsRateRemarkNew').text(Number(ctx.newRate).toFixed(4).replace(/\.?0+$/, '') || '0');
         $('#opsRateRemarkText').val('');
         $('#opsRateRemarkErr').prop('hidden', true).text('');
-        loadRateHistory(ctx.productId);
+        loadRateHistory(ctx.productId, ctx.kind || 'qty');
         $rateRemarkModal.removeAttr('hidden');
         setTimeout(function () { $('#opsRateRemarkText').trigger('focus'); }, 30);
     }
@@ -1109,6 +1126,7 @@
                 year_no: parseInt($('#yearSelect').val(), 10) || 0,
                 old_rate: rateRemarkCtx.oldRate,
                 new_rate: rateRemarkCtx.newRate,
+                rate_kind: rateRemarkCtx.kind || 'qty',
                 remark: remark
             })
         }).done(function (data) {
@@ -1163,6 +1181,7 @@
             $input.attr('data-rate-baseline', String(newRate));
             return;
         }
+        var kind = String($input.attr('data-rate-kind') || 'qty');
         var label = ($row.find('.ops-fixed-process').text() || '').trim();
         if (!label) {
             label = ($row.find('.product-select option:selected').text() || '').trim();
@@ -1176,20 +1195,21 @@
             oldRate: oldRate,
             newRate: newRate,
             productId: pid,
-            label: label
+            label: label,
+            kind: kind
         });
     }
 
-    $('#opsRows').on('focus', '.rate', function () {
+    $('#opsRows').on('focus', '.rate, .rate-rw, .rate-ap', function () {
         var $inp = $(this);
         if (!$inp.attr('data-rate-baseline')) {
             $inp.attr('data-rate-baseline', String($inp.val() || '0'));
         }
     });
-    $('#opsRows').on('change', '.rate', function () {
+    $('#opsRows').on('change', '.rate, .rate-rw, .rate-ap', function () {
         maybePromptRateRemark($(this));
     });
-    $('#opsRows').on('blur', '.rate', function () {
+    $('#opsRows').on('blur', '.rate, .rate-rw, .rate-ap', function () {
         // change may not fire if value typed then tabbed without change event in some browsers
         var self = this;
         setTimeout(function () {
@@ -1392,8 +1412,9 @@
             $('#opsGrid thead th.sticky-name, #opsGrid tbody td.sticky-name').addClass('cross-col');
         } else if ($td.hasClass('sticky-grade') || $td.hasClass('td-grade')) {
             $('#opsGrid thead th.sticky-grade, #opsGrid tbody td.sticky-grade, #opsGrid tbody td.td-grade').addClass('cross-col');
-        } else if ($td.hasClass('sticky-rate')) {
-            $('#opsGrid thead th.sticky-rate, #opsGrid tbody td.sticky-rate').addClass('cross-col');
+        } else if ($td.hasClass('sticky-rate') || $td.hasClass('sticky-rate-rw') || $td.hasClass('sticky-rate-ap')) {
+            var rateCls = $td.hasClass('sticky-rate-ap') ? 'sticky-rate-ap' : ($td.hasClass('sticky-rate-rw') ? 'sticky-rate-rw' : 'sticky-rate');
+            $('#opsGrid thead th.' + rateCls + ', #opsGrid tbody td.' + rateCls).addClass('cross-col');
         }
     }
 
@@ -1401,7 +1422,7 @@
     $('#opsGrid').on('focusin', 'input, .ops-combo-trigger', function () {
         applyCrosshair($(this));
     });
-    $('#opsGrid').on('click', 'td.day-cell, td.sticky-name, td.sticky-grade, td.sticky-rate, td.td-grade', function (e) {
+    $('#opsGrid').on('click', 'td.day-cell, td.sticky-name, td.sticky-grade, td.sticky-rate, td.sticky-rate-rw, td.sticky-rate-ap, td.td-grade', function (e) {
         if ($(e.target).closest('.ops-combo-trigger, .ops-combo-panel').length) {
             return;
         }
@@ -1441,7 +1462,7 @@
     applyOpMode();
     syncOpsEmployeeSelect();
     // Baseline for rate-remark popup (every edit prompts when value changes)
-    $('#opsRows .rate').each(function () {
+    $('#opsRows .rate, #opsRows .rate-rw, #opsRows .rate-ap').each(function () {
         var $r = $(this);
         if (!$r.attr('data-rate-baseline')) {
             $r.attr('data-rate-baseline', String($r.val() || '0'));
@@ -1450,7 +1471,7 @@
     loadProducts(function () {
         syncOpsEmployeeSelect();
         startKraLivePoll();
-        $('#opsRows .rate').each(function () {
+        $('#opsRows .rate, #opsRows .rate-rw, #opsRows .rate-ap').each(function () {
             var $r = $(this);
             if (!$r.attr('data-rate-baseline')) {
                 $r.attr('data-rate-baseline', String($r.val() || '0'));

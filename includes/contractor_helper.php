@@ -333,6 +333,9 @@ function ensureContractorTables($conn = null)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
 
     contractorEnsureColumn($conn, 'contractor_operation_items', 'grade_id', 'grade_id INT DEFAULT NULL AFTER product_id');
+    contractorEnsureColumn($conn, 'contractor_operation_items', 'argon_rate', 'argon_rate DECIMAL(12, 4) NOT NULL DEFAULT 0 AFTER rejection_rate');
+    contractorEnsureColumn($conn, 'contractor_products', 'argon_rate', 'argon_rate DECIMAL(12, 4) NOT NULL DEFAULT 0 AFTER rejection_rate');
+    contractorEnsureColumn($conn, 'contractor_product_rate_history', 'rate_kind', "rate_kind VARCHAR(20) NOT NULL DEFAULT 'qty' AFTER year_no");
     contractorEnsureColumn($conn, 'contractor_employment', 'sub_department_id', 'sub_department_id INT DEFAULT NULL AFTER department_id');
 
     if ($closeAfter) {
@@ -372,17 +375,22 @@ function contractorSaveProductRateHistory($conn, array $data)
         $changedByName = trim((string) ($_SESSION['full_name'] ?? $_SESSION['username'] ?? 'User'));
     }
 
-    // product_id i, sheet_id i, operation s, month_no i, year_no i, old_rate d, new_rate d, remark s, changed_by i, changed_by_name s
+    $rateKind = strtolower(trim((string) ($data['rate_kind'] ?? 'qty')));
+    if (!in_array($rateKind, ['qty', 'rework', 'argon'], true)) {
+        $rateKind = 'qty';
+    }
+
+    // product_id i, sheet_id i, operation s, month_no i, year_no i, old_rate d, new_rate d, remark s, changed_by i, changed_by_name s, rate_kind s
     $st = $conn->prepare(
         'INSERT INTO contractor_product_rate_history
-            (product_id, sheet_id, operation, month_no, year_no, old_rate, new_rate, remark, changed_by, changed_by_name)
-         VALUES (?,?,?,?,?,?,?,?,?,?)'
+            (product_id, sheet_id, operation, month_no, year_no, old_rate, new_rate, remark, changed_by, changed_by_name, rate_kind)
+         VALUES (?,?,?,?,?,?,?,?,?,?,?)'
     );
     if (!$st) {
         return ['ok' => false, 'id' => 0, 'message' => 'Prepare failed.'];
     }
     $st->bind_param(
-        'iisiiddsis',
+        'iisiiddsiss',
         $productId,
         $sheetId,
         $operation,
@@ -392,7 +400,8 @@ function contractorSaveProductRateHistory($conn, array $data)
         $newRate,
         $remark,
         $changedBy,
-        $changedByName
+        $changedByName,
+        $rateKind
     );
     $ok = $st->execute();
     $err = $st->error;
@@ -403,7 +412,13 @@ function contractorSaveProductRateHistory($conn, array $data)
     }
 
     if (!empty($data['update_master'])) {
-        $up = $conn->prepare('UPDATE contractor_products SET rate = ? WHERE id = ? AND status = 1');
+        if ($rateKind === 'rework') {
+            $up = $conn->prepare('UPDATE contractor_products SET rejection_rate = ? WHERE id = ? AND status = 1');
+        } elseif ($rateKind === 'argon') {
+            $up = $conn->prepare('UPDATE contractor_products SET argon_rate = ? WHERE id = ? AND status = 1');
+        } else {
+            $up = $conn->prepare('UPDATE contractor_products SET rate = ? WHERE id = ? AND status = 1');
+        }
         if ($up) {
             $up->bind_param('di', $newRate, $productId);
             $up->execute();
@@ -413,7 +428,7 @@ function contractorSaveProductRateHistory($conn, array $data)
 
     if ($sheetId > 0) {
         $stItems = $conn->prepare(
-            'SELECT id, ot_rate, rejection_rate, days_json
+            'SELECT id, rate, ot_rate, rejection_rate, argon_rate, days_json
              FROM contractor_operation_items
              WHERE sheet_id = ? AND product_id = ?'
         );
@@ -421,23 +436,38 @@ function contractorSaveProductRateHistory($conn, array $data)
             $stItems->bind_param('ii', $sheetId, $productId);
             $stItems->execute();
             $itemRes = $stItems->get_result();
-            $upd = $conn->prepare('UPDATE contractor_operation_items SET rate = ?, total_amount = ? WHERE id = ?');
+            $upd = $conn->prepare(
+                'UPDATE contractor_operation_items
+                 SET rate = ?, rejection_rate = ?, argon_rate = ?, total_amount = ?
+                 WHERE id = ?'
+            );
             while ($item = $itemRes->fetch_assoc()) {
                 $days = json_decode((string) ($item['days_json'] ?? ''), true);
                 if (!is_array($days)) {
                     $days = [];
                 }
+                $itemRate = (float) ($item['rate'] ?? 0);
+                $itemRej = (float) ($item['rejection_rate'] ?? 0);
+                $itemArgon = (float) ($item['argon_rate'] ?? 0);
+                if ($rateKind === 'rework') {
+                    $itemRej = $newRate;
+                } elseif ($rateKind === 'argon') {
+                    $itemArgon = $newRate;
+                } else {
+                    $itemRate = $newRate;
+                }
                 $calc = calculateContractorRow(
                     $operation !== '' ? $operation : 'CNC',
-                    $newRate,
+                    $itemRate,
                     (float) ($item['ot_rate'] ?? 0),
-                    (float) ($item['rejection_rate'] ?? 0),
-                    $days
+                    $itemRej,
+                    $days,
+                    $itemArgon
                 );
                 $itemAmt = (float) ($calc['total_amount'] ?? 0);
                 $itemId = (int) $item['id'];
                 if ($upd) {
-                    $upd->bind_param('ddi', $newRate, $itemAmt, $itemId);
+                    $upd->bind_param('ddddi', $itemRate, $itemRej, $itemArgon, $itemAmt, $itemId);
                     $upd->execute();
                 }
             }
@@ -475,25 +505,35 @@ function contractorSaveProductRateHistory($conn, array $data)
 /**
  * @return list<array<string,mixed>>
  */
-function contractorProductRateHistoryList($conn, $productId, $limit = 20)
+function contractorProductRateHistoryList($conn, $productId, $limit = 20, $rateKind = '')
 {
     ensureContractorTables($conn);
     $productId = (int) $productId;
     $limit = max(1, min(100, (int) $limit));
+    $rateKind = strtolower(trim((string) $rateKind));
+    if (!in_array($rateKind, ['qty', 'rework', 'argon'], true)) {
+        $rateKind = '';
+    }
     if ($productId <= 0) {
         return [];
     }
-    $sql = 'SELECT id, product_id, sheet_id, operation, month_no, year_no, old_rate, new_rate,
+    $sql = 'SELECT id, product_id, sheet_id, operation, month_no, year_no, rate_kind, old_rate, new_rate,
                    remark, changed_by, changed_by_name, created_at
             FROM contractor_product_rate_history
-            WHERE product_id = ?
-            ORDER BY id DESC
-            LIMIT ' . $limit;
+            WHERE product_id = ?';
+    if ($rateKind !== '') {
+        $sql .= ' AND rate_kind = ?';
+    }
+    $sql .= ' ORDER BY id DESC LIMIT ' . $limit;
     $st = $conn->prepare($sql);
     if (!$st) {
         return [];
     }
-    $st->bind_param('i', $productId);
+    if ($rateKind !== '') {
+        $st->bind_param('is', $productId, $rateKind);
+    } else {
+        $st->bind_param('i', $productId);
+    }
     $st->execute();
     $res = $st->get_result();
     $out = [];
@@ -709,18 +749,23 @@ function daysInMonthNum($month, $year)
 /**
  * Same formulas as Armor Steel Operations Rate List JS.
  */
-function calculateContractorRow($operation, $rate, $otRate, $rejRate, array $days)
+function calculateContractorRow($operation, $rate, $otRate, $rejRate, array $days, $argonRate = 0.0)
 {
     $repairOps = contractorRepairOps();
     $otRepairOps = contractorOtRepairOps();
     $normalQty = 0.0;
     $rQty = 0.0;
     $otQty = 0.0;
+    $apQty = 0.0;
 
     foreach ($days as $cell) {
+        if (!is_array($cell)) {
+            continue;
+        }
         $normalQty += (float) ($cell['q'] ?? 0);
         $rQty += (float) ($cell['r'] ?? 0);
         $otQty += (float) ($cell['ot'] ?? 0);
+        $apQty += (float) ($cell['ap'] ?? 0);
     }
 
     if (!in_array($operation, $repairOps, true)) {
@@ -736,6 +781,9 @@ function calculateContractorRow($operation, $rate, $otRate, $rejRate, array $day
     if ($operation === 'FOUNDRY') {
         // Foundry: Day (q) and Night (r) kept separate; amount = (D+N) × rate
         $amount = ($normalQty + $rQty) * $rate;
+    } elseif (strcasecmp((string) $operation, 'BUFF') === 0) {
+        // Q × Qty Rate + RW × Rework Rate + AP × Argon Polish Rate
+        $amount = ($normalQty * $rate) + ($rQty * $rejRate) + ($apQty * (float) $argonRate);
     } elseif (in_array($operation, $repairOps, true)) {
         $amount = ($normalQty * $rate) + ($rQty * $rejRate) + ($otQty * $otRate);
     } else {

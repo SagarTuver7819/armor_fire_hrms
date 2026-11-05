@@ -13,7 +13,7 @@ $method = strtoupper((string) ($_SERVER['REQUEST_METHOD'] ?? 'GET'));
 
 if ($method === 'GET') {
     $productId = (int) ($_GET['product_id'] ?? 0);
-    $rows = contractorProductRateHistoryList($conn, $productId, 30);
+    $rows = contractorProductRateHistoryList($conn, $productId, 30, (string) ($_GET['rate_kind'] ?? ''));
     $conn->close();
     echo json_encode(['ok' => true, 'rows' => $rows], JSON_UNESCAPED_UNICODE);
     exit;
@@ -44,6 +44,7 @@ $result = contractorSaveProductRateHistory($conn, [
     'old_rate' => (float) ($payload['old_rate'] ?? 0),
     'new_rate' => (float) ($payload['new_rate'] ?? 0),
     'remark' => (string) ($payload['remark'] ?? ''),
+    'rate_kind' => (string) ($payload['rate_kind'] ?? 'qty'),
     'update_master' => true,
 ]);
 

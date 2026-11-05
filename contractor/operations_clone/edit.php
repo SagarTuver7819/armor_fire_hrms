@@ -195,6 +195,7 @@ if ($isJobReport) {
             'rate' => $saved !== null ? ($saved['rate'] ?? $pr['rate']) : ($pr['rate'] ?? 0),
             'ot_rate' => $saved !== null ? ($saved['ot_rate'] ?? 0) : parseOtRate($pr['ot_text'] ?? ''),
             'rejection_rate' => $saved !== null ? ($saved['rejection_rate'] ?? 0) : ($pr['rejection_rate'] ?? 0),
+            'argon_rate' => $saved !== null ? ($saved['argon_rate'] ?? ($pr['argon_rate'] ?? 0)) : ($pr['argon_rate'] ?? 0),
             'days' => $days,
             'total_qty' => $saved['total_qty'] ?? 0,
             'total_r' => $saved['total_r'] ?? 0,
@@ -226,6 +227,7 @@ if (!$items) {
         'rate' => 0,
         'ot_rate' => 0,
         'rejection_rate' => 0,
+        'argon_rate' => 0,
         'days' => [],
         'total_qty' => 0,
         'total_r' => 0,
@@ -239,14 +241,10 @@ foreach ($items as $poolItem) {
         (float) ($poolItem['rate'] ?? 0),
         (float) ($poolItem['ot_rate'] ?? 0),
         (float) ($poolItem['rejection_rate'] ?? 0),
-        is_array($poolItem['days'] ?? null) ? $poolItem['days'] : []
+        is_array($poolItem['days'] ?? null) ? $poolItem['days'] : [],
+        (float) ($poolItem['argon_rate'] ?? 0)
     );
-    // Job report amount is Qty × Rate. Buff RW / AP stay in their own boxes.
-    if ($isJobReport) {
-        $staffPool += round((float) ($poolItem['rate'] ?? 0) * (float) ($calc['total_qty'] ?? 0), 2);
-    } else {
-        $staffPool += (float) ($calc['total_amount'] ?? 0);
-    }
+    $staffPool += (float) ($calc['total_amount'] ?? 0);
 }
 $staffSplit = opsCloneApplyContractorPool($staffShares, $staffPool);
 $conn->close();
@@ -346,7 +344,9 @@ $otJson = json_encode(contractorOtRepairOps());
                 <div class="ops-kra-hint" style="font-size:13px;color:#64748b;">
                     <i class="fa-solid fa-eye"></i>
                     <?php if ($isBuffReport): ?>
-                    Daily boxes ERP mathi: <b>Q</b> = Total, <b>RW</b> = Rework, <b>AP</b> = Argon Polish. <b>Rate</b> click kari change karo — remark required, history save thase.
+                    Daily boxes ERP mathi: <b>Q</b> = Total, <b>RW</b> = Rework, <b>AP</b> = Argon Polish.
+                    Amount = (Q × Qty Rate) + (RW × Rework Rate) + (AP × Argon Polish Rate).
+                    Rate click kari change karo — remark required, history save thase.
                     <?php else: ?>
                     Day qty locked (ERP). <b>Rate</b> click kari change karo — remark required, history save thase.
                     <?php endif; ?>
@@ -373,7 +373,11 @@ $otJson = json_encode(contractorOtRepairOps());
                             <?php if ($showGrade): ?>
                             <th class="sticky-col sticky-grade" id="col_header_grade">GRADE</th>
                             <?php endif; ?>
-                            <th class="sticky-col sticky-rate">Rate</th>
+                            <th class="sticky-col sticky-rate"><?php echo $isBuffReport ? 'Qty Rate' : 'Rate'; ?></th>
+                            <?php if ($isBuffReport): ?>
+                            <th class="sticky-col sticky-rate-rw">Rework Rate</th>
+                            <th class="sticky-col sticky-rate-ap">Argon Polish Rate</th>
+                            <?php endif; ?>
                             <?php for ($d = 1; $d <= 31; $d++):
                                 $wd = checkdate($curMonth, $d, $curYear) ? date('D', strtotime(sprintf('%04d-%02d-%02d', $curYear, $curMonth, $d))) : '';
                                 ?>
@@ -462,8 +466,16 @@ $otJson = json_encode(contractorOtRepairOps());
                             </td>
                             <?php endif; ?>
                             <td class="sticky-col sticky-rate">
-                                <input type="number" step="0.0001" min="0" name="items[<?php echo $i; ?>][rate]" class="form-control grid-input rate" value="<?php echo htmlspecialchars((string) ($item['rate'] ?? 0)); ?>">
+                                <input type="number" step="0.0001" min="0" name="items[<?php echo $i; ?>][rate]" class="form-control grid-input rate" data-rate-kind="qty" value="<?php echo htmlspecialchars((string) ($item['rate'] ?? 0)); ?>" title="Qty Rate">
                             </td>
+                            <?php if ($isBuffReport): ?>
+                            <td class="sticky-col sticky-rate-rw">
+                                <input type="number" step="0.0001" min="0" name="items[<?php echo $i; ?>][rejection_rate]" class="form-control grid-input rate-rw row-rejection-rate" data-rate-kind="rework" value="<?php echo htmlspecialchars((string) ($item['rejection_rate'] ?? 0)); ?>" title="Rework Rate">
+                            </td>
+                            <td class="sticky-col sticky-rate-ap">
+                                <input type="number" step="0.0001" min="0" name="items[<?php echo $i; ?>][argon_rate]" class="form-control grid-input rate-ap" data-rate-kind="argon" value="<?php echo htmlspecialchars((string) ($item['argon_rate'] ?? 0)); ?>" title="Argon Polish Rate">
+                            </td>
+                            <?php endif; ?>
                             <?php for ($d = 1; $d <= 31; $d++):
                                 $cell = $days[(string) $d];
                                 $dis = !empty($cell['disabled']) ? 'disabled' : '';
@@ -488,7 +500,9 @@ $otJson = json_encode(contractorOtRepairOps());
                                 <input type="number" step="0.01" name="items[<?php echo $i; ?>][ot_rate]" class="form-control grid-input row-ot-rate" readonly value="<?php echo htmlspecialchars((string) ($item['ot_rate'] ?? 0)); ?>">
                             </td>
                             <td class="ops-col-rej">
+                                <?php if (!$isBuffReport): ?>
                                 <input type="number" step="0.01" name="items[<?php echo $i; ?>][rejection_rate]" class="form-control grid-input row-rejection-rate" readonly value="<?php echo htmlspecialchars((string) ($item['rejection_rate'] ?? 0)); ?>">
+                                <?php endif; ?>
                             </td>
                             <td><input type="text" name="items[<?php echo $i; ?>][total_amount]" class="form-control grid-input total-amount" readonly value="<?php echo htmlspecialchars((string) ($item['total_amount'] ?? 0)); ?>"></td>
                         </tr>
@@ -496,7 +510,7 @@ $otJson = json_encode(contractorOtRepairOps());
                     </tbody>
                     <tfoot>
                         <tr>
-                            <td class="sticky-col sticky-action" colspan="<?php echo $showGrade ? 5 : 4; ?>" id="tf_grand_total_label">GRAND TOTAL</td>
+                            <td class="sticky-col sticky-action" colspan="<?php echo ($showGrade ? 4 : 3) + ($isBuffReport ? 3 : 1); ?>" id="tf_grand_total_label">GRAND TOTAL</td>
                             <?php for ($d = 1; $d <= 31; $d++): ?>
                                 <td class="day-foot" data-day="<?php echo $d; ?>">
                                     <div class="ops-day-triple foot-totals">

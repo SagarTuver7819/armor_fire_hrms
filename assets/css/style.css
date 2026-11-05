@@ -7144,13 +7144,51 @@ select.product-select.ops-kra-hidden-select {
     pointer-events: none;
     background: #f8fafc !important;
 }
-.ops-view-only .ops-grid .rate {
+.ops-view-only .ops-grid .rate,
+.ops-view-only .ops-grid .rate-rw,
+.ops-view-only .ops-grid .rate-ap {
     pointer-events: auto;
     background: #fff !important;
     color: #0f172a;
     font-weight: 700;
     cursor: text;
     caret-color: auto;
+}
+
+.ops-grid.show-buff-ap .sticky-rate,
+.ops-grid.show-buff-ap .sticky-rate-rw,
+.ops-grid.show-buff-ap .sticky-rate-ap {
+    width: 112px;
+    min-width: 112px;
+    max-width: 112px;
+    text-align: center;
+    white-space: normal;
+    line-height: 1.15;
+    font-size: 11px;
+}
+.ops-grid.show-buff-ap .sticky-rate { left: 306px !important; }
+.ops-grid.show-buff-ap .sticky-rate-rw {
+    left: 418px !important;
+    position: sticky;
+    z-index: 5;
+    background: #fff;
+}
+.ops-grid.show-buff-ap thead .sticky-rate-rw,
+.ops-grid.show-buff-ap thead .sticky-rate-ap {
+    z-index: 6;
+    background: #fef2f2;
+}
+.ops-grid.show-buff-ap .sticky-rate-ap {
+    left: 530px !important;
+    position: sticky;
+    z-index: 5;
+    background: #fff;
+    box-shadow: 2px 0 6px rgba(15, 23, 42, 0.06);
+}
+.ops-grid.show-buff-ap .sticky-rate .grid-input,
+.ops-grid.show-buff-ap .sticky-rate-rw .grid-input,
+.ops-grid.show-buff-ap .sticky-rate-ap .grid-input {
+    width: 100px;
 }
 
 /* CNC KRA: day qty locked — only Rate editable */

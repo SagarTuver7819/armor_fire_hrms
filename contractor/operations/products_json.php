@@ -252,6 +252,7 @@ foreach ($products as $r) {
         'rate' => (float) $r['rate'],
         'ot_rate' => parseOtRate($r['ot_text'] ?? ''),
         'rejection_rate' => (float) $r['rejection_rate'],
+        'argon_rate' => (float) ($r['argon_rate'] ?? 0),
     ];
 }
 
