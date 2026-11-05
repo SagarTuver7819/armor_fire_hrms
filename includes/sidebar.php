@@ -568,7 +568,6 @@ $sidebarCompanyName = function_exists('getCompanyName') ? getCompanyName() : 'Ar
                     <a href="<?php echo app_url('contractor/products/index.php'); ?>" class="sidebar-link sidebar-sublink <?php echo $sidebarActive === 'contractor_products' ? 'active' : ''; ?>"><i class="fa-solid fa-box"></i><span>Product Master</span></a>
                     <a href="<?php echo app_url('contractor/grades/index.php'); ?>" class="sidebar-link sidebar-sublink <?php echo $sidebarActive === 'contractor_grades' ? 'active' : ''; ?>"><i class="fa-solid fa-layer-group"></i><span>Grade Master</span></a>
                     <a href="<?php echo app_url('contractor/operations/index.php'); ?>" class="sidebar-link sidebar-sublink <?php echo $sidebarActive === 'contractor_operations' ? 'active' : ''; ?>"><i class="fa-solid fa-gears"></i><span>Operations Rate</span></a>
-                    <a href="<?php echo app_url('contractor/operations_clone/index.php'); ?>" class="sidebar-link sidebar-sublink <?php echo $sidebarActive === 'contractor_operations_clone' ? 'active' : ''; ?>"><i class="fa-solid fa-table-list"></i><span>CNC Job Work and Attendance Report</span></a>
                     <a href="<?php echo app_url('contractor/salary_register_clone/index.php'); ?>" class="sidebar-link sidebar-sublink <?php echo $sidebarActive === 'contractor_salary_clone' ? 'active' : ''; ?>"><i class="fa-solid fa-file-invoice-dollar"></i><span>Clone Salary Register</span></a>
                     <a href="<?php echo app_url('payroll/register.php?type=jobwork_actual'); ?>" class="sidebar-link sidebar-sublink <?php echo $regType === 'jobwork_actual' ? 'active' : ''; ?>"><i class="fa-solid fa-file-invoice-dollar"></i><span>Jobwork Salary</span></a>
                 </div>
@@ -639,6 +638,13 @@ $sidebarCompanyName = function_exists('getCompanyName') ? getCompanyName() : 'Ar
                         <i class="fa-solid fa-puzzle-piece"></i>
                         <span>Module Boxes</span>
                     </a>
+                    <?php if ($sidebarIsCnc): ?>
+                    <a href="<?php echo app_url('contractor/operations_clone/index.php'); ?>"
+                       class="sidebar-link <?php echo $sidebarActive === 'cnc_job_report' ? 'active' : ''; ?>">
+                        <i class="fa-solid fa-table-list"></i>
+                        <span>CNC Job Work and Attendance Report</span>
+                    </a>
+                    <?php endif; ?>
                     <a href="<?php echo app_url('employees/index.php?department_id=' . $sidebarDeptId); ?>"
                        class="sidebar-link <?php echo $sidebarActive === 'join_employee' ? 'active' : ''; ?>">
                         <i class="fa-solid fa-user-plus"></i>

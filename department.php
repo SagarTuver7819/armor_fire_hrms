@@ -106,6 +106,16 @@ if ($department) {
                     <div class="module-meta"><?php echo (int) $exitEmpCount; ?> Exited · Open List</div>
                 </a>
 
+                <?php if ($cncHideModules): ?>
+                <a href="<?php echo app_url('contractor/operations_clone/index.php'); ?>" class="module-card">
+                    <div class="module-icon" style="background-color: #0F766E;">
+                        <i class="fa-solid fa-table-list"></i>
+                    </div>
+                    <div class="module-label">CNC Job Work and Attendance Report</div>
+                    <div class="module-meta">CNC · from Nov 2026 · View</div>
+                </a>
+                <?php endif; ?>
+
                 <?php if (!$cncHideModules): ?>
                 <a href="<?php echo app_url('leave/index.php?department_id=' . (int) $department['id'] . '&from=modules'); ?>" class="module-card">
                     <div class="module-icon" style="background-color: #2ECC71;">

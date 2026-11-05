@@ -11,8 +11,13 @@ $extraCss = [
     'https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.css',
 ];
 $useSidebar = true;
-$sidebarMode = 'contractor';
-$sidebarActive = 'contractor_operations_clone';
+$sidebarActive = 'cnc_job_report';
+if (!function_exists('resolveDepartmentIdByName')) {
+    require_once __DIR__ . '/../../includes/contractor_split_helper.php';
+}
+$cncDeptId = (int) resolveDepartmentIdByName('CNC');
+$sidebarMode = $cncDeptId > 0 ? 'department' : 'contractor';
+$sidebarDeptId = $cncDeptId;
 
 $conn = getDBConnection();
 ensureContractorTables($conn);
@@ -35,7 +40,7 @@ if (isset($_GET['msg'])) {
 ?>
 <main class="dashboard-main">
     <div class="page-toolbar flex-between">
-        <a href="<?php echo app_url('contractor/index.php'); ?>" class="back-link"><i class="fa-solid fa-arrow-left"></i> Back to Contractor Hub</a>
+        <a href="<?php echo $cncDeptId > 0 ? app_url('department.php?id=' . $cncDeptId) : app_url('contractor/index.php'); ?>" class="back-link"><i class="fa-solid fa-arrow-left"></i> Back to CNC Department</a>
         <div class="toolbar-actions">
             <a href="#" id="btnOpsPrint" class="btn-secondary" title="Print / PDF">
                 <i class="fa-solid fa-print"></i> Print PDF

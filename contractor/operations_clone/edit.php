@@ -230,8 +230,13 @@ $monthDays = (int) date('t', mktime(0, 0, 0, $curMonth, 1, $curYear));
 
 $pageTitle = 'View — CNC Job Work and Attendance Report';
 $useSidebar = true;
-$sidebarMode = 'contractor';
-$sidebarActive = 'contractor_operations_clone';
+$sidebarActive = 'cnc_job_report';
+if (!function_exists('resolveDepartmentIdByName')) {
+    require_once __DIR__ . '/../../includes/contractor_split_helper.php';
+}
+$cncDeptId = (int) resolveDepartmentIdByName('CNC');
+$sidebarMode = $cncDeptId > 0 ? 'department' : 'contractor';
+$sidebarDeptId = $cncDeptId;
 $toastMsg = '';
 if (isset($_GET['msg'])) {
     $map = [
