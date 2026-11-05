@@ -16,6 +16,11 @@
     function opVal() {
         return $('#operationSelect').val() || '';
     }
+    function fmtRate2(v) {
+        var n = parseFloat(v);
+        if (isNaN(n)) n = 0;
+        return n.toFixed(2);
+    }
     function showsGrade(op) {
         // CNC clone KRA grid has no GRADE column — never reserve grade sticky space
         if (window.OPS_KRA_FIXED) return false;
@@ -445,14 +450,17 @@
             if (snap && snap.rate !== undefined && snap.rate !== '' && parseFloat(snap.rate) > 0) {
                 rateVal = snap.rate;
             }
-            $clone.find('.rate').val(rateVal).attr('data-rate-baseline', String(rateVal));
+            var rateShown = fmtRate2(rateVal);
+            $clone.find('.rate').val(rateShown).attr('data-rate-baseline', rateShown);
             var rwVal = p.rejection_rate || 0;
             if (snap && snap.rej !== undefined && snap.rej !== '') rwVal = snap.rej;
             var apRateVal = p.argon_rate || 0;
             if (snap && snap.argon !== undefined && snap.argon !== '') apRateVal = snap.argon;
+            var rwShown = fmtRate2(rwVal);
+            var apShown = fmtRate2(apRateVal);
             $clone.find('.row-ot-rate').val(snap && snap.ot !== undefined && snap.ot !== '' ? snap.ot : (p.ot_rate || 0));
-            $clone.find('.row-rejection-rate, .rate-rw').val(rwVal).attr('data-rate-baseline', String(rwVal));
-            $clone.find('.rate-ap').val(apRateVal).attr('data-rate-baseline', String(apRateVal));
+            $clone.find('.row-rejection-rate, .rate-rw').val(rwShown).attr('data-rate-baseline', rwShown);
+            $clone.find('.rate-ap').val(apShown).attr('data-rate-baseline', apShown);
 
             if (snap && snap.days) {
                 Object.keys(snap.days).forEach(function (d) {
@@ -1053,7 +1061,7 @@
             var who = r.changed_by_name || 'User';
             var rem = $('<div/>').text(r.remark || '').html();
             return '<li><div class="ops-rh-meta">' + $('<div/>').text(when + ' · ' + who).html() + '</div>'
-                + '<div class="ops-rh-rates">' + Number(r.old_rate).toFixed(2) + ' → <b>' + Number(r.new_rate).toFixed(2) + '</b></div>'
+                + '<div class="ops-rh-rates">' + fmtRate2(r.old_rate) + ' → <b>' + fmtRate2(r.new_rate) + '</b></div>'
                 + '<div class="ops-rh-rem">' + rem + '</div></li>';
         }).join('');
     }
@@ -1079,8 +1087,8 @@
         var kindTitle = { qty: 'Qty Rate', rework: 'Rework Rate', argon: 'Argon Polish Rate' };
         $('#opsRateRemarkTitle').html('<i class="fa-solid fa-pen-to-square"></i> ' + (kindTitle[ctx.kind] || 'Rate') + ' Remark');
         $('#opsRateRemarkProcess').text(ctx.label || ('Product #' + ctx.productId));
-        $('#opsRateRemarkOld').text(Number(ctx.oldRate).toFixed(4).replace(/\.?0+$/, '') || '0');
-        $('#opsRateRemarkNew').text(Number(ctx.newRate).toFixed(4).replace(/\.?0+$/, '') || '0');
+        $('#opsRateRemarkOld').text(fmtRate2(ctx.oldRate));
+        $('#opsRateRemarkNew').text(fmtRate2(ctx.newRate));
         $('#opsRateRemarkText').val('');
         $('#opsRateRemarkErr').prop('hidden', true).text('');
         loadRateHistory(ctx.productId, ctx.kind || 'qty');
@@ -1090,8 +1098,8 @@
 
     function cancelRateRemarkModal() {
         if (rateRemarkCtx && rateRemarkCtx.$input && rateRemarkCtx.$input.length) {
-            rateRemarkCtx.$input.val(rateRemarkCtx.oldRate);
-            rateRemarkCtx.$input.attr('data-rate-baseline', String(rateRemarkCtx.oldRate));
+            rateRemarkCtx.$input.val(fmtRate2(rateRemarkCtx.oldRate));
+            rateRemarkCtx.$input.attr('data-rate-baseline', fmtRate2(rateRemarkCtx.oldRate));
             calculateRowTotals(rateRemarkCtx.$input.closest('tr'));
             updateGrandTotals();
         }
@@ -1136,7 +1144,8 @@
                 return;
             }
             if (rateRemarkCtx.$input && rateRemarkCtx.$input.length) {
-                rateRemarkCtx.$input.attr('data-rate-baseline', String(rateRemarkCtx.newRate));
+                rateRemarkCtx.$input.val(fmtRate2(rateRemarkCtx.newRate));
+                rateRemarkCtx.$input.attr('data-rate-baseline', fmtRate2(rateRemarkCtx.newRate));
                 rateRemarkCtx.$input.closest('tr').data('rate-touched', 1);
             }
             if (typeof toastr !== 'undefined') {
@@ -1178,7 +1187,8 @@
         var newRate = parseFloat($input.val());
         if (isNaN(newRate)) newRate = 0;
         if (Math.abs(oldRate - newRate) < 0.0000001) {
-            $input.attr('data-rate-baseline', String(newRate));
+            $input.val(fmtRate2(newRate));
+            $input.attr('data-rate-baseline', fmtRate2(newRate));
             return;
         }
         var kind = String($input.attr('data-rate-kind') || 'qty');
@@ -1212,6 +1222,8 @@
     $('#opsRows').on('blur', '.rate, .rate-rw, .rate-ap', function () {
         // change may not fire if value typed then tabbed without change event in some browsers
         var self = this;
+        var n = parseFloat($(self).val());
+        if (!isNaN(n)) $(self).val(n.toFixed(2));
         setTimeout(function () {
             maybePromptRateRemark($(self));
         }, 0);

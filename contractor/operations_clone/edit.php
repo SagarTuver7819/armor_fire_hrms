@@ -466,14 +466,14 @@ $otJson = json_encode(contractorOtRepairOps());
                             </td>
                             <?php endif; ?>
                             <td class="sticky-col sticky-rate">
-                                <input type="number" step="0.0001" min="0" name="items[<?php echo $i; ?>][rate]" class="form-control grid-input rate" data-rate-kind="qty" value="<?php echo htmlspecialchars((string) ($item['rate'] ?? 0)); ?>" title="Qty Rate">
+                                <input type="number" step="0.01" min="0" name="items[<?php echo $i; ?>][rate]" class="form-control grid-input rate" data-rate-kind="qty" value="<?php echo htmlspecialchars(number_format((float) ($item['rate'] ?? 0), 2, '.', '')); ?>" title="Qty Rate">
                             </td>
                             <?php if ($isBuffReport): ?>
                             <td class="sticky-col sticky-rate-rw">
-                                <input type="number" step="0.0001" min="0" name="items[<?php echo $i; ?>][rejection_rate]" class="form-control grid-input rate-rw row-rejection-rate" data-rate-kind="rework" value="<?php echo htmlspecialchars((string) ($item['rejection_rate'] ?? 0)); ?>" title="Rework Rate">
+                                <input type="number" step="0.01" min="0" name="items[<?php echo $i; ?>][rejection_rate]" class="form-control grid-input rate-rw row-rejection-rate" data-rate-kind="rework" value="<?php echo htmlspecialchars(number_format((float) ($item['rejection_rate'] ?? 0), 2, '.', '')); ?>" title="Rework Rate">
                             </td>
                             <td class="sticky-col sticky-rate-ap">
-                                <input type="number" step="0.0001" min="0" name="items[<?php echo $i; ?>][argon_rate]" class="form-control grid-input rate-ap" data-rate-kind="argon" value="<?php echo htmlspecialchars((string) ($item['argon_rate'] ?? 0)); ?>" title="Argon Polish Rate">
+                                <input type="number" step="0.01" min="0" name="items[<?php echo $i; ?>][argon_rate]" class="form-control grid-input rate-ap" data-rate-kind="argon" value="<?php echo htmlspecialchars(number_format((float) ($item['argon_rate'] ?? 0), 2, '.', '')); ?>" title="Argon Polish Rate">
                             </td>
                             <?php endif; ?>
                             <?php for ($d = 1; $d <= 31; $d++):
