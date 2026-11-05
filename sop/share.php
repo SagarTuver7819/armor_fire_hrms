@@ -45,10 +45,80 @@ $title = (string) $row['title'];
 </head>
 <body>
     <div class="sop-toolbar no-print">
+        <button type="button" id="contractorSave">Save Contractor Sign</button>
         <button type="button" onclick="window.print()">Print / Save PDF</button>
     </div>
     <div class="sop-sheet-wrap">
-        <?php echo cncSopLetterSheet($row, $brand, false); ?>
+        <?php echo cncSopLetterSheet($row, $brand, false, true); ?>
     </div>
+    <script>
+    (function () {
+        var pad = document.getElementById('contractorPad');
+        var saveBtn = document.getElementById('contractorSave');
+        if (!pad || !saveBtn) return;
+        var ctx = pad.getContext('2d');
+        var drawing = false;
+        var dirty = false;
+        ctx.lineWidth = 4.2;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        ctx.strokeStyle = '#111';
+        var existing = <?php echo json_encode((string) ($row['contractor_signature'] ?? ''), JSON_UNESCAPED_SLASHES); ?>;
+        if (existing && existing.indexOf('data:image/png') === 0) {
+            var img = new Image();
+            img.onload = function () { ctx.drawImage(img, 0, 0, pad.width, pad.height); };
+            img.src = existing;
+        }
+        function pos(e) {
+            var r = pad.getBoundingClientRect();
+            return {
+                x: (e.clientX - r.left) * (pad.width / r.width),
+                y: (e.clientY - r.top) * (pad.height / r.height)
+            };
+        }
+        pad.addEventListener('pointerdown', function (e) {
+            drawing = true;
+            dirty = true;
+            pad.setPointerCapture(e.pointerId);
+            var p = pos(e);
+            ctx.beginPath();
+            ctx.moveTo(p.x, p.y);
+        });
+        pad.addEventListener('pointermove', function (e) {
+            if (!drawing) return;
+            var p = pos(e);
+            ctx.lineTo(p.x, p.y);
+            ctx.stroke();
+        });
+        function stop() { drawing = false; }
+        pad.addEventListener('pointerup', stop);
+        pad.addEventListener('pointercancel', stop);
+        saveBtn.addEventListener('click', function () {
+            if (!dirty && !existing) {
+                saveBtn.textContent = 'Sign first';
+                return;
+            }
+            saveBtn.disabled = true;
+            saveBtn.textContent = 'Saving...';
+            var body = new FormData();
+            body.append('token', <?php echo json_encode((string) ($row['share_token'] ?? '')); ?>);
+            body.append('contractor_signature', dirty ? pad.toDataURL('image/png') : existing);
+            fetch(<?php echo json_encode(app_url('sop/sign.php')); ?>, { method: 'POST', body: body })
+                .then(function (r) { return r.json(); })
+                .then(function (res) {
+                    if (res && res.ok) {
+                        window.location.reload();
+                        return;
+                    }
+                    saveBtn.disabled = false;
+                    saveBtn.textContent = 'Save failed';
+                })
+                .catch(function () {
+                    saveBtn.disabled = false;
+                    saveBtn.textContent = 'Save failed';
+                });
+        });
+    })();
+    </script>
 </body>
 </html>

@@ -30,6 +30,10 @@ function ensureCncSopTables($conn = null)
             KEY idx_cnc_sop_dept (department_id, sop_date)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"
     );
+    $col = $conn->query("SHOW COLUMNS FROM cnc_sops LIKE 'contractor_signature'");
+    if ($col && $col->num_rows === 0) {
+        $conn->query('ALTER TABLE cnc_sops ADD COLUMN contractor_signature MEDIUMTEXT NULL AFTER signature_data');
+    }
     if ($own) {
         $conn->close();
     }
@@ -215,6 +219,22 @@ function cncSopDelete($conn, $id, $departmentId)
     $stmt->bind_param('ii', $id, $departmentId);
     $stmt->execute();
     $ok = $stmt->affected_rows > 0;
+    $stmt->close();
+    return $ok;
+}
+
+function cncSopSaveContractorSign($conn, $id, $signature)
+{
+    ensureCncSopTables($conn);
+    $id = (int) $id;
+    $signature = cncSopNormalizeSignature($signature);
+    if ($id < 1 || $signature === '') {
+        return false;
+    }
+    $stmt = $conn->prepare('UPDATE cnc_sops SET contractor_signature = ? WHERE id = ?');
+    $stmt->bind_param('si', $signature, $id);
+    $stmt->execute();
+    $ok = $stmt->affected_rows >= 0;
     $stmt->close();
     return $ok;
 }

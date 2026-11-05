@@ -42,12 +42,15 @@ function cncSopLetterCss()
     flex: 1 1 auto;
     min-height: 70mm;
     border: 0;
-    padding: 4px 2px 8px;
+    margin: 6px 0 0;
+    padding: 0;
     white-space: pre-wrap;
+    text-align: justify;
+    text-indent: 14mm;
     font-size: 16px;
-    font-weight: 800;
+    font-weight: 700;
     color: #111;
-    line-height: 1.55;
+    line-height: 1.7;
 }
 .sop-signs {
     display: flex;
@@ -112,8 +115,27 @@ function cncSopLetterCss()
     border-radius: 0;
 }
 .sop-toolbar a.secondary, .sop-toolbar button.secondary { background: #475569; }
+.sop-sign-slot canvas {
+    width: 100%;
+    height: 32mm;
+    min-height: 32mm;
+    display: block;
+    touch-action: none;
+    cursor: crosshair;
+    background: #fff;
+}
+.sop-sign-hint {
+    font-size: 11px;
+    font-weight: 700;
+    color: #64748b;
+    margin-top: 4px;
+}
+@media screen {
+    .sop-sign-slot canvas ~ .sop-contractor-img { display: none; }
+}
 @media print {
-    .sop-toolbar, .no-print { display: none !important; }
+    .sop-toolbar, .no-print, .sop-sign-slot canvas, .sop-sign-hint { display: none !important; }
+    .sop-contractor-img { display: block !important; }
     .sop-sheet {
         width: 210mm;
         max-width: none;
@@ -130,7 +152,7 @@ function cncSopH($value)
     return htmlspecialchars((string) $value, ENT_QUOTES, 'UTF-8');
 }
 
-function cncSopLetterInner(array $row, $editing = false)
+function cncSopLetterInner(array $row, $editing = false, $signable = false)
 {
     $title = (string) ($row['title'] ?? '');
     $date = (string) ($row['sop_date'] ?? '');
@@ -139,6 +161,7 @@ function cncSopLetterInner(array $row, $editing = false)
     $body = (string) ($row['body'] ?? '');
     $signer = (string) ($row['signer_name'] ?? '');
     $signature = trim((string) ($row['signature_data'] ?? ''));
+    $contractorSign = trim((string) ($row['contractor_signature'] ?? ''));
     $dateShow = function_exists('formatDateDisplay') ? formatDateDisplay($date) : $date;
     if ($editing && $dateShow === '' && $date !== '') {
         $dateShow = $date;
@@ -166,7 +189,15 @@ function cncSopLetterInner(array $row, $editing = false)
     $html .= '<div class="sop-name">Name : ' . cncSopH($deptName) . '</div>';
     $html .= '<div class="sop-body-box">' . cncSopH($body) . '</div>';
     $html .= '<div class="sop-signs">';
-    $html .= '<div class="sop-sign-slot"><span>Contractor Sign</span></div>';
+    $html .= '<div class="sop-sign-slot">';
+    if ($signable) {
+        $html .= '<canvas id="contractorPad" width="640" height="280"></canvas>';
+        $html .= '<div class="sop-sign-hint no-print">Sign here with finger or pen, then Save Contractor Sign</div>';
+    }
+    if ($contractorSign !== '' && preg_match('#^data:image/png;base64,#', $contractorSign)) {
+        $html .= '<img class="sop-contractor-img" src="' . cncSopH($contractorSign) . '" alt="Contractor signature">';
+    }
+    $html .= '<span>Contractor Sign</span></div>';
     $html .= '<div class="sop-sign-slot">';
     if ($signature !== '' && preg_match('#^data:image/png;base64,#', $signature)) {
         $html .= '<img src="' . cncSopH($signature) . '" alt="Signature">';
@@ -179,11 +210,11 @@ function cncSopLetterInner(array $row, $editing = false)
     return $html;
 }
 
-function cncSopLetterSheet(array $row, array $brand, $editing = false)
+function cncSopLetterSheet(array $row, array $brand, $editing = false, $signable = false)
 {
     $class = function_exists('companyDocSheetClass')
         ? companyDocSheetClass($brand, 'sop-sheet')
-        : 'cdoc-sheet sop-sheet cdoc-flow';
+        : 'cdoc-sheet sop-sheet';
     $html = '<div class="' . cncSopH($class) . '">';
     if (function_exists('companyDocRenderWatermark')) {
         $html .= companyDocRenderWatermark($brand);
@@ -192,7 +223,7 @@ function cncSopLetterSheet(array $row, array $brand, $editing = false)
     if (function_exists('companyDocRenderHeader')) {
         $html .= companyDocRenderHeader($brand, 'CNC Department');
     }
-    $html .= cncSopLetterInner($row, $editing);
+    $html .= cncSopLetterInner($row, $editing, $signable);
     if (function_exists('companyDocRenderFooter')) {
         $html .= companyDocRenderFooter($brand);
     }
