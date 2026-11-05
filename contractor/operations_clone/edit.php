@@ -527,7 +527,6 @@ $otJson = json_encode(contractorOtRepairOps());
                             <th class="sticky-staff sticky-sr">Sr.</th>
                             <th class="sticky-staff sticky-code">Emp Code</th>
                             <th class="sticky-staff sticky-name">Employee Name</th>
-                            <th class="sticky-staff sticky-desig">Designation</th>
                             <th class="sticky-staff sticky-sal num">Salary</th>
                             <th class="sticky-staff sticky-final num">Final Total</th>
                             <?php for ($d = 1; $d <= $monthDays; $d++):
@@ -551,7 +550,7 @@ $otJson = json_encode(contractorOtRepairOps());
                         ?>
                         <?php if (empty($staffDisplay)): ?>
                             <tr>
-                                <td colspan="<?php echo 6 + $monthDays; ?>" class="empty-msg">No Normal Salary employees found in CNC.</td>
+                                <td colspan="<?php echo 5 + $monthDays; ?>" class="empty-msg">No Normal Salary employees found in CNC.</td>
                             </tr>
                         <?php else: ?>
                             <?php foreach ($staffDisplay as $si => $staff):
@@ -572,15 +571,8 @@ $otJson = json_encode(contractorOtRepairOps());
                                 <tr data-emp="<?php echo $sid; ?>" class="<?php echo $isMainRow ? 'is-main-contractor' : ''; ?>">
                                     <td class="sticky-staff sticky-sr"><?php echo $si + 1; ?></td>
                                     <td class="sticky-staff sticky-code"><span class="code-badge"><?php echo htmlspecialchars((string) $staff['employee_code']); ?></span></td>
-                                    <td class="sticky-staff sticky-name"><?php echo htmlspecialchars((string) $staff['employee_name']); ?><?php echo $isMainRow ? ' (Main Contractor)' : ''; ?></td>
-                                    <td class="sticky-staff sticky-desig"><?php echo htmlspecialchars((string) ($staff['designation'] ?? '')); ?></td>
-                                    <td class="sticky-staff sticky-sal num">
-                                        <input type="number" step="0.01" min="0"
-                                               name="staff_salary[<?php echo $sid; ?>]"
-                                               class="form-control grid-input staff-sal-input"
-                                               value="<?php echo htmlspecialchars((string) round((float) ($staff['decided_salary'] ?? 0), 2)); ?>"
-                                               <?php echo $isMainRow ? 'readonly tabindex="-1"' : ''; ?>>
-                                    </td>
+                                    <td class="sticky-staff sticky-name" title="<?php echo htmlspecialchars((string) $staff['employee_name']); ?>"><?php echo htmlspecialchars((string) $staff['employee_name']); ?><?php echo $isMainRow ? ' (Main Contractor)' : ''; ?></td>
+                                    <td class="sticky-staff sticky-sal num"><?php echo number_format((float) ($staff['decided_salary'] ?? 0), 0, '.', ''); ?></td>
                                     <td class="sticky-staff sticky-final num staff-final<?php echo $isMainRow ? ' is-remainder' : ''; ?>"
                                         <?php echo $isMainRow ? 'data-main="1"' : 'data-base="' . htmlspecialchars((string) $baseAmt) . '"'; ?>
                                         title="<?php echo htmlspecialchars($finalTitle); ?>"><?php echo number_format($finalAmt, 2, '.', ''); ?></td>
