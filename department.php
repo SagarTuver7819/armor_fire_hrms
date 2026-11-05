@@ -31,6 +31,7 @@ if (function_exists('navRemember') && $department) {
 $empCount = $department ? countEmployeesByDepartment($department['id']) : 0;
 $exitEmpCount = $department ? countExitEmployeesByDepartment($department['id']) : 0;
 $cncHideModules = $department && preg_match('/^cnc(\b|\s|$)/i', trim((string) ($department['department_name'] ?? '')));
+$buffShowReport = $department && preg_match('/^buff(\b|\s|$)/i', trim((string) ($department['department_name'] ?? '')));
 $holidayCount = 0;
 $advanceOpen = 0;
 $loanOpen = 0;
@@ -118,6 +119,15 @@ if ($department) {
                     </div>
                     <div class="module-label">CNC Job Work and Attendance Report</div>
                     <div class="module-meta">CNC · from Nov 2026 · View</div>
+                </a>
+                <?php endif; ?>
+                <?php if ($buffShowReport): ?>
+                <a href="<?php echo app_url('contractor/operations_clone/index.php?op=BUFF'); ?>" class="module-card">
+                    <div class="module-icon" style="background-color: #0F766E;">
+                        <i class="fa-solid fa-table-list"></i>
+                    </div>
+                    <div class="module-label">Buff Job Work and Attendance Report</div>
+                    <div class="module-meta">BUFF · from Nov 2026 · View</div>
                 </a>
                 <?php endif; ?>
 

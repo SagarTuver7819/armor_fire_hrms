@@ -6,18 +6,25 @@
 require_once __DIR__ . '/../_bootstrap.php';
 
 $pageTitle = 'CNC Job Work and Attendance Report';
+$jobOp = strtoupper(trim((string) ($_GET['op'] ?? 'CNC')));
+if ($jobOp !== 'BUFF') {
+    $jobOp = 'CNC';
+}
+if ($jobOp === 'BUFF') {
+    $pageTitle = 'Buff Job Work and Attendance Report';
+}
 $extraCss = [
     'https://cdn.datatables.net/1.13.8/css/jquery.dataTables.min.css',
     'https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.css',
 ];
 $useSidebar = true;
-$sidebarActive = 'cnc_job_report';
+$sidebarActive = $jobOp === 'BUFF' ? 'buff_job_report' : 'cnc_job_report';
 if (!function_exists('resolveDepartmentIdByName')) {
     require_once __DIR__ . '/../../includes/contractor_split_helper.php';
 }
-$cncDeptId = (int) resolveDepartmentIdByName('CNC');
-$sidebarMode = $cncDeptId > 0 ? 'department' : 'contractor';
-$sidebarDeptId = $cncDeptId;
+$reportDeptId = (int) resolveDepartmentIdByName($jobOp);
+$sidebarMode = $reportDeptId > 0 ? 'department' : 'contractor';
+$sidebarDeptId = $reportDeptId;
 
 $conn = getDBConnection();
 ensureContractorTables($conn);
@@ -26,18 +33,18 @@ $conn->close();
 if (!function_exists('contractorAttendanceSplitRules')) {
     require_once __DIR__ . '/../../includes/contractor_split_helper.php';
 }
-$cncRule = null;
+$jobRule = null;
 foreach (contractorAttendanceSplitRules() as $rule) {
-    if (strcasecmp((string) ($rule['department_name'] ?? ''), 'CNC') === 0) {
-        $cncRule = $rule;
+    if (strcasecmp((string) ($rule['department_name'] ?? ''), $jobOp) === 0) {
+        $jobRule = $rule;
         break;
     }
 }
-$mainContractor = $cncRule ? resolveContractorAttendanceSplitMain($cncRule) : null;
+$mainContractor = $jobRule ? resolveContractorAttendanceSplitMain($jobRule) : null;
 $mainContractorId = (int) ($mainContractor['id'] ?? 0);
-$mainContractorLabel = trim((string) ($mainContractor['employee_code'] ?? 'CO72141'))
+$mainContractorLabel = trim((string) ($mainContractor['employee_code'] ?? ($jobOp === 'BUFF' ? 'CO72302' : 'CO72141')))
     . ' - '
-    . trim((string) ($mainContractor['employee_name'] ?? 'SOLANKI RAVI KANABHAI'));
+    . trim((string) ($mainContractor['employee_name'] ?? ($jobOp === 'BUFF' ? 'SADDAM NANNE KHAN' : 'SOLANKI RAVI KANABHAI')));
 
 require_once __DIR__ . '/../../includes/header.php';
 
@@ -53,13 +60,13 @@ if (isset($_GET['msg'])) {
 ?>
 <main class="dashboard-main">
     <div class="page-toolbar">
-        <a href="<?php echo $cncDeptId > 0 ? app_url('department.php?id=' . $cncDeptId) : app_url('contractor/index.php'); ?>" class="back-link"><i class="fa-solid fa-arrow-left"></i> Back to CNC Department</a>
+        <a href="<?php echo $reportDeptId > 0 ? app_url('department.php?id=' . $reportDeptId) : app_url('contractor/index.php'); ?>" class="back-link"><i class="fa-solid fa-arrow-left"></i> Back to <?php echo $jobOp === 'BUFF' ? 'Buff' : 'CNC'; ?> Department</a>
     </div>
     <div class="list-header">
         <div class="master-list-title">
             <div class="master-list-icon" style="background:#0f766e;"><i class="fa-solid fa-table-list"></i></div>
             <div>
-                <h1>CNC Job Work and Attendance Report</h1>
+                <h1><?php echo htmlspecialchars($pageTitle); ?></h1>
                 <p>Main Contractor · <?php echo htmlspecialchars($mainContractorLabel); ?></p>
             </div>
         </div>
@@ -91,7 +98,7 @@ if (isset($_GET['msg'])) {
     window.C_MAIN_ID = <?php echo (int) $mainContractorId; ?>;
     window.C_AJAX_EXTRA = function () {
         return {
-            filter_operation: 'CNC',
+            filter_operation: <?php echo json_encode($jobOp); ?>,
             filter_employee: String(window.C_MAIN_ID || ''),
             filter_month: '',
             filter_year: ''

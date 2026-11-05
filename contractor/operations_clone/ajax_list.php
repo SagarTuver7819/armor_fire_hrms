@@ -31,22 +31,22 @@ $months = contractorMonths();
 $conn = getDBConnection();
 ensureContractorTables($conn);
 
-$filterOp = trim((string) ($_POST['filter_operation'] ?? ''));
-$filterEmp = (int) ($_POST['filter_employee'] ?? 0);
-$filterMonth = (int) ($_POST['filter_month'] ?? 0);
-$filterYear = (int) ($_POST['filter_year'] ?? 0);
+$jobOp = strtoupper(trim((string) ($_POST['filter_operation'] ?? 'CNC')));
+if ($jobOp !== 'BUFF') {
+    $jobOp = 'CNC';
+}
 
-$cncRule = null;
+$jobRule = null;
 foreach (contractorAttendanceSplitRules() as $rule) {
-    if (strcasecmp((string) ($rule['department_name'] ?? ''), 'CNC') === 0) {
-        $cncRule = $rule;
+    if (strcasecmp((string) ($rule['department_name'] ?? ''), $jobOp) === 0) {
+        $jobRule = $rule;
         break;
     }
 }
-$main = $cncRule ? resolveContractorAttendanceSplitMain($cncRule) : null;
+$main = $jobRule ? resolveContractorAttendanceSplitMain($jobRule) : null;
 $mainId = (int) ($main['id'] ?? 0);
-$mainCode = trim((string) ($main['employee_code'] ?? 'CO72141'));
-$mainName = trim((string) ($main['employee_name'] ?? 'SOLANKI RAVI KANABHAI'));
+$mainCode = trim((string) ($main['employee_code'] ?? ($jobOp === 'BUFF' ? 'CO72302' : 'CO72141')));
+$mainName = trim((string) ($main['employee_name'] ?? ($jobOp === 'BUFF' ? 'SADDAM NANNE KHAN' : 'SOLANKI RAVI KANABHAI')));
 $nameLabel = $mainCode . ' - ' . $mainName;
 
 $sheets = [];
@@ -54,10 +54,10 @@ if ($mainId > 0) {
     $st = $conn->prepare(
         "SELECT id, month_no, year_no, total_qty, total_amount
          FROM contractor_operation_sheets
-         WHERE status = 1 AND operation = 'CNC' AND employee_id = ?
+         WHERE status = 1 AND operation = ? AND employee_id = ?
            AND (year_no > 2026 OR (year_no = 2026 AND month_no >= 11))"
     );
-    $st->bind_param('i', $mainId);
+    $st->bind_param('si', $jobOp, $mainId);
     $st->execute();
     $res = $st->get_result();
     while ($row = $res->fetch_assoc()) {
@@ -86,17 +86,13 @@ while ($y < $endYear || ($y === $endYear && $m <= $endMonth)) {
     }
 }
 $total = count($all);
+$filterMonth = (int) ($_POST['filter_month'] ?? 0);
+$filterYear = (int) ($_POST['filter_year'] ?? 0);
 
 $rows = [];
 foreach ($all as $slot) {
     $y = (int) $slot['year'];
     $m = (int) $slot['month'];
-    if ($filterOp !== '' && strcasecmp($filterOp, 'CNC') !== 0) {
-        continue;
-    }
-    if ($filterEmp > 0 && $mainId > 0 && $filterEmp !== $mainId) {
-        continue;
-    }
     if ($filterMonth > 0 && $filterMonth !== $m) {
         continue;
     }
@@ -105,7 +101,7 @@ foreach ($all as $slot) {
     }
     $monthLab = (string) ($months[$m] ?? $m);
     if ($search !== '') {
-        $hay = strtolower('CNC ' . $nameLabel . ' ' . $monthLab . ' ' . $y);
+        $hay = strtolower($jobOp . ' ' . $nameLabel . ' ' . $monthLab . ' ' . $y);
         if (strpos($hay, strtolower($search)) === false) {
             continue;
         }
@@ -158,7 +154,7 @@ foreach ($page as $row) {
     $sid = (int) $row['id'];
     $viewQs = [
         'view' => 1,
-        'operation' => 'CNC',
+        'operation' => $jobOp,
         'employee_id' => $mainId,
         'month' => (int) $row['month'],
         'year' => (int) $row['year'],
@@ -175,7 +171,7 @@ foreach ($page as $row) {
     $actions .= '</div>';
     $data[] = [
         $sr,
-        'CNC',
+        htmlspecialchars($jobOp),
         htmlspecialchars($nameLabel),
         htmlspecialchars((string) $row['month_lab']),
         (int) $row['year'],

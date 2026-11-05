@@ -349,7 +349,9 @@
     }
 
     function isKraFixedMode() {
-        return !!window.OPS_KRA_FIXED && String(opVal() || '').toUpperCase() === 'CNC';
+        if (!window.OPS_KRA_FIXED) return false;
+        var op = String(opVal() || '').toUpperCase();
+        return op === 'CNC' || op === 'BUFF';
     }
 
     function setFixedProcessCell($sel, product) {
@@ -814,7 +816,7 @@
         var totalAmt = 0;
         if (op === 'FOUNDRY') {
             totalAmt = (normalQty + rQty) * rate;
-        } else if (repairOps.indexOf(op) !== -1) {
+        } else if (repairOps.indexOf(op) !== -1 && !isKraFixedMode()) {
             totalAmt = (normalQty * rate) + (rQty * rejRate) + (otQty * otRate);
         } else {
             totalAmt = totalQty * rate;

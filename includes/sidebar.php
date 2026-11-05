@@ -90,6 +90,7 @@ if ($sidebarDeptId > 0) {
     }
 }
 $sidebarIsCnc = $sidebarDept && preg_match('/^cnc(\b|\s|$)/i', trim((string) ($sidebarDept['department_name'] ?? '')));
+$sidebarIsBuff = $sidebarDept && preg_match('/^buff(\b|\s|$)/i', trim((string) ($sidebarDept['department_name'] ?? '')));
 
 if (!function_exists('getMastersConfig')) {
     require_once __DIR__ . '/masters_config.php';
@@ -648,6 +649,13 @@ $sidebarCompanyName = function_exists('getCompanyName') ? getCompanyName() : 'Ar
                        class="sidebar-link <?php echo $sidebarActive === 'cnc_sop' ? 'active' : ''; ?>">
                         <i class="fa-solid fa-file-signature"></i>
                         <span>Contractor Agreement</span>
+                    </a>
+                    <?php endif; ?>
+                    <?php if ($sidebarIsBuff): ?>
+                    <a href="<?php echo app_url('contractor/operations_clone/index.php?op=BUFF'); ?>"
+                       class="sidebar-link <?php echo $sidebarActive === 'buff_job_report' ? 'active' : ''; ?>">
+                        <i class="fa-solid fa-table-list"></i>
+                        <span>Buff Job Work and Attendance Report</span>
                     </a>
                     <?php endif; ?>
                     <a href="<?php echo app_url('employees/index.php?department_id=' . $sidebarDeptId); ?>"

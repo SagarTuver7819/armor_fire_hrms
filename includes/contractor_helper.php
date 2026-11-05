@@ -1912,7 +1912,7 @@ function mergeDayMap($saved, $month, $year)
  */
 function opsCloneStaffSalaryOperations()
 {
-    return ['CNC'];
+    return ['CNC', 'BUFF'];
 }
 
 /**
@@ -2031,12 +2031,16 @@ function opsCloneAttParseCode($code)
  *
  * @return array<string, array<string, string>> code/name key => [Y-m-d => P|A]
  */
-function fetchErpCncAttendanceMarks($fromDate, $toDate)
+function fetchErpCncAttendanceMarks($fromDate, $toDate, $deptLike = 'cnc%')
 {
     $fromDate = date('Y-m-d', strtotime((string) $fromDate));
     $toDate = date('Y-m-d', strtotime((string) $toDate));
     $start = '2026-11-01';
     $today = date('Y-m-d');
+    $deptLike = strtolower(trim((string) $deptLike));
+    if ($deptLike !== 'buff%') {
+        $deptLike = 'cnc%';
+    }
     if ($fromDate < $start) {
         $fromDate = $start;
     }
@@ -2058,7 +2062,7 @@ function fetchErpCncAttendanceMarks($fromDate, $toDate)
             FROM attendance_entries ae
             INNER JOIN departments d ON d.id = ae.department_id
             INNER JOIN document_master dm ON dm.id = ae.document_id AND dm.department_id = ae.department_id
-            WHERE LOWER(TRIM(d.department_name)) LIKE 'cnc%'
+            WHERE LOWER(TRIM(d.department_name)) LIKE ?
               AND LOWER(dm.document_name) LIKE '%attendance%'
               AND ae.entry_date BETWEEN ? AND ?
               AND UPPER(TRIM(COALESCE(ae.in_time, ''))) IN ('P', 'A')
@@ -2067,7 +2071,7 @@ function fetchErpCncAttendanceMarks($fromDate, $toDate)
     if (!$st) {
         return [];
     }
-    $st->bind_param('ss', $fromDate, $toDate);
+    $st->bind_param('sss', $deptLike, $fromDate, $toDate);
     $st->execute();
     $res = $st->get_result();
     $out = [];
@@ -2103,7 +2107,7 @@ function fetchErpCncAttendanceMarks($fromDate, $toDate)
  * @param array<int,array<string,array>> $map
  * @return array<int,array<string,array>>
  */
-function applyErpCncAttendanceToStaffMap(array $staffRows, array $map, $month, $year, $conn)
+function applyErpCncAttendanceToStaffMap(array $staffRows, array $map, $month, $year, $conn, $deptLike = 'cnc%')
 {
     $month = (int) $month;
     $year = (int) $year;
@@ -2113,7 +2117,7 @@ function applyErpCncAttendanceToStaffMap(array $staffRows, array $map, $month, $
     $monthDays = (int) date('t', mktime(0, 0, 0, $month, 1, $year));
     $from = sprintf('%04d-%02d-01', $year, $month);
     $to = sprintf('%04d-%02d-%02d', $year, $month, $monthDays);
-    $marks = fetchErpCncAttendanceMarks($from, $to);
+    $marks = fetchErpCncAttendanceMarks($from, $to, $deptLike);
     if (!$marks) {
         return $map;
     }
@@ -2180,7 +2184,7 @@ function applyErpCncAttendanceToStaffMap(array $staffRows, array $map, $month, $
  * @param array<int,array> $staffRows
  * @return array<int,array<string,array>>
  */
-function getOpsCloneStaffAttendanceMap(array $staffRows, $month, $year, $conn = null)
+function getOpsCloneStaffAttendanceMap(array $staffRows, $month, $year, $conn = null, $deptLike = 'cnc%')
 {
     $month = (int) $month;
     $year = (int) $year;
@@ -2219,7 +2223,7 @@ function getOpsCloneStaffAttendanceMap(array $staffRows, $month, $year, $conn = 
             $map[(int) $r['employee_id']][substr((string) $r['attendance_date'], 0, 10)] = $r;
         }
     }
-    $map = applyErpCncAttendanceToStaffMap($staffRows, $map, $month, $year, $conn);
+    $map = applyErpCncAttendanceToStaffMap($staffRows, $map, $month, $year, $conn, $deptLike);
     if ($closeAfter) {
         $conn->close();
     }

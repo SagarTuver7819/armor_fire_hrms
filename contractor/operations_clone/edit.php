@@ -24,6 +24,7 @@ $months = contractorMonths();
 $prefillOp = trim((string) ($_GET['operation'] ?? ''));
 $prefillEmp = (int) ($_GET['employee_id'] ?? 0);
 $curOp = (string) ($sheet['operation'] ?? ($prefillOp !== '' && isset($ops[$prefillOp]) ? $prefillOp : 'CNC'));
+$isJobReport = in_array(strtoupper($curOp), ['CNC', 'BUFF'], true);
 $curEmp = (int) ($sheet['employee_id'] ?? 0);
 if ($curEmp <= 0 && $prefillEmp > 0) {
     $curEmp = $prefillEmp;
@@ -64,7 +65,8 @@ if (is_array($mainStaff) && (int) ($mainStaff['id'] ?? 0) > 0) {
     $attRows[] = $mainStaff;
 }
 if (!empty($attRows)) {
-    $attMap = getOpsCloneStaffAttendanceMap($attRows, $curMonth, $curYear, $conn);
+    $erpDeptLike = strcasecmp($curOp, 'BUFF') === 0 ? 'buff%' : 'cnc%';
+    $attMap = getOpsCloneStaffAttendanceMap($attRows, $curMonth, $curYear, $conn, $erpDeptLike);
 }
 $staffShares = opsCloneCncSalaryShare($staffBundle['rows'], $attMap, $curMonth, $curYear);
 
@@ -73,10 +75,10 @@ $items = $sheet['items'] ?? [];
 $kraAsOf = date('Y-m-d');
 $kraPrefill = [];
 $erpDayQtyByPart = [];
-if (strcasecmp($curOp, 'CNC') === 0) {
+if ($isJobReport) {
     // Auto rows = ERP CNC Production Planning KRA part names (fixed — no dropdown)
     try {
-        $kraSync = syncErpKraPartsToContractorProducts('CNC', $conn, $kraAsOf);
+        $kraSync = syncErpKraPartsToContractorProducts($curOp, $conn, $kraAsOf);
     } catch (Throwable $e) {
         $kraSync = [
             'ok' => false,
@@ -84,11 +86,13 @@ if (strcasecmp($curOp, 'CNC') === 0) {
             'updated' => 0,
             'total' => 0,
             'message' => $e->getMessage(),
-            'names' => contractorCncKraBaselinePartNames(),
+            'names' => strcasecmp($curOp, 'CNC') === 0 ? contractorCncKraBaselinePartNames() : [],
             'as_of' => $kraAsOf,
         ];
-        foreach (contractorCncKraBaselinePartNames() as $pn) {
-            contractorEnsureProduct($conn, 'CNC', $pn, 0.0);
+        if (strcasecmp($curOp, 'CNC') === 0) {
+            foreach (contractorCncKraBaselinePartNames() as $pn) {
+                contractorEnsureProduct($conn, 'CNC', $pn, 0.0);
+            }
         }
     }
     $kraNameSet = [];
@@ -104,7 +108,7 @@ if (strcasecmp($curOp, 'CNC') === 0) {
             $kraNameSet[strtolower(trim((string) $al))] = true;
         }
     }
-    $allCnc = getContractorProductsByOperation('CNC', $conn);
+    $allCnc = getContractorProductsByOperation($curOp, $conn);
     $best = [];
     foreach ($allCnc as $pr) {
         if (!contractorProductMatchesKraNames($pr, $kraNameSet)) {
@@ -127,7 +131,7 @@ if (strcasecmp($curOp, 'CNC') === 0) {
     }
     // ERP KRA Total qty → day boxes (e.g. 02/11/2026 → column day 2)
     try {
-        $erpDayQtyByPart = fetchErpKraDateWiseQtys('CNC', $curYear, $curMonth);
+        $erpDayQtyByPart = fetchErpKraDateWiseQtys($curOp, $curYear, $curMonth);
     } catch (Throwable $e) {
         $erpDayQtyByPart = [];
     }
@@ -224,17 +228,20 @@ $staffSplit = opsCloneApplyContractorPool($staffShares, $staffPool);
 $conn->close();
 
 // CNC clone: no GRADE column (ERP KRA part rows only — qty × rate)
-$showGrade = strcasecmp($curOp, 'CNC') === 0 ? false : contractorOperationShowsGrade($curOp);
+$showGrade = $isJobReport ? false : contractorOperationShowsGrade($curOp);
 $showStaff = in_array($curOp, opsCloneStaffSalaryOperations(), true);
 $monthDays = (int) date('t', mktime(0, 0, 0, $curMonth, 1, $curYear));
 
-$pageTitle = 'View — CNC Job Work and Attendance Report';
+$reportName = strcasecmp($curOp, 'BUFF') === 0 ? 'Buff Job Work and Attendance Report' : 'CNC Job Work and Attendance Report';
+$reportDeptKey = strcasecmp($curOp, 'BUFF') === 0 ? 'BUFF' : 'CNC';
+$listUrl = app_url('contractor/operations_clone/index.php' . ($reportDeptKey === 'BUFF' ? '?op=BUFF' : ''));
+$pageTitle = 'View — ' . $reportName;
 $useSidebar = true;
-$sidebarActive = 'cnc_job_report';
+$sidebarActive = $reportDeptKey === 'BUFF' ? 'buff_job_report' : 'cnc_job_report';
 if (!function_exists('resolveDepartmentIdByName')) {
     require_once __DIR__ . '/../../includes/contractor_split_helper.php';
 }
-$cncDeptId = (int) resolveDepartmentIdByName('CNC');
+$cncDeptId = (int) resolveDepartmentIdByName($reportDeptKey);
 $sidebarMode = $cncDeptId > 0 ? 'department' : 'contractor';
 $sidebarDeptId = $cncDeptId;
 $toastMsg = '';
@@ -252,7 +259,7 @@ $otJson = json_encode(contractorOtRepairOps());
 ?>
 <main class="dashboard-main">
     <div class="page-toolbar flex-between">
-        <a href="<?php echo app_url('contractor/operations_clone/index.php'); ?>" class="back-link"><i class="fa-solid fa-arrow-left"></i> Back to CNC Job Work and Attendance Report</a>
+        <a href="<?php echo htmlspecialchars($listUrl); ?>" class="back-link"><i class="fa-solid fa-arrow-left"></i> Back to <?php echo htmlspecialchars($reportName); ?></a>
         <?php if ($showStaff): ?>
             <?php
             $pdfQs = http_build_query([
@@ -295,7 +302,7 @@ $otJson = json_encode(contractorOtRepairOps());
         <div class="form-page-header">
             <div>
                 <h1>View — Product Rate Grid</h1>
-                <p>CNC · <?php echo htmlspecialchars($months[$curMonth] ?? (string) $curMonth); ?> <?php echo (int) $curYear; ?> · last set ERP KRA grid (view only).</p>
+                <p><?php echo htmlspecialchars($reportDeptKey); ?> · <?php echo htmlspecialchars($months[$curMonth] ?? (string) $curMonth); ?> <?php echo (int) $curYear; ?> · last set ERP KRA grid (view only).</p>
             </div>
         </div>
 
@@ -344,7 +351,7 @@ $otJson = json_encode(contractorOtRepairOps());
             </div>
 
             <div class="ops-toolbar">
-                <?php if (strcasecmp($curOp, 'CNC') !== 0): ?>
+                <?php if (!$isJobReport): ?>
                 <button type="button" class="btn-primary" id="btnAddProduct"><i class="fa-solid fa-plus"></i> Add Product Row</button>
                 <?php else: ?>
                 <div class="ops-kra-hint" style="font-size:13px;color:#64748b;">
@@ -353,13 +360,13 @@ $otJson = json_encode(contractorOtRepairOps());
                 <?php endif; ?>
                 <div class="ops-live-summary">
                     <span class="ops-chip"><span id="sum_qty_lab">Qty</span> <b id="sum_qty">0</b></span>
-                    <span class="ops-chip ops-chip-r<?php echo strcasecmp($curOp, 'CNC') === 0 ? ' ops-cnc-hide' : ''; ?>"><span id="sum_r_lab">R</span> <b id="sum_r">0</b></span>
+                    <span class="ops-chip ops-chip-r<?php echo $isJobReport ? ' ops-cnc-hide' : ''; ?>"><span id="sum_r_lab">R</span> <b id="sum_r">0</b></span>
                     <span class="ops-chip amt">Amount <b id="sum_amt">0.00</b></span>
                 </div>
             </div>
 
             <div class="ops-grid-wrap">
-                <table class="ops-grid <?php echo $showGrade ? 'show-grade' : 'hide-grade'; ?><?php echo strcasecmp($curOp, 'CNC') === 0 ? ' ops-kra-qty-locked ops-cnc-plain' : ''; ?>" id="opsGrid">
+                <table class="ops-grid <?php echo $showGrade ? 'show-grade' : 'hide-grade'; ?><?php echo $isJobReport ? ' ops-kra-qty-locked ops-cnc-plain' : ''; ?>" id="opsGrid">
                     <thead>
                         <tr>
                             <th class="sticky-col sticky-action">Action</th>
@@ -396,9 +403,9 @@ $otJson = json_encode(contractorOtRepairOps());
                         }
                         $itemGradeName = trim((string) ($item['grade_name'] ?? ''));
                         ?>
-                        <tr class="ops-row<?php echo strcasecmp($curOp, 'CNC') === 0 ? ' ops-kra-fixed-row' : ''; ?>" data-saved-product-id="<?php echo $itemProductId; ?>" data-saved-grade-id="<?php echo $itemGradeId; ?>">
+                        <tr class="ops-row<?php echo $isJobReport ? ' ops-kra-fixed-row' : ''; ?>" data-saved-product-id="<?php echo $itemProductId; ?>" data-saved-grade-id="<?php echo $itemGradeId; ?>">
                             <td class="sticky-col sticky-action">
-                                <?php if (strcasecmp($curOp, 'CNC') !== 0): ?>
+                                <?php if (!$isJobReport): ?>
                                 <button type="button" class="btn-icon btn-remove-row" title="Delete row">
                                     <i class="fa-solid fa-trash-can"></i>
                                 </button>
@@ -408,7 +415,7 @@ $otJson = json_encode(contractorOtRepairOps());
                             </td>
                             <td class="sticky-col sticky-sr ops-sr"><?php echo $i + 1; ?></td>
                             <td class="sticky-col sticky-name">
-                                <?php if (strcasecmp($curOp, 'CNC') === 0): ?>
+                                <?php if ($isJobReport): ?>
                                 <div class="ops-fixed-process" title="ERP CNC KRA part name"><?php echo htmlspecialchars($itemProductLabel !== '' ? $itemProductLabel : '—'); ?></div>
                                 <select name="items[<?php echo $i; ?>][product_id]" class="form-control product-select no-select2 ops-kra-hidden-select"
                                         data-saved-label="<?php echo htmlspecialchars($itemProductLabel); ?>" tabindex="-1" aria-hidden="true">
@@ -464,7 +471,7 @@ $otJson = json_encode(contractorOtRepairOps());
                                 $dis = !empty($cell['disabled']) ? 'disabled' : '';
                                 ?>
                                 <td class="day-cell" data-day="<?php echo $d; ?>">
-                                    <?php $kraRo = strcasecmp($curOp, 'CNC') === 0 ? ' readonly tabindex="-1"' : ''; ?>
+                                    <?php $kraRo = $isJobReport ? ' readonly tabindex="-1"' : ''; ?>
                                     <div class="ops-day-triple">
                                         <input type="text" inputmode="decimal" class="grid-input day-qty" <?php echo $dis . $kraRo; ?>
                                                name="items[<?php echo $i; ?>][days][<?php echo $d; ?>][q]" value="<?php echo htmlspecialchars((string) $cell['q']); ?>" autocomplete="off">
@@ -512,11 +519,11 @@ $otJson = json_encode(contractorOtRepairOps());
             <?php if (!$opsViewOnly): ?>
             <div class="form-actions sticky-actions">
                 <button type="submit" class="btn-primary"><i class="fa-solid fa-check"></i> Save Product Grid</button>
-                <a href="<?php echo app_url('contractor/operations_clone/index.php'); ?>" class="btn-secondary">Cancel</a>
+                <a href="<?php echo htmlspecialchars($listUrl); ?>" class="btn-secondary">Cancel</a>
             </div>
             <?php else: ?>
             <div class="form-actions sticky-actions">
-                <a href="<?php echo app_url('contractor/operations_clone/index.php'); ?>" class="btn-secondary">Back to List</a>
+                <a href="<?php echo htmlspecialchars($listUrl); ?>" class="btn-secondary">Back to List</a>
             </div>
             <?php endif; ?>
         </form>
@@ -526,7 +533,7 @@ $otJson = json_encode(contractorOtRepairOps());
     <!-- ========== BOX 2: CNC staff salary + attendance ========== -->
     <div class="form-page-card ops-page-card ops-clone-box ops-clone-staff-card<?php echo $opsViewOnly ? ' ops-view-only' : ''; ?>">
         <div class="ops-clone-staff-head">
-            <h2><i class="fa-solid fa-users"></i> CNC Department — Normal Salary Employees</h2>
+            <h2><i class="fa-solid fa-users"></i> <?php echo htmlspecialchars($reportDeptKey); ?> Department — Normal Salary Employees</h2>
         </div>
 
         <form method="POST" action="<?php echo app_url('contractor/operations_clone/save_staff.php'); ?>" id="opsStaffForm" class="employee-form" autocomplete="off">
@@ -569,7 +576,7 @@ $otJson = json_encode(contractorOtRepairOps());
                         ?>
                         <?php if (empty($staffDisplay)): ?>
                             <tr>
-                                <td colspan="<?php echo 7 + $monthDays; ?>" class="empty-msg">No Normal Salary employees found in CNC.</td>
+                                <td colspan="<?php echo 7 + $monthDays; ?>" class="empty-msg">No Normal Salary employees found in <?php echo htmlspecialchars($reportDeptKey); ?>.</td>
                             </tr>
                         <?php else: ?>
                             <?php $staffFinalSum = 0.0; $staffPSum = 0; $staffASum = 0; ?>
@@ -666,7 +673,7 @@ $otJson = json_encode(contractorOtRepairOps());
             <?php if (!$opsViewOnly): ?>
             <div class="form-actions sticky-actions">
                 <button type="submit" class="btn-primary" id="btnSaveStaff"><i class="fa-solid fa-check"></i> Save Staff Salary + Attendance</button>
-                <a href="<?php echo app_url('contractor/operations_clone/index.php'); ?>" class="btn-secondary">Cancel</a>
+                <a href="<?php echo htmlspecialchars($listUrl); ?>" class="btn-secondary">Cancel</a>
             </div>
             <?php endif; ?>
         </form>
@@ -679,17 +686,17 @@ $otJson = json_encode(contractorOtRepairOps());
     window.OPS_PRODUCTS_URL = <?php echo json_encode(app_url('contractor/operations/products_json.php')); ?>;
     window.OPS_RATE_HISTORY_URL = <?php echo json_encode(app_url('contractor/operations/rate_history.php')); ?>;
     window.OPS_SHEET_ID = <?php echo (int) $id; ?>;
-    window.OPS_KRA_PARTS = <?php echo strcasecmp($curOp, 'CNC') === 0 ? 'true' : 'false'; ?>;
-    window.OPS_KRA_FIXED = <?php echo strcasecmp($curOp, 'CNC') === 0 ? 'true' : 'false'; ?>; // fixed rows, no process dropdown
+    window.OPS_KRA_PARTS = <?php echo $isJobReport ? 'true' : 'false'; ?>;
+    window.OPS_KRA_FIXED = <?php echo $isJobReport ? 'true' : 'false'; ?>; // fixed rows, no process dropdown
     window.OPS_KRA_AS_OF = <?php echo json_encode($kraAsOf); ?>;
     window.OPS_KRA_DAY_QTY = <?php echo json_encode($erpDayQtyByPart ?? [], JSON_UNESCAPED_UNICODE); ?>;
     window.OPS_REPAIR = <?php echo $repairJson; ?>;
     window.OPS_OT_REPAIR = <?php echo $otJson; ?>;
     window.OPS_GRADE_OPS = <?php
         $gradeOpsJs = array_values(contractorShowGradeOps());
-        if (strcasecmp($curOp, 'CNC') === 0) {
-            $gradeOpsJs = array_values(array_filter($gradeOpsJs, static function ($op) {
-                return strcasecmp((string) $op, 'CNC') !== 0;
+        if ($isJobReport) {
+            $gradeOpsJs = array_values(array_filter($gradeOpsJs, static function ($op) use ($curOp) {
+                return strcasecmp((string) $op, $curOp) !== 0;
             }));
         }
         echo json_encode($gradeOpsJs);
