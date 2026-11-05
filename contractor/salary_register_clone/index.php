@@ -43,9 +43,6 @@ if (!$beforeNov && $mainId > 0) {
     $report = opsCloneBuildCncReport($conn, $mainId, $month, $year, 0);
     $ids = [];
     foreach ($report['staff'] as $st) {
-        if (!empty($st['is_main'])) {
-            continue;
-        }
         $code = strtoupper(trim((string) ($st['code'] ?? '')));
         if ($code !== '') {
             $ids[$code] = $st;
@@ -71,26 +68,25 @@ if (!$beforeNov && $mainId > 0) {
     }
     $conn->close();
     foreach ($report['staff'] as $st) {
-        if (!empty($st['is_main'])) {
-            continue;
-        }
         $code = strtoupper(trim((string) ($st['code'] ?? '')));
         $ex = $extra[$code] ?? [];
         $paid = (float) ($st['paid_days'] ?? 0);
         $final = round((float) ($st['final'] ?? 0), 2);
+        $isMain = !empty($st['is_main']);
         $rows[] = [
             'code' => (string) ($st['code'] ?? ''),
             'name' => (string) ($st['name'] ?? ''),
             'designation' => trim((string) ($ex['designation'] ?? '')),
             'doj' => formatRegisterDate($ex['date_of_joining'] ?? ''),
             'uan' => trim((string) ($ex['uan_number'] ?? '')),
-            'salary' => (float) ($st['salary'] ?? 0),
+            'salary' => $isMain ? $final : (float) ($st['salary'] ?? 0),
             'present' => $paid,
             'total_days' => $paid,
             'gross' => $final,
             'net' => $final,
             'account' => trim((string) ($ex['bank_account_number'] ?? '')),
             'ifsc' => trim((string) ($ex['ifsc_code'] ?? '')),
+            'is_main' => $isMain,
         ];
     }
 }
@@ -139,7 +135,7 @@ $monthLabel = date('F Y', mktime(0, 0, 0, $month, 1, $year));
         <?php elseif ($mainId <= 0): ?>
             <p class="form-hint">CNC main contractor was not found.</p>
         <?php else: ?>
-            <p class="form-hint">P.Days are Present marks from 01-11-2026 through today. Week-off counts only when it is P. Gross = Net = that final total. Main contractor <?php echo htmlspecialchars($mainLabel); ?> stays on the New Operation List remainder, not in this salaried list.</p>
+            <p class="form-hint">P.Days are Present marks from 01-11-2026 through today. Week-off counts only when it is P. Staff Gross and Net follow the New Operation List final total. Main contractor <?php echo htmlspecialchars($mainLabel); ?> is the last row: his Salary, Gross and Net are the remainder that is left after the staff split.</p>
         <?php endif; ?>
     </div>
 
@@ -193,18 +189,20 @@ $monthLabel = date('F Y', mktime(0, 0, 0, $month, 1, $year));
                     <tr><td colspan="25" class="empty-cell">No CNC salary employees for this month.</td></tr>
                 <?php endif; ?>
                 <?php foreach ($rows as $r): ?>
-                    <tr>
+                    <tr class="<?php echo !empty($r['is_main']) ? 'sr-main-row' : ''; ?>">
                         <td class="sr-sticky sr-sticky-1"><?php echo htmlspecialchars($r['code'] !== '' ? $r['code'] : '-'); ?></td>
                         <td class="sr-sticky sr-sticky-2">
                             <strong><?php echo htmlspecialchars($r['name']); ?></strong>
-                            <?php if ($mainLabel !== ''): ?>
+                            <?php if (!empty($r['is_main'])): ?>
+                                <div class="sr-code">Main Contractor</div>
+                            <?php elseif ($mainLabel !== ''): ?>
                                 <div class="sr-code">Under: <?php echo htmlspecialchars($mainLabel); ?></div>
                             <?php endif; ?>
                         </td>
                         <td><?php echo htmlspecialchars($r['designation'] !== '' ? $r['designation'] : '-'); ?></td>
                         <td><?php echo htmlspecialchars($r['doj']); ?></td>
                         <td><?php echo htmlspecialchars($r['uan'] !== '' ? $r['uan'] : '-'); ?></td>
-                        <td class="num"><?php echo registerNum($r['salary'], 0); ?></td>
+                        <td class="num"><?php echo registerNum($r['salary'], !empty($r['is_main']) ? 2 : 0); ?></td>
                         <td class="num"><?php echo registerNum($r['present'], 1); ?></td>
                         <td class="num">0.0</td>
                         <td class="num">0.0</td>
@@ -231,7 +229,7 @@ $monthLabel = date('F Y', mktime(0, 0, 0, $month, 1, $year));
                 <tfoot>
                     <tr>
                         <td colspan="5"><strong>Department Total</strong></td>
-                        <td class="num"><strong><?php echo registerNum($sumSalary, 0); ?></strong></td>
+                        <td class="num"><strong><?php echo registerNum($sumSalary, 2); ?></strong></td>
                         <td colspan="8"></td>
                         <td class="num"><strong><?php echo registerNum($sumGross, 2); ?></strong></td>
                         <td class="num">0</td>

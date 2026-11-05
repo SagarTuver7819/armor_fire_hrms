@@ -193,12 +193,14 @@ function opsCloneBuildCncReport($conn, $employeeId, $month, $year, $sheetId = 0)
         ];
     }
     if (is_array($main) && (int) ($main['id'] ?? 0) > 0) {
+        $mainShare = opsCloneCncSalaryShare([$main], $attMap, $month, $year);
+        $mainEid = (int) ($main['id'] ?? 0);
         $staff[] = [
             'code' => (string) ($main['employee_code'] ?? ''),
             'name' => (string) ($main['employee_name'] ?? ''),
             'salary' => (float) ($main['decided_salary'] ?? 0),
-            'working_days' => 0,
-            'paid_days' => 0,
+            'working_days' => (int) ($mainShare[$mainEid]['working_days'] ?? 0),
+            'paid_days' => (float) ($mainShare[$mainEid]['paid_days'] ?? 0),
             'final' => (float) ($split['remainder'] ?? 0),
             'is_main' => true,
         ];

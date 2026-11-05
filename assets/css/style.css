@@ -3119,6 +3119,8 @@ body > .select2-container--open {
 .salary-register-table .sr-net { background: #facc15 !important; }
 .salary-register-table td.num { text-align: right; font-variant-numeric: tabular-nums; }
 .salary-register-table tfoot td { background: #f8fafc; font-weight: 700; color: #0f172a; }
+.salary-register-table tr.sr-main-row td,
+.salary-register-table tr.sr-main-row td.sr-sticky { background: #fff7ed !important; }
 .salary-register-table tfoot tr.sr-grand-total td {
     background: #1e3a5f !important;
     color: #ffffff !important;
