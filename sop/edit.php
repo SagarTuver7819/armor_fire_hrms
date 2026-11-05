@@ -4,10 +4,7 @@ require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/employee_helper.php';
 require_once __DIR__ . '/../includes/permission_helper.php';
-require_once __DIR__ . '/../includes/settings.php';
-require_once __DIR__ . '/../includes/document_print.php';
 require_once __DIR__ . '/../includes/sop_helper.php';
-require_once __DIR__ . '/../includes/sop_letter.php';
 
 requireLogin();
 $deptId = (int) ($_GET['department_id'] ?? $_POST['department_id'] ?? 0);
@@ -49,7 +46,10 @@ if (!$row) {
     ];
 }
 
-$brand = getCompanyDocumentBranding();
+$val = static function ($key, $fallback = '') use ($row) {
+    return htmlspecialchars((string) ($row[$key] ?? $fallback), ENT_QUOTES, 'UTF-8');
+};
+
 $pageTitle = $id > 0 ? 'Edit SOP' : 'Add SOP';
 $useSidebar = true;
 $sidebarMode = 'department';
@@ -57,30 +57,88 @@ $sidebarDeptId = $deptId;
 $sidebarActive = 'cnc_sop';
 require_once __DIR__ . '/../includes/header.php';
 $existingSign = (string) ($row['signature_data'] ?? '');
+$dateShow = dateInputValue($row['sop_date'] ?? date('Y-m-d'));
 ?>
 <main class="dashboard-main">
-    <style><?php echo companyDocPrintCss() . cncSopLetterCss(); ?></style>
     <div class="page-toolbar">
         <a href="<?php echo app_url('sop/index.php?department_id=' . $deptId); ?>" class="back-link">
             <i class="fa-solid fa-arrow-left"></i> Back to SOP
         </a>
     </div>
-    <?php if ($formError !== ''): ?>
-        <div style="max-width:210mm;margin:0 auto 10px;padding:10px 12px;border-radius:8px;background:#fef2f2;color:#b91c1c;font-weight:700;">
-            <?php echo htmlspecialchars($formError); ?>
+
+    <div class="form-page-card">
+        <div class="form-page-header">
+            <div class="master-list-title">
+                <div class="master-list-icon" style="background:#1d4ed8;">
+                    <i class="fa-solid fa-file-signature"></i>
+                </div>
+                <div>
+                    <h1><?php echo htmlspecialchars($pageTitle); ?></h1>
+                    <p>Fill the fields. Letterhead opens after save.</p>
+                </div>
+            </div>
         </div>
-    <?php endif; ?>
-    <form method="post" action="<?php echo app_url('sop/save.php'); ?>" id="sopForm">
-        <input type="hidden" name="id" value="<?php echo (int) $id; ?>">
-        <input type="hidden" name="department_id" value="<?php echo $deptId; ?>">
-        <div class="sop-toolbar">
-            <button type="submit" class="is-primary">Save on Letterhead</button>
-            <a href="<?php echo app_url('sop/index.php?department_id=' . $deptId); ?>">Cancel</a>
-        </div>
-        <div class="sop-sheet-wrap">
-            <?php echo cncSopLetterSheet($row, $brand, true); ?>
-        </div>
-    </form>
+
+        <?php if ($formError !== ''): ?>
+            <div class="form-alert form-alert-error" role="alert" style="margin:0 0 16px;padding:12px 14px;border-radius:8px;background:#fef2f2;border:1px solid #fecaca;color:#b91c1c;font-weight:600;">
+                <?php echo htmlspecialchars($formError); ?>
+            </div>
+        <?php endif; ?>
+
+        <form method="post" action="<?php echo app_url('sop/save.php'); ?>" id="sopForm" autocomplete="off">
+            <input type="hidden" name="id" value="<?php echo (int) $id; ?>">
+            <input type="hidden" name="department_id" value="<?php echo $deptId; ?>">
+            <input type="hidden" name="signature_data" id="signatureData" value="">
+            <input type="hidden" name="clear_signature" id="clearSignature" value="0">
+
+            <div class="form-section">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="sopTitle">SOP Title <span class="req">*</span></label>
+                        <input type="text" name="title" id="sopTitle" class="form-control" required maxlength="255"
+                               placeholder="SOP title" value="<?php echo $val('title'); ?>">
+                    </div>
+                    <div class="form-group">
+                        <label for="sopDate">Date <span class="req">*</span> <small>(DD-MM-YYYY)</small></label>
+                        <input type="text" name="sop_date" id="sopDate" class="form-control js-date" required maxlength="10"
+                               placeholder="DD-MM-YYYY" value="<?php echo htmlspecialchars($dateShow); ?>">
+                    </div>
+                    <div class="form-group">
+                        <label for="sopSubject">Subject <span class="req">*</span></label>
+                        <input type="text" name="subject" id="sopSubject" class="form-control" required maxlength="500"
+                               placeholder="Subject" value="<?php echo $val('subject'); ?>">
+                    </div>
+                    <div class="form-group">
+                        <label for="sopDept">Department Name <span class="req">*</span></label>
+                        <input type="text" name="department_name" id="sopDept" class="form-control" required maxlength="150"
+                               value="<?php echo $val('department_name'); ?>">
+                    </div>
+                    <div class="form-group" style="grid-column:1 / -1;">
+                        <label for="sopBody">Body <span class="req">*</span></label>
+                        <textarea name="body" id="sopBody" class="form-control" required rows="10"
+                                  placeholder="Write the SOP description. Add as much as needed."><?php echo $val('body'); ?></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="sopSigner">Authorized Person</label>
+                        <input type="text" name="signer_name" id="sopSigner" class="form-control" maxlength="150"
+                               placeholder="Name under the signature" value="<?php echo $val('signer_name'); ?>">
+                    </div>
+                    <div class="form-group">
+                        <label>Authorized Signature</label>
+                        <div style="border:1px solid #cbd5e1;border-radius:8px;background:#fff;height:140px;">
+                            <canvas id="sopPad" width="640" height="280" style="width:100%;height:140px;display:block;touch-action:none;cursor:crosshair;"></canvas>
+                        </div>
+                        <button type="button" class="btn-secondary" id="sopPadClear" style="margin-top:8px;">Clear signature</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-actions" style="display:flex;gap:8px;margin-top:8px;">
+                <button type="submit" class="btn-primary"><i class="fa-solid fa-check"></i> Save</button>
+                <a href="<?php echo app_url('sop/index.php?department_id=' . $deptId); ?>" class="btn-secondary">Cancel</a>
+            </div>
+        </form>
+    </div>
 </main>
 <script>
 (function () {
@@ -126,14 +184,11 @@ $existingSign = (string) ($row['signature_data'] ?? '');
     function stop() { drawing = false; }
     canvas.addEventListener('pointerup', stop);
     canvas.addEventListener('pointercancel', stop);
-    var clearBtn = document.getElementById('sopPadClear');
-    if (clearBtn) {
-        clearBtn.addEventListener('click', function () {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            dirty = false;
-            cleared = true;
-        });
-    }
+    document.getElementById('sopPadClear').addEventListener('click', function () {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        dirty = false;
+        cleared = true;
+    });
     form.addEventListener('submit', function () {
         var data = document.getElementById('signatureData');
         var clear = document.getElementById('clearSignature');
