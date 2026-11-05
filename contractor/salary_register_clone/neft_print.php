@@ -54,8 +54,9 @@ $companyName = function_exists('getCompanyName') ? getCompanyName() : 'Armor Fir
 </head>
 <body>
     <div class="actions">
-        <button type="button" onclick="window.print()">Print</button>
+        <button type="button" onclick="window.print()">Print / Save PDF</button>
         <button type="button" onclick="window.close()">Close</button>
+        <span style="margin-left:8px;color:#444;">Print dialog ma Destination = Save as PDF.</span>
     </div>
     <h1><?php echo htmlspecialchars($companyName); ?> — CNC Clone NEFT / Bank Transfer Sheet</h1>
     <div class="meta">

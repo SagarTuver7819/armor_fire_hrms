@@ -569,7 +569,6 @@ $sidebarCompanyName = function_exists('getCompanyName') ? getCompanyName() : 'Ar
                     <a href="<?php echo app_url('contractor/operations/index.php'); ?>" class="sidebar-link sidebar-sublink <?php echo $sidebarActive === 'contractor_operations' ? 'active' : ''; ?>"><i class="fa-solid fa-gears"></i><span>Operations Rate</span></a>
                     <a href="<?php echo app_url('contractor/operations_clone/index.php'); ?>" class="sidebar-link sidebar-sublink <?php echo $sidebarActive === 'contractor_operations_clone' ? 'active' : ''; ?>"><i class="fa-solid fa-table-list"></i><span>New Operation List</span></a>
                     <a href="<?php echo app_url('contractor/salary_register_clone/index.php'); ?>" class="sidebar-link sidebar-sublink <?php echo $sidebarActive === 'contractor_salary_clone' ? 'active' : ''; ?>"><i class="fa-solid fa-file-invoice-dollar"></i><span>Clone Salary Register</span></a>
-                    <a href="<?php echo app_url('contractor/salary_register_clone/neft.php'); ?>" class="sidebar-link sidebar-sublink <?php echo $sidebarActive === 'contractor_salary_clone_neft' ? 'active' : ''; ?>"><i class="fa-solid fa-building-columns"></i><span>Clone NEFT</span></a>
                     <a href="<?php echo app_url('payroll/register.php?type=jobwork_actual'); ?>" class="sidebar-link sidebar-sublink <?php echo $regType === 'jobwork_actual' ? 'active' : ''; ?>"><i class="fa-solid fa-file-invoice-dollar"></i><span>Jobwork Salary</span></a>
                 </div>
             </div>

@@ -40,15 +40,19 @@ foreach ($rows as $r) {
     $sumNet += $r['net'];
 }
 $monthLabel = date('F Y', mktime(0, 0, 0, $month, 1, $year));
+$neftRows = (!$beforeNov && $mainId > 0) ? cncCloneNeftRows($rows) : [];
+$neftSec = cncCloneNeftSummary($neftRows);
+$neftExport = cncCloneNfpsExport($neftRows, $month, $year);
+$neftQs = http_build_query(['month' => $month, 'year' => $year]);
 ?>
 <main class="dashboard-main">
     <div class="page-toolbar flex-between">
         <a href="<?php echo app_url('contractor/index.php'); ?>" class="back-link"><i class="fa-solid fa-arrow-left"></i> Back to Contractor Hub</a>
-        <?php if (!$beforeNov && $mainId > 0 && $rows): ?>
+        <?php if ($neftRows): ?>
         <div class="toolbar-actions">
-            <a class="btn-primary" href="<?php echo app_url('contractor/salary_register_clone/neft.php?' . http_build_query(['month' => $month, 'year' => $year])); ?>">
-                <i class="fa-solid fa-building-columns"></i> Clone NEFT
-            </a>
+            <a class="btn-secondary" href="#cncNeftSheet"><i class="fa-solid fa-check"></i> Check</a>
+            <a class="btn-secondary" href="<?php echo app_url('contractor/salary_register_clone/neft_excel.php?' . $neftQs); ?>"><i class="fa-solid fa-download"></i> Download</a>
+            <a class="btn-primary" href="<?php echo app_url('contractor/salary_register_clone/neft_print.php?' . $neftQs); ?>" target="_blank"><i class="fa-solid fa-file-pdf"></i> Print PDF</a>
         </div>
         <?php endif; ?>
     </div>
@@ -87,6 +91,80 @@ $monthLabel = date('F Y', mktime(0, 0, 0, $month, 1, $year));
             <p class="form-hint">P.Days are Present marks from 01-11-2026 through today. Week-off counts only when it is P. Staff Gross follows the New Operation List final total. Gross 12,001 or more cuts P.T. 200, and Net is Gross minus that P.T. Main contractor <?php echo htmlspecialchars($mainLabel); ?> is the last row: his Salary and Gross are the remainder left after the staff split.</p>
         <?php endif; ?>
     </div>
+
+    <?php if ($neftRows): ?>
+    <div class="form-page-card" id="cncNeftSheet" style="margin-top:16px;">
+        <div class="form-page-header">
+            <div>
+                <h1>NEFT Sheet</h1>
+                <p>CNC · <?php echo htmlspecialchars($monthLabel); ?> · Amount is Clone Register Net · CREDIT_NARR <?php echo htmlspecialchars($neftExport['credit_narr']); ?> · PYMT_DATE <?php echo htmlspecialchars($neftExport['pay_date']); ?></p>
+            </div>
+        </div>
+        <div class="ops-live-summary">
+            <span class="ops-chip">Normal <?php echo (int) $neftSec['normal_count']; ?> · ₹ <?php echo cncCloneNum($neftSec['normal_total'], 2); ?></span>
+            <span class="ops-chip">Jobwork <?php echo (int) $neftSec['jobwork_count']; ?> · ₹ <?php echo cncCloneNum($neftSec['jobwork_total'], 2); ?></span>
+            <span class="ops-chip"><strong>Final ₹ <?php echo cncCloneNum($neftSec['final_total'], 2); ?></strong></span>
+            <?php if ((int) $neftSec['missing_bank'] > 0): ?>
+                <span class="ops-chip" style="color:#b45309;"><?php echo (int) $neftSec['missing_bank']; ?> missing bank A/C</span>
+            <?php endif; ?>
+        </div>
+        <div class="table-wrap" style="margin-top:12px;">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Sr</th>
+                        <th>Type</th>
+                        <th>BNF_NAME</th>
+                        <th>Department</th>
+                        <th>BENE_ACC_NO</th>
+                        <th>BENE_IFSC</th>
+                        <th class="num">AMOUNT</th>
+                        <th>CREDIT_NARR</th>
+                        <th>PYMT_DATE</th>
+                        <th>EMAIL_ID</th>
+                    </tr>
+                </thead>
+                <tbody>
+                <?php foreach ($neftRows as $nr): ?>
+                    <?php $missBank = !empty($nr['missing_bank']); ?>
+                    <tr<?php echo $missBank ? ' style="background:#fff7ed;"' : ''; ?>>
+                        <td><?php echo (int) $nr['sr']; ?></td>
+                        <td><?php echo htmlspecialchars($nr['register_kind']); ?></td>
+                        <td>
+                            <strong><?php echo htmlspecialchars(cncCloneBeneName($nr['employee_name'])); ?></strong>
+                            <div class="sr-code"><?php echo htmlspecialchars($nr['employee_code']); ?><?php echo $missBank ? ' · No bank A/C' : ''; ?></div>
+                        </td>
+                        <td>CNC</td>
+                        <td><?php echo htmlspecialchars($missBank ? '—' : $nr['account']); ?></td>
+                        <td><?php echo htmlspecialchars($nr['ifsc'] !== '' ? $nr['ifsc'] : '-'); ?></td>
+                        <td class="num"><strong><?php echo cncCloneNum($nr['amount'], 2); ?></strong></td>
+                        <td><?php echo htmlspecialchars($neftExport['credit_narr']); ?></td>
+                        <td><?php echo htmlspecialchars($neftExport['pay_date']); ?></td>
+                        <td><?php echo htmlspecialchars($neftExport['cfg']['email_id']); ?></td>
+                    </tr>
+                <?php endforeach; ?>
+                </tbody>
+                <tfoot>
+                    <tr style="background:#ecfdf5;">
+                        <td colspan="6"><strong>Normal Salary Total (<?php echo (int) $neftSec['normal_count']; ?>)</strong></td>
+                        <td class="num"><strong><?php echo cncCloneNum($neftSec['normal_total'], 2); ?></strong></td>
+                        <td colspan="3"></td>
+                    </tr>
+                    <tr style="background:#eff6ff;">
+                        <td colspan="6"><strong>Jobwork Total (<?php echo (int) $neftSec['jobwork_count']; ?>)</strong></td>
+                        <td class="num"><strong><?php echo cncCloneNum($neftSec['jobwork_total'], 2); ?></strong></td>
+                        <td colspan="3"></td>
+                    </tr>
+                    <tr style="background:#fef3c7;">
+                        <td colspan="6"><strong>Final NEFT Total</strong></td>
+                        <td class="num"><strong><?php echo cncCloneNum($neftSec['final_total'], 2); ?></strong></td>
+                        <td colspan="3"></td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    </div>
+    <?php endif; ?>
 
     <?php if (!$beforeNov && $mainId > 0): ?>
     <div class="cnc-clone-sheet">

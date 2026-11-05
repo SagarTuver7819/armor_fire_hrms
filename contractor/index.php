@@ -20,7 +20,6 @@ $modules = [
     ['key' => 'operations', 'title' => 'Operations Rate List', 'icon' => 'fa-table', 'color' => '#8E44AD', 'url' => 'contractor/operations/index.php', 'meta' => 'Daily qty × rate'],
     ['key' => 'operations_clone', 'title' => 'New Operation List', 'icon' => 'fa-table-list', 'color' => '#0F766E', 'url' => 'contractor/operations_clone/index.php', 'meta' => 'CNC · from Nov 2026 · View'],
     ['key' => 'salary_clone', 'title' => 'Clone Salary Register', 'icon' => 'fa-file-invoice-dollar', 'color' => '#7C3AED', 'url' => 'contractor/salary_register_clone/index.php', 'meta' => 'CNC · New Operation totals'],
-    ['key' => 'salary_clone_neft', 'title' => 'Clone NEFT', 'icon' => 'fa-building-columns', 'color' => '#1D4ED8', 'url' => 'contractor/salary_register_clone/neft.php', 'meta' => 'CNC · Clone register Net'],
     ['key' => 'register_actual', 'title' => 'Jobwork Register (Actual)', 'icon' => 'fa-scale-balanced', 'color' => '#0F766E', 'url' => 'payroll/register.php?type=jobwork_actual', 'meta' => 'Qty × rate as earned'],
 ];
 ?>
