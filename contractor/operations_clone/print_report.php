@@ -131,30 +131,36 @@ $title = 'Job work and Attendance Report — ' . $monthLabel;
             padding: 42mm 12mm 28mm 12mm !important;
             height: 100% !important; max-height: 100% !important; overflow: hidden !important;
         }
-        .doc-title { text-align: center; font-size: 16px; font-weight: 800; margin: 0; letter-spacing: .04em; text-transform: uppercase; }
-        .doc-sub { text-align: center; font-size: 12px; color: #9f1239; font-weight: 800; margin: 2px 0 8px; letter-spacing: .03em; text-transform: uppercase; }
-        .sec-title { font-size: 13px; font-weight: 800; margin: 0 0 6px; color: #9f1239; }
+        .page .cdoc-inner { color: #0f172a; font-weight: 700; }
+        .doc-title { text-align: center; font-size: 17px; font-weight: 800; margin: 0; letter-spacing: .04em; text-transform: uppercase; color: #0f172a; }
+        .doc-sub { text-align: center; font-size: 13px; color: #9f1239; font-weight: 800; margin: 2px 0 8px; letter-spacing: .03em; text-transform: uppercase; }
+        .sec-title { font-size: 14px; font-weight: 800; margin: 0 0 6px; color: #9f1239; }
         .meta {
             display: grid; grid-template-columns: 1fr 1fr; gap: 2px 16px;
-            font-size: 12px; margin-bottom: 8px; border: 1px solid #e2e8f0; padding: 6px 8px;
+            font-size: 13px; font-weight: 700; color: #0f172a;
+            margin-bottom: 8px; border: 1px solid #cbd5e1; padding: 6px 8px;
         }
-        table { width: 100%; border-collapse: collapse; font-size: 11.5px; }
-        th, td { border: 1px solid #94a3b8; padding: 4px 6px; vertical-align: middle; }
+        table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+        th, td { border: 1px solid #64748b; padding: 4px 6px; vertical-align: middle; font-weight: 700; color: #0f172a; }
         th { background: #fde8e9; font-weight: 800; text-align: center; }
-        td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+        td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; font-weight: 800; }
         td.sr, th.sr { text-align: center; width: 36px; }
         tr.main td { background: #fff7ed; font-weight: 800; }
         tr.total td { background: #fef2f2; font-weight: 800; }
-        .note { margin-top: 8px; font-size: 11px; color: #475569; }
-        .signs { margin-top: auto; display: flex; justify-content: space-between; font-size: 11px; padding-top: 10px; }
+        .note { margin-top: 8px; font-size: 12px; font-weight: 700; color: #0f172a; }
+        .signs { margin-top: auto; display: flex; justify-content: space-between; font-size: 12px; font-weight: 800; padding-top: 10px; }
         .signs div { width: 30%; text-align: center; border-top: 1px solid #0f172a; padding-top: 4px; }
-        .page-no { text-align: center; font-size: 10px; color: #64748b; margin-top: 4px; }
+        .page-no { text-align: center; font-size: 11px; font-weight: 700; color: #0f172a; margin-top: 4px; }
         @media print {
             body { background: #fff; }
             .toolbar { display: none !important; }
             .sheet-stack { padding: 0; }
             .page { margin: 0; box-shadow: none; page-break-after: always; }
             .page:last-child { page-break-after: auto; }
+            .page .cdoc-inner, .page th, .page td, .page .note, .page .signs, .page .meta {
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
         }
     </style>
 </head>
