@@ -730,11 +730,11 @@ function calculateContractorRow($operation, $rate, $otRate, $rejRate, array $day
         $otQty = 0.0;
     }
 
-    $totalQty = $normalQty + $otQty;
+    // Total Qty is the Q column only. OT is counted in its own total.
+    $totalQty = $normalQty;
     $amount = 0.0;
     if ($operation === 'FOUNDRY') {
         // Foundry: Day (q) and Night (r) kept separate; amount = (D+N) × rate
-        $totalQty = $normalQty;
         $amount = ($normalQty + $rQty) * $rate;
     } elseif (in_array($operation, $repairOps, true)) {
         $amount = ($normalQty * $rate) + ($rQty * $rejRate) + ($otQty * $otRate);

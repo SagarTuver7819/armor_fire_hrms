@@ -806,11 +806,8 @@
                 if (!$(this).prop('disabled')) otQty += parseFloat($(this).val()) || 0;
             });
         }
-        var totalQty = normalQty + otQty;
-        // Foundry: show Day & Night separately (not combined as one Qty)
-        if (op === 'FOUNDRY') {
-            totalQty = normalQty;
-        }
+        // Total Qty is the Q column only. R and OT stay in their own totals.
+        var totalQty = normalQty;
         $row.find('.total-qty').val(parseFloat(totalQty.toFixed(2)));
         $row.find('.total-r').val(parseFloat(rQty.toFixed(2)));
         $row.find('.total-ot').val(parseFloat(otQty.toFixed(2)));
@@ -838,13 +835,17 @@
         var dayR = {};
         var dayOt = {};
         $('#opsRows .ops-row').each(function () {
-            gQty += parseFloat($(this).find('.total-qty').val()) || 0;
             gR += parseFloat($(this).find('.total-r').val()) || 0;
             gAmt += parseFloat($(this).find('.total-amount').val()) || 0;
+            var rowQ = 0;
             $(this).find('.day-qty').each(function () {
                 var d = $(this).closest('.day-cell').attr('data-day');
-                dayQ[d] = (dayQ[d] || 0) + (parseFloat($(this).val()) || 0);
+                var n = parseFloat($(this).val()) || 0;
+                if (!$(this).prop('disabled')) rowQ += n;
+                dayQ[d] = (dayQ[d] || 0) + n;
             });
+            $(this).find('.total-qty').val(parseFloat(rowQ.toFixed(2)));
+            gQty += rowQ;
             if (showR) {
                 $(this).find('.day-qty-r').each(function () {
                     var d = $(this).closest('.day-cell').attr('data-day');
