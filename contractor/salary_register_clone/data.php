@@ -108,19 +108,40 @@ function cncCloneRegisterBundle($month, $year, $operation = 'CNC')
         $code = strtoupper(trim((string) ($st['code'] ?? '')));
         $ex = $extra[$code] ?? [];
         $paid = (float) ($st['paid_days'] ?? 0);
-        $final = round((float) ($st['final'] ?? 0), 2);
-        $loan = !empty($st['is_main']) ? 0.0 : round((float) ($st['loan'] ?? 0), 2);
         $isMain = !empty($st['is_main']);
-        $gross = cncCloneRoundRupee($isMain ? $final : ($final + $loan));
-        $pt = $gross >= 12001 ? 200.0 : 0.0;
-        $net = cncCloneRoundRupee($gross - $pt - $loan);
+        $isBuff = $operation === 'BUFF';
+        if ($isBuff && $isMain) {
+            $gross = cncCloneRoundRupee($st['register_final'] ?? (
+                (float) ($st['final'] ?? 0)
+                + (float) ($st['buff_expense'] ?? 0)
+                + (float) ($st['housekeeping'] ?? 0)
+            ));
+            $loan = 0.0;
+            $pt = $gross >= 12001 ? 200.0 : 0.0;
+            $net = cncCloneRoundRupee($gross - $pt);
+            $salary = $gross;
+        } elseif ($isBuff) {
+            $loan = cncCloneRoundRupee($st['loan'] ?? 0);
+            $netBase = cncCloneRoundRupee($st['final'] ?? 0);
+            $gross = cncCloneRoundRupee($netBase + $loan);
+            $pt = $gross >= 12001 ? 200.0 : 0.0;
+            $net = cncCloneRoundRupee($gross - $pt - $loan);
+            $salary = (float) ($st['salary'] ?? 0);
+        } else {
+            $final = round((float) ($st['final'] ?? 0), 2);
+            $loan = $isMain ? 0.0 : round((float) ($st['loan'] ?? 0), 2);
+            $gross = cncCloneRoundRupee($isMain ? $final : ($final + $loan));
+            $pt = $gross >= 12001 ? 200.0 : 0.0;
+            $net = cncCloneRoundRupee($gross - $pt - $loan);
+            $salary = $isMain ? $gross : (float) ($st['salary'] ?? 0);
+        }
         $rows[] = [
             'code' => (string) ($st['code'] ?? ''),
             'name' => (string) ($st['name'] ?? ''),
             'designation' => trim((string) ($ex['designation'] ?? '')),
             'doj' => cncCloneDate($ex['date_of_joining'] ?? ''),
             'uan' => trim((string) ($ex['uan_number'] ?? '')),
-            'salary' => $isMain ? $gross : (float) ($st['salary'] ?? 0),
+            'salary' => $salary,
             'present' => $paid,
             'total_days' => $paid,
             'gross' => $gross,
