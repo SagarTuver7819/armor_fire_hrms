@@ -647,7 +647,7 @@ $sidebarCompanyName = function_exists('getCompanyName') ? getCompanyName() : 'Ar
                     <a href="<?php echo app_url('sop/index.php?department_id=' . (int) $sidebarDeptId); ?>"
                        class="sidebar-link <?php echo $sidebarActive === 'cnc_sop' ? 'active' : ''; ?>">
                         <i class="fa-solid fa-file-signature"></i>
-                        <span>SOP</span>
+                        <span>Contractor Agreement</span>
                     </a>
                     <?php endif; ?>
                     <a href="<?php echo app_url('employees/index.php?department_id=' . $sidebarDeptId); ?>"

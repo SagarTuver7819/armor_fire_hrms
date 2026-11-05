@@ -41,7 +41,7 @@ $result = cncSopSave($conn, $payload);
 $conn->close();
 
 if (empty($result['ok'])) {
-    $_SESSION['sop_form_error'] = $result['error'] ?? 'Could not save SOP.';
+    $_SESSION['sop_form_error'] = $result['error'] ?? 'Could not save Contractor Agreement.';
     $_SESSION['sop_form_data'] = $payload;
     $back = app_url('sop/edit.php?department_id=' . $deptId . ($id > 0 ? '&id=' . $id : ''));
     header('Location: ' . $back);

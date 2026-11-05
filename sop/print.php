@@ -53,7 +53,7 @@ $saved = isset($_GET['msg']) && in_array($_GET['msg'], ['added', 'updated'], tru
 </head>
 <body>
     <div class="sop-toolbar no-print">
-        <a class="secondary" href="<?php echo app_url('sop/index.php?department_id=' . $deptId); ?>">Back to SOP</a>
+        <a class="secondary" href="<?php echo app_url('sop/index.php?department_id=' . $deptId); ?>">Back to Contractor Agreement</a>
         <a class="secondary" href="<?php echo app_url('sop/edit.php?id=' . (int) $row['id'] . '&department_id=' . $deptId); ?>">Edit</a>
         <button type="button" onclick="window.print()">Print / Save PDF</button>
         <button type="button" id="sopCopy">Copy share link</button>

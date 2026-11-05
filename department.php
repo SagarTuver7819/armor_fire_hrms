@@ -212,8 +212,8 @@ if ($department) {
                     <div class="module-icon" style="background-color: #d2232a;">
                         <i class="fa-solid fa-file-signature"></i>
                     </div>
-                    <div class="module-label">SOP</div>
-                    <div class="module-meta"><?php echo (int) $sopCount; ?> SOP · Letterhead · Share</div>
+                    <div class="module-label">Contractor Agreement</div>
+                    <div class="module-meta"><?php echo (int) $sopCount; ?> Agreement · Letterhead · Share</div>
                 </a>
                 <?php endif; ?>
                 <?php if (!$cncHideModules): ?>

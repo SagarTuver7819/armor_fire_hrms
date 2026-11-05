@@ -23,9 +23,9 @@
             language: {
                 search: 'Search:',
                 lengthMenu: 'Show _MENU_',
-                info: 'Showing _START_ to _END_ of _TOTAL_ SOP',
-                infoEmpty: 'No SOP',
-                zeroRecords: 'No matching SOP found',
+                info: 'Showing _START_ to _END_ of _TOTAL_ agreements',
+                infoEmpty: 'No Contractor Agreement',
+                zeroRecords: 'No matching Contractor Agreement found',
                 paginate: { previous: 'Prev', next: 'Next' }
             }
         });
@@ -34,7 +34,7 @@
     document.querySelectorAll('.js-sop-share').forEach(function (btn) {
         btn.addEventListener('click', function () {
             var url = btn.getAttribute('data-url') || '';
-            var title = btn.getAttribute('data-title') || 'SOP';
+            var title = btn.getAttribute('data-title') || 'Contractor Agreement';
             var text = title + '\n' + url;
             if (navigator.share) {
                 navigator.share({ title: title, text: title, url: url }).catch(function () {});

@@ -149,7 +149,7 @@ function cncSopSave($conn, array $data)
     if ($id > 0) {
         $existing = cncSopGet($conn, $id);
         if (!$existing || (int) $existing['department_id'] !== $departmentId) {
-            return ['ok' => false, 'error' => 'SOP not found.'];
+            return ['ok' => false, 'error' => 'Contractor Agreement not found.'];
         }
         $storedSignature = (string) ($existing['signature_data'] ?? '');
         if ($signature !== '') {

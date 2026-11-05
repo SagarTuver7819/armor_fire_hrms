@@ -19,7 +19,7 @@ $conn = getDBConnection();
 $rows = cncSopList($conn, $deptId);
 $conn->close();
 
-$pageTitle = 'SOP';
+$pageTitle = 'Contractor Agreement';
 $useSidebar = true;
 $sidebarMode = 'department';
 $sidebarDeptId = $deptId;
@@ -33,9 +33,9 @@ require_once __DIR__ . '/../includes/header.php';
 $toast = '';
 if (isset($_GET['msg'])) {
     $map = [
-        'added' => 'SOP saved on the letterhead.',
-        'updated' => 'SOP updated.',
-        'deleted' => 'SOP deleted.',
+        'added' => 'Contractor Agreement saved on the letterhead.',
+        'updated' => 'Contractor Agreement updated.',
+        'deleted' => 'Contractor Agreement deleted.',
     ];
     $toast = $map[$_GET['msg']] ?? '';
 }
@@ -47,14 +47,14 @@ if (isset($_GET['msg'])) {
         </a>
         <?php if (canAccess('departments', 'add', $deptId)): ?>
         <a href="<?php echo app_url('sop/edit.php?department_id=' . $deptId); ?>" class="btn-primary">
-            <i class="fa-solid fa-plus"></i> Add SOP
+            <i class="fa-solid fa-plus"></i> Add Contractor Agreement
         </a>
         <?php endif; ?>
     </div>
 
     <div class="list-header">
         <div>
-            <h1>SOP</h1>
+            <h1>Contractor Agreement</h1>
             <p><?php echo htmlspecialchars($department['department_name']); ?> · Letterhead · Share</p>
         </div>
     </div>
@@ -92,7 +92,7 @@ if (isset($_GET['msg'])) {
                                 <?php endif; ?>
                                 <button type="button" class="action-btn share js-sop-share" title="Share" data-url="<?php echo htmlspecialchars($shareUrl); ?>" data-title="<?php echo htmlspecialchars($row['title']); ?>"><i class="fa-solid fa-share-nodes"></i></button>
                                 <?php if (canAccess('departments', 'delete', $deptId)): ?>
-                                <form method="post" class="sop-del-form" action="<?php echo app_url('sop/delete.php'); ?>" onsubmit="return confirm('Delete this SOP?');">
+                                <form method="post" class="sop-del-form" action="<?php echo app_url('sop/delete.php'); ?>" onsubmit="return confirm('Delete this Contractor Agreement?');">
                                     <input type="hidden" name="id" value="<?php echo (int) $row['id']; ?>">
                                     <input type="hidden" name="department_id" value="<?php echo $deptId; ?>">
                                     <button type="submit" class="action-btn delete" title="Delete"><i class="fa-solid fa-trash"></i></button>

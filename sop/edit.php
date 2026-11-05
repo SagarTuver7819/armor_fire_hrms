@@ -50,7 +50,7 @@ $val = static function ($key, $fallback = '') use ($row) {
     return htmlspecialchars((string) ($row[$key] ?? $fallback), ENT_QUOTES, 'UTF-8');
 };
 
-$pageTitle = $id > 0 ? 'Edit SOP' : 'Add SOP';
+$pageTitle = $id > 0 ? 'Edit Contractor Agreement' : 'Add Contractor Agreement';
 $useSidebar = true;
 $sidebarMode = 'department';
 $sidebarDeptId = $deptId;
@@ -62,7 +62,7 @@ $dateShow = dateInputValue($row['sop_date'] ?? date('Y-m-d'));
 <main class="dashboard-main">
     <div class="page-toolbar">
         <a href="<?php echo app_url('sop/index.php?department_id=' . $deptId); ?>" class="back-link">
-            <i class="fa-solid fa-arrow-left"></i> Back to SOP
+            <i class="fa-solid fa-arrow-left"></i> Back to Contractor Agreement
         </a>
     </div>
 
@@ -74,7 +74,7 @@ $dateShow = dateInputValue($row['sop_date'] ?? date('Y-m-d'));
                 </div>
                 <div>
                     <h1><?php echo htmlspecialchars($pageTitle); ?></h1>
-                    <p>CNC SOP · fields here · letterhead after save</p>
+                    <p>CNC Contractor Agreement · fields here · letterhead after save</p>
                 </div>
             </div>
         </div>
@@ -92,12 +92,12 @@ $dateShow = dateInputValue($row['sop_date'] ?? date('Y-m-d'));
             <input type="hidden" name="clear_signature" id="clearSignature" value="0">
 
             <div class="form-section">
-                <h3><i class="fa-solid fa-file-lines"></i> SOP Details</h3>
+                <h3><i class="fa-solid fa-file-lines"></i> Agreement Details</h3>
                 <div class="form-grid">
                     <div class="form-group">
-                        <label for="sopTitle">SOP Title <span class="req">*</span></label>
+                        <label for="sopTitle">Agreement Title <span class="req">*</span></label>
                         <input type="text" name="title" id="sopTitle" class="form-control" required maxlength="255"
-                               placeholder="SOP title" value="<?php echo $val('title'); ?>">
+                               placeholder="Agreement title" value="<?php echo $val('title'); ?>">
                     </div>
                     <div class="form-group">
                         <label for="sopDate">Date <span class="req">*</span> <small>(DD-MM-YYYY)</small></label>
@@ -122,7 +122,7 @@ $dateShow = dateInputValue($row['sop_date'] ?? date('Y-m-d'));
                 <div class="form-group full">
                     <label for="sopBody">Body <span class="req">*</span></label>
                     <textarea name="body" id="sopBody" class="form-control" required rows="8"
-                              placeholder="Write the SOP description. Add as much as needed."><?php echo $val('body'); ?></textarea>
+                                  placeholder="Write the agreement description. Add as much as needed."><?php echo $val('body'); ?></textarea>
                 </div>
             </div>
 

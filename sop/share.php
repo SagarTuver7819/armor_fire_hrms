@@ -15,7 +15,7 @@ $row = cncSopGetByToken($conn, $token);
 $conn->close();
 if (!$row) {
     http_response_code(404);
-    echo 'This SOP link is not available.';
+    echo 'This Contractor Agreement link is not available.';
     exit;
 }
 $brand = getCompanyDocumentBranding();

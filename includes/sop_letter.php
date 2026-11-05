@@ -146,8 +146,8 @@ function cncSopLetterInner(array $row, $editing = false)
 
     $html = '';
     if ($editing) {
-        $html .= '<div class="sop-field"><label for="sopTitle">SOP Title</label>';
-        $html .= '<input class="sop-line" id="sopTitle" name="title" required maxlength="255" value="' . cncSopH($title) . '" placeholder="SOP title"></div>';
+        $html .= '<div class="sop-field"><label for="sopTitle">Agreement Title</label>';
+        $html .= '<input class="sop-line" id="sopTitle" name="title" required maxlength="255" value="' . cncSopH($title) . '" placeholder="Agreement title"></div>';
         $html .= '<div class="sop-meta">';
         $html .= '<div class="sop-field"><label for="sopDate">Date</label>';
         $html .= '<input class="sop-line" id="sopDate" name="sop_date" required maxlength="10" value="' . cncSopH($dateShow) . '" placeholder="DD-MM-YYYY"></div>';
@@ -157,7 +157,7 @@ function cncSopLetterInner(array $row, $editing = false)
         $html .= '<div class="sop-field"><label for="sopSubject">Subject</label>';
         $html .= '<input class="sop-line" id="sopSubject" name="subject" required maxlength="500" value="' . cncSopH($subject) . '" placeholder="Subject"></div>';
         $html .= '<div class="sop-field"><label for="sopBody">Body</label>';
-        $html .= '<textarea class="sop-body" id="sopBody" name="body" required placeholder="Write the SOP description here. Add as much as needed.">' . cncSopH($body) . '</textarea></div>';
+        $html .= '<textarea class="sop-body" id="sopBody" name="body" required placeholder="Write the agreement description here. Add as much as needed.">' . cncSopH($body) . '</textarea></div>';
         return $html;
     }
 
