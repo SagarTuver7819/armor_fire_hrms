@@ -162,6 +162,25 @@ function cncCloneRegisterBundle($month, $year, $operation = 'CNC')
     ];
 }
 
+/**
+ * NEFT always takes every CNC and BUFF clone-register row.
+ * The department filter on the page does not drop Buff from this sheet.
+ *
+ * @return array<int,array>
+ */
+function cncCloneNeftRegisterRows($month, $year)
+{
+    $rows = [];
+    foreach (['CNC', 'BUFF'] as $opName) {
+        $bundle = cncCloneRegisterBundle($month, $year, $opName);
+        foreach ($bundle['rows'] as $r) {
+            $r['department'] = $opName;
+            $rows[] = $r;
+        }
+    }
+    return $rows;
+}
+
 function cncCloneNeftRows(array $registerRows)
 {
     $neft = [];

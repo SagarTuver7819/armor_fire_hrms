@@ -18,20 +18,7 @@ if ($year < 2000 || $year > 2100) {
     $year = (int) date('Y');
 }
 
-$dept = strtoupper(trim((string) ($_GET['dept'] ?? 'ALL')));
-if (!in_array($dept, ['ALL', 'CNC', 'BUFF'], true)) {
-    $dept = 'ALL';
-}
-$ops = $dept === 'ALL' ? ['CNC', 'BUFF'] : [$dept];
-$neftSource = [];
-foreach ($ops as $opName) {
-    $bundle = cncCloneRegisterBundle($month, $year, $opName);
-    foreach ($bundle['rows'] as $r) {
-        $r['department'] = $opName;
-        $neftSource[] = $r;
-    }
-}
-$neftRows = cncCloneNeftRows($neftSource);
+$neftRows = cncCloneNeftRows(cncCloneNeftRegisterRows($month, $year));
 $export = cncCloneNfpsExport($neftRows, $month, $year);
 if (!$export['rows']) {
     header('Location: ' . app_url('contractor/salary_register_clone/index.php?' . http_build_query(['month' => $month, 'year' => $year]) . '#cncNeftSheet'));

@@ -34,16 +34,7 @@ foreach ($ops as $opName) {
 }
 $beforeNov = !empty($bundles[$ops[0]]['before_nov']);
 $monthLabel = date('F Y', mktime(0, 0, 0, $month, 1, $year));
-$neftSource = [];
-foreach ($bundles as $opName => $one) {
-    if ($beforeNov || (int) ($one['main_id'] ?? 0) <= 0) {
-        continue;
-    }
-    foreach ($one['rows'] as $r) {
-        $r['department'] = $opName;
-        $neftSource[] = $r;
-    }
-}
+$neftSource = $beforeNov ? [] : cncCloneNeftRegisterRows($month, $year);
 $neftRows = $neftSource ? cncCloneNeftRows($neftSource) : [];
 $neftSec = cncCloneNeftSummary($neftRows);
 $neftExport = cncCloneNfpsExport($neftRows, $month, $year);
@@ -103,7 +94,7 @@ $neftQs = http_build_query(['month' => $month, 'year' => $year, 'dept' => $dept]
         <div class="form-page-header">
             <div>
                 <h1>NEFT Sheet</h1>
-                <p><?php echo htmlspecialchars($dept === 'ALL' ? 'CNC + BUFF' : $dept); ?> · <?php echo htmlspecialchars($monthLabel); ?> · Amount is Clone Register Net · CREDIT_NARR <?php echo htmlspecialchars($neftExport['credit_narr']); ?> · PYMT_DATE <?php echo htmlspecialchars($neftExport['pay_date']); ?></p>
+                <p>CNC + BUFF · <?php echo htmlspecialchars($monthLabel); ?> · Amount is each salary register Net · CREDIT_NARR <?php echo htmlspecialchars($neftExport['credit_narr']); ?> · PYMT_DATE <?php echo htmlspecialchars($neftExport['pay_date']); ?></p>
             </div>
         </div>
         <div class="ops-live-summary">

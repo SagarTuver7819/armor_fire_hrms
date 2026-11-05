@@ -17,20 +17,7 @@ if ($year < 2000 || $year > 2100) {
     $year = (int) date('Y');
 }
 
-$dept = strtoupper(trim((string) ($_GET['dept'] ?? 'ALL')));
-if (!in_array($dept, ['ALL', 'CNC', 'BUFF'], true)) {
-    $dept = 'ALL';
-}
-$ops = $dept === 'ALL' ? ['CNC', 'BUFF'] : [$dept];
-$neftSource = [];
-foreach ($ops as $opName) {
-    $bundle = cncCloneRegisterBundle($month, $year, $opName);
-    foreach ($bundle['rows'] as $r) {
-        $r['department'] = $opName;
-        $neftSource[] = $r;
-    }
-}
-$neftRows = cncCloneNeftRows($neftSource);
+$neftRows = cncCloneNeftRows(cncCloneNeftRegisterRows($month, $year));
 $sec = cncCloneNeftSummary($neftRows);
 $export = cncCloneNfpsExport($neftRows, $month, $year);
 if (!$neftRows) {
@@ -72,7 +59,7 @@ $companyName = function_exists('getCompanyName') ? getCompanyName() : 'Armor Fir
     </div>
     <h1><?php echo htmlspecialchars($companyName); ?> — Clone NEFT / Bank Transfer Sheet</h1>
     <div class="meta">
-        <?php echo htmlspecialchars($monthLabel); ?> · <?php echo htmlspecialchars($dept === 'ALL' ? 'CNC + BUFF' : $dept); ?> · Clone Salary Register Net<br>
+        <?php echo htmlspecialchars($monthLabel); ?> · CNC + BUFF · Clone Salary Register Net<br>
         CREDIT_NARR=<?php echo htmlspecialchars($export['credit_narr']); ?>
         · PYMT_DATE=<?php echo htmlspecialchars($export['pay_date']); ?>
         · EMAIL=<?php echo htmlspecialchars($export['cfg']['email_id']); ?>
